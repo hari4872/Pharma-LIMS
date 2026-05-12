@@ -61,11 +61,11 @@ export default function LaboratoriesPage() {
 }
 
 // ---- shared mini-components ----
-export function PageHeader({ title, onAdd }: { title: string; onAdd?: () => void }) {
+export function PageHeader({ title, onAdd, addLabel }: { title: string; onAdd?: () => void; addLabel?: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
       <h2 style={{ margin: 0, fontSize: 20, color: '#111827' }}>{title}</h2>
-      {onAdd && <button onClick={onAdd} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14 }}>+ Add</button>}
+      {onAdd && <button onClick={onAdd} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14 }}>+ {addLabel ?? 'Add'}</button>}
     </div>
   )
 }
@@ -88,16 +88,16 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
   )
 }
 
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+export function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return <div style={{ marginBottom: 16 }}><label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 4 }}>{label}</label>{children}</div>
 }
 
-export function ModalFooter({ saving, onCancel }: { saving: boolean; onCancel: () => void }) {
+export function ModalFooter({ saving, onCancel, label }: { saving: boolean; onCancel: () => void; label?: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
       <button type="button" onClick={onCancel} style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: '#fff' }}>Cancel</button>
       <button type="submit" disabled={saving} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
-        {saving ? 'Saving…' : 'Save'}
+        {saving ? 'Saving…' : (label ?? 'Save')}
       </button>
     </div>
   )

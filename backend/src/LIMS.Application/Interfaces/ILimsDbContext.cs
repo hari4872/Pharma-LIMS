@@ -46,5 +46,17 @@ public interface ILimsDbContext
     DbSet<CoaDistributionLog> CoaDistributionLogs { get; }
     DbSet<CoaApproval> CoaApprovals { get; }
     DbSet<DispatchQcTask> DispatchQcTasks { get; }
+    // Phase 5: Traceability
+    DbSet<SamplingEvent> SamplingEvents { get; }
+    DbSet<ComplaintsDeviation> ComplaintsDeviations { get; }
+    DbSet<TraceQueryLog> TraceQueryLogs { get; }
+    // Phase 5: Sample Inventory & Pull Planning
+    DbSet<StorageLocation> StorageLocations { get; }
+    DbSet<StorageTransferLog> StorageTransferLogs { get; }
+    DbSet<ConditionExcursion> ConditionExcursions { get; }
+    DbSet<ExcursionAffectedSample> ExcursionAffectedSamples { get; }
+    DbSet<StabilityPull> StabilityPulls { get; }
+    DbSet<ShortPullDeviation> ShortPullDeviations { get; }
+    DbSet<RetainSample> RetainSamples { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSelector } from 'react-redux'
 import { useParams, useNavigate } from 'react-router-dom'
-import type { RootState } from '@/store'
 import api from '@/api/client'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 
@@ -13,7 +11,6 @@ interface Execution {
 interface Parameter {
   parameterId: number; parameterName: string; uom: string; dataType: string; isCritical: boolean
 }
-interface ResultEntry { parameterId: number; rawValue: string; evidenceFileRef?: string }
 interface ResultRow {
   entryId: number; parameterId: number; parameterName: string
   rawValue: string; calculatedResult: number | null
@@ -23,7 +20,6 @@ interface ResultRow {
 export default function TestExecutionPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const userId = useSelector((s: RootState) => s.auth.userId)
   const [execution, setExecution] = useState<Execution | null>(null)
   const [parameters, setParameters] = useState<Parameter[]>([])
   const [entries, setEntries] = useState<Record<number, string>>({})

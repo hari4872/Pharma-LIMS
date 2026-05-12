@@ -42,6 +42,10 @@ public static class DependencyInjection
         services.AddScoped<IQAReviewGateService, QAReviewGateService>();
         services.AddScoped<IDispatchEventService, DispatchEventService>();
         services.AddScoped<IDispatchStatusService, DispatchStatusService>();
+        // Phase 5 services
+        services.AddScoped<ITraceabilityQueryService, TraceabilityQueryService>();
+        services.AddScoped<IExcursionImpactService, ExcursionImpactService>();
+        services.AddScoped<IPullExecutionService, PullExecutionService>();
 
         // SignalR (Contract 2: all push from server)
         services.AddSignalR();
@@ -56,6 +60,10 @@ public static class DependencyInjection
         services.AddHostedService<MissedTriggerEscalationJob>();
         // Phase 3 background jobs
         services.AddHostedService<WorkQueueEscalationJob>();
+        // Phase 5 background jobs
+        services.AddHostedService<PullReminderJob>();
+        services.AddHostedService<MissedPullJob>();
+        services.AddHostedService<DestructionAlertJob>();
 
         return services;
     }

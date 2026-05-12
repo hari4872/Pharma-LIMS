@@ -51,6 +51,18 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<CoaDistributionLog> CoaDistributionLogs => Set<CoaDistributionLog>();
     public DbSet<CoaApproval> CoaApprovals => Set<CoaApproval>();
     public DbSet<DispatchQcTask> DispatchQcTasks => Set<DispatchQcTask>();
+    // Phase 5: Traceability
+    public DbSet<SamplingEvent> SamplingEvents => Set<SamplingEvent>();
+    public DbSet<ComplaintsDeviation> ComplaintsDeviations => Set<ComplaintsDeviation>();
+    public DbSet<TraceQueryLog> TraceQueryLogs => Set<TraceQueryLog>();
+    // Phase 5: Sample Inventory & Pull Planning
+    public DbSet<StorageLocation> StorageLocations => Set<StorageLocation>();
+    public DbSet<StorageTransferLog> StorageTransferLogs => Set<StorageTransferLog>();
+    public DbSet<ConditionExcursion> ConditionExcursions => Set<ConditionExcursion>();
+    public DbSet<ExcursionAffectedSample> ExcursionAffectedSamples => Set<ExcursionAffectedSample>();
+    public DbSet<StabilityPull> StabilityPulls => Set<StabilityPull>();
+    public DbSet<ShortPullDeviation> ShortPullDeviations => Set<ShortPullDeviation>();
+    public DbSet<RetainSample> RetainSamples => Set<RetainSample>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useSelector } from 'react-redux'
-import type { RootState } from '@/store'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
@@ -24,7 +22,6 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 }
 
 export default function WorkQueuePage() {
-  const userId = useSelector((s: RootState) => s.auth.userId)
   const [data, setData] = useState<WorkItem[]>([])
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState('')
