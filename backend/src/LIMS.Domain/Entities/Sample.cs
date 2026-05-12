@@ -14,7 +14,8 @@ public class Sample
     public string LotNumber { get; set; } = default!;
     public DateOnly MfgDate { get; set; }
     public DateOnly ExpDate { get; set; }
-    public string SampleType { get; set; } = default!;       // FK ref to SampleType.TypeCode
+    public int SampleTypeId { get; set; }                     // FK → SampleType master table (Gap 2 fix)
+    public SampleType SampleTypeNav { get; set; } = default!;
     public int? FormTemplateId { get; set; }                 // auto-selected by IFormTemplateSelectorService
     public FormTemplate? FormTemplate { get; set; }
     public SampleStatus Status { get; set; } = SampleStatus.Registered;

@@ -79,7 +79,7 @@ public class SpecLimitConfiguration : IEntityTypeConfiguration<SpecLimit>
         builder.Property(s => s.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(s => s.CreatedAt).HasColumnType("timestamptz");
         builder.HasOne(s => s.Parameter).WithMany(p => p.SpecLimits).HasForeignKey(s => s.ParameterId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne(s => s.Material).WithMany(m => m.SpecLimits).HasForeignKey(s => s.MaterialId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(s => s.Material).WithMany(m => m.SpecLimits).HasForeignKey(s => s.MaterialId).IsRequired().OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(s => s.Signature).WithMany().HasForeignKey(s => s.SignatureId).OnDelete(DeleteBehavior.Restrict);
     }
 }

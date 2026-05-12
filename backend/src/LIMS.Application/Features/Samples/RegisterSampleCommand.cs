@@ -11,7 +11,7 @@ namespace LIMS.Application.Features.Samples;
 // FR-01: unified command — both manual registration and Checkpoint auto-trigger use this
 public record RegisterSampleCommand(
     int LabId, int MaterialId, string LotNumber,
-    DateOnly MfgDate, DateOnly ExpDate, string SampleType,
+    DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId,   // Gap 2 fix: FK to SampleType master (was free-text string)
     int AnalystId, string CreatedBy) : IRequest<Result<int>>;
 
 public class RegisterSampleValidator : AbstractValidator<RegisterSampleCommand>
@@ -21,7 +21,7 @@ public class RegisterSampleValidator : AbstractValidator<RegisterSampleCommand>
         RuleFor(x => x.LabId).GreaterThan(0);
         RuleFor(x => x.MaterialId).GreaterThan(0);
         RuleFor(x => x.LotNumber).NotEmpty().MaximumLength(100);
-        RuleFor(x => x.SampleType).NotEmpty().MaximumLength(50);
+        RuleFor(x => x.SampleTypeId).GreaterThan(0).WithMessage("SampleTypeId is required — select from Master Data.");
         RuleFor(x => x.AnalystId).GreaterThan(0);
         RuleFor(x => x.ExpDate).GreaterThan(x => x.MfgDate)
             .WithMessage("Expiry date must be after manufacturing date.");
@@ -48,12 +48,16 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
 
     public async Task<Result<int>> Handle(RegisterSampleCommand request, CancellationToken ct)
     {
-        // Step 2: validate material exists and is active
+        // Step 2a: validate material exists and is active
         var material = await _db.Materials.FirstOrDefaultAsync(m => m.MaterialId == request.MaterialId && m.IsActive, ct);
         if (material is null) return Result<int>.Failure("MATERIAL_NOT_FOUND", "Material not found or inactive.");
 
+        // Step 2b: Gap 2 fix — validate SampleType FK exists and is active
+        var sampleType = await _db.SampleTypes.FirstOrDefaultAsync(t => t.SampleTypeId == request.SampleTypeId && t.IsActive, ct);
+        if (sampleType is null) return Result<int>.Failure("SAMPLE_TYPE_NOT_FOUND", "Sample type not found or inactive — configure in Master Data.");
+
         // Step 3: server-generated Sample ID (ALCOA+ Original — FR-02, FR-16)
-        var sampleNumber = await _sampleIdFormat.GenerateAsync(request.LabId, request.MaterialId, request.SampleType, request.LotNumber, ct);
+        var sampleNumber = await _sampleIdFormat.GenerateAsync(request.LabId, request.MaterialId, sampleType.TypeCode, request.LotNumber, ct);
 
         // Step 4: barcode auto-printed before validation gate (FR-14)
         var sample = new Sample
@@ -64,7 +68,7 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
             LotNumber = request.LotNumber,
             MfgDate = request.MfgDate,
             ExpDate = request.ExpDate,
-            SampleType = request.SampleType,
+            SampleTypeId = request.SampleTypeId,            // Gap 2 fix: FK instead of free-text
             AnalystId = request.AnalystId,
             Status = SampleStatus.Registered,
             BarcodePrinted = true,
@@ -101,7 +105,7 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
         await _db.SaveChangesAsync(ct);
 
         await _audit.LogAsync("Sample", sample.SampleId, "Registered", null,
-            new { sample.SampleNumber, sample.LotNumber, sample.SampleType, Status = "Registered" },
+            new { sample.SampleNumber, sample.LotNumber, SampleType = sampleType.TypeCode, Status = "Registered" },
             request.CreatedBy);
 
         // Contract 2: push via SignalR — no polling (FR-11)

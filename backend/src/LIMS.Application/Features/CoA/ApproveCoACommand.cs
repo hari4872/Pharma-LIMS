@@ -49,6 +49,7 @@ public class ApproveCoAHandler : IRequestHandler<ApproveCoACommand, Result<int>>
             if (!checklist.EvidencePresent)     failed.Add("Item 8: Evidence missing for critical parameter(s)");
             if (!checklist.CoaHeaderPopulated)  failed.Add("Item 9: CoA header fields incomplete");
             if (!checklist.CoaBodyComplete)     failed.Add("Item 10: CoA body has blank result field(s)");
+            if (!checklist.DispatchQcPassed)    failed.Add("Item 11: Dispatch QC not cleared — linked Delivery Order's QC task must be QA-approved before CoA can be issued");
             return Result<int>.Failure("CHECKLIST_FAILED",
                 "QA checklist failed — " + string.Join("; ", failed));
         }

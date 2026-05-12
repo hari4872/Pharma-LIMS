@@ -94,5 +94,5 @@ public class SpecLimitsController : ControllerBase
     }
 }
 
-public record CreateSpecLimitRequest(int ParameterId, int? MaterialId, string Stage, decimal? MinValue, decimal? MaxValue, string? RegulatoryTier, decimal? RegulatoryMin, decimal? RegulatoryMax, decimal? OotMinValue, decimal? OotMaxValue);
+public record CreateSpecLimitRequest(int ParameterId, int MaterialId, string Stage, decimal? MinValue, decimal? MaxValue, string? RegulatoryTier, decimal? RegulatoryMin, decimal? RegulatoryMax, decimal? OotMinValue, decimal? OotMaxValue); // Gap 3 fix: MaterialId required
 public record UpdateSpecLimitRequest(decimal? MinValue, decimal? MaxValue, string? RegulatoryTier, decimal? RegulatoryMin, decimal? RegulatoryMax, decimal? OotMinValue, decimal? OotMaxValue);

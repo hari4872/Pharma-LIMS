@@ -12,13 +12,14 @@ public class SampleConfiguration : IEntityTypeConfiguration<Sample>
         builder.Property(s => s.SampleNumber).HasMaxLength(60).IsRequired();
         builder.HasIndex(s => s.SampleNumber).IsUnique();
         builder.Property(s => s.LotNumber).HasMaxLength(100).IsRequired();
-        builder.Property(s => s.SampleType).HasMaxLength(50).IsRequired();
+        // Gap 2 fix: SampleType is now a FK to SampleType master table
         builder.Property(s => s.BarcodePrintedAt).HasColumnType("timestamptz");
         builder.Property(s => s.DueDate).HasColumnType("timestamptz");
         builder.Property(s => s.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(s => s.CreatedAt).HasColumnType("timestamptz");
         builder.HasOne(s => s.Lab).WithMany().HasForeignKey(s => s.LabId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(s => s.Material).WithMany().HasForeignKey(s => s.MaterialId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(s => s.SampleTypeNav).WithMany().HasForeignKey(s => s.SampleTypeId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(s => s.Analyst).WithMany().HasForeignKey(s => s.AnalystId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(s => s.FormTemplate).WithMany().HasForeignKey(s => s.FormTemplateId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(s => s.SrfSignature).WithMany().HasForeignKey(s => s.SrfSignatureId).OnDelete(DeleteBehavior.Restrict);
@@ -48,6 +49,8 @@ public class CheckpointConfiguration : IEntityTypeConfiguration<Checkpoint>
         builder.Property(c => c.CheckpointType).HasMaxLength(20).IsRequired();
         builder.Property(c => c.TimeSlots).HasColumnType("jsonb");
         builder.HasOne(c => c.Lab).WithMany().HasForeignKey(c => c.LabId).OnDelete(DeleteBehavior.Restrict);
+        // Gap 1 fix: Checkpoint → FormTemplate FK
+        builder.HasOne(c => c.FormTemplate).WithMany().HasForeignKey(c => c.FormTemplateId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

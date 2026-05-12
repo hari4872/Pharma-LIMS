@@ -13,6 +13,8 @@ public class Checkpoint
     public string CheckpointType { get; set; } = "Single";  // Single | Grouped
     public string? TimeSlots { get; set; }                   // JSONB — from DB config (Contract 2)
     public int? ShiftIntervalHrs { get; set; }               // Mode 3 interval
+    public int? FormTemplateId { get; set; }                 // FK — which form runs when this checkpoint fires
+    public FormTemplate? FormTemplate { get; set; }          // required for TimeBased/OperatorScan/ProcessLog; set by DispatchEventService for DispatchEvent
     public bool IsActive { get; set; } = true;
 
     public ICollection<CheckpointLocation> Locations { get; set; } = [];

@@ -11,6 +11,7 @@ namespace LIMS.Application.Features.Checkpoints;
 public record CreateCheckpointCommand(
     string CheckpointCode, int LabId, string TriggerMode,
     string CheckpointType, string? TimeSlots, int? ShiftIntervalHrs,
+    int? FormTemplateId,                                     // Gap 1 fix — required for TimeBased/OperatorScan/ProcessLog
     string CreatedBy) : IRequest<Result<int>>;
 
 public class CreateCheckpointValidator : AbstractValidator<CreateCheckpointCommand>
@@ -22,6 +23,10 @@ public class CreateCheckpointValidator : AbstractValidator<CreateCheckpointComma
         RuleFor(x => x.TriggerMode).NotEmpty()
             .Must(m => new[] { "TimeBased", "OperatorScan", "ProcessLog", "DispatchEvent" }.Contains(m))
             .WithMessage("TriggerMode must be TimeBased, OperatorScan, ProcessLog, or DispatchEvent.");
+        // FormTemplate required for all modes except DispatchEvent (DispatchEventService selects it dynamically)
+        RuleFor(x => x.FormTemplateId)
+            .GreaterThan(0).WithMessage("FormTemplateId is required for this trigger mode.")
+            .When(x => x.TriggerMode != "DispatchEvent");
     }
 }
 
@@ -35,6 +40,14 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
         var duplicate = await _db.Checkpoints.AnyAsync(c => c.CheckpointCode == request.CheckpointCode, ct);
         if (duplicate) return Result<int>.Failure("DUPLICATE", $"Checkpoint code '{request.CheckpointCode}' already exists.");
 
+        // Validate FormTemplate exists when provided
+        if (request.FormTemplateId.HasValue)
+        {
+            var ftExists = await _db.FormTemplates.AnyAsync(f => f.FormTemplateId == request.FormTemplateId.Value && f.IsActive, ct);
+            if (!ftExists)
+                return Result<int>.Failure("FORM_TEMPLATE_NOT_FOUND", $"FormTemplate {request.FormTemplateId} not found or inactive.");
+        }
+
         var checkpoint = new Checkpoint
         {
             CheckpointCode = request.CheckpointCode,
@@ -42,7 +55,8 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
             TriggerMode = Enum.Parse<TriggerType>(request.TriggerMode),
             CheckpointType = request.CheckpointType,
             TimeSlots = request.TimeSlots,
-            ShiftIntervalHrs = request.ShiftIntervalHrs
+            ShiftIntervalHrs = request.ShiftIntervalHrs,
+            FormTemplateId = request.FormTemplateId
         };
         _db.Checkpoints.Add(checkpoint);
         await _db.SaveChangesAsync(ct);

@@ -88,10 +88,21 @@ public class QAReviewGateService : IQAReviewGateService
                 !coa.Lines.Any(l => l.Entry is null);
         }
 
+        // Item 11: Gap 6 fix — Dispatch QC gate
+        // If the CoA has a linked DO, there must be at least one QAApproved DispatchQcTask for that DO
+        bool dispatchQcPassed = true;
+        if (coa is not null && coa.DeliveryOrderId.HasValue)
+        {
+            var hasApprovedDispatch = await _db.DispatchQcTasks
+                .AnyAsync(t => t.DoId == coa.DeliveryOrderId.Value &&
+                               t.Status == DispatchTaskStatus.QAApproved, ct);
+            dispatchQcPassed = hasApprovedDispatch;
+        }
+
         var allPassed = testsComplete && noOpenOos && noOpenOot &&
                         analystSigsPresent && peerReviewPresent && qcLeadVerifPresent &&
                         correctSpecVersion && evidencePresent &&
-                        coaHeaderPopulated && coaBodyComplete;
+                        coaHeaderPopulated && coaBodyComplete && dispatchQcPassed;
 
         return new QAChecklistResult(
             AllPassed:          allPassed,
@@ -104,7 +115,8 @@ public class QAReviewGateService : IQAReviewGateService
             CorrectSpecVersion: correctSpecVersion,
             EvidencePresent:    evidencePresent,
             CoaHeaderPopulated: coaHeaderPopulated,
-            CoaBodyComplete:    coaBodyComplete
+            CoaBodyComplete:    coaBodyComplete,
+            DispatchQcPassed:   dispatchQcPassed
         );
     }
 }

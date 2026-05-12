@@ -7,8 +7,8 @@ public class SpecLimit
     public int SpecLimitId { get; set; }
     public int ParameterId { get; set; }
     public TestMethodParameter Parameter { get; set; } = default!;
-    public int? MaterialId { get; set; }
-    public Material? Material { get; set; }
+    public int MaterialId { get; set; }                      // required — Spec must always link to a Material (Gap 3 fix)
+    public Material Material { get; set; } = default!;
     public SpecStage Stage { get; set; }
     public decimal? MinValue { get; set; }
     public decimal? MaxValue { get; set; }

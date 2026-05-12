@@ -12,6 +12,7 @@ interface Sample {
 }
 interface Lab { labId: number; labName: string }
 interface Material { materialId: number; materialName: string }
+interface SampleType { sampleTypeId: number; typeName: string; typeCode: string }
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Registered:      { bg: '#dbeafe', color: '#1e40af' },
@@ -27,6 +28,7 @@ export default function SampleRegistrationPage() {
   const [data, setData] = useState<Sample[]>([])
   const [labs, setLabs] = useState<Lab[]>([])
   const [materials, setMaterials] = useState<Material[]>([])
+  const [sampleTypes, setSampleTypes] = useState<SampleType[]>([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [showSRF, setShowSRF] = useState<number | null>(null)
@@ -34,7 +36,7 @@ export default function SampleRegistrationPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [form, setForm] = useState({
     labId: '', materialId: '', lotNumber: '',
-    mfgDate: '', expDate: '', sampleType: 'Liquid'
+    mfgDate: '', expDate: '', sampleTypeId: ''
   })
   const [srfForm, setSrfForm] = useState({ password: '', meaning: 'I confirm this Sample Registration Form', reason: '' })
   const [reprintReason, setReprintReason] = useState('')
@@ -44,10 +46,11 @@ export default function SampleRegistrationPage() {
   async function load() {
     setLoading(true)
     const params = statusFilter ? `?status=${statusFilter}` : ''
-    const [r, lr, mr] = await Promise.all([
-      api.get(`/samples${params}`), api.get('/laboratories'), api.get('/materials')
+    const [r, lr, mr, str] = await Promise.all([
+      api.get(`/samples${params}`), api.get('/laboratories'),
+      api.get('/materials'), api.get('/sample-types')
     ])
-    setData(r.data); setLabs(lr.data); setMaterials(mr.data)
+    setData(r.data); setLabs(lr.data); setMaterials(mr.data); setSampleTypes(str.data)
     setLoading(false)
   }
   useEffect(() => { load() }, [statusFilter])
@@ -58,7 +61,7 @@ export default function SampleRegistrationPage() {
       await api.post('/samples', {
         labId: Number(form.labId), materialId: Number(form.materialId),
         lotNumber: form.lotNumber, mfgDate: form.mfgDate,
-        expDate: form.expDate, sampleType: form.sampleType
+        expDate: form.expDate, sampleTypeId: Number(form.sampleTypeId)
       })
       setShowForm(false); load()
     } catch (err: any) { setError(err.response?.data?.message ?? 'Registration failed') }
@@ -83,7 +86,6 @@ export default function SampleRegistrationPage() {
     finally { setSaving(false) }
   }
 
-  const SAMPLE_TYPES = ['Liquid', 'Solid', 'Powder', 'Gas', 'Swab', 'Granule', 'Suspension', 'Emulsion']
 
   return (
     <div>
@@ -147,8 +149,11 @@ export default function SampleRegistrationPage() {
               <Field label="Exp Date"><input style={inp} type="date" value={form.expDate} onChange={e => setForm(f => ({ ...f, expDate: e.target.value }))} required /></Field>
             </div>
             <Field label="Sample Type">
-              <select style={inp} value={form.sampleType} onChange={e => setForm(f => ({ ...f, sampleType: e.target.value }))}>
-                {SAMPLE_TYPES.map(t => <option key={t}>{t}</option>)}
+              <select style={inp} value={form.sampleTypeId} onChange={e => setForm(f => ({ ...f, sampleTypeId: e.target.value }))} required>
+                <option value="">Select sample type…</option>
+                {sampleTypes.filter(t => t.typeCode !== 'DSPQC').map(t =>
+                  <option key={t.sampleTypeId} value={t.sampleTypeId}>{t.typeName} ({t.typeCode})</option>
+                )}
               </select>
             </Field>
             <p style={{ fontSize: 12, color: '#6b7280', margin: '8px 0' }}>

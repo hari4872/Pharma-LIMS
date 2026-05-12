@@ -27,7 +27,7 @@ public class SamplesController : ControllerBase
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
         var result = await _mediator.Send(new RegisterSampleCommand(
             request.LabId, request.MaterialId, request.LotNumber,
-            request.MfgDate, request.ExpDate, request.SampleType,
+            request.MfgDate, request.ExpDate, request.SampleTypeId,
             userId, username));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { sampleId = result.Value });
@@ -61,5 +61,5 @@ public class SamplesController : ControllerBase
 }
 
 public record RegisterSampleRequest(int LabId, int MaterialId, string LotNumber,
-    DateOnly MfgDate, DateOnly ExpDate, string SampleType);
+    DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId);  // Gap 2 fix: FK int (was free-text string)
 public record ReprintBarcodeRequest(string Reason);

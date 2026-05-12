@@ -22,6 +22,7 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
         var query = _db.Samples
             .Include(s => s.Material)
             .Include(s => s.Analyst)
+            .Include(s => s.SampleTypeNav)              // Gap 2 fix
             .AsQueryable();
 
         if (request.LabId.HasValue) query = query.Where(s => s.LabId == request.LabId);
@@ -32,7 +33,7 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
         return await query.OrderByDescending(s => s.CreatedAt)
             .Select(s => new SampleDto(
                 s.SampleId, s.SampleNumber, s.Material.MaterialName, s.LotNumber,
-                s.SampleType, s.Status.ToString(), s.BarcodePrinted, s.DueDate,
+                s.SampleTypeNav.TypeName, s.Status.ToString(), s.BarcodePrinted, s.DueDate,
                 s.Analyst.FullName, s.CreatedAt, s.FormTemplateId))
             .ToListAsync(ct);
     }

@@ -68,7 +68,8 @@ export default function CoaReviewPage() {
         { label: '7. Correct approved spec version used',   pass: cl.correctSpecVersion },
         { label: '8. Evidence present (critical params)',   pass: cl.evidencePresent },
         { label: '9. CoA header fully populated',           pass: cl.coaHeaderPopulated },
-        { label: '10. CoA body complete (no blank results)',pass: cl.coaBodyComplete },
+        { label: '10. CoA body complete (no blank results)', pass: cl.coaBodyComplete },
+        { label: '11. Dispatch QC cleared (if DO linked)',   pass: cl.dispatchQcPassed },
       ])
     } catch { setChecklist(null) }
     setChecklistLoading(false)

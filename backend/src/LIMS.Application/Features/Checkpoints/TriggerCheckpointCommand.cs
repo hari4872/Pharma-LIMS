@@ -1,5 +1,6 @@
 using LIMS.Application.Common;
 using LIMS.Application.Interfaces;
+using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,15 +23,24 @@ public class TriggerCheckpointCommandHandler : IRequestHandler<TriggerCheckpoint
 
     public async Task<Result<int>> Handle(TriggerCheckpointCommand request, CancellationToken ct)
     {
-        var checkpoint = await _db.Checkpoints.FirstOrDefaultAsync(c => c.CheckpointId == request.CheckpointId && c.IsActive, ct);
+        // Gap 1 fix: include FormTemplate so trigger service knows which form to use
+        var checkpoint = await _db.Checkpoints
+            .Include(c => c.FormTemplate)
+            .FirstOrDefaultAsync(c => c.CheckpointId == request.CheckpointId && c.IsActive, ct);
         if (checkpoint is null) return Result<int>.Failure("NOT_FOUND", "Checkpoint not found or inactive.");
+
+        // Enforce FK: non-DispatchEvent checkpoints must have a FormTemplate configured
+        if (checkpoint.TriggerMode != TriggerType.DispatchEvent && checkpoint.FormTemplateId is null)
+            return Result<int>.Failure("FORM_TEMPLATE_MISSING",
+                $"Checkpoint '{checkpoint.CheckpointCode}' has no Form Template assigned. Configure one in Master Data before triggering.");
 
         await _trigger.TriggerAsync(request.CheckpointId, checkpoint.TriggerMode.ToString(),
             request.TriggeredBy, request.DeliveryOrder, request.IsOfflineSync, ct);
 
         // Contract 2: push via SignalR — no polling
         await _notifications.PushToGroupAsync("Analyst", "CheckpointTriggered",
-            new { request.CheckpointId, checkpoint.CheckpointCode, TriggerMode = checkpoint.TriggerMode.ToString() }, ct);
+            new { request.CheckpointId, checkpoint.CheckpointCode, TriggerMode = checkpoint.TriggerMode.ToString(),
+                  FormTemplateId = checkpoint.FormTemplateId }, ct);
 
         return Result<int>.Success(request.CheckpointId);
     }
