@@ -63,6 +63,12 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<StabilityPull> StabilityPulls => Set<StabilityPull>();
     public DbSet<ShortPullDeviation> ShortPullDeviations => Set<ShortPullDeviation>();
     public DbSet<RetainSample> RetainSamples => Set<RetainSample>();
+    // Phase 6: Instrument Management v1.2
+    public DbSet<InstrumentUtilisationSummary> InstrumentUtilisationSummaries => Set<InstrumentUtilisationSummary>();
+    // Phase 7: Dashboards
+    public DbSet<TatBreachLog> TatBreachLogs => Set<TatBreachLog>();
+    // Phase 8: Compliance & Governance
+    public DbSet<ValidationReviewLog> ValidationReviewLogs => Set<ValidationReviewLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

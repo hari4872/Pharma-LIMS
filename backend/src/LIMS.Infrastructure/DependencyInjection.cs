@@ -46,6 +46,14 @@ public static class DependencyInjection
         services.AddScoped<ITraceabilityQueryService, TraceabilityQueryService>();
         services.AddScoped<IExcursionImpactService, ExcursionImpactService>();
         services.AddScoped<IPullExecutionService, PullExecutionService>();
+        // Phase 6 services
+        services.AddScoped<IInstrumentStatusService, InstrumentStatusService>();
+        services.AddScoped<IBreakdownRepairService, BreakdownRepairService>();
+        services.AddScoped<IOOCImpactService, OOCImpactService>();
+        // Phase 7 services
+        services.AddScoped<IDashboardAggregationService, DashboardAggregationService>();
+        // Phase 8 services
+        services.AddScoped<IPeriodicReviewService, PeriodicReviewService>();
 
         // SignalR (Contract 2: all push from server)
         services.AddSignalR();
@@ -64,6 +72,14 @@ public static class DependencyInjection
         services.AddHostedService<PullReminderJob>();
         services.AddHostedService<MissedPullJob>();
         services.AddHostedService<DestructionAlertJob>();
+        // Phase 6 background jobs
+        services.AddHostedService<PMReminderJob>();
+        services.AddHostedService<UtilisationSummaryJob>();
+        // Phase 7 background jobs
+        services.AddHostedService<TATBreachJob>();
+        // Phase 8 background jobs
+        services.AddHostedService<FormTemplateApprovalJob>();
+        services.AddHostedService<StorageInventoryJob>();
 
         return services;
     }

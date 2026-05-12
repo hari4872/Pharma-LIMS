@@ -1,3 +1,4 @@
+using LIMS.Application.Features.InstrumentManagement;
 using LIMS.Application.Features.MasterData.Instruments;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -72,8 +73,61 @@ public class InstrumentsController : ControllerBase
         }
         return Ok(new { calibrationId = result.Value, status = "Approved" });
     }
+
+    // ── FR-13: Breakdown / Repair Lifecycle ──────────────────────────────
+
+    // GET api/v1/instruments/breakdowns — list all (filter by status)
+    [HttpGet("breakdowns")]
+    public async Task<IActionResult> GetBreakdowns([FromQuery] int? instrumentId, [FromQuery] string? status)
+        => Ok(await _mediator.Send(new GetBreakdownsQuery(instrumentId, status)));
+
+    // POST api/v1/instruments/{id}/breakdowns — raise breakdown (any role)
+    [HttpPost("{id}/breakdowns")]
+    public async Task<IActionResult> RaiseBreakdown(int id, [FromBody] RaiseBreakdownRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var result = await _mediator.Send(new RaiseBreakdownCommand(id, userId, request.IssueDescription));
+        var bd = result.Value!;
+        return CreatedAtAction(nameof(GetBreakdowns), new { instrumentId = id },
+            new { breakdownId = bd.BreakdownId, instrumentStatus = bd.InstrumentStatus });
+    }
+
+    // POST api/v1/instruments/breakdowns/{breakdownId}/repairs — record repair
+    [HttpPost("breakdowns/{breakdownId:int}/repairs")]
+    [Authorize(Roles = "Admin,Analyst")]
+    public async Task<IActionResult> RecordRepair(int breakdownId, [FromBody] RecordRepairRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var repairId = await _mediator.Send(new RecordRepairCommand(breakdownId, request.Technician,
+            request.RepairDate, request.RepairDescription, request.PartsUsed, username));
+        return Ok(new { repairId });
+    }
+
+    // POST api/v1/instruments/breakdowns/{breakdownId}/return-to-service — QA §11.50 e-sig
+    [HttpPost("breakdowns/{breakdownId:int}/return-to-service")]
+    [Authorize(Roles = "QA")]
+    public async Task<IActionResult> ReturnToService(int breakdownId, [FromBody] ApproveRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var result = await _mediator.Send(new ReturnToServiceCommand(breakdownId, userId, request.Password, request.Meaning, request.Reason));
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
+            return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        }
+        var rts = result.Value!;
+        return Ok(new
+        {
+            breakdownId,
+            signatureId          = rts.SignatureId,
+            oocImpactTriggered   = rts.OocImpactTriggered,
+            affectedLogbookCount = rts.AffectedLogbookCount
+        });
+    }
 }
 
 public record CreateInstrumentRequest(int LabId, string InstrumentCode, string InstrumentType, string? Model, string? SerialNumber, DateOnly CalibrationDue);
 public record UpdateInstrumentRequest(string InstrumentType, string? Model, string? SerialNumber, DateOnly CalibrationDue);
 public record CreateCalibrationRequest(DateOnly CalibrationDate, DateOnly NextCalibrationDue, string CertificateRef);
+public record RaiseBreakdownRequest(string IssueDescription);
+public record RecordRepairRequest(string Technician, DateOnly RepairDate, string RepairDescription, string? PartsUsed);

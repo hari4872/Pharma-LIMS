@@ -5,25 +5,47 @@ import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './Labor
 
 interface Instrument { instrumentId: number; labName: string; instrumentCode: string; instrumentType: string; model: string; serialNumber: string; calibrationDue: string; status: string; isActive: boolean }
 interface Lab { labId: number; labName: string }
+interface Breakdown { breakdownId: number; instrumentId: number; instrumentCode: string; raisedByName: string; raisedAt: string; issueDescription: string; status: string; repairCount: number; returnSignatureId: number | null }
+
+const statusColour = (s: string) => {
+  if (s === 'Available') return { bg: '#d1fae5', fg: '#065f46' }
+  if (s === 'InUse')     return { bg: '#dbeafe', fg: '#1e40af' }
+  if (s === 'Maintenance') return { bg: '#fef3c7', fg: '#92400e' }
+  if (s === 'OutOfService') return { bg: '#fee2e2', fg: '#991b1b' }
+  return { bg: '#f3f4f6', fg: '#374151' }
+}
 
 export default function InstrumentsPage() {
   const [data, setData] = useState<Instrument[]>([])
   const [labs, setLabs] = useState<Lab[]>([])
+  const [breakdowns, setBreakdowns] = useState<Breakdown[]>([])
+  const [tab, setTab] = useState<'instruments' | 'breakdowns'>('instruments')
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [showBreakdownForm, setShowBreakdownForm] = useState(false)
+  const [showRepairForm, setShowRepairForm] = useState(false)
+  const [showRtsForm, setShowRtsForm] = useState(false)
+  const [selectedBreakdownId, setSelectedBreakdownId] = useState<number | null>(null)
   const [form, setForm] = useState({ labId: '', instrumentCode: '', instrumentType: '', model: '', serialNumber: '', calibrationDue: '' })
+  const [bdForm, setBdForm] = useState({ instrumentId: '', issueDescription: '' })
+  const [repairForm, setRepairForm] = useState({ technician: '', repairDate: '', repairDescription: '', partsUsed: '' })
+  const [rtsForm, setRtsForm] = useState({ password: '', meaning: '', reason: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   async function load() {
     setLoading(true)
-    const [r, lr] = await Promise.all([api.get('/instruments'), api.get('/laboratories')])
-    setData(r.data); setLabs(lr.data)
+    const [r, lr, br] = await Promise.all([
+      api.get('/instruments'),
+      api.get('/laboratories'),
+      api.get('/instruments/breakdowns'),
+    ])
+    setData(r.data); setLabs(lr.data); setBreakdowns(br.data)
     setLoading(false)
   }
   useEffect(() => { load() }, [])
 
-  async function submit(e: React.FormEvent) {
+  async function submitInstrument(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post('/instruments', { ...form, labId: Number(form.labId) })
@@ -32,22 +54,108 @@ export default function InstrumentsPage() {
     finally { setSaving(false) }
   }
 
+  async function submitBreakdown(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      await api.post(`/instruments/${bdForm.instrumentId}/breakdowns`, { issueDescription: bdForm.issueDescription })
+      setShowBreakdownForm(false); setBdForm({ instrumentId: '', issueDescription: '' }); load()
+    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+    finally { setSaving(false) }
+  }
+
+  async function submitRepair(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      await api.post(`/instruments/breakdowns/${selectedBreakdownId}/repairs`, repairForm)
+      setShowRepairForm(false); setRepairForm({ technician: '', repairDate: '', repairDescription: '', partsUsed: '' }); load()
+    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+    finally { setSaving(false) }
+  }
+
+  async function submitRts(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      await api.post(`/instruments/breakdowns/${selectedBreakdownId}/return-to-service`, rtsForm)
+      setShowRtsForm(false); setRtsForm({ password: '', meaning: '', reason: '' }); load()
+    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+    finally { setSaving(false) }
+  }
+
+  const openBreakdowns = breakdowns.filter(b => b.status !== 'Resolved')
+
   return (
     <div>
-      <PageHeader title="Instruments" onAdd={() => setShowForm(true)} />
-      <DataTable loading={loading} data={data} columns={[
-        { header: 'Code', accessor: 'instrumentCode' },
-        { header: 'Type', accessor: 'instrumentType' },
-        { header: 'Lab', accessor: 'labName' },
-        { header: 'Model', accessor: 'model' },
-        { header: 'Serial No.', accessor: 'serialNumber' },
-        { header: 'Cal. Due', accessor: r => r.calibrationDue?.split('T')[0] ?? '' },
-        { header: 'Status', accessor: r => <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: '#dbeafe', color: '#1e40af' }}>{r.status}</span> },
-        { header: 'Active', accessor: r => <StatusBadge active={r.isActive} /> },
-      ]} />
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
+        {(['instruments', 'breakdowns'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ padding: '6px 16px', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 500, fontSize: 13, background: tab === t ? '#2563eb' : '#e5e7eb', color: tab === t ? '#fff' : '#374151' }}>
+            {t === 'instruments' ? 'Instruments' : `Breakdowns${openBreakdowns.length ? ` (${openBreakdowns.length})` : ''}`}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'instruments' && (
+        <>
+          <PageHeader title="Instruments" onAdd={() => setShowForm(true)} />
+          <DataTable loading={loading} data={data} columns={[
+            { header: 'Code', accessor: 'instrumentCode' },
+            { header: 'Type', accessor: 'instrumentType' },
+            { header: 'Lab', accessor: 'labName' },
+            { header: 'Model', accessor: 'model' },
+            { header: 'Serial No.', accessor: 'serialNumber' },
+            { header: 'Cal. Due', accessor: r => r.calibrationDue?.split('T')[0] ?? '' },
+            {
+              header: 'Status', accessor: r => {
+                const c = statusColour(r.status)
+                return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.fg }}>{r.status}</span>
+              }
+            },
+            { header: 'Active', accessor: r => <StatusBadge active={r.isActive} /> },
+            {
+              header: '', accessor: r => (
+                <button onClick={() => { setBdForm(f => ({ ...f, instrumentId: String(r.instrumentId) })); setShowBreakdownForm(true) }}
+                  style={{ fontSize: 12, padding: '2px 8px', background: '#fef3c7', color: '#92400e', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                  Raise Breakdown
+                </button>
+              )
+            },
+          ]} />
+        </>
+      )}
+
+      {tab === 'breakdowns' && (
+        <>
+          <PageHeader title="Instrument Breakdowns" onAdd={() => setShowBreakdownForm(true)} addLabel="Raise Breakdown" />
+          <DataTable loading={loading} data={breakdowns} columns={[
+            { header: 'ID', accessor: 'breakdownId' },
+            { header: 'Instrument', accessor: 'instrumentCode' },
+            { header: 'Raised By', accessor: 'raisedByName' },
+            { header: 'Raised At', accessor: r => r.raisedAt?.replace('T', ' ').slice(0, 16) + ' UTC' },
+            { header: 'Issue', accessor: 'issueDescription' },
+            { header: 'Status', accessor: r => <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: r.status === 'Resolved' ? '#d1fae5' : r.status === 'UnderRepair' ? '#fef3c7' : '#fee2e2', color: r.status === 'Resolved' ? '#065f46' : r.status === 'UnderRepair' ? '#92400e' : '#991b1b' }}>{r.status}</span> },
+            { header: 'Repairs', accessor: 'repairCount' },
+            {
+              header: 'Actions', accessor: r => r.status !== 'Resolved' ? (
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button onClick={() => { setSelectedBreakdownId(r.breakdownId); setShowRepairForm(true) }}
+                    style={{ fontSize: 12, padding: '2px 8px', background: '#dbeafe', color: '#1e40af', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                    Record Repair
+                  </button>
+                  <button onClick={() => { setSelectedBreakdownId(r.breakdownId); setShowRtsForm(true) }}
+                    style={{ fontSize: 12, padding: '2px 8px', background: '#d1fae5', color: '#065f46', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                    Return to Service
+                  </button>
+                </div>
+              ) : <span style={{ color: '#9ca3af', fontSize: 12 }}>Resolved</span>
+            },
+          ]} />
+        </>
+      )}
+
+      {/* Add Instrument */}
       {showForm && (
         <Modal title="Add Instrument" onClose={() => setShowForm(false)}>
-          <form onSubmit={submit}>
+          <form onSubmit={submitInstrument}>
             <Field label="Laboratory">
               <select style={inp} value={form.labId} onChange={e => setForm(f => ({ ...f, labId: e.target.value }))} required>
                 <option value="">Select…</option>
@@ -61,6 +169,57 @@ export default function InstrumentsPage() {
             <Field label="Calibration Due"><input style={inp} type="date" value={form.calibrationDue} onChange={e => setForm(f => ({ ...f, calibrationDue: e.target.value }))} required /></Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+          </form>
+        </Modal>
+      )}
+
+      {/* Raise Breakdown */}
+      {showBreakdownForm && (
+        <Modal title="Raise Breakdown" onClose={() => setShowBreakdownForm(false)}>
+          <form onSubmit={submitBreakdown}>
+            <Field label="Instrument">
+              <select style={inp} value={bdForm.instrumentId} onChange={e => setBdForm(f => ({ ...f, instrumentId: e.target.value }))} required>
+                <option value="">Select…</option>
+                {data.filter(i => i.isActive).map(i => <option key={i.instrumentId} value={i.instrumentId}>{i.instrumentCode} — {i.instrumentType}</option>)}
+              </select>
+            </Field>
+            <Field label="Issue Description">
+              <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={bdForm.issueDescription} onChange={e => setBdForm(f => ({ ...f, issueDescription: e.target.value }))} required />
+            </Field>
+            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            <ModalFooter saving={saving} onCancel={() => setShowBreakdownForm(false)} label="Raise Breakdown" />
+          </form>
+        </Modal>
+      )}
+
+      {/* Record Repair */}
+      {showRepairForm && selectedBreakdownId && (
+        <Modal title={`Record Repair — Breakdown #${selectedBreakdownId}`} onClose={() => setShowRepairForm(false)}>
+          <form onSubmit={submitRepair}>
+            <Field label="Technician"><input style={inp} value={repairForm.technician} onChange={e => setRepairForm(f => ({ ...f, technician: e.target.value }))} required /></Field>
+            <Field label="Repair Date"><input style={inp} type="date" value={repairForm.repairDate} onChange={e => setRepairForm(f => ({ ...f, repairDate: e.target.value }))} required /></Field>
+            <Field label="Repair Description">
+              <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={repairForm.repairDescription} onChange={e => setRepairForm(f => ({ ...f, repairDescription: e.target.value }))} required />
+            </Field>
+            <Field label="Parts Used"><input style={inp} value={repairForm.partsUsed} onChange={e => setRepairForm(f => ({ ...f, partsUsed: e.target.value }))} /></Field>
+            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            <ModalFooter saving={saving} onCancel={() => setShowRepairForm(false)} label="Save Repair" />
+          </form>
+        </Modal>
+      )}
+
+      {/* Return to Service — QA §11.50 e-sig */}
+      {showRtsForm && selectedBreakdownId && (
+        <Modal title={`Return to Service — Breakdown #${selectedBreakdownId}`} onClose={() => setShowRtsForm(false)}>
+          <p style={{ color: '#6b7280', fontSize: 13, margin: '0 0 16px' }}>
+            ⚠️ This action marks the instrument as Available and triggers OOC impact assessment on all logbook entries during the breakdown window. 21 CFR §11.50 e-signature required.
+          </p>
+          <form onSubmit={submitRts}>
+            <Field label="Password (§11.300 BCrypt verify)"><input style={inp} type="password" value={rtsForm.password} onChange={e => setRtsForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+            <Field label="Meaning of Signature"><input style={inp} value={rtsForm.meaning} onChange={e => setRtsForm(f => ({ ...f, meaning: e.target.value }))} required placeholder="e.g. QA Return-to-Service Approval" /></Field>
+            <Field label="Reason for Signature"><input style={inp} value={rtsForm.reason} onChange={e => setRtsForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Instrument verified in-spec post-repair" /></Field>
+            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            <ModalFooter saving={saving} onCancel={() => setShowRtsForm(false)} label="Approve & Return to Service" />
           </form>
         </Modal>
       )}

@@ -22,6 +22,15 @@ import DigitalLogbookPage from '@/pages/DigitalLogbookPage'
 import ResultsReviewPage from '@/pages/ResultsReviewPage'
 import CoaReviewPage from '@/pages/CoaReviewPage'
 import DispatchQcPage from '@/pages/DispatchQcPage'
+// Phase 5
+import TraceabilityPage from '@/pages/TraceabilityPage'
+import StabilityPullsPage from '@/pages/StabilityPullsPage'
+import RetainSamplesPage from '@/pages/RetainSamplesPage'
+import ConditionExcursionsPage from '@/pages/ConditionExcursionsPage'
+import StorageLocationsPage from '@/pages/master-data/StorageLocationsPage'
+// Phase 6/7/8
+import DashboardPage from '@/pages/DashboardPage'
+import CompliancePanelPage from '@/pages/CompliancePanelPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useSelector((s: RootState) => s.auth.token)
@@ -34,25 +43,36 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<SetupPage />} />
       <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
-        <Route index element={<Navigate to="/master-data/laboratories" replace />} />
-        <Route path="master-data/laboratories" element={<LaboratoriesPage />} />
-        <Route path="master-data/instruments" element={<InstrumentsPage />} />
-        <Route path="master-data/materials" element={<MaterialsPage />} />
-        <Route path="master-data/test-methods" element={<TestMethodsPage />} />
-        <Route path="master-data/parameters" element={<ParametersPage />} />
-        <Route path="master-data/spec-limits" element={<SpecLimitsPage />} />
-        <Route path="master-data/form-templates" element={<FormTemplatesPage />} />
-        <Route path="master-data/users" element={<UsersPage />} />
-        <Route path="master-data/sample-types" element={<SampleTypesPage />} />
-        <Route path="samples" element={<SampleRegistrationPage />} />
-        <Route path="checkpoints" element={<CheckpointsPage />} />
-        <Route path="work-queue" element={<WorkQueuePage />} />
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        {/* Phase 6/7/8 */}
+        <Route path="dashboard"  element={<DashboardPage />} />
+        <Route path="compliance" element={<CompliancePanelPage />} />
+        {/* Master Data */}
+        <Route path="master-data/laboratories"     element={<LaboratoriesPage />} />
+        <Route path="master-data/instruments"      element={<InstrumentsPage />} />
+        <Route path="master-data/materials"        element={<MaterialsPage />} />
+        <Route path="master-data/test-methods"     element={<TestMethodsPage />} />
+        <Route path="master-data/parameters"       element={<ParametersPage />} />
+        <Route path="master-data/spec-limits"      element={<SpecLimitsPage />} />
+        <Route path="master-data/form-templates"   element={<FormTemplatesPage />} />
+        <Route path="master-data/users"            element={<UsersPage />} />
+        <Route path="master-data/sample-types"     element={<SampleTypesPage />} />
+        <Route path="master-data/storage-locations" element={<StorageLocationsPage />} />
+        {/* Phases 2–4 */}
+        <Route path="samples"           element={<SampleRegistrationPage />} />
+        <Route path="checkpoints"       element={<CheckpointsPage />} />
+        <Route path="work-queue"        element={<WorkQueuePage />} />
         <Route path="test-execution/:id" element={<TestExecutionPage />} />
         <Route path="oos-investigations" element={<OosInvestigationsPage />} />
-        <Route path="digital-logbook" element={<DigitalLogbookPage />} />
-        <Route path="results-review" element={<ResultsReviewPage />} />
-        <Route path="coa-review" element={<CoaReviewPage />} />
-        <Route path="dispatch-qc" element={<DispatchQcPage />} />
+        <Route path="digital-logbook"   element={<DigitalLogbookPage />} />
+        <Route path="results-review"    element={<ResultsReviewPage />} />
+        <Route path="coa-review"        element={<CoaReviewPage />} />
+        <Route path="dispatch-qc"       element={<DispatchQcPage />} />
+        {/* Phase 5 */}
+        <Route path="traceability"          element={<TraceabilityPage />} />
+        <Route path="stability-pulls"       element={<StabilityPullsPage />} />
+        <Route path="retain-samples"        element={<RetainSamplesPage />} />
+        <Route path="condition-excursions"  element={<ConditionExcursionsPage />} />
       </Route>
     </Routes>
   )

@@ -58,5 +58,11 @@ public interface ILimsDbContext
     DbSet<StabilityPull> StabilityPulls { get; }
     DbSet<ShortPullDeviation> ShortPullDeviations { get; }
     DbSet<RetainSample> RetainSamples { get; }
+    // Phase 6: Instrument Management v1.2
+    DbSet<InstrumentUtilisationSummary> InstrumentUtilisationSummaries { get; }
+    // Phase 7: Dashboards
+    DbSet<TatBreachLog> TatBreachLogs { get; }
+    // Phase 8: Compliance & Governance
+    DbSet<ValidationReviewLog> ValidationReviewLogs { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
