@@ -55,6 +55,26 @@ public class FormTemplatesController : ControllerBase
         return CreatedAtAction(nameof(GetAll), new { id = template.FormTemplateId }, new { formTemplateId = template.FormTemplateId });
     }
 
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateFormTemplateRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new UpdateFormTemplateCommand(id, request.FormName, request.TriggerType, request.EvidenceMandatory, request.RegulatoryTier, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { formTemplateId = result.Value, status = "Draft" });
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> Deactivate(int id, [FromBody] DeactivateRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new DeactivateFormTemplateCommand(id, request.Reason, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { formTemplateId = result.Value, status = "Retired" });
+    }
+
     [HttpPost("{id}/approve")]
     [Authorize(Roles = "QA")]
     public async Task<IActionResult> Approve(int id, [FromBody] ApproveRequest request)
@@ -68,6 +88,49 @@ public class FormTemplatesController : ControllerBase
         }
         return Ok(new { formTemplateId = result.Value, status = "Active" });
     }
+
+    // POST api/v1/form-templates/{id}/parameters
+    [HttpPost("{id}/parameters")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> AddParameter(int id, [FromBody] AddTemplateParameterRequest request)
+    {
+        var result = await _mediator.Send(new AddFormTemplateParameterCommand(id, request.ParameterId, request.DisplayOrder, request.ColumnFrequency));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { formTemplateId = result.Value });
+    }
+
+    // DELETE api/v1/form-templates/{id}/parameters/{parameterId}
+    [HttpDelete("{id}/parameters/{parameterId:int}")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> RemoveParameter(int id, int parameterId)
+    {
+        var result = await _mediator.Send(new RemoveFormTemplateParameterCommand(id, parameterId));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { formTemplateId = result.Value });
+    }
+
+    // POST api/v1/form-templates/{id}/locations
+    [HttpPost("{id}/locations")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> AddLocation(int id, [FromBody] AddTemplateLocationRequest request)
+    {
+        var result = await _mediator.Send(new AddFormTemplateLocationCommand(id, request.LocationName, request.ColumnOrder, request.SpecLimitId));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { locationId = result.Value });
+    }
+
+    // DELETE api/v1/form-templates/{id}/locations/{locationId}
+    [HttpDelete("{id}/locations/{locationId:int}")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> RemoveLocation(int id, int locationId)
+    {
+        var result = await _mediator.Send(new RemoveFormTemplateLocationCommand(id, locationId));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { formTemplateId = result.Value });
+    }
 }
 
 public record CreateFormTemplateRequest(string FormCode, string FormName, int LabId, string FormType, string TriggerType, string? TimeSlots, int? ShiftIntervalHrs, string? RegulatoryTier, bool EvidenceMandatory);
+public record UpdateFormTemplateRequest(string FormName, string TriggerType, bool EvidenceMandatory, string? RegulatoryTier);
+public record AddTemplateParameterRequest(int ParameterId, int DisplayOrder, string? ColumnFrequency);
+public record AddTemplateLocationRequest(string LocationName, int ColumnOrder, int? SpecLimitId);

@@ -59,6 +59,26 @@ public class SpecLimitsController : ControllerBase
         return CreatedAtAction(nameof(GetAll), new { id = spec.SpecLimitId }, new { specLimitId = spec.SpecLimitId });
     }
 
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateSpecLimitRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new UpdateSpecLimitCommand(id, request.MinValue, request.MaxValue, request.RegulatoryTier, request.RegulatoryMin, request.RegulatoryMax, request.OotMinValue, request.OotMaxValue, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { specLimitId = result.Value, status = "Draft" });
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> Deactivate(int id, [FromBody] DeactivateRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new DeactivateSpecLimitCommand(id, request.Reason, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { specLimitId = result.Value, status = "Retired" });
+    }
+
     [HttpPost("{id}/approve")]
     [Authorize(Roles = "QA")]
     public async Task<IActionResult> Approve(int id, [FromBody] ApproveRequest request)
@@ -75,3 +95,4 @@ public class SpecLimitsController : ControllerBase
 }
 
 public record CreateSpecLimitRequest(int ParameterId, int? MaterialId, string Stage, decimal? MinValue, decimal? MaxValue, string? RegulatoryTier, decimal? RegulatoryMin, decimal? RegulatoryMax, decimal? OotMinValue, decimal? OotMaxValue);
+public record UpdateSpecLimitRequest(decimal? MinValue, decimal? MaxValue, string? RegulatoryTier, decimal? RegulatoryMin, decimal? RegulatoryMax, decimal? OotMinValue, decimal? OotMaxValue);

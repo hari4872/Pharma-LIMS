@@ -60,3 +60,5 @@ public enum ExcursionType { Temperature, Humidity, Light }
 public enum CdType { Complaint, Deviation, Capa }
 
 public enum BreakdownStatus { Open, InRepair, Resolved }
+
+public enum SampleMatrix { Solid, Liquid, Gas, Swab, Powder, Granule, Suspension, Emulsion }

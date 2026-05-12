@@ -188,3 +188,17 @@ public class ParameterLookupRowConfiguration : IEntityTypeConfiguration<Paramete
         builder.HasOne(r => r.LookupTable).WithMany(t => t.Rows).HasForeignKey(r => r.LookupTableId).OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+public class SampleTypeConfiguration : IEntityTypeConfiguration<SampleType>
+{
+    public void Configure(EntityTypeBuilder<SampleType> builder)
+    {
+        builder.HasKey(s => s.SampleTypeId);
+        builder.Property(s => s.TypeName).HasMaxLength(200).IsRequired();
+        builder.Property(s => s.TypeCode).HasMaxLength(30).IsRequired();
+        builder.HasIndex(s => s.TypeCode).IsUnique();
+        builder.Property(s => s.Description).HasMaxLength(500);
+        builder.Property(s => s.CreatedBy).HasMaxLength(100).IsRequired();
+        builder.Property(s => s.CreatedAt).HasColumnType("timestamptz");
+    }
+}

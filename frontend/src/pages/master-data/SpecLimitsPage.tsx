@@ -3,9 +3,16 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 
-interface SpecLimit { specLimitId: number; parameterName: string; materialName: string; stage: string; minValue: number; maxValue: number; ootMinValue: number; ootMaxValue: number; status: string; version: string }
+interface SpecLimit {
+  specLimitId: number; parameterName: string; materialName: string; stage: string
+  minValue: number; maxValue: number; ootMinValue: number; ootMaxValue: number
+  regulatoryTier: string; regulatoryMin: number; regulatoryMax: number
+  status: string; version: string
+}
 interface Param { parameterId: number; parameterName: string }
 interface Material { materialId: number; materialName: string }
+
+const REG_TIERS = ['USP', 'EP', 'JP', 'ICH', 'FDA', 'EMA']
 
 export default function SpecLimitsPage() {
   const [data, setData] = useState<SpecLimit[]>([])
@@ -14,7 +21,11 @@ export default function SpecLimitsPage() {
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [showApprove, setShowApprove] = useState<number | null>(null)
-  const [form, setForm] = useState({ parameterId: '', materialId: '', stage: 'InProcess', minValue: '', maxValue: '', ootMinValue: '', ootMaxValue: '' })
+  const [form, setForm] = useState({
+    parameterId: '', materialId: '', stage: 'InProcess',
+    minValue: '', maxValue: '', ootMinValue: '', ootMaxValue: '',
+    regulatoryTier: '', regulatoryMin: '', regulatoryMax: ''
+  })
   const [approveForm, setApproveForm] = useState({ password: '', meaning: 'I approve this spec limit', reason: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -31,11 +42,16 @@ export default function SpecLimitsPage() {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post('/spec-limits', {
-        parameterId: Number(form.parameterId), materialId: form.materialId ? Number(form.materialId) : null,
-        stage: form.stage, minValue: form.minValue ? Number(form.minValue) : null,
+        parameterId: Number(form.parameterId),
+        materialId: form.materialId ? Number(form.materialId) : null,
+        stage: form.stage,
+        minValue: form.minValue ? Number(form.minValue) : null,
         maxValue: form.maxValue ? Number(form.maxValue) : null,
         ootMinValue: form.ootMinValue ? Number(form.ootMinValue) : null,
-        ootMaxValue: form.ootMaxValue ? Number(form.ootMaxValue) : null
+        ootMaxValue: form.ootMaxValue ? Number(form.ootMaxValue) : null,
+        regulatoryTier: form.regulatoryTier || null,
+        regulatoryMin: form.regulatoryMin ? Number(form.regulatoryMin) : null,
+        regulatoryMax: form.regulatoryMax ? Number(form.regulatoryMax) : null,
       })
       setShowForm(false); load()
     } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
@@ -60,6 +76,9 @@ export default function SpecLimitsPage() {
         { header: 'Max', accessor: 'maxValue' },
         { header: 'OOT Min', accessor: 'ootMinValue' },
         { header: 'OOT Max', accessor: 'ootMaxValue' },
+        { header: 'Reg. Tier', accessor: 'regulatoryTier' },
+        { header: 'Reg. Min', accessor: 'regulatoryMin' },
+        { header: 'Reg. Max', accessor: 'regulatoryMax' },
         { header: 'Version', accessor: 'version' },
         { header: 'Status', accessor: r => <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: r.status === 'Approved' ? '#d1fae5' : '#fef9c3', color: r.status === 'Approved' ? '#065f46' : '#854d0e' }}>{r.status}</span> },
         { header: '', accessor: r => r.status === 'Draft' ? <button onClick={() => setShowApprove(r.specLimitId)} style={{ padding: '4px 10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Approve</button> : null },
@@ -90,6 +109,18 @@ export default function SpecLimitsPage() {
               <Field label="OOT Min"><input style={inp} type="number" step="any" value={form.ootMinValue} onChange={e => setForm(f => ({ ...f, ootMinValue: e.target.value }))} /></Field>
               <Field label="OOT Max"><input style={inp} type="number" step="any" value={form.ootMaxValue} onChange={e => setForm(f => ({ ...f, ootMaxValue: e.target.value }))} /></Field>
             </div>
+            <Field label="Regulatory Tier (optional)">
+              <select style={inp} value={form.regulatoryTier} onChange={e => setForm(f => ({ ...f, regulatoryTier: e.target.value }))}>
+                <option value="">None</option>
+                {REG_TIERS.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+            {form.regulatoryTier && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Field label="Regulatory Min"><input style={inp} type="number" step="any" value={form.regulatoryMin} onChange={e => setForm(f => ({ ...f, regulatoryMin: e.target.value }))} /></Field>
+                <Field label="Regulatory Max"><input style={inp} type="number" step="any" value={form.regulatoryMax} onChange={e => setForm(f => ({ ...f, regulatoryMax: e.target.value }))} /></Field>
+              </div>
+            )}
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>

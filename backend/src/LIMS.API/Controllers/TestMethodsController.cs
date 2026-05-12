@@ -28,6 +28,26 @@ public class TestMethodsController : ControllerBase
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { methodId = result.Value });
     }
 
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateTestMethodRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new UpdateTestMethodCommand(id, request.MethodName, request.SopReference, request.MethodType, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { methodId = result.Value, status = "Draft" });
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> Deactivate(int id, [FromBody] DeactivateRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new DeactivateTestMethodCommand(id, request.Reason, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { methodId = result.Value, status = "Retired" });
+    }
+
     // POST api/v1/test-methods/{id}/approve — §11.50 QA e-sig
     [HttpPost("{id}/approve")]
     [Authorize(Roles = "QA")]
@@ -45,4 +65,5 @@ public class TestMethodsController : ControllerBase
 }
 
 public record CreateTestMethodRequest(string MethodCode, string MethodName, string? SopReference, string? MethodType);
+public record UpdateTestMethodRequest(string MethodName, string? SopReference, string? MethodType);
 public record ApproveRequest(string Password, string Meaning, string Reason);

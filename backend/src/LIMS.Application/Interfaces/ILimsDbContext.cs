@@ -24,5 +24,6 @@ public interface ILimsDbContext
     DbSet<LabConfig> LabConfigs { get; }
     DbSet<UserTrainingRecord> UserTrainingRecords { get; }
     DbSet<MasterDataAuditLog> MasterDataAuditLogs { get; }
+    DbSet<SampleType> SampleTypes { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

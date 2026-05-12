@@ -26,6 +26,28 @@ public class LaboratoriesController : ControllerBase
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { labId = result.Value });
     }
+
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateLaboratoryRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new UpdateLaboratoryCommand(id, request.LabName, request.Location, request.LabType, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { labId = result.Value });
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Deactivate(int id, [FromBody] DeactivateRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new DeactivateLaboratoryCommand(id, request.Reason, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { labId = result.Value, status = "Inactive" });
+    }
 }
 
 public record CreateLaboratoryRequest(string LabName, string Location, string LabType);
+public record UpdateLaboratoryRequest(string LabName, string Location, string LabType);
+public record DeactivateRequest(string Reason);

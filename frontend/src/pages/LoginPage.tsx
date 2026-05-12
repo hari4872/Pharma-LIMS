@@ -11,6 +11,7 @@ export default function LoginPage() {
   const { token, loading, error } = useSelector((s: RootState) => s.auth)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
 
   useEffect(() => {
     if (token) navigate('/', { replace: true })
@@ -37,6 +38,16 @@ export default function LoginPage() {
           <input style={inputStyle} value={username} onChange={e => setUsername(e.target.value)} autoFocus />
           <label style={{ ...labelStyle, marginTop: 16 }}>Password</label>
           <input style={inputStyle} type="password" value={password} onChange={e => setPassword(e.target.value)} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#374151', cursor: 'pointer' }}>
+              <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} />
+              Remember me
+            </label>
+            <span style={{ fontSize: 13, color: '#2563eb', cursor: 'pointer' }}
+              onClick={() => alert('Contact your system administrator to reset your password.')}>
+              Forgot password?
+            </span>
+          </div>
           {error && <p style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>{error}</p>}
           <button style={{ ...btnStyle, marginTop: 24 }} disabled={loading}>
             {loading ? 'Signing in…' : 'Sign In'}

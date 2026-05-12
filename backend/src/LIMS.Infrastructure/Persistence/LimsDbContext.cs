@@ -29,6 +29,7 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<LabConfig> LabConfigs => Set<LabConfig>();
     public DbSet<UserTrainingRecord> UserTrainingRecords => Set<UserTrainingRecord>();
     public DbSet<MasterDataAuditLog> MasterDataAuditLogs => Set<MasterDataAuditLog>();
+    public DbSet<SampleType> SampleTypes => Set<SampleType>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

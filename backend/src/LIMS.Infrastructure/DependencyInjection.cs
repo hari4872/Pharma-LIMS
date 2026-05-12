@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<IElectronicSignatureService, ElectronicSignatureService>();
         services.AddScoped<IMasterDataAuditService, MasterDataAuditService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IMasterDataValidatorService, MasterDataValidatorService>();
 
         // SignalR (Contract 2: all push from server)
         services.AddSignalR();

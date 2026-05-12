@@ -12,6 +12,7 @@ const navItems = [
   { label: 'Spec Limits', path: '/master-data/spec-limits' },
   { label: 'Form Templates', path: '/master-data/form-templates' },
   { label: 'Users', path: '/master-data/users' },
+  { label: 'Sample Types', path: '/master-data/sample-types' },
 ]
 
 export default function Layout() {

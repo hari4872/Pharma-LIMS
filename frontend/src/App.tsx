@@ -12,6 +12,7 @@ import ParametersPage from '@/pages/master-data/ParametersPage'
 import SpecLimitsPage from '@/pages/master-data/SpecLimitsPage'
 import FormTemplatesPage from '@/pages/master-data/FormTemplatesPage'
 import UsersPage from '@/pages/master-data/UsersPage'
+import SampleTypesPage from '@/pages/master-data/SampleTypesPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useSelector((s: RootState) => s.auth.token)
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="master-data/spec-limits" element={<SpecLimitsPage />} />
         <Route path="master-data/form-templates" element={<FormTemplatesPage />} />
         <Route path="master-data/users" element={<UsersPage />} />
+        <Route path="master-data/sample-types" element={<SampleTypesPage />} />
       </Route>
     </Routes>
   )
