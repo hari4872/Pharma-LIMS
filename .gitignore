@@ -1,0 +1,26 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+**/appsettings.Development.json
+
+# NuGet
+*.nupkg
+packages/
+
+# EF Core migrations snapshot is committed intentionally
+
+# Node / frontend
+lims-frontend/node_modules/
+lims-frontend/dist/
+lims-frontend/.vite/
+lims-frontend/coverage/
+lims-frontend/.env
+lims-frontend/.env.local
+
+# OS
+.DS_Store
+Thumbs.db
