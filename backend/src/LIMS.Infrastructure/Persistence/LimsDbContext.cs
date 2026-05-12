@@ -38,6 +38,12 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<CheckpointLocation> CheckpointLocations => Set<CheckpointLocation>();
     public DbSet<CheckpointTriggerLog> CheckpointTriggerLogs => Set<CheckpointTriggerLog>();
     public DbSet<ProcessLogRow> ProcessLogRows => Set<ProcessLogRow>();
+    // Phase 3: Testing Execution + Digital Logbook
+    public DbSet<TestExecution> TestExecutions => Set<TestExecution>();
+    public DbSet<DigitalLogbookEntry> DigitalLogbookEntries => Set<DigitalLogbookEntry>();
+    public DbSet<OosInvestigation> OosInvestigations => Set<OosInvestigation>();
+    public DbSet<ResultsReview> ResultsReviews => Set<ResultsReview>();
+    public DbSet<ResultEvidence> ResultEvidences => Set<ResultEvidence>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -18,6 +18,10 @@ const masterDataItems = [
 const operationsItems = [
   { label: 'Sample Registration', path: '/samples' },
   { label: 'Checkpoints', path: '/checkpoints' },
+  { label: 'Work Queue', path: '/work-queue' },
+  { label: 'OOS Investigations', path: '/oos-investigations' },
+  { label: 'Digital Logbook', path: '/digital-logbook' },
+  { label: 'Results Review', path: '/results-review' },
 ]
 
 export default function Layout() {

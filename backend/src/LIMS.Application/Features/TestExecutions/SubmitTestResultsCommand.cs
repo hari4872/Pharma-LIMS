@@ -1,0 +1,145 @@
+using LIMS.Application.Common;
+using LIMS.Application.Interfaces;
+using LIMS.Domain.Entities;
+using LIMS.Domain.Enums;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+
+namespace LIMS.Application.Features.TestExecutions;
+
+public record ResultEntryDto(int ParameterId, string RawValue, string? EvidenceFileRef = null);
+
+// Step 4–5: Save raw values, run formula + OOS/OOT detection, create Pending logbook entries
+public record SubmitTestResultsCommand(
+    int ExecutionId, int AnalystId,
+    List<ResultEntryDto> Entries,
+    EntryMethod EntryMethod = EntryMethod.Manual) : IRequest<Result<SubmitTestResultsResponse>>;
+
+public record SubmitTestResultsResponse(
+    int ExecutionId,
+    List<LogbookEntryResult> Results,
+    bool HasOos, bool HasOot);
+
+public record LogbookEntryResult(
+    int EntryId, int ParameterId, string ParameterName,
+    string RawValue, decimal? CalculatedResult, string PassFail,
+    bool IsOos, bool IsOot, bool IsCritical, bool HasEvidence);
+
+public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand, Result<SubmitTestResultsResponse>>
+{
+    private readonly ILimsDbContext _db;
+    private readonly IParameterCalculationService _calc;
+    private readonly IOosDetectionService _oos;
+    private readonly IAutoCorrectionService _correction;
+
+    public SubmitTestResultsHandler(
+        ILimsDbContext db,
+        IParameterCalculationService calc,
+        IOosDetectionService oos,
+        IAutoCorrectionService correction)
+    {
+        _db = db; _calc = calc; _oos = oos; _correction = correction;
+    }
+
+    public async Task<Result<SubmitTestResultsResponse>> Handle(SubmitTestResultsCommand cmd, CancellationToken ct)
+    {
+        var execution = await _db.TestExecutions
+            .Include(e => e.Sample)
+            .FirstOrDefaultAsync(e => e.ExecutionId == cmd.ExecutionId, ct);
+        if (execution is null) return Result<SubmitTestResultsResponse>.Failure("NOT_FOUND", "Execution not found.");
+        if (execution.AnalystId != cmd.AnalystId)
+            return Result<SubmitTestResultsResponse>.Failure("FORBIDDEN", "Not your task.");
+        if (execution.Status != TestExecutionStatus.InProgress)
+            return Result<SubmitTestResultsResponse>.Failure("INVALID_STATE", "Task must be InProgress to submit results.");
+
+        // Remove any prior Pending entries for this execution (re-submission)
+        var priorPending = await _db.DigitalLogbookEntries
+            .Where(e => e.ExecutionId == cmd.ExecutionId && e.Status == LogbookEntryStatus.Pending)
+            .ToListAsync(ct);
+        _db.DigitalLogbookEntries.RemoveRange(priorPending);
+
+        var results = new List<LogbookEntryResult>();
+        bool hasOos = false, hasOot = false;
+
+        foreach (var entry in cmd.Entries)
+        {
+            var param = await _db.TestMethodParameters
+                .Include(p => p.SpecLimits)
+                .FirstOrDefaultAsync(p => p.ParameterId == entry.ParameterId, ct);
+            if (param is null) continue;
+
+            var specLimit = param.SpecLimits?.FirstOrDefault(s => s.IsActive && s.Status == ApprovalStatus.Approved);
+
+            // Auto-correction before formula (Contract 2: server-side, correction table from DB)
+            decimal? numericRaw = decimal.TryParse(entry.RawValue, out var parsed) ? parsed : null;
+            string? correctionDetail = null;
+            bool autoCorrected = false;
+            if (numericRaw.HasValue)
+            {
+                var corrResult = await _correction.ApplyAsync(
+                    execution.Sample.LabId, param.ParameterName, numericRaw.Value, ct);
+                if (corrResult.Applied)
+                {
+                    numericRaw = corrResult.CorrectedValue;
+                    correctionDetail = corrResult.Detail;
+                    autoCorrected = true;
+                    execution.AutoCorrected = true;
+                    execution.CorrectionType = correctionDetail;
+                }
+            }
+
+            // Formula applied server-side (ALCOA+ Original — result read-only in UI)
+            var calculated = numericRaw.HasValue
+                ? _calc.Calculate(numericRaw.Value.ToString(), param.CalcFormula, param.FormulaType.ToString())
+                : null;
+
+            // OOS / OOT detection — single service for both (Contract 1)
+            var detection = _oos.Detect(
+                calculated,
+                specLimit?.MinValue, specLimit?.MaxValue,
+                specLimit?.OotMinValue, specLimit?.OotMaxValue);
+
+            if (detection.IsOos) hasOos = true;
+            if (detection.IsOot) hasOot = true;
+
+            var logbookEntry = new DigitalLogbookEntry
+            {
+                SampleId = execution.SampleId,
+                ExecutionId = cmd.ExecutionId,
+                ParameterId = entry.ParameterId,
+                TriggerSource = TriggerType.OperatorScan,
+                RawValue = entry.RawValue,
+                CalculatedResult = calculated,
+                AutoCorrectionApplied = autoCorrected,
+                CorrectionDetail = correctionDetail,
+                SpecMinSnapshot = specLimit?.MinValue,
+                SpecMaxSnapshot = specLimit?.MaxValue,
+                OotMinSnapshot = specLimit?.OotMinValue,
+                OotMaxSnapshot = specLimit?.OotMaxValue,
+                RegulatoryTierSnapshot = specLimit?.RegulatoryTier?.ToString(),
+                PassFail = detection.PassFail,
+                IsOos = detection.IsOos,
+                IsOot = detection.IsOot,
+                InstrumentId = execution.InstrumentId,
+                AnalystId = cmd.AnalystId,
+                EvidenceFileRef = entry.EvidenceFileRef,
+                Status = LogbookEntryStatus.Pending,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+            _db.DigitalLogbookEntries.Add(logbookEntry);
+            await _db.SaveChangesAsync(ct); // flush to get EntryId
+
+            results.Add(new LogbookEntryResult(
+                logbookEntry.EntryId, param.ParameterId, param.ParameterName,
+                entry.RawValue, calculated, detection.PassFail,
+                detection.IsOos, detection.IsOot,
+                param.IsCritical, logbookEntry.EvidenceFileRef is not null));
+        }
+
+        execution.EntryMethod = cmd.EntryMethod;
+        await _db.SaveChangesAsync(ct);
+
+        return Result<SubmitTestResultsResponse>.Success(
+            new SubmitTestResultsResponse(cmd.ExecutionId, results, hasOos, hasOot));
+    }
+}

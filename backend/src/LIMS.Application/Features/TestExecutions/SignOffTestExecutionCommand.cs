@@ -1,0 +1,96 @@
+using LIMS.Application.Common;
+using LIMS.Application.Interfaces;
+using LIMS.Domain.Entities;
+using LIMS.Domain.Enums;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+
+namespace LIMS.Application.Features.TestExecutions;
+
+// Step 7: Analyst §11.50 e-sig sign-off — logbook rows finalized atomically (FR-06)
+public record SignOffTestExecutionCommand(
+    int ExecutionId, int UserId,
+    string Password, string Meaning, string Reason) : IRequest<Result<int>>;
+
+public class SignOffTestExecutionHandler : IRequestHandler<SignOffTestExecutionCommand, Result<int>>
+{
+    private readonly ILimsDbContext _db;
+    private readonly IElectronicSignatureService _esig;
+    private readonly INotificationService _notify;
+
+    public SignOffTestExecutionHandler(
+        ILimsDbContext db,
+        IElectronicSignatureService esig,
+        INotificationService notify)
+    { _db = db; _esig = esig; _notify = notify; }
+
+    public async Task<Result<int>> Handle(SignOffTestExecutionCommand cmd, CancellationToken ct)
+    {
+        var execution = await _db.TestExecutions
+            .Include(e => e.Sample)
+            .FirstOrDefaultAsync(e => e.ExecutionId == cmd.ExecutionId, ct);
+        if (execution is null) return Result<int>.Failure("NOT_FOUND", "Execution not found.");
+        if (execution.AnalystId != cmd.UserId)
+            return Result<int>.Failure("FORBIDDEN", "Only the assigned analyst can sign off this task.");
+        if (execution.Status != TestExecutionStatus.InProgress)
+            return Result<int>.Failure("INVALID_STATE", $"Task status is {execution.Status} — must be InProgress.");
+
+        var pendingEntries = await _db.DigitalLogbookEntries
+            .Include(e => e.Parameter)
+            .Where(e => e.ExecutionId == cmd.ExecutionId && e.Status == LogbookEntryStatus.Pending)
+            .ToListAsync(ct);
+        if (pendingEntries.Count == 0)
+            return Result<int>.Failure("NO_RESULTS", "No pending results to sign off. Submit results first.");
+
+        // Step 6: Evidence gate — block if critical parameter has no evidence (FR-19)
+        var missingEvidence = pendingEntries
+            .Where(e => e.Parameter.IsCritical && string.IsNullOrEmpty(e.EvidenceFileRef))
+            .Select(e => e.Parameter.ParameterName)
+            .ToList();
+        if (missingEvidence.Count > 0)
+            return Result<int>.Failure("EVIDENCE_MISSING",
+                $"Evidence required for critical parameter(s): {string.Join(", ", missingEvidence)}. Sign-off blocked. (GMP / GAMP 5)");
+
+        // §11.50 e-sig — §11.300 password independent of session token
+        var sig = await _esig.CreateSignatureAsync(cmd.UserId, cmd.Password, cmd.Meaning, cmd.Reason, "TestExecution.SignOff", ct);
+        if (sig is null) return Result<int>.Failure("ESIGN_AUTH_FAILED", "Password incorrect — e-signature rejected. (21 CFR §11.300)");
+
+        // Atomic: finalize all pending logbook rows and create OOS investigations
+        foreach (var entry in pendingEntries)
+        {
+            entry.Status = LogbookEntryStatus.Signed;
+            entry.SignatureId = sig.SignatureId;
+
+            if (entry.IsOos || entry.IsOot)
+            {
+                var investigation = new OosInvestigation
+                {
+                    ExecutionId = cmd.ExecutionId,
+                    EntryId = entry.EntryId,
+                    ParameterId = entry.ParameterId,
+                    FlagType = entry.IsOos ? OosFlag.OOS : OosFlag.OOT,
+                    Phase = OosPhase.Phase1,
+                    Status = OosStatus.Open,
+                    OpenedAt = DateTimeOffset.UtcNow,
+                    CreatedBy = sig.FullName
+                };
+                _db.OosInvestigations.Add(investigation);
+            }
+        }
+
+        bool hasOpenOos = pendingEntries.Any(e => e.IsOos || e.IsOot);
+        execution.Status = hasOpenOos ? TestExecutionStatus.OOSOpen : TestExecutionStatus.Completed;
+        execution.CompletedAt = DateTimeOffset.UtcNow;
+
+        if (!hasOpenOos)
+            execution.Sample.Status = SampleStatus.PendingQAReview;
+
+        await _db.SaveChangesAsync(ct);
+
+        // SignalR push — notify QA/LabManager (Contract 2: no polling)
+        await _notify.PushToGroupAsync("QA", "TestExecutionSigned",
+            new { executionId = cmd.ExecutionId, sampleId = execution.SampleId, hasOos = hasOpenOos }, ct);
+
+        return Result<int>.Success(execution.ExecutionId);
+    }
+}

@@ -33,5 +33,11 @@ public interface ILimsDbContext
     DbSet<CheckpointLocation> CheckpointLocations { get; }
     DbSet<CheckpointTriggerLog> CheckpointTriggerLogs { get; }
     DbSet<ProcessLogRow> ProcessLogRows { get; }
+    // Phase 3: Testing Execution + Digital Logbook
+    DbSet<TestExecution> TestExecutions { get; }
+    DbSet<DigitalLogbookEntry> DigitalLogbookEntries { get; }
+    DbSet<OosInvestigation> OosInvestigations { get; }
+    DbSet<ResultsReview> ResultsReviews { get; }
+    DbSet<ResultEvidence> ResultEvidences { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

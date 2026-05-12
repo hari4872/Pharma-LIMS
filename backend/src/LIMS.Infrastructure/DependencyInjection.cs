@@ -31,6 +31,10 @@ public static class DependencyInjection
         services.AddScoped<ISampleValidatorService, SampleValidatorService>();
         // Phase 1b services
         services.AddScoped<ICheckpointTriggerService, CheckpointTriggerService>();
+        // Phase 3 services
+        services.AddScoped<IOosDetectionService, OosDetectionService>();
+        services.AddScoped<IParameterCalculationService, ParameterCalculationService>();
+        services.AddScoped<IAutoCorrectionService, AutoCorrectionService>();
 
         // SignalR (Contract 2: all push from server)
         services.AddSignalR();
@@ -43,6 +47,8 @@ public static class DependencyInjection
         services.AddHostedService<ProcessLogSchedulerJob>();
         services.AddHostedService<DispatchEventJob>();
         services.AddHostedService<MissedTriggerEscalationJob>();
+        // Phase 3 background jobs
+        services.AddHostedService<WorkQueueEscalationJob>();
 
         return services;
     }

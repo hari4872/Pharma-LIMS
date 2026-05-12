@@ -15,6 +15,11 @@ import UsersPage from '@/pages/master-data/UsersPage'
 import SampleTypesPage from '@/pages/master-data/SampleTypesPage'
 import SampleRegistrationPage from '@/pages/SampleRegistrationPage'
 import CheckpointsPage from '@/pages/CheckpointsPage'
+import WorkQueuePage from '@/pages/WorkQueuePage'
+import TestExecutionPage from '@/pages/TestExecutionPage'
+import OosInvestigationsPage from '@/pages/OosInvestigationsPage'
+import DigitalLogbookPage from '@/pages/DigitalLogbookPage'
+import ResultsReviewPage from '@/pages/ResultsReviewPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useSelector((s: RootState) => s.auth.token)
@@ -39,6 +44,11 @@ export default function App() {
         <Route path="master-data/sample-types" element={<SampleTypesPage />} />
         <Route path="samples" element={<SampleRegistrationPage />} />
         <Route path="checkpoints" element={<CheckpointsPage />} />
+        <Route path="work-queue" element={<WorkQueuePage />} />
+        <Route path="test-execution/:id" element={<TestExecutionPage />} />
+        <Route path="oos-investigations" element={<OosInvestigationsPage />} />
+        <Route path="digital-logbook" element={<DigitalLogbookPage />} />
+        <Route path="results-review" element={<ResultsReviewPage />} />
       </Route>
     </Routes>
   )
