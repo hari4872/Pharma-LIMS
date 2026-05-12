@@ -26,11 +26,12 @@ public class FormTemplatesController : ControllerBase
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<FormTemplateStatus>(status, out var st)) query = query.Where(f => f.Status == st);
         if (!string.IsNullOrEmpty(triggerType) && Enum.TryParse<TriggerType>(triggerType, out var tt)) query = query.Where(f => f.TriggerType == tt);
 
-        var results = await query.Select(f => new
+        var results = await query.Include(f => f.SampleTypeNav).Select(f => new
         {
             f.FormTemplateId, f.FormCode, f.FormName, FormType = f.FormType.ToString(),
             TriggerType = f.TriggerType.ToString(), Status = f.Status.ToString(),
             f.Version, f.EvidenceMandatory, f.RegulatoryTier, f.ApprovedBy, f.ApprovedAt,
+            f.SampleTypeId, SampleTypeName = f.SampleTypeNav != null ? f.SampleTypeNav.TypeName : null,
             LocationCount = f.Locations.Count, ParameterCount = f.TemplateParameters.Count
         }).ToListAsync();
         return Ok(results);
@@ -48,6 +49,7 @@ public class FormTemplatesController : ControllerBase
             TriggerType = Enum.Parse<TriggerType>(request.TriggerType),
             TimeSlots = request.TimeSlots, ShiftIntervalHrs = request.ShiftIntervalHrs,
             RegulatoryTier = request.RegulatoryTier, EvidenceMandatory = request.EvidenceMandatory,
+            SampleTypeId = request.SampleTypeId,   // configured by user — no hardcoding
             CreatedBy = username, CreatedAt = DateTimeOffset.UtcNow
         };
         _db.FormTemplates.Add(template);
@@ -60,7 +62,7 @@ public class FormTemplatesController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] UpdateFormTemplateRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
-        var result = await _mediator.Send(new UpdateFormTemplateCommand(id, request.FormName, request.TriggerType, request.EvidenceMandatory, request.RegulatoryTier, username));
+        var result = await _mediator.Send(new UpdateFormTemplateCommand(id, request.FormName, request.TriggerType, request.EvidenceMandatory, request.RegulatoryTier, request.SampleTypeId, username));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { formTemplateId = result.Value, status = "Draft" });
     }
@@ -130,7 +132,7 @@ public class FormTemplatesController : ControllerBase
     }
 }
 
-public record CreateFormTemplateRequest(string FormCode, string FormName, int LabId, string FormType, string TriggerType, string? TimeSlots, int? ShiftIntervalHrs, string? RegulatoryTier, bool EvidenceMandatory);
-public record UpdateFormTemplateRequest(string FormName, string TriggerType, bool EvidenceMandatory, string? RegulatoryTier);
+public record CreateFormTemplateRequest(string FormCode, string FormName, int LabId, string FormType, string TriggerType, string? TimeSlots, int? ShiftIntervalHrs, string? RegulatoryTier, bool EvidenceMandatory, int? SampleTypeId);
+public record UpdateFormTemplateRequest(string FormName, string TriggerType, bool EvidenceMandatory, string? RegulatoryTier, int? SampleTypeId);
 public record AddTemplateParameterRequest(int ParameterId, int DisplayOrder, string? ColumnFrequency);
 public record AddTemplateLocationRequest(string LocationName, int ColumnOrder, int? SpecLimitId);

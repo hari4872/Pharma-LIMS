@@ -24,6 +24,7 @@ public class DispatchEventService : IDispatchEventService
 
         // Resolve FormTemplate: trigger_type = DispatchEvent, matching product_type (Contract 2)
         var formTemplate = await _db.FormTemplates
+            .Include(f => f.SampleTypeNav)
             .FirstOrDefaultAsync(f =>
                 f.TriggerType == TriggerType.DispatchEvent &&
                 f.Status == FormTemplateStatus.Active &&
@@ -33,14 +34,17 @@ public class DispatchEventService : IDispatchEventService
             throw new InvalidOperationException(
                 "No active Form Template with trigger_type = DispatchEvent found. Configure one in Master Data.");
 
-        // Gap 2 fix: resolve SampleTypeId by TypeCode "DSPQC" (must exist in SampleType master)
-        var dispatchSampleType = await _db.SampleTypes
-            .FirstOrDefaultAsync(t => t.TypeCode == "DSPQC" && t.IsActive, ct)
-            ?? throw new InvalidOperationException(
-                "SampleType with TypeCode 'DSPQC' not found. Create it in Master Data > Sample Types before raising Delivery Orders.");
+        // SampleType comes from the FormTemplate — no hardcoding (user configures it in Master Data)
+        if (formTemplate.SampleTypeId is null || formTemplate.SampleTypeNav is null)
+            throw new InvalidOperationException(
+                $"Form Template '{formTemplate.FormCode}' has no Sample Type assigned. " +
+                "Edit the template in Master Data and select the Sample Type for Dispatch QC.");
 
         // Auto-create a Sample for this Dispatch QC
-        var sampleNumber = await _sampleIdFormat.GenerateAsync(formTemplate.LabId, deliveryOrder.ProductId, dispatchSampleType.TypeCode, deliveryOrder.DoNumber, ct);
+        var sampleNumber = await _sampleIdFormat.GenerateAsync(
+            formTemplate.LabId, deliveryOrder.ProductId,
+            formTemplate.SampleTypeNav.TypeCode, deliveryOrder.DoNumber, ct);
+
         var sample = new Sample
         {
             SampleNumber   = sampleNumber,
@@ -49,7 +53,7 @@ public class DispatchEventService : IDispatchEventService
             LotNumber      = deliveryOrder.DoNumber,
             MfgDate        = DateOnly.FromDateTime(DateTime.UtcNow),
             ExpDate        = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(365)),
-            SampleTypeId   = dispatchSampleType.SampleTypeId,   // Gap 2 fix: FK
+            SampleTypeId   = formTemplate.SampleTypeId.Value,  // from FormTemplate — no hardcoding
             FormTemplateId = formTemplate.FormTemplateId,
             Status         = SampleStatus.InTesting,
             AnalystId      = 1,   // Default system analyst — WAP assigns real analyst

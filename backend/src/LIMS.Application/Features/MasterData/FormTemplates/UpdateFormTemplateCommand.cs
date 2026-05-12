@@ -7,7 +7,8 @@ using Microsoft.EntityFrameworkCore;
 namespace LIMS.Application.Features.MasterData.FormTemplates;
 
 public record UpdateFormTemplateCommand(int FormTemplateId, string FormName,
-    string TriggerType, bool EvidenceMandatory, string? RegulatoryTier, string UpdatedBy) : IRequest<Result<int>>;
+    string TriggerType, bool EvidenceMandatory, string? RegulatoryTier,
+    int? SampleTypeId, string UpdatedBy) : IRequest<Result<int>>;
 
 public class UpdateFormTemplateCommandHandler : IRequestHandler<UpdateFormTemplateCommand, Result<int>>
 {
@@ -28,6 +29,7 @@ public class UpdateFormTemplateCommandHandler : IRequestHandler<UpdateFormTempla
         ft.TriggerType = Enum.Parse<TriggerType>(request.TriggerType);
         ft.EvidenceMandatory = request.EvidenceMandatory;
         ft.RegulatoryTier = request.RegulatoryTier;
+        ft.SampleTypeId = request.SampleTypeId;   // user-configured — no hardcoding
         ft.Version = newVersion; ft.Status = FormTemplateStatus.Draft;
         ft.SignatureId = null; ft.ApprovedBy = null; ft.ApprovedAt = null;
         await _db.SaveChangesAsync(ct);

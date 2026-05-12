@@ -99,6 +99,7 @@ public class FormTemplateConfiguration : IEntityTypeConfiguration<FormTemplate>
         builder.Property(f => f.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(f => f.CreatedAt).HasColumnType("timestamptz");
         builder.HasOne(f => f.Lab).WithMany(l => l.FormTemplates).HasForeignKey(f => f.LabId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(f => f.SampleTypeNav).WithMany().HasForeignKey(f => f.SampleTypeId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(f => f.Signature).WithMany().HasForeignKey(f => f.SignatureId).OnDelete(DeleteBehavior.Restrict);
     }
 }

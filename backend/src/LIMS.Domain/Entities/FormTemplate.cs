@@ -12,6 +12,8 @@ public class FormTemplate
     public Laboratory Lab { get; set; } = default!;
     public FormType FormType { get; set; } = FormType.Single;
     public TriggerType TriggerType { get; set; }
+    public int? SampleTypeId { get; set; }                 // FK — which SampleType to create when this template fires (no hardcoding)
+    public SampleType? SampleTypeNav { get; set; }
     public string? TimeSlots { get; set; }                 // JSONB from DB config (Contract 2)
     public int? ShiftIntervalHrs { get; set; }
     public string? RegulatoryTier { get; set; }
