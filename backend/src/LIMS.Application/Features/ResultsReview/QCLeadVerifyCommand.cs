@@ -8,6 +8,8 @@ using ReviewEntity = LIMS.Domain.Entities.ResultsReview;
 namespace LIMS.Application.Features.ResultsReview;
 
 // QC Lead verification: 3rd independent reviewer (FR-04, FR-05) — hard blocks: OOS open + no peer review
+// After verification: CoA auto-generated (Draft) by ICoAGenerationService (Contract 1)
+// Sample goes to PendingQAReview — Released only after QA approval (Phase 4)
 public record QCLeadVerifyCommand(
     int ExecutionId, int QcLeadId,
     string Password, string Meaning, string Reason,
@@ -18,9 +20,11 @@ public class QCLeadVerifyHandler : IRequestHandler<QCLeadVerifyCommand, Result<i
     private readonly ILimsDbContext _db;
     private readonly IElectronicSignatureService _esig;
     private readonly INotificationService _notify;
+    private readonly ICoAGenerationService _coaGen;
 
-    public QCLeadVerifyHandler(ILimsDbContext db, IElectronicSignatureService esig, INotificationService notify)
-    { _db = db; _esig = esig; _notify = notify; }
+    public QCLeadVerifyHandler(ILimsDbContext db, IElectronicSignatureService esig,
+        INotificationService notify, ICoAGenerationService coaGen)
+    { _db = db; _esig = esig; _notify = notify; _coaGen = coaGen; }
 
     public async Task<Result<int>> Handle(QCLeadVerifyCommand cmd, CancellationToken ct)
     {
@@ -62,8 +66,12 @@ public class QCLeadVerifyHandler : IRequestHandler<QCLeadVerifyCommand, Result<i
         };
         _db.ResultsReviews.Add(review);
 
-        execution.Sample.Status = SampleStatus.Released;
+        // Sample goes to PendingQAReview — Released only after QA CoA approval (Phase 4)
+        execution.Sample.Status = SampleStatus.PendingQAReview;
         await _db.SaveChangesAsync(ct);
+
+        // Auto-generate Draft CoA (Contract 1 — CoAGenerationService single builder)
+        await _coaGen.GenerateDraftAsync(execution.SampleId, cmd.ExecutionId, ct);
 
         await _notify.PushToGroupAsync("QA", "QCLeadVerified",
             new { executionId = cmd.ExecutionId, sampleId = execution.SampleId }, ct);

@@ -44,6 +44,13 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<OosInvestigation> OosInvestigations => Set<OosInvestigation>();
     public DbSet<ResultsReview> ResultsReviews => Set<ResultsReview>();
     public DbSet<ResultEvidence> ResultEvidences => Set<ResultEvidence>();
+    // Phase 4: CoA Generation + QA Review + Dispatch QC
+    public DbSet<DeliveryOrder> DeliveryOrders => Set<DeliveryOrder>();
+    public DbSet<Coa> Coas => Set<Coa>();
+    public DbSet<CoaLine> CoaLines => Set<CoaLine>();
+    public DbSet<CoaDistributionLog> CoaDistributionLogs => Set<CoaDistributionLog>();
+    public DbSet<CoaApproval> CoaApprovals => Set<CoaApproval>();
+    public DbSet<DispatchQcTask> DispatchQcTasks => Set<DispatchQcTask>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -39,5 +39,12 @@ public interface ILimsDbContext
     DbSet<OosInvestigation> OosInvestigations { get; }
     DbSet<ResultsReview> ResultsReviews { get; }
     DbSet<ResultEvidence> ResultEvidences { get; }
+    // Phase 4: CoA Generation + QA Review + Dispatch QC
+    DbSet<DeliveryOrder> DeliveryOrders { get; }
+    DbSet<Coa> Coas { get; }
+    DbSet<CoaLine> CoaLines { get; }
+    DbSet<CoaDistributionLog> CoaDistributionLogs { get; }
+    DbSet<CoaApproval> CoaApprovals { get; }
+    DbSet<DispatchQcTask> DispatchQcTasks { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -22,6 +22,8 @@ const operationsItems = [
   { label: 'OOS Investigations', path: '/oos-investigations' },
   { label: 'Digital Logbook', path: '/digital-logbook' },
   { label: 'Results Review', path: '/results-review' },
+  { label: 'CoA Review', path: '/coa-review' },
+  { label: 'Dispatch QC', path: '/dispatch-qc' },
 ]
 
 export default function Layout() {

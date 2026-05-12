@@ -35,6 +35,13 @@ public static class DependencyInjection
         services.AddScoped<IOosDetectionService, OosDetectionService>();
         services.AddScoped<IParameterCalculationService, ParameterCalculationService>();
         services.AddScoped<IAutoCorrectionService, AutoCorrectionService>();
+        // Phase 4 services
+        services.AddScoped<ICoAHeaderService, CoAHeaderService>();
+        services.AddScoped<ICoAGenerationService, CoAGenerationService>();
+        services.AddScoped<ICoADistributionService, CoADistributionService>();
+        services.AddScoped<IQAReviewGateService, QAReviewGateService>();
+        services.AddScoped<IDispatchEventService, DispatchEventService>();
+        services.AddScoped<IDispatchStatusService, DispatchStatusService>();
 
         // SignalR (Contract 2: all push from server)
         services.AddSignalR();

@@ -20,6 +20,8 @@ import TestExecutionPage from '@/pages/TestExecutionPage'
 import OosInvestigationsPage from '@/pages/OosInvestigationsPage'
 import DigitalLogbookPage from '@/pages/DigitalLogbookPage'
 import ResultsReviewPage from '@/pages/ResultsReviewPage'
+import CoaReviewPage from '@/pages/CoaReviewPage'
+import DispatchQcPage from '@/pages/DispatchQcPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useSelector((s: RootState) => s.auth.token)
@@ -49,6 +51,8 @@ export default function App() {
         <Route path="oos-investigations" element={<OosInvestigationsPage />} />
         <Route path="digital-logbook" element={<DigitalLogbookPage />} />
         <Route path="results-review" element={<ResultsReviewPage />} />
+        <Route path="coa-review" element={<CoaReviewPage />} />
+        <Route path="dispatch-qc" element={<DispatchQcPage />} />
       </Route>
     </Routes>
   )
