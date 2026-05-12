@@ -25,6 +25,12 @@ public static class DependencyInjection
         services.AddScoped<IMasterDataAuditService, MasterDataAuditService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IMasterDataValidatorService, MasterDataValidatorService>();
+        // Phase 2 services
+        services.AddScoped<ISampleIdFormatService, SampleIdFormatService>();
+        services.AddScoped<IFormTemplateSelectorService, FormTemplateSelectorService>();
+        services.AddScoped<ISampleValidatorService, SampleValidatorService>();
+        // Phase 1b services
+        services.AddScoped<ICheckpointTriggerService, CheckpointTriggerService>();
 
         // SignalR (Contract 2: all push from server)
         services.AddSignalR();
@@ -32,6 +38,11 @@ public static class DependencyInjection
         // Background jobs (Contract 2: IHostedService — intervals from DB config)
         services.AddHostedService<CalibrationDueDateJob>();
         services.AddHostedService<TrainingExpiryJob>();
+        // Phase 1b background jobs — all 4 trigger modes
+        services.AddHostedService<CheckpointSchedulerJob>();
+        services.AddHostedService<ProcessLogSchedulerJob>();
+        services.AddHostedService<DispatchEventJob>();
+        services.AddHostedService<MissedTriggerEscalationJob>();
 
         return services;
     }

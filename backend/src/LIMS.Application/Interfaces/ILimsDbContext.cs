@@ -25,5 +25,13 @@ public interface ILimsDbContext
     DbSet<UserTrainingRecord> UserTrainingRecords { get; }
     DbSet<MasterDataAuditLog> MasterDataAuditLogs { get; }
     DbSet<SampleType> SampleTypes { get; }
+    // Phase 2: Sample Registration
+    DbSet<Sample> Samples { get; }
+    DbSet<BarcodePrintLog> BarcodePrintLogs { get; }
+    // Phase 1b: Checkpoints
+    DbSet<Checkpoint> Checkpoints { get; }
+    DbSet<CheckpointLocation> CheckpointLocations { get; }
+    DbSet<CheckpointTriggerLog> CheckpointTriggerLogs { get; }
+    DbSet<ProcessLogRow> ProcessLogRows { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

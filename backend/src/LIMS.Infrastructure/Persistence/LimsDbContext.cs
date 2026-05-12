@@ -30,6 +30,14 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<UserTrainingRecord> UserTrainingRecords => Set<UserTrainingRecord>();
     public DbSet<MasterDataAuditLog> MasterDataAuditLogs => Set<MasterDataAuditLog>();
     public DbSet<SampleType> SampleTypes => Set<SampleType>();
+    // Phase 2
+    public DbSet<Sample> Samples => Set<Sample>();
+    public DbSet<BarcodePrintLog> BarcodePrintLogs => Set<BarcodePrintLog>();
+    // Phase 1b
+    public DbSet<Checkpoint> Checkpoints => Set<Checkpoint>();
+    public DbSet<CheckpointLocation> CheckpointLocations => Set<CheckpointLocation>();
+    public DbSet<CheckpointTriggerLog> CheckpointTriggerLogs => Set<CheckpointTriggerLog>();
+    public DbSet<ProcessLogRow> ProcessLogRows => Set<ProcessLogRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
