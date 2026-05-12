@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace LIMS.Infrastructure.BackgroundJobs;
 
 // Contract 2: IHostedService — runs server-side daily, interval from DB config (not hardcoded)
+// Contract 1: status transitions go via IInstrumentStatusService — no direct Status mutation here
 public class CalibrationDueDateJob : BackgroundService
 {
     private readonly IServiceProvider _services;
@@ -22,65 +23,67 @@ public class CalibrationDueDateJob : BackgroundService
         while (!stoppingToken.IsCancellationRequested)
         {
             await RunAsync(stoppingToken);
-            // Interval from DB config — default 24h, never hardcoded (Contract 2)
             var intervalHours = await GetIntervalHoursAsync(stoppingToken);
             await Task.Delay(TimeSpan.FromHours(intervalHours), stoppingToken);
         }
     }
 
-    private async Task RunAsync(CancellationToken cancellationToken)
+    private async Task RunAsync(CancellationToken ct)
     {
         using var scope = _services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<LimsDbContext>();
+        var db            = scope.ServiceProvider.GetRequiredService<LimsDbContext>();
         var notifications = scope.ServiceProvider.GetRequiredService<INotificationService>();
+        // Contract 1: IInstrumentStatusService owns ALL status transitions
+        var statusService = scope.ServiceProvider.GetRequiredService<IInstrumentStatusService>();
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        // Flag OOC: cal_due < today
+        // Flag OOC: calibration_due < today AND not already OutOfCalibration
         var oocInstruments = await db.Instruments
-            .Where(i => i.IsActive && i.CalibrationDue < today && i.Status != InstrumentStatus.OutOfCalibration)
-            .ToListAsync(cancellationToken);
+            .Where(i => i.IsActive
+                     && i.CalibrationDue < today
+                     && i.Status != InstrumentStatus.OutOfCalibration)
+            .ToListAsync(ct);
 
         foreach (var inst in oocInstruments)
         {
-            inst.Status = InstrumentStatus.OutOfCalibration;
-            _logger.LogWarning("Instrument {Code} is OutOfCalibration (due {Due})", inst.InstrumentCode, inst.CalibrationDue);
+            // Contract 1: delegate status transition to IInstrumentStatusService
+            await statusService.SetMaintenanceAsync(inst.InstrumentId,
+                $"Calibration overdue since {inst.CalibrationDue}", ct);
+            _logger.LogWarning("CalibrationDueDateJob: Instrument {Code} flagged OutOfCalibration (due {Due})",
+                inst.InstrumentCode, inst.CalibrationDue);
         }
 
         if (oocInstruments.Count > 0)
-        {
-            await db.SaveChangesAsync(cancellationToken);
-            await notifications.PushToGroupAsync("QA", "InstrumentsOOC",
+            await notifications.PushToGroupAsync("QA", "CalibrationOOC",
                 new { Count = oocInstruments.Count, Instruments = oocInstruments.Select(i => new { i.InstrumentId, i.InstrumentCode }) },
-                cancellationToken);
-        }
+                ct);
 
         // T-7 and T-1 calibration due alerts
-        var alertDays = new[] { 7, 1 };
-        foreach (var days in alertDays)
+        foreach (var days in new[] { 7, 1 })
         {
             var alertDate = today.AddDays(days);
             var dueInstruments = await db.Instruments
                 .Where(i => i.IsActive && i.CalibrationDue == alertDate)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(ct);
 
             if (dueInstruments.Count > 0)
                 await notifications.PushToGroupAsync("QA", "CalibrationDueSoon",
                     new { DaysRemaining = days, Instruments = dueInstruments.Select(i => new { i.InstrumentId, i.InstrumentCode, i.CalibrationDue }) },
-                    cancellationToken);
+                    ct);
         }
     }
 
-    private async Task<double> GetIntervalHoursAsync(CancellationToken cancellationToken)
+    private async Task<double> GetIntervalHoursAsync(CancellationToken ct)
     {
         try
         {
             using var scope = _services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<LimsDbContext>();
-            var config = await db.LabConfigs.FirstOrDefaultAsync(c => c.ConfigKey == "cal_check_interval_hrs", cancellationToken);
+            var config = await db.LabConfigs.FirstOrDefaultAsync(c => c.ConfigKey == "cal_check_interval_hrs", ct);
             if (config is not null && double.TryParse(config.ConfigValue, out var hours)) return hours;
         }
-        catch { /* default fallback */ }
+        catch { }
         return 24;
     }
 }

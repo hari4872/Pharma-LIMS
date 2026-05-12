@@ -1,4 +1,6 @@
+using LIMS.Application.Interfaces;
 using LIMS.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -64,6 +66,39 @@ public class AuthController : ControllerBase
         return Ok(new { setupRequired = !hasAdmin });
     }
 
+    // POST api/v1/auth/reset-password — Admin only (Contract 4: forgot-password requires admin authorisation)
+    // §11.300: BCrypt re-hash of new password; audit-logged via MasterDataAuditService
+    // No email-based reset — admin initiates; the reset itself is audit-trailed
+    [HttpPost("reset-password")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        var adminUsername = User.Identity?.Name ?? "Unknown";
+
+        var target = await _db.Users.FirstOrDefaultAsync(u => u.UserId == request.TargetUserId);
+        if (target is null) return NotFound(new { error = "User not found." });
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+            return BadRequest(new { error = "New password must be at least 8 characters." });
+
+        // §11.300: BCrypt re-hash (independent of any session token)
+        target.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+
+        // INSERT-only audit log entry (§11.10(e))
+        _db.MasterDataAuditLogs.Add(new LIMS.Domain.Entities.MasterDataAuditLog
+        {
+            EntityType  = "User",
+            EntityId    = target.UserId,
+            EventType   = "PasswordReset",
+            PerformedBy = adminUsername,
+            NewValue    = $"{{\"targetUserId\":{target.UserId},\"targetUsername\":\"{target.Username}\"}}",
+            PerformedAt = DateTimeOffset.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = $"Password reset for {target.Username}. User must sign in with new credentials." });
+    }
+
     private string GenerateJwt(int userId, string username, string fullName, string role, string userType)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
@@ -86,3 +121,4 @@ public class AuthController : ControllerBase
 
 public record LoginRequest(string Username, string Password, bool RememberMe = false);
 public record SetupRequest(string Username, string Password, string FullName, string Email);
+public record ResetPasswordRequest(int TargetUserId, string NewPassword);
