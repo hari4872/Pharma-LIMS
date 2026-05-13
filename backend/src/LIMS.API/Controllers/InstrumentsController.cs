@@ -74,6 +74,13 @@ public class InstrumentsController : ControllerBase
         return Ok(new { calibrationId = result.Value, status = "Approved" });
     }
 
+    // ── FR-15: Instrument Utilisation Summary ────────────────────────────
+
+    // GET api/v1/instruments/{id}/utilisation — returns 7/30/90-day windows
+    [HttpGet("{id:int}/utilisation")]
+    public async Task<IActionResult> GetUtilisation(int id)
+        => Ok(await _mediator.Send(new GetInstrumentUtilisationQuery(id)));
+
     // ── FR-13: Breakdown / Repair Lifecycle ──────────────────────────────
 
     // GET api/v1/instruments/breakdowns — list all (filter by status)

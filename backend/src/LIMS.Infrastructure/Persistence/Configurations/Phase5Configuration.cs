@@ -84,7 +84,7 @@ public class StorageTransferLogConfiguration : IEntityTypeConfiguration<StorageT
 {
     public void Configure(EntityTypeBuilder<StorageTransferLog> b)
     {
-        b.ToTable("storage_transfer_log");
+        b.ToTable("storage_transfer_logs");
         b.HasKey(e => e.TransferId);
         b.Property(e => e.TransferredBy).HasMaxLength(100).IsRequired();
         b.Property(e => e.TransferredAt).HasColumnType("timestamptz");

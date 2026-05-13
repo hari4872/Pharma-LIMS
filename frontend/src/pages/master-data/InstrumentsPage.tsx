@@ -6,6 +6,7 @@ import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './Labor
 interface Instrument { instrumentId: number; labName: string; instrumentCode: string; instrumentType: string; model: string; serialNumber: string; calibrationDue: string; status: string; isActive: boolean }
 interface Lab { labId: number; labName: string }
 interface Breakdown { breakdownId: number; instrumentId: number; instrumentCode: string; raisedByName: string; raisedAt: string; issueDescription: string; status: string; repairCount: number; returnSignatureId: number | null }
+interface UtilisationSummary { summaryId: number; windowDays: number; windowStart: string; windowEnd: string; totalTests: number; totalHours: number; utilisationPct: number | null; calculatedAt: string }
 
 const statusColour = (s: string) => {
   if (s === 'Available') return { bg: '#d1fae5', fg: '#065f46' }
@@ -19,7 +20,9 @@ export default function InstrumentsPage() {
   const [data, setData] = useState<Instrument[]>([])
   const [labs, setLabs] = useState<Lab[]>([])
   const [breakdowns, setBreakdowns] = useState<Breakdown[]>([])
-  const [tab, setTab] = useState<'instruments' | 'breakdowns'>('instruments')
+  const [tab, setTab] = useState<'instruments' | 'breakdowns' | 'utilisation'>('instruments')
+  const [utilisation, setUtilisation] = useState<UtilisationSummary[]>([])
+  const [utilisationInstrumentId, setUtilisationInstrumentId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [showBreakdownForm, setShowBreakdownForm] = useState(false)
@@ -81,15 +84,24 @@ export default function InstrumentsPage() {
     finally { setSaving(false) }
   }
 
+  async function loadUtilisation(instrumentId: number) {
+    setUtilisationInstrumentId(instrumentId)
+    setTab('utilisation')
+    try {
+      const r = await api.get(`/instruments/${instrumentId}/utilisation`)
+      setUtilisation(r.data)
+    } catch { setUtilisation([]) }
+  }
+
   const openBreakdowns = breakdowns.filter(b => b.status !== 'Resolved')
 
   return (
     <div>
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-        {(['instruments', 'breakdowns'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ padding: '6px 16px', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 500, fontSize: 13, background: tab === t ? '#2563eb' : '#e5e7eb', color: tab === t ? '#fff' : '#374151' }}>
-            {t === 'instruments' ? 'Instruments' : `Breakdowns${openBreakdowns.length ? ` (${openBreakdowns.length})` : ''}`}
+        {(['instruments', 'breakdowns', 'utilisation'] as const).map(t => (
+          <button key={t} onClick={() => t !== 'utilisation' && setTab(t)} style={{ padding: '6px 16px', border: 'none', borderRadius: 4, cursor: t === 'utilisation' ? 'default' : 'pointer', fontWeight: 500, fontSize: 13, background: tab === t ? '#2563eb' : '#e5e7eb', color: tab === t ? '#fff' : '#374151' }}>
+            {t === 'instruments' ? 'Instruments' : t === 'breakdowns' ? `Breakdowns${openBreakdowns.length ? ` (${openBreakdowns.length})` : ''}` : utilisationInstrumentId ? `Utilisation — #${utilisationInstrumentId}` : 'Utilisation'}
           </button>
         ))}
       </div>
@@ -113,10 +125,16 @@ export default function InstrumentsPage() {
             { header: 'Active', accessor: r => <StatusBadge active={r.isActive} /> },
             {
               header: '', accessor: r => (
-                <button onClick={() => { setBdForm(f => ({ ...f, instrumentId: String(r.instrumentId) })); setShowBreakdownForm(true) }}
-                  style={{ fontSize: 12, padding: '2px 8px', background: '#fef3c7', color: '#92400e', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
-                  Raise Breakdown
-                </button>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button onClick={() => { setBdForm(f => ({ ...f, instrumentId: String(r.instrumentId) })); setShowBreakdownForm(true) }}
+                    style={{ fontSize: 12, padding: '2px 8px', background: '#fef3c7', color: '#92400e', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                    Raise Breakdown
+                  </button>
+                  <button onClick={() => loadUtilisation(r.instrumentId)}
+                    style={{ fontSize: 12, padding: '2px 8px', background: '#ede9fe', color: '#5b21b6', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                    Utilisation
+                  </button>
+                </div>
               )
             },
           ]} />
@@ -149,6 +167,35 @@ export default function InstrumentsPage() {
               ) : <span style={{ color: '#9ca3af', fontSize: 12 }}>Resolved</span>
             },
           ]} />
+        </>
+      )}
+
+      {tab === 'utilisation' && (
+        <>
+          <PageHeader title={utilisationInstrumentId ? `Utilisation Summary — Instrument #${utilisationInstrumentId}` : 'Utilisation Summary'} />
+          {utilisation.length === 0 ? (
+            <p style={{ color: '#6b7280', fontSize: 14, padding: '24px 0' }}>
+              No utilisation data yet. The background job computes 7 / 30 / 90-day windows every night.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', margin: '12px 0' }}>
+              {utilisation.map(u => {
+                const pct = u.utilisationPct !== null ? Number(u.utilisationPct).toFixed(1) : '—'
+                const colour = u.utilisationPct === null ? '#6b7280' : u.utilisationPct >= 80 ? '#dc2626' : u.utilisationPct >= 50 ? '#d97706' : '#059669'
+                return (
+                  <div key={u.summaryId} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '16px 24px', minWidth: 200, background: '#fff' }}>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: colour }}>{pct}{u.utilisationPct !== null ? '%' : ''}</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: '#111827', marginTop: 4 }}>{u.windowDays}-Day Window</div>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>
+                      <div>{u.windowStart.slice(0, 10)} → {u.windowEnd.slice(0, 10)}</div>
+                      <div style={{ marginTop: 4 }}>{u.totalTests} tests &nbsp;|&nbsp; {Number(u.totalHours).toFixed(1)} hrs</div>
+                      <div style={{ marginTop: 4 }}>Calculated: {u.calculatedAt.replace('T', ' ').slice(0, 16)} UTC</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </>
       )}
 
