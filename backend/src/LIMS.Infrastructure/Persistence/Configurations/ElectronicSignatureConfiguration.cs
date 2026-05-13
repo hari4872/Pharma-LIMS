@@ -8,6 +8,7 @@ public class ElectronicSignatureConfiguration : IEntityTypeConfiguration<Electro
 {
     public void Configure(EntityTypeBuilder<ElectronicSignature> builder)
     {
+        builder.ToTable("electronic_signatures");
         builder.HasKey(e => e.SignatureId);
         // §11.50: all four fields NOT NULL — immutable after capture
         builder.Property(e => e.FullName).HasMaxLength(200).IsRequired();

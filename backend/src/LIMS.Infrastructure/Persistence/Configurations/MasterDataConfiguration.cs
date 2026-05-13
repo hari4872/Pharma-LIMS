@@ -8,6 +8,7 @@ public class LaboratoryConfiguration : IEntityTypeConfiguration<Laboratory>
 {
     public void Configure(EntityTypeBuilder<Laboratory> builder)
     {
+        builder.ToTable("laboratories");
         builder.HasKey(l => l.LabId);
         builder.Property(l => l.LabName).HasMaxLength(200).IsRequired();
         builder.Property(l => l.Location).HasMaxLength(300).IsRequired();
@@ -20,6 +21,7 @@ public class MaterialConfiguration : IEntityTypeConfiguration<Material>
 {
     public void Configure(EntityTypeBuilder<Material> builder)
     {
+        builder.ToTable("materials");
         builder.HasKey(m => m.MaterialId);
         builder.Property(m => m.MaterialName).HasMaxLength(200).IsRequired();
         builder.Property(m => m.Uom).HasMaxLength(30).IsRequired();
@@ -33,6 +35,7 @@ public class TestMethodConfiguration : IEntityTypeConfiguration<TestMethod>
 {
     public void Configure(EntityTypeBuilder<TestMethod> builder)
     {
+        builder.ToTable("test_methods");
         builder.HasKey(t => t.MethodId);
         builder.Property(t => t.MethodCode).HasMaxLength(50).IsRequired();
         builder.HasIndex(t => t.MethodCode).IsUnique();
@@ -49,6 +52,7 @@ public class TestMethodParameterConfiguration : IEntityTypeConfiguration<TestMet
 {
     public void Configure(EntityTypeBuilder<TestMethodParameter> builder)
     {
+        builder.ToTable("test_method_parameters");
         builder.HasKey(p => p.ParameterId);
         builder.Property(p => p.ParameterName).HasMaxLength(200).IsRequired();
         builder.Property(p => p.ParameterCode).HasMaxLength(50).IsRequired();
@@ -66,6 +70,7 @@ public class SpecLimitConfiguration : IEntityTypeConfiguration<SpecLimit>
 {
     public void Configure(EntityTypeBuilder<SpecLimit> builder)
     {
+        builder.ToTable("spec_limits");
         builder.HasKey(s => s.SpecLimitId);
         builder.Property(s => s.Stage).HasMaxLength(50).IsRequired();
         builder.Property(s => s.MinValue).HasColumnType("decimal(18,6)");
@@ -88,6 +93,7 @@ public class FormTemplateConfiguration : IEntityTypeConfiguration<FormTemplate>
 {
     public void Configure(EntityTypeBuilder<FormTemplate> builder)
     {
+        builder.ToTable("form_templates");
         builder.HasKey(f => f.FormTemplateId);
         builder.Property(f => f.FormCode).HasMaxLength(50).IsRequired();
         builder.HasIndex(f => f.FormCode).IsUnique();
@@ -108,6 +114,7 @@ public class FormTemplateLocationConfiguration : IEntityTypeConfiguration<FormTe
 {
     public void Configure(EntityTypeBuilder<FormTemplateLocation> builder)
     {
+        builder.ToTable("form_template_locations");
         builder.HasKey(l => l.LocationId);
         builder.Property(l => l.LocationName).HasMaxLength(200).IsRequired();
         builder.HasOne(l => l.FormTemplate).WithMany(f => f.Locations).HasForeignKey(l => l.FormTemplateId).OnDelete(DeleteBehavior.Cascade);
@@ -119,6 +126,7 @@ public class FormTemplateParameterConfiguration : IEntityTypeConfiguration<FormT
 {
     public void Configure(EntityTypeBuilder<FormTemplateParameter> builder)
     {
+        builder.ToTable("form_template_parameters");
         builder.HasKey(p => new { p.FormTemplateId, p.ParameterId });
         builder.HasOne(p => p.FormTemplate).WithMany(f => f.TemplateParameters).HasForeignKey(p => p.FormTemplateId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(p => p.Parameter).WithMany().HasForeignKey(p => p.ParameterId).OnDelete(DeleteBehavior.Restrict);
@@ -129,6 +137,7 @@ public class LabConfigConfiguration : IEntityTypeConfiguration<LabConfig>
 {
     public void Configure(EntityTypeBuilder<LabConfig> builder)
     {
+        builder.ToTable("lab_configs");
         builder.HasKey(c => c.ConfigId);
         builder.Property(c => c.ConfigKey).HasMaxLength(100).IsRequired();
         builder.Property(c => c.ConfigValue).IsRequired();
@@ -143,6 +152,7 @@ public class UserTrainingRecordConfiguration : IEntityTypeConfiguration<UserTrai
 {
     public void Configure(EntityTypeBuilder<UserTrainingRecord> builder)
     {
+        builder.ToTable("user_training_records");
         builder.HasKey(t => t.TrainingId);
         builder.Property(t => t.RecordedBy).HasMaxLength(100).IsRequired();
         builder.Property(t => t.CreatedAt).HasColumnType("timestamptz");
@@ -155,6 +165,7 @@ public class MasterDataAuditLogConfiguration : IEntityTypeConfiguration<MasterDa
 {
     public void Configure(EntityTypeBuilder<MasterDataAuditLog> builder)
     {
+        builder.ToTable("master_data_audit_logs");
         builder.HasKey(a => a.AuditId);
         builder.Property(a => a.EntityType).HasMaxLength(50).IsRequired();
         builder.Property(a => a.EventType).HasMaxLength(50).IsRequired();
@@ -169,6 +180,7 @@ public class ParameterLookupTableConfiguration : IEntityTypeConfiguration<Parame
 {
     public void Configure(EntityTypeBuilder<ParameterLookupTable> builder)
     {
+        builder.ToTable("parameter_lookup_tables");
         builder.HasKey(t => t.LookupTableId);
         builder.Property(t => t.LookupCode).HasMaxLength(50).IsRequired();
         builder.HasIndex(t => t.LookupCode).IsUnique();
@@ -182,6 +194,7 @@ public class ParameterLookupRowConfiguration : IEntityTypeConfiguration<Paramete
 {
     public void Configure(EntityTypeBuilder<ParameterLookupRow> builder)
     {
+        builder.ToTable("parameter_lookup_rows");
         builder.HasKey(r => r.RowId);
         builder.Property(r => r.InputValue1).HasColumnType("decimal(18,6)");
         builder.Property(r => r.InputValue2).HasColumnType("decimal(18,6)");
@@ -194,6 +207,7 @@ public class SampleTypeConfiguration : IEntityTypeConfiguration<SampleType>
 {
     public void Configure(EntityTypeBuilder<SampleType> builder)
     {
+        builder.ToTable("sample_types");
         builder.HasKey(s => s.SampleTypeId);
         builder.Property(s => s.TypeName).HasMaxLength(200).IsRequired();
         builder.Property(s => s.TypeCode).HasMaxLength(30).IsRequired();

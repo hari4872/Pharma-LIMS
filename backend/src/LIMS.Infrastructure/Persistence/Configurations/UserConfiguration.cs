@@ -8,6 +8,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 {
     public void Configure(EntityTypeBuilder<User> builder)
     {
+        builder.ToTable("users");
         builder.HasKey(u => u.UserId);
         builder.Property(u => u.Username).HasMaxLength(100).IsRequired();
         // Contract 4: UNIQUE constraint at DB level — shared credentials rejected at DB

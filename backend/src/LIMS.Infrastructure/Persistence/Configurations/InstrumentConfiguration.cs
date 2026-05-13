@@ -8,6 +8,7 @@ public class InstrumentConfiguration : IEntityTypeConfiguration<Instrument>
 {
     public void Configure(EntityTypeBuilder<Instrument> builder)
     {
+        builder.ToTable("instruments");
         builder.HasKey(i => i.InstrumentId);
         builder.Property(i => i.InstrumentCode).HasMaxLength(50).IsRequired();
         builder.HasIndex(i => i.InstrumentCode).IsUnique();
@@ -25,6 +26,7 @@ public class CalibrationRecordConfiguration : IEntityTypeConfiguration<Calibrati
 {
     public void Configure(EntityTypeBuilder<CalibrationRecord> builder)
     {
+        builder.ToTable("calibration_records");
         builder.HasKey(c => c.CalibrationId);
         builder.Property(c => c.CertificateRef).HasMaxLength(200).IsRequired();
         builder.Property(c => c.PerformedBy).HasMaxLength(200).IsRequired();
@@ -39,6 +41,7 @@ public class InstrumentBreakdownConfiguration : IEntityTypeConfiguration<Instrum
 {
     public void Configure(EntityTypeBuilder<InstrumentBreakdown> builder)
     {
+        builder.ToTable("instrument_breakdowns");
         builder.HasKey(b => b.BreakdownId);
         builder.Property(b => b.IssueDescription).HasMaxLength(1000).IsRequired();
         builder.Property(b => b.RaisedAt).HasColumnType("timestamptz");
@@ -52,6 +55,7 @@ public class InstrumentRepairConfiguration : IEntityTypeConfiguration<Instrument
 {
     public void Configure(EntityTypeBuilder<InstrumentRepair> builder)
     {
+        builder.ToTable("instrument_repairs");
         builder.HasKey(r => r.RepairId);
         builder.Property(r => r.Technician).HasMaxLength(200).IsRequired();
         builder.Property(r => r.RepairDescription).HasMaxLength(1000).IsRequired();

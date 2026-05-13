@@ -8,6 +8,7 @@ public class SampleConfiguration : IEntityTypeConfiguration<Sample>
 {
     public void Configure(EntityTypeBuilder<Sample> builder)
     {
+        builder.ToTable("samples");
         builder.HasKey(s => s.SampleId);
         builder.Property(s => s.SampleNumber).HasMaxLength(60).IsRequired();
         builder.HasIndex(s => s.SampleNumber).IsUnique();
@@ -30,6 +31,7 @@ public class BarcodePrintLogConfiguration : IEntityTypeConfiguration<BarcodePrin
 {
     public void Configure(EntityTypeBuilder<BarcodePrintLog> builder)
     {
+        builder.ToTable("barcode_print_logs");
         builder.HasKey(b => b.PrintId);
         builder.Property(b => b.PrintType).HasMaxLength(30).IsRequired();
         builder.Property(b => b.PrintedBy).HasMaxLength(100).IsRequired();
@@ -43,6 +45,7 @@ public class CheckpointConfiguration : IEntityTypeConfiguration<Checkpoint>
 {
     public void Configure(EntityTypeBuilder<Checkpoint> builder)
     {
+        builder.ToTable("checkpoints");
         builder.HasKey(c => c.CheckpointId);
         builder.Property(c => c.CheckpointCode).HasMaxLength(50).IsRequired();
         builder.HasIndex(c => c.CheckpointCode).IsUnique();
@@ -58,6 +61,7 @@ public class CheckpointLocationConfiguration : IEntityTypeConfiguration<Checkpoi
 {
     public void Configure(EntityTypeBuilder<CheckpointLocation> builder)
     {
+        builder.ToTable("checkpoint_locations");
         builder.HasKey(l => l.LocationId);
         builder.Property(l => l.LocationName).HasMaxLength(200).IsRequired();
         builder.HasOne(l => l.Checkpoint).WithMany(c => c.Locations).HasForeignKey(l => l.CheckpointId).OnDelete(DeleteBehavior.Cascade);
@@ -69,6 +73,7 @@ public class CheckpointTriggerLogConfiguration : IEntityTypeConfiguration<Checkp
 {
     public void Configure(EntityTypeBuilder<CheckpointTriggerLog> builder)
     {
+        builder.ToTable("checkpoint_trigger_logs");
         builder.HasKey(t => t.TriggerId);
         builder.Property(t => t.TriggerMode).HasMaxLength(20).IsRequired();
         builder.Property(t => t.TriggeredBy).HasMaxLength(100);
@@ -82,6 +87,7 @@ public class ProcessLogRowConfiguration : IEntityTypeConfiguration<ProcessLogRow
 {
     public void Configure(EntityTypeBuilder<ProcessLogRow> builder)
     {
+        builder.ToTable("process_log_rows");
         builder.HasKey(r => r.RowId);
         builder.Property(r => r.SlotTime).HasColumnType("timestamptz").IsRequired();
         builder.Property(r => r.SlotLabel).HasMaxLength(20).IsRequired();
