@@ -74,6 +74,8 @@ export default function CheckpointsPage() {
   const [cpType, setCpType]               = useState('Single')
   const [shiftHrs, setShiftHrs]           = useState('')
   const [selectedSlots, setSelectedSlots] = useState<string[]>(['08:00'])
+  const [manualSlot, setManualSlot]       = useState('')        // manual time entry
+  const [manualSlotError, setManualSlotError] = useState('')
   const [selectedParams, setSelectedParams] = useState<number[]>([])
 
   const [signForm, setSignForm] = useState({
@@ -98,7 +100,8 @@ export default function CheckpointsPage() {
   function openCreate() {
     setCpName(''); setCpId(''); setLabId(''); setPerBatch(false)
     setTriggerMode('TimeBased'); setCpType('Single'); setShiftHrs('')
-    setSelectedSlots(['08:00']); setSelectedParams([]); setError('')
+    setSelectedSlots(['08:00']); setManualSlot(''); setManualSlotError('')
+    setSelectedParams([]); setError('')
     setEditTarget(null); setShowForm(true)
   }
 
@@ -116,6 +119,16 @@ export default function CheckpointsPage() {
     setSelectedSlots(prev => prev.includes(t) ? prev.filter(s => s !== t) : [...prev, t])
   }
   function applyPreset(slots: string[]) { setSelectedSlots(slots) }
+
+  function addManualSlot() {
+    const t = manualSlot.trim()
+    if (!/^\d{2}:\d{2}$/.test(t)) { setManualSlotError('Use HH:mm format (e.g. 07:30)'); return }
+    const [h, m] = t.split(':').map(Number)
+    if (h > 23 || m > 59) { setManualSlotError('Invalid time'); return }
+    if (selectedSlots.includes(t)) { setManualSlotError('Already added'); return }
+    setSelectedSlots(prev => [...prev, t])
+    setManualSlot(''); setManualSlotError('')
+  }
 
   // ── Param toggle ────────────────────────────────────────────────────────
   function toggleParam(id: number) {
@@ -338,10 +351,31 @@ export default function CheckpointsPage() {
                       <SlotChip key={t} time={t} selected={selectedSlots.includes(t)} onToggle={() => toggleSlot(t)} />
                     ))}
                   </div>
-                  <p style={{ margin: '6px 0 0', fontSize: 11, color: '#9ca3af' }}>
+                  {/* Manual entry row */}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <input
+                        style={{ ...inp, fontFamily: 'monospace', letterSpacing: '0.05em', margin: 0 }}
+                        value={manualSlot}
+                        onChange={e => { setManualSlot(e.target.value); setManualSlotError('') }}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addManualSlot())}
+                        placeholder="Custom time, e.g. 07:30 or 13:45"
+                        maxLength={5}
+                      />
+                      {manualSlotError && (
+                        <p style={{ margin: '4px 0 0', fontSize: 11, color: '#ef4444' }}>{manualSlotError}</p>
+                      )}
+                    </div>
+                    <button type="button" onClick={addManualSlot}
+                      style={{ padding: '9px 16px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, fontWeight: 600, color: '#374151', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      + Add
+                    </button>
+                  </div>
+
+                  <p style={{ margin: '8px 0 0', fontSize: 11, color: '#9ca3af' }}>
                     {selectedSlots.length === 0
                       ? 'No slots selected — checkpoint will not auto-trigger'
-                      : `${selectedSlots.length} slot${selectedSlots.length > 1 ? 's' : ''} selected: ${selectedSlots.sort().join(', ')}`}
+                      : `${selectedSlots.length} slot${selectedSlots.length > 1 ? 's' : ''} selected: ${[...selectedSlots].sort().join(', ')}`}
                   </p>
                 </div>
               )}
