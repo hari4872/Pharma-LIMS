@@ -210,10 +210,10 @@ function navItemStyle(isActive: boolean, dm: boolean, collapsed: boolean): React
     margin: collapsed ? '0 8px 3px' : '0 10px 3px',
     justifyContent: collapsed ? 'center' : 'flex-start',
     fontSize: 13, fontWeight: isActive ? 700 : 500,
-    color: isActive ? '#0d6e6e' : (dm ? '#cbd5e1' : '#111827'),
+    color: isActive ? '#0d6e6e' : (dm ? '#cbd5e1' : '#202124'),
     textDecoration: 'none',
     background: isActive ? (dm ? '#134e4a' : '#f0fdfa') : (dm ? '#1e293b' : '#ffffff'),
-    border: `1px solid ${isActive ? '#99f6e4' : (dm ? '#334155' : '#f1f5f9')}`,
+    border: `1px solid ${isActive ? '#99f6e4' : (dm ? '#334155' : '#f1f3f4')}`,
     borderRadius: 10,
     transition: 'background 0.12s, border-color 0.12s, color 0.12s',
     boxShadow: isActive ? '0 1px 4px rgba(13,148,136,0.08)' : 'none',
@@ -225,16 +225,16 @@ function navItemStyle(isActive: boolean, dm: boolean, collapsed: boolean): React
 // ── Section heading ───────────────────────────────────────────────────────
 function SectionHead({ label, first = false, dm, collapsed }: { label: string; first?: boolean; dm: boolean; collapsed: boolean }) {
   if (collapsed) {
-    return <div style={{ height: first ? 0 : 6, margin: first ? '8px 12px' : '2px 0', background: first ? (dm ? '#1e293b' : '#f1f5f9') : 'transparent', borderRadius: 1 }} />
+    return <div style={{ height: first ? 0 : 6, margin: first ? '8px 12px' : '2px 0', background: first ? (dm ? '#1e293b' : '#f1f3f4') : 'transparent', borderRadius: 1 }} />
   }
   return (
     <div style={{
       padding: first ? '16px 18px 8px' : '14px 18px 6px',
       fontSize: 11.5, fontWeight: 800,
-      color: dm ? '#64748b' : '#111827',
+      color: dm ? '#64748b' : '#80868b',
       letterSpacing: '0.04em',
       textTransform: 'uppercase',
-      borderBottom: first ? `1px solid ${dm ? '#1e293b' : '#f1f5f9'}` : 'none',
+      borderBottom: first ? `1px solid ${dm ? '#1e293b' : '#f1f3f4'}` : 'none',
       marginBottom: first ? 4 : 0,
     }}>
       {label}
@@ -319,12 +319,12 @@ export default function Layout() {
   // ── Icon button style helper ──────────────────────────────────────────
   const iconBtn = (active = false): React.CSSProperties => ({
     width: 32, height: 32,
-    border: `1px solid ${dm ? '#334155' : '#e5e7eb'}`,
+    border: `1px solid ${dm ? '#334155' : '#e0e0e0'}`,
     borderRadius: 7,
     background: active ? (dm ? '#134e4a' : '#f0fdfa') : (dm ? '#1e293b' : '#fff'),
     cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: active ? '#0d6e6e' : (dm ? '#94a3b8' : '#6b7280'),
+    color: active ? '#0d6e6e' : (dm ? '#94a3b8' : '#5f6368'),
     position: 'relative' as const,
     flexShrink: 0,
     transition: 'background 0.1s',
@@ -341,7 +341,7 @@ export default function Layout() {
         width: collapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_W,
         minWidth: collapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_W,
         background: dm ? '#0f172a' : '#ffffff',
-        borderRight: `1px solid ${dm ? '#1e293b' : '#e5e7eb'}`,
+        borderRight: `1px solid ${dm ? '#1e293b' : '#e0e0e0'}`,
         display: 'flex', flexDirection: 'column',
         position: 'sticky', top: 0, height: '100vh',
         overflowY: 'auto', overflowX: 'hidden',
@@ -352,7 +352,7 @@ export default function Layout() {
         {/* Brand */}
         <div style={{
           padding: collapsed ? '14px 0' : '16px 18px 14px',
-          borderBottom: `1px solid ${dm ? '#1e293b' : '#f1f5f9'}`,
+          borderBottom: `1px solid ${dm ? '#1e293b' : '#f1f3f4'}`,
           display: 'flex', alignItems: 'center',
           gap: collapsed ? 0 : 10,
           justifyContent: 'center',
@@ -399,7 +399,7 @@ export default function Layout() {
 
         {/* User footer */}
         <div style={{
-          borderTop: `1px solid ${dm ? '#1e293b' : '#f1f5f9'}`,
+          borderTop: `1px solid ${dm ? '#1e293b' : '#f1f3f4'}`,
           padding: collapsed ? '10px 0' : '12px 14px',
           display: 'flex', alignItems: 'center',
           gap: collapsed ? 0 : 9,
@@ -422,13 +422,13 @@ export default function Layout() {
                 <div style={{ fontSize: 12, fontWeight: 700, color: dm ? '#f1f5f9' : '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {fullName || 'User'}
                 </div>
-                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>Administrator</div>
+                <div style={{ fontSize: 10, color: '#80868b', marginTop: 1 }}>Administrator</div>
               </div>
               <button onClick={handleLogout} title="Sign out" style={{
                 background: dm ? '#1e293b' : '#fff',
-                border: `1px solid ${dm ? '#334155' : '#e5e7eb'}`,
+                border: `1px solid ${dm ? '#334155' : '#e0e0e0'}`,
                 borderRadius: 7, padding: '4px 10px', cursor: 'pointer',
-                color: dm ? '#94a3b8' : '#64748b', fontSize: 11, fontWeight: 600,
+                color: dm ? '#94a3b8' : '#5f6368', fontSize: 11, fontWeight: 600,
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
               }}>
                 Sign out
@@ -444,7 +444,7 @@ export default function Layout() {
         {/* Top bar */}
         <header style={{
           background: dm ? '#1e293b' : '#ffffff',
-          borderBottom: `1px solid ${dm ? '#334155' : '#e5e7eb'}`,
+          borderBottom: `1px solid ${dm ? '#334155' : '#e0e0e0'}`,
           padding: '0 20px 0 12px',
           height: 52,
           display: 'flex', alignItems: 'center', gap: 8,
@@ -468,13 +468,13 @@ export default function Layout() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1, overflow: 'hidden' }}>
               {crumb.section && (
                 <>
-                  <span style={{ fontSize: 12, color: dm ? '#64748b' : '#9ca3af', whiteSpace: 'nowrap' }}>{crumb.section}</span>
+                  <span style={{ fontSize: 12, color: dm ? '#64748b' : '#5f6368', whiteSpace: 'nowrap' }}>{crumb.section}</span>
                   <svg viewBox="0 0 24 24" fill="none" width="11" height="11" style={{ flexShrink: 0 }}>
                     <path d="M9 18l6-6-6-6" stroke={dm ? '#475569' : '#d1d5db'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </>
               )}
-              <span style={{ fontSize: 13, fontWeight: 600, color: dm ? '#e2e8f0' : '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: dm ? '#e2e8f0' : '#202124', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {crumb.label}
               </span>
             </div>
@@ -486,21 +486,21 @@ export default function Layout() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
 
             {/* Date */}
-            <span style={{ fontSize: 12, color: dm ? '#64748b' : '#9ca3af', whiteSpace: 'nowrap', marginRight: 2 }}>
+            <span style={{ fontSize: 12, color: dm ? '#64748b' : '#5f6368', whiteSpace: 'nowrap', marginRight: 2 }}>
               {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
             </span>
 
-            <div style={{ width: 1, height: 20, background: dm ? '#334155' : '#e5e7eb' }} />
+            <div style={{ width: 1, height: 20, background: dm ? '#334155' : '#e0e0e0' }} />
 
             {/* Search / Command palette */}
             <button onClick={() => setPaletteOpen(true)} title="Search (Ctrl+K)"
               style={{
                 height: 32, padding: '0 10px',
                 display: 'flex', alignItems: 'center', gap: 6,
-                border: `1px solid ${dm ? '#334155' : '#e5e7eb'}`,
-                borderRadius: 7, background: dm ? '#0f172a' : '#f8fafc',
+                border: `1px solid ${dm ? '#334155' : '#e0e0e0'}`,
+                borderRadius: 7, background: dm ? '#0f172a' : '#f8f9fa',
                 cursor: 'pointer',
-                color: dm ? '#94a3b8' : '#9ca3af',
+                color: dm ? '#94a3b8' : '#80868b',
                 fontSize: 12, fontFamily: 'inherit',
               }}>
               <svg viewBox="0 0 24 24" fill="none" width="13" height="13">
@@ -509,10 +509,10 @@ export default function Layout() {
               </svg>
               <span>Search</span>
               <kbd style={{
-                fontSize: 9, background: dm ? '#1e293b' : '#e5e7eb',
-                border: `1px solid ${dm ? '#334155' : '#d1d5db'}`,
+                fontSize: 9, background: dm ? '#1e293b' : '#e0e0e0',
+                border: `1px solid ${dm ? '#334155' : '#dadce0'}`,
                 borderRadius: 3, padding: '1px 4px',
-                color: dm ? '#64748b' : '#9ca3af',
+                color: dm ? '#64748b' : '#80868b',
                 fontFamily: 'inherit',
               }}>⌘K</kbd>
             </button>
@@ -542,15 +542,15 @@ export default function Layout() {
                   width: 300, background: dm ? '#1e293b' : '#fff',
                   borderRadius: 12,
                   boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
-                  border: `1px solid ${dm ? '#334155' : '#e5e7eb'}`,
+                  border: `1px solid ${dm ? '#334155' : '#e0e0e0'}`,
                   zIndex: 100, overflow: 'hidden',
                 }}>
                   <div style={{
                     padding: '12px 16px',
-                    borderBottom: `1px solid ${dm ? '#334155' : '#f1f5f9'}`,
+                    borderBottom: `1px solid ${dm ? '#334155' : '#f1f3f4'}`,
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   }}>
-                    <span style={{ fontWeight: 700, fontSize: 13, color: dm ? '#f1f5f9' : '#0f172a' }}>
+                    <span style={{ fontWeight: 700, fontSize: 13, color: dm ? '#f1f5f9' : '#202124' }}>
                       Notifications {unreadCount > 0 && <span style={{ background: '#ef4444', color: '#fff', fontSize: 10, borderRadius: 10, padding: '1px 6px', marginLeft: 4 }}>{unreadCount}</span>}
                     </span>
                     {unreadCount > 0 && (
@@ -563,20 +563,20 @@ export default function Layout() {
                     <div key={n.id} style={{
                       padding: '10px 16px', display: 'flex', gap: 10, alignItems: 'flex-start',
                       background: n.read ? 'transparent' : (dm ? '#0f172a' : '#f0fdfa'),
-                      borderBottom: `1px solid ${dm ? '#1e293b' : '#f8fafc'}`,
+                      borderBottom: `1px solid ${dm ? '#1e293b' : '#f8f9fa'}`,
                     }}>
                       <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>{n.icon}</span>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12.5, color: dm ? '#cbd5e1' : '#374151', lineHeight: 1.4 }}>{n.text}</div>
-                        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{n.time}</div>
+                        <div style={{ fontSize: 12.5, color: dm ? '#cbd5e1' : '#202124', lineHeight: 1.4 }}>{n.text}</div>
+                        <div style={{ fontSize: 11, color: '#80868b', marginTop: 3 }}>{n.time}</div>
                       </div>
                       {!n.read && (
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0d9488', flexShrink: 0, marginTop: 5 }} />
                       )}
                     </div>
                   ))}
-                  <div style={{ padding: '8px 16px', textAlign: 'center', borderTop: `1px solid ${dm ? '#334155' : '#f1f5f9'}` }}>
-                    <span style={{ fontSize: 12, color: dm ? '#64748b' : '#9ca3af' }}>All notifications shown</span>
+                  <div style={{ padding: '8px 16px', textAlign: 'center', borderTop: `1px solid ${dm ? '#334155' : '#f1f3f4'}` }}>
+                    <span style={{ fontSize: 12, color: dm ? '#64748b' : '#80868b' }}>All notifications shown</span>
                   </div>
                 </div>
               )}
@@ -598,7 +598,7 @@ export default function Layout() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 7,
                   height: 32, padding: '0 8px 0 4px',
-                  border: `1px solid ${dm ? '#334155' : '#e5e7eb'}`,
+                  border: `1px solid ${dm ? '#334155' : '#e0e0e0'}`,
                   borderRadius: 7, background: profileOpen ? (dm ? '#134e4a' : '#f0fdfa') : (dm ? '#1e293b' : '#fff'),
                   cursor: 'pointer', fontFamily: 'inherit',
                   transition: 'background 0.1s',
@@ -611,11 +611,11 @@ export default function Layout() {
                 }}>
                   {initials}
                 </div>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: dm ? '#e2e8f0' : '#374151', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: dm ? '#e2e8f0' : '#202124', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {fullName}
                 </span>
                 <svg viewBox="0 0 24 24" fill="none" width="11" height="11">
-                  <path d="M6 9l6 6 6-6" stroke={dm ? '#64748b' : '#9ca3af'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M6 9l6 6 6-6" stroke={dm ? '#64748b' : '#80868b'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
 
@@ -624,12 +624,12 @@ export default function Layout() {
                   position: 'absolute', top: 'calc(100% + 8px)', right: 0,
                   width: 220, background: dm ? '#1e293b' : '#fff',
                   borderRadius: 12, boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
-                  border: `1px solid ${dm ? '#334155' : '#e5e7eb'}`,
+                  border: `1px solid ${dm ? '#334155' : '#e0e0e0'}`,
                   zIndex: 100, overflow: 'hidden',
                 }}>
                   <div style={{
                     padding: '14px 16px',
-                    borderBottom: `1px solid ${dm ? '#334155' : '#f1f5f9'}`,
+                    borderBottom: `1px solid ${dm ? '#334155' : '#f1f3f4'}`,
                     display: 'flex', gap: 10, alignItems: 'center',
                   }}>
                     <div style={{
@@ -641,17 +641,17 @@ export default function Layout() {
                       {initials}
                     </div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: dm ? '#f1f5f9' : '#0f172a' }}>{fullName}</div>
-                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>Administrator</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: dm ? '#f1f5f9' : '#202124' }}>{fullName}</div>
+                      <div style={{ fontSize: 11, color: '#80868b', marginTop: 1 }}>Administrator</div>
                     </div>
                   </div>
                   <div style={{ padding: '6px 8px' }}>
                     <button
                       onClick={() => { setDarkMode(d => !d); setProfileOpen(false) }}
-                      style={{ width: '100%', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 13, color: dm ? '#cbd5e1' : '#374151', fontFamily: 'inherit', textAlign: 'left' }}>
+                      style={{ width: '100%', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 13, color: dm ? '#cbd5e1' : '#202124', fontFamily: 'inherit', textAlign: 'left' }}>
                       {dm ? '☀️ Light Mode' : '🌙 Dark Mode'}
                     </button>
-                    <div style={{ height: 1, background: dm ? '#334155' : '#f1f5f9', margin: '4px 0' }} />
+                    <div style={{ height: 1, background: dm ? '#334155' : '#f1f3f4', margin: '4px 0' }} />
                     <button
                       onClick={handleLogout}
                       style={{ width: '100%', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#dc2626', fontFamily: 'inherit', textAlign: 'left', fontWeight: 600 }}>
@@ -668,7 +668,7 @@ export default function Layout() {
         </header>
 
         {/* Page content */}
-        <main style={{ flex: 1, padding: '24px 28px', background: dm ? '#0f172a' : '#f9fafb', overflow: 'auto' }}>
+        <main style={{ flex: 1, padding: '24px 28px', background: dm ? '#0f172a' : '#f8f9fa', overflow: 'auto' }}>
           <Outlet />
         </main>
       </div>

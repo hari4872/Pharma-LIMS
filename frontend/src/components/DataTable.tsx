@@ -38,9 +38,9 @@ function EmptySearch({ query }: { query: string }) {
         <path d="M30 26L46 42M46 26L30 42" stroke="#cbd5e1" strokeWidth="2.2" strokeLinecap="round"/>
       </svg>
       <div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', textAlign: 'center' }}>No results found</div>
-        <div style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', marginTop: 4 }}>
-          No records match <strong style={{ color: '#6b7280' }}>"{query}"</strong> — try a different search term
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#202124', textAlign: 'center' }}>No results found</div>
+        <div style={{ fontSize: 13, color: '#80868b', textAlign: 'center', marginTop: 4 }}>
+          No records match <strong style={{ color: '#5f6368' }}>"{query}"</strong> — try a different search term
         </div>
       </div>
     </div>
@@ -61,9 +61,9 @@ function EmptyData() {
         <path d="M24 56h20" stroke="#e9ecef" strokeWidth="2" strokeLinecap="round" strokeDasharray="5 4"/>
       </svg>
       <div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', textAlign: 'center' }}>No records yet</div>
-        <div style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', marginTop: 4 }}>
-          Add your first record using the <strong style={{ color: '#6b7280' }}>+ Add</strong> button above
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#202124', textAlign: 'center' }}>No records yet</div>
+        <div style={{ fontSize: 13, color: '#80868b', textAlign: 'center', marginTop: 4 }}>
+          Add your first record using the <strong style={{ color: '#5f6368' }}>+ Add</strong> button above
         </div>
       </div>
     </div>
@@ -222,14 +222,14 @@ export default function DataTable<T extends object>({
           {searchable && (
             <div style={{ position: 'relative', flex: '0 0 280px' }}>
               <svg viewBox="0 0 24 24" fill="none" width="14" height="14"
-                style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#9ca3af' }}>
+                style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#80868b' }}>
                 <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8"/>
                 <path d="M16.5 16.5L21 21" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
               </svg>
               <input
                 value={search} onChange={e => handleSearch(e.target.value)}
                 placeholder="Search records…"
-                style={{ width: '100%', paddingLeft: 32, paddingRight: 10, height: 36, border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, color: '#111827', outline: 'none', fontFamily: 'inherit', background: '#fff', boxSizing: 'border-box' }}
+                style={{ width: '100%', paddingLeft: 32, paddingRight: 10, height: 36, border: '1px solid #dadce0', borderRadius: 8, fontSize: 13, color: '#202124', outline: 'none', fontFamily: 'inherit', background: '#fff', boxSizing: 'border-box' }}
               />
             </div>
           )}
@@ -237,17 +237,17 @@ export default function DataTable<T extends object>({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
 
             {/* ── Row density toggle ── */}
-            <div style={{ display: 'flex', border: '1px solid #e5e7eb', borderRadius: 7, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', border: '1px solid #e0e0e0', borderRadius: 7, overflow: 'hidden' }}>
               {(['compact', 'default', 'spacious'] as Density[]).map((d, i, arr) => (
                 <button key={d} onClick={() => setDensity(d)}
                   title={d.charAt(0).toUpperCase() + d.slice(1)}
                   style={{
                     width: 30, height: 30, border: 'none',
-                    borderRight: i < arr.length - 1 ? '1px solid #e5e7eb' : 'none',
+                    borderRight: i < arr.length - 1 ? '1px solid #e0e0e0' : 'none',
                     background: density === d ? '#f0fdfa' : '#fff',
                     cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: density === d ? '#0d6e6e' : '#9ca3af',
+                    color: density === d ? '#0d6e6e' : '#80868b',
                     transition: 'background 0.1s, color 0.1s',
                   }}>
                   <DensityIcon type={d} />
@@ -261,10 +261,10 @@ export default function DataTable<T extends object>({
                 style={{
                   height: 30, padding: '0 11px',
                   display: 'flex', alignItems: 'center', gap: 5,
-                  border: '1px solid #e5e7eb', borderRadius: 7,
+                  border: '1px solid #e0e0e0', borderRadius: 7,
                   background: colPickerOpen ? '#f0fdfa' : '#fff',
                   cursor: 'pointer', fontSize: 12.5, fontWeight: 500,
-                  color: colPickerOpen ? '#0d6e6e' : '#374151',
+                  color: colPickerOpen ? '#0d6e6e' : '#202124',
                   fontFamily: 'inherit',
                 }}>
                 <svg viewBox="0 0 24 24" fill="none" width="13" height="13">
@@ -281,17 +281,17 @@ export default function DataTable<T extends object>({
                 <div style={{
                   position: 'absolute', top: 'calc(100% + 6px)', right: 0,
                   background: '#fff', borderRadius: 10,
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.12)', border: '1px solid #e5e7eb',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.12)', border: '1px solid #e0e0e0',
                   zIndex: 50, minWidth: 190, padding: '6px 0',
                   maxHeight: 340, overflowY: 'auto',
                 }}>
-                  <div style={{ padding: '5px 14px 8px', fontSize: 10.5, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '1px solid #f1f5f9', marginBottom: 3 }}>
+                  <div style={{ padding: '5px 14px 8px', fontSize: 10.5, fontWeight: 700, color: '#80868b', letterSpacing: '0.06em', textTransform: 'uppercase', borderBottom: '1px solid #f1f3f4', marginBottom: 3 }}>
                     Show / Hide Columns
                   </div>
                   {columns.map(col => (
                     <label key={col.header}
-                      style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px', cursor: 'pointer', fontSize: 13, color: '#111827', userSelect: 'none' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                      style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px', cursor: 'pointer', fontSize: 13, color: '#202124', userSelect: 'none' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#f8f9fa')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                       <input type="checkbox"
                         checked={visibleCols.has(col.header)}
@@ -303,7 +303,7 @@ export default function DataTable<T extends object>({
                         })}
                         style={{ accentColor: '#0d9488', width: 14, height: 14, cursor: 'pointer' }}
                       />
-                      {col.header || <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Actions</span>}
+                      {col.header || <span style={{ color: '#80868b', fontStyle: 'italic' }}>Actions</span>}
                     </label>
                   ))}
                 </div>
@@ -311,7 +311,7 @@ export default function DataTable<T extends object>({
             </div>
 
             {/* Record count */}
-            <span style={{ fontSize: 12, color: '#9ca3af', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 12, color: '#80868b', whiteSpace: 'nowrap' }}>
               {search.trim() ? `${filtered.length} of ${data.length}` : `${data.length}`} record{data.length !== 1 ? 's' : ''}
             </span>
 
@@ -320,8 +320,8 @@ export default function DataTable<T extends object>({
               <button onClick={handleExportAll} style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '0 14px', height: 30,
-                border: '1px solid #e5e7eb', borderRadius: 8,
-                background: '#fff', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: '#374151',
+                border: '1px solid #e0e0e0', borderRadius: 8,
+                background: '#fff', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: '#202124',
                 fontFamily: 'inherit', whiteSpace: 'nowrap',
               }}>
                 <svg viewBox="0 0 24 24" fill="none" width="13" height="13">
@@ -354,20 +354,20 @@ export default function DataTable<T extends object>({
             </button>
           )}
           <button onClick={clearSelection}
-            style={{ padding: '4px 12px', height: 28, border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 12, color: '#6b7280', fontFamily: 'inherit' }}>
+            style={{ padding: '4px 12px', height: 28, border: '1px solid #e0e0e0', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 12, color: '#5f6368', fontFamily: 'inherit' }}>
             Clear
           </button>
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#9ca3af' }}>
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#80868b' }}>
             {data.length} total
           </span>
         </div>
       )}
 
       {/* ── Table ── */}
-      <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+      <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: d.fs }}>
           <thead>
-            <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e5e7eb' }}>
+            <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #e0e0e0' }}>
               {/* Select-all checkbox */}
               <th style={{ ...thBase, padding: d.head, width: 42, position: 'sticky', top: 0, zIndex: 1 }}>
                 <input type="checkbox"
@@ -388,14 +388,14 @@ export default function DataTable<T extends object>({
                     style={{
                       ...thBase, padding: d.head,
                       width: col.width, cursor: isSortable ? 'pointer' : 'default', userSelect: 'none',
-                      color: isActive ? '#0d6e6e' : '#111827',
-                      background: isActive ? '#f0fdfa' : '#f8fafc',
+                      color: isActive ? '#0d6e6e' : '#202124',
+                      background: isActive ? '#f0fdfa' : '#f8f9fa',
                       position: 'sticky', top: 0, zIndex: 1,
                     }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       {col.header}
                       {isSortable && (
-                        <span style={{ fontSize: 10, opacity: isActive ? 1 : 0.3, color: isActive ? '#0d6e6e' : '#6b7280' }}>
+                        <span style={{ fontSize: 10, opacity: isActive ? 1 : 0.3, color: isActive ? '#0d6e6e' : '#5f6368' }}>
                           {isActive ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
                         </span>
                       )}
@@ -410,7 +410,7 @@ export default function DataTable<T extends object>({
             {loading ? (
               // ── Skeleton rows ───────────────────────────────────────
               Array.from({ length: 5 }).map((_, ri) => (
-                <tr key={ri} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <tr key={ri} style={{ borderBottom: '1px solid #f1f3f4' }}>
                   <td style={{ padding: d.cell }}>
                     <div style={{ width: 14, height: 14, borderRadius: 3, background: '#f1f5f9', margin: '0 auto' }} />
                   </td>
@@ -444,11 +444,11 @@ export default function DataTable<T extends object>({
                   onMouseEnter={() => setHoveredRow(i)}
                   onMouseLeave={() => setHoveredRow(null)}
                   style={{
-                    borderBottom: i < paginated.length - 1 ? '1px solid #f1f5f9' : 'none',
+                    borderBottom: i < paginated.length - 1 ? '1px solid #f1f3f4' : 'none',
                     background: isSelected
                       ? '#f0fdfa'
-                      : hoveredRow === i ? '#f8fafc'
-                      : i % 2 === 0 ? '#fff' : '#fafcff',
+                      : hoveredRow === i ? '#f8f9fa'
+                      : '#ffffff',
                     transition: 'background 0.08s',
                   }}>
                   <td style={{ padding: d.cell, verticalAlign: 'middle', textAlign: 'center' }}>
@@ -456,7 +456,7 @@ export default function DataTable<T extends object>({
                       style={{ accentColor: '#0d9488', width: 14, height: 14, cursor: 'pointer' }} />
                   </td>
                   {visCols.map(col => (
-                    <td key={col.header} style={{ padding: d.cell, color: '#111827', fontSize: d.fs, verticalAlign: 'middle' }}>
+                    <td key={col.header} style={{ padding: d.cell, color: '#202124', fontSize: d.fs, verticalAlign: 'middle' }}>
                       {typeof col.accessor === 'function'
                         ? col.accessor(row)
                         : String((row as any)[col.accessor] ?? '')}
@@ -473,19 +473,19 @@ export default function DataTable<T extends object>({
       {!loading && sorted.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: '#9ca3af' }}>Rows per page:</span>
+            <span style={{ fontSize: 12, color: '#80868b' }}>Rows per page:</span>
             <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(0) }}
-              style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '3px 8px', color: '#374151', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ fontSize: 12, border: '1px solid #e0e0e0', borderRadius: 6, padding: '3px 8px', color: '#202124', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
               {PAGE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 12, color: '#9ca3af' }}>
+            <span style={{ fontSize: 12, color: '#80868b' }}>
               {safePage * pageSize + 1}–{Math.min(safePage * pageSize + pageSize, sorted.length)} of {sorted.length}
             </span>
             <button onClick={() => setPage(0)}              disabled={safePage === 0}              style={pgBtn(safePage === 0)}              title="First">«</button>
             <button onClick={() => setPage(p => p - 1)}    disabled={safePage === 0}              style={pgBtn(safePage === 0)}              title="Previous">‹</button>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', padding: '0 6px' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#202124', padding: '0 6px' }}>
               {safePage + 1} / {totalPages}
             </span>
             <button onClick={() => setPage(p => p + 1)}    disabled={safePage >= totalPages - 1} style={pgBtn(safePage >= totalPages - 1)} title="Next">›</button>
@@ -503,14 +503,14 @@ export default function DataTable<T extends object>({
 
 // ── Static styles ─────────────────────────────────────────────────────────
 const pgBtn = (disabled: boolean): React.CSSProperties => ({
-  width: 28, height: 28, border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff',
-  cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 14, color: disabled ? '#d1d5db' : '#374151',
+  width: 28, height: 28, border: '1px solid #e0e0e0', borderRadius: 6, background: '#fff',
+  cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 14, color: disabled ? '#d1d5db' : '#202124',
   display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit',
   opacity: disabled ? 0.5 : 1,
 })
 
 const thBase: React.CSSProperties = {
   textAlign: 'left', fontWeight: 700,
-  color: '#111827', fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap',
+  color: '#202124', fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap',
   transition: 'background 0.1s, color 0.1s',
 }

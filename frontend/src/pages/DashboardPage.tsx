@@ -84,7 +84,7 @@ function KpiCard({ label, value, sub, accent, badge, icon }: {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10,
+        background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10,
         padding: '18px 18px 16px 22px', flex: '1 1 160px',
         position: 'relative', overflow: 'hidden',
         boxShadow: hovered ? '0 4px 16px rgba(0,0,0,0.08)' : '0 1px 3px rgba(0,0,0,0.05)',
@@ -102,9 +102,9 @@ function KpiCard({ label, value, sub, accent, badge, icon }: {
           </svg>
         </div>
       )}
-      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</p>
-      <p style={{ margin: '6px 0 0', fontSize: 26, fontWeight: 700, color: '#0f172a', lineHeight: 1, letterSpacing: '-0.01em' }}>{value}</p>
-      {sub && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#9ca3af' }}>{sub}</p>}
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#5f6368', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</p>
+      <p style={{ margin: '6px 0 0', fontSize: 26, fontWeight: 700, color: '#202124', lineHeight: 1, letterSpacing: '-0.01em' }}>{value}</p>
+      {sub && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#80868b' }}>{sub}</p>}
       {badge && (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 8, fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 20, ...badgeStyles[badge.type] }}>
           {badge.text}
@@ -127,8 +127,8 @@ function StatItem({ value, label, valueColor, iconPath, iconBg, iconColor, last 
       style={{
         flex: 1, display: 'flex', alignItems: 'center', gap: 14,
         padding: '16px 24px',
-        borderRight: last ? 'none' : '1px solid #f1f5f9',
-        background: hov ? '#fafcff' : 'transparent',
+        borderRight: last ? 'none' : '1px solid #f1f3f4',
+        background: hov ? '#f8f9fa' : 'transparent',
         transition: 'background 0.12s',
         cursor: 'default',
       }}>
@@ -142,7 +142,7 @@ function StatItem({ value, label, valueColor, iconPath, iconBg, iconColor, last 
       </div>
       <div>
         <div style={{ fontSize: 24, fontWeight: 800, color: valueColor, lineHeight: 1, letterSpacing: '-0.02em' }}>{String(value)}</div>
-        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4, fontWeight: 500, whiteSpace: 'nowrap' }}>{label}</div>
+        <div style={{ fontSize: 12, color: '#5f6368', marginTop: 4, fontWeight: 500, whiteSpace: 'nowrap' }}>{label}</div>
       </div>
     </div>
   )
@@ -154,16 +154,16 @@ function SectionHead({ title, tag }: { title: string; tag?: string }) {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 3, height: 18, background: T.primary, borderRadius: 4 }} />
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>{title}</h3>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#202124', letterSpacing: '-0.02em' }}>{title}</h3>
       </div>
-      {tag && <span style={{ fontSize: 11, color: '#94a3b8', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '2px 10px', borderRadius: 20, fontWeight: 500 }}>{tag}</span>}
+      {tag && <span style={{ fontSize: 11, color: '#80868b', background: '#f8f9fa', border: '1px solid #e0e0e0', padding: '2px 10px', borderRadius: 20, fontWeight: 500 }}>{tag}</span>}
     </div>
   )
 }
 
 // ── Table styles ──────────────────────────────────────────────────────────
-const th: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e5e7eb', background: '#f8fafc' }
-const td: React.CSSProperties = { padding: '11px 14px', color: '#111827', borderBottom: '1px solid #f3f4f6', fontSize: 14 }
+const th: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#202124', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e0e0e0', background: '#f8f9fa' }
+const td: React.CSSProperties = { padding: '11px 14px', color: '#202124', borderBottom: '1px solid #f1f3f4', fontSize: 14 }
 
 const instColour = (s: string) => {
   if (s === 'Available')        return { bg: '#dcfce7', color: '#15803d' }
@@ -229,7 +229,7 @@ export default function DashboardPage() {
   ]
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#6b7280', fontSize: 14 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#5f6368', fontSize: 14 }}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', marginRight: 10 }}>
         <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
       </svg>
@@ -260,12 +260,12 @@ export default function DashboardPage() {
 
       {/* ── Summary strip ── */}
       <div style={{
-        background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12,
+        background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12,
         display: 'flex', marginBottom: 22, flexWrap: 'wrap',
         boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
         overflow: 'hidden',
       }}>
-        <StatItem value={wip?.inTesting ?? 0}        label="In Testing"         valueColor="#0f172a"
+        <StatItem value={wip?.inTesting ?? 0}        label="In Testing"         valueColor="#202124"
           iconBg="#eff6ff" iconColor="#2563eb" iconPath={ICONS.flask} />
         <StatItem value={wip?.testsCompleted ?? 0}   label="Tests Completed"    valueColor="#16a34a"
           iconBg="#f0fdf4" iconColor="#16a34a" iconPath={ICONS.check} />
@@ -273,9 +273,9 @@ export default function DashboardPage() {
           iconBg={(kpis?.oosRate ?? 0) > 0 ? '#fef2f2' : '#f0fdf4'} iconColor={(kpis?.oosRate ?? 0) > 0 ? '#dc2626' : '#16a34a'} iconPath={ICONS.percent} />
         <StatItem value={`${kpis?.ootRate ?? 0}%`}   label="OOT Rate"           valueColor={(kpis?.ootRate ?? 0) > 0 ? '#d97706' : '#16a34a'}
           iconBg={(kpis?.ootRate ?? 0) > 0 ? '#fffbeb' : '#f0fdf4'} iconColor={(kpis?.ootRate ?? 0) > 0 ? '#d97706' : '#16a34a'} iconPath={ICONS.alert} />
-        <StatItem value={board.length}               label="Active Instruments"  valueColor="#0f172a"
+        <StatItem value={board.length}               label="Active Instruments"  valueColor="#202124"
           iconBg="#f8fafc" iconColor="#64748b" iconPath={ICONS.instrument} />
-        <StatItem value={kpis?.openCapas ?? 0}       label="Open CAPAs"          valueColor={(kpis?.openCapas ?? 0) > 0 ? '#dc2626' : '#0f172a'}
+        <StatItem value={kpis?.openCapas ?? 0}       label="Open CAPAs"          valueColor={(kpis?.openCapas ?? 0) > 0 ? '#dc2626' : '#202124'}
           iconBg={(kpis?.openCapas ?? 0) > 0 ? '#fef2f2' : '#fafafa'} iconColor={(kpis?.openCapas ?? 0) > 0 ? '#dc2626' : '#94a3b8'} iconPath={ICONS.capa} />
         <StatItem value={comp?.totalSignatures ?? 0} label="E-Signatures"        valueColor={T.primary}
           iconBg={T.light} iconColor={T.primary} iconPath={ICONS.signature} last />
@@ -284,14 +284,14 @@ export default function DashboardPage() {
       {/* ── Tab nav ── */}
       <div style={{
         display: 'flex', gap: 4, marginBottom: 22,
-        background: '#f8fafc', border: '1px solid #e5e7eb',
+        background: '#f8f9fa', border: '1px solid #e0e0e0',
         borderRadius: 10, padding: 4,
       }}>
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
             flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             padding: '8px 16px', fontSize: 13, fontWeight: tab === t.key ? 700 : 500,
-            color: tab === t.key ? T.primary : '#6b7280',
+            color: tab === t.key ? T.primary : '#5f6368',
             background: tab === t.key ? '#fff' : 'transparent',
             border: tab === t.key ? `1px solid ${T.border}` : '1px solid transparent',
             borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit',
@@ -321,8 +321,8 @@ export default function DashboardPage() {
           </div>
 
           {(wip?.analystWorkloads?.length ?? 0) > 0 && (
-            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', fontSize: 13, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, overflow: 'hidden', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', fontSize: 13, fontWeight: 700, color: '#202124', display: 'flex', alignItems: 'center', gap: 7 }}>
                 <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d={ICONS.users} stroke={T.primary} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 Analyst Workload
               </div>
@@ -357,8 +357,8 @@ export default function DashboardPage() {
           </div>
 
           {(tat?.byAnalyst?.length ?? 0) > 0 && (
-            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', fontSize: 13, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', fontSize: 13, fontWeight: 700, color: '#202124', display: 'flex', alignItems: 'center', gap: 7 }}>
                 <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d={ICONS.users} stroke={T.primary} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 Analyst TAT Breakdown
               </div>
@@ -388,7 +388,7 @@ export default function DashboardPage() {
       {tab === 'instruments' && (
         <>
           <SectionHead title="Instrument Status Board" tag={`${board.length} instrument${board.length !== 1 ? 's' : ''}`} />
-          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
@@ -401,7 +401,7 @@ export default function DashboardPage() {
                 {board.map(i => {
                   const sc = instColour(i.statusText)
                   return (
-                    <tr key={i.instrumentId} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <tr key={i.instrumentId} style={{ borderBottom: '1px solid #f1f3f4' }}>
                       <td style={{ ...td, color: T.primary, fontWeight: 700 }}>{i.instrumentCode}</td>
                       <td style={td}>{i.instrumentType}</td>
                       <td style={td}>
@@ -412,13 +412,13 @@ export default function DashboardPage() {
                         {i.calDaysRemaining}d
                       </td>
                       <td style={td}>{i.latestUtilPct != null ? `${i.latestUtilPct}%` : '—'}</td>
-                      <td style={{ ...td, color: i.openBreakdownId ? '#dc2626' : '#9ca3af', fontWeight: i.openBreakdownId ? 700 : 400 }}>
+                      <td style={{ ...td, color: i.openBreakdownId ? '#dc2626' : '#80868b', fontWeight: i.openBreakdownId ? 700 : 400 }}>
                         {i.openBreakdownId ? `#${i.openBreakdownId}` : '—'}
                       </td>
                     </tr>
                   )
                 })}
-                {board.length === 0 && <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#9ca3af', padding: '32px 16px' }}>No active instruments</td></tr>}
+                {board.length === 0 && <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#80868b', padding: '32px 16px' }}>No active instruments</td></tr>}
               </tbody>
             </table>
           </div>
@@ -453,13 +453,13 @@ export default function DashboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 24 }}>
 
         {/* Widget 1 — Work Queue */}
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-          <div style={{ padding: '13px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafcff' }}>
+        <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+          <div style={{ padding: '13px 16px', borderBottom: '1px solid #f1f3f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8f9fa' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
               <div style={{ width: 30, height: 30, borderRadius: 8, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M4 6h16M4 10h16M4 14h10" stroke="#2563eb" strokeWidth="1.8" strokeLinecap="round"/></svg>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Work Queue</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#202124' }}>Work Queue</span>
             </div>
             <button onClick={() => navigate('/work-queue')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: T.primary, fontWeight: 700, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 3 }}>
               View All
@@ -468,18 +468,18 @@ export default function DashboardPage() {
           </div>
           <div>
             {recentTasks.length === 0 ? (
-              <div style={{ padding: '28px 16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>No pending tasks</div>
+              <div style={{ padding: '28px 16px', textAlign: 'center', color: '#80868b', fontSize: 13 }}>No pending tasks</div>
             ) : recentTasks.map((t, i) => {
               const sc = { Assigned: { bg: '#dbeafe', color: '#1e40af' }, InProgress: { bg: '#fef9c3', color: '#854d0e' }, Completed: { bg: '#d1fae5', color: '#065f46' }, OOSOpen: { bg: '#fee2e2', color: '#991b1b' } }[t.status] ?? { bg: '#f1f5f9', color: '#374151' }
               return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: i < recentTasks.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: i < recentTasks.length - 1 ? '1px solid #f8f9fa' : 'none' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.sampleNumber}</div>
-                    <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.materialName}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#202124', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.sampleNumber}</div>
+                    <div style={{ fontSize: 11.5, color: '#80868b', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.materialName}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: sc.bg, color: sc.color }}>{t.status}</span>
-                    {t.analystName && <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 2 }}>{t.analystName}</div>}
+                    {t.analystName && <div style={{ fontSize: 10.5, color: '#80868b', marginTop: 2 }}>{t.analystName}</div>}
                   </div>
                 </div>
               )
@@ -488,13 +488,13 @@ export default function DashboardPage() {
         </div>
 
         {/* Widget 2 — Recent Samples */}
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-          <div style={{ padding: '13px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafcff' }}>
+        <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+          <div style={{ padding: '13px 16px', borderBottom: '1px solid #f1f3f4', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8f9fa' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
               <div style={{ width: 30, height: 30, borderRadius: 8, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="#16a34a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Recent Samples</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#202124' }}>Recent Samples</span>
             </div>
             <button onClick={() => navigate('/samples')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: T.primary, fontWeight: 700, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 3 }}>
               View All
@@ -503,18 +503,18 @@ export default function DashboardPage() {
           </div>
           <div>
             {recentSamples.length === 0 ? (
-              <div style={{ padding: '28px 16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>No recent registrations</div>
+              <div style={{ padding: '28px 16px', textAlign: 'center', color: '#80868b', fontSize: 13 }}>No recent registrations</div>
             ) : recentSamples.map((s, i) => {
               const sc = { Registered: { bg: '#dbeafe', color: '#1e40af' }, PendingTesting: { bg: '#fef9c3', color: '#854d0e' }, InTesting: { bg: '#fde8d8', color: '#9a3412' }, Released: { bg: '#d1fae5', color: '#065f46' }, Rejected: { bg: '#fee2e2', color: '#991b1b' } }[s.status] ?? { bg: '#f1f5f9', color: '#374151' }
               return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: i < recentSamples.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: i < recentSamples.length - 1 ? '1px solid #f8f9fa' : 'none' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.sampleNumber}</div>
-                    <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.materialName}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#202124', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.sampleNumber}</div>
+                    <div style={{ fontSize: 11.5, color: '#80868b', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.materialName}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: sc.bg, color: sc.color }}>{s.status}</span>
-                    <div style={{ fontSize: 10.5, color: '#94a3b8', marginTop: 2 }}>{_timeAgo(s.createdAt)}</div>
+                    <div style={{ fontSize: 10.5, color: '#80868b', marginTop: 2 }}>{_timeAgo(s.createdAt)}</div>
                   </div>
                 </div>
               )
@@ -531,11 +531,11 @@ export default function DashboardPage() {
           display: 'flex', flexDirection: 'column', gap: 14,
         }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#202124', letterSpacing: '-0.01em' }}>
               {(() => { const h = new Date().getHours(); return h < 12 ? '🌅' : h < 17 ? '☀️' : '🌙' })()}
               {' '}{fullName ? `Welcome back, ${firstName}!` : 'Welcome back!'}
             </div>
-            <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
+            <div style={{ fontSize: 12, color: '#5f6368', marginTop: 3 }}>
               {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
             </div>
           </div>
@@ -544,10 +544,10 @@ export default function DashboardPage() {
               { label: 'Registered Today', value: wip?.registeredToday ?? 0, color: '#0d9488', icon: '📋' },
               { label: 'In Testing',       value: wip?.inTesting ?? 0,       color: '#2563eb', icon: '🔬' },
               { label: 'Completed Today',  value: wip?.completedToday ?? 0,  color: '#16a34a', icon: '✅' },
-              { label: 'Overdue',          value: wip?.overdue ?? 0,         color: wip && wip.overdue > 0 ? '#dc2626' : '#9ca3af', icon: '⏰' },
+              { label: 'Overdue',          value: wip?.overdue ?? 0,         color: wip && wip.overdue > 0 ? '#dc2626' : '#80868b', icon: '⏰' },
             ].map(row => (
               <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.7)', borderRadius: 8, padding: '7px 12px', backdropFilter: 'blur(4px)' }}>
-                <span style={{ fontSize: 12.5, color: '#374151', fontWeight: 500 }}>{row.icon} {row.label}</span>
+                <span style={{ fontSize: 12.5, color: '#202124', fontWeight: 500 }}>{row.icon} {row.label}</span>
                 <span style={{ fontSize: 16, fontWeight: 800, color: row.color }}>{row.value}</span>
               </div>
             ))}
