@@ -141,7 +141,7 @@ const TEXT = {
   outerBorder:    '#e5e7eb',
   sectionFirst:   '#0f172a',
   sectionLabel:   '#c8d5df',
-  item:           '#64748b',
+  item:           '#111827',
   itemHoverBg:    '#f1f5f9',
   itemHover:      '#0f172a',
   itemActiveBg:   '#f0fdfa',
