@@ -46,7 +46,7 @@ export default function DigitalLogbookPage() {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>Digital Logbook</h1>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#111827' }}>Digital Logbook</h1>
         <select style={{ ...inp, width: 160, marginTop: 0 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">All Statuses</option>
           <option value="Pending">Pending</option>

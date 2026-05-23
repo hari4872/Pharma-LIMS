@@ -89,7 +89,7 @@ export default function DispatchQcPage() {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#111827' }}>Dispatch QC</h1>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#111827' }}>Dispatch QC</h1>
         <div style={{ display: 'flex', gap: 4 }}>
           {(['tasks', 'orders'] as const).map(v => (
             <button key={v} onClick={() => setView(v)} style={{

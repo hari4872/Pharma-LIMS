@@ -46,7 +46,7 @@ export default function ResultsReviewPage() {
 
   return (
     <div>
-      <h1 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 700, color: '#111827' }}>Results Review (4-Eyes)</h1>
+      <h1 style={{ margin: '0 0 16px', fontSize: 26, fontWeight: 800, color: '#111827' }}>Results Review (4-Eyes)</h1>
       <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>
         GMP 4-eyes principle: Peer reviewer ≠ original analyst. QC Lead ≠ analyst ≠ peer reviewer. OOS gate enforced before QC Lead verification.
       </p>

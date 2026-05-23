@@ -154,7 +154,7 @@ function SectionHead({ title, tag }: { title: string; tag?: string }) {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 3, height: 18, background: T.primary, borderRadius: 4 }} />
-        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>{title}</h3>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>{title}</h3>
       </div>
       {tag && <span style={{ fontSize: 11, color: '#94a3b8', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '2px 10px', borderRadius: 20, fontWeight: 500 }}>{tag}</span>}
     </div>
