@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import type { AppDispatch, RootState } from '@/store'
@@ -18,6 +18,9 @@ export default function LoginPage() {
   const [showForgot,   setShowForgot]   = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const wrapRef   = useRef<HTMLDivElement>(null)
+
   useEffect(() => { if (token) navigate('/', { replace: true }) }, [token, navigate])
   useEffect(() => {
     api.get('/auth/setup-required').then(r => {
@@ -25,16 +28,78 @@ export default function LoginPage() {
     })
   }, [navigate])
 
+  // ── Molecular network animation ──────────────────────────────────────────
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const wrap   = wrapRef.current
+    if (!canvas || !wrap) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const resize = () => {
+      canvas.width  = wrap.offsetWidth
+      canvas.height = wrap.offsetHeight
+    }
+    resize()
+    window.addEventListener('resize', resize)
+
+    const NODES = 55
+    const nodes = Array.from({ length: NODES }, () => ({
+      x:  Math.random() * canvas.width,
+      y:  Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.38,
+      vy: (Math.random() - 0.5) * 0.38,
+      r:  Math.random() * 2.2 + 1.4,
+    }))
+
+    let raf: number
+    const draw = () => {
+      const W = canvas.width, H = canvas.height
+      ctx.clearRect(0, 0, W, H)
+
+      nodes.forEach(n => {
+        n.x += n.vx; n.y += n.vy
+        if (n.x < 0 || n.x > W) n.vx *= -1
+        if (n.y < 0 || n.y > H) n.vy *= -1
+      })
+
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const dx   = nodes[i].x - nodes[j].x
+          const dy   = nodes[i].y - nodes[j].y
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          if (dist < 130) {
+            ctx.beginPath()
+            ctx.moveTo(nodes[i].x, nodes[i].y)
+            ctx.lineTo(nodes[j].x, nodes[j].y)
+            ctx.strokeStyle = `rgba(10,46,43,${0.16 * (1 - dist / 130)})`
+            ctx.lineWidth = 0.75
+            ctx.stroke()
+          }
+        }
+      }
+
+      nodes.forEach(n => {
+        ctx.beginPath()
+        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(10,46,43,0.2)'
+        ctx.fill()
+      })
+
+      raf = requestAnimationFrame(draw)
+    }
+    draw()
+
+    return () => {
+      window.removeEventListener('resize', resize)
+      cancelAnimationFrame(raf)
+    }
+  }, [])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     dispatch(login({ username, password }))
   }
-
-  const features = [
-    { text: 'End-to-end sample lifecycle — registration, testing, QA review, and CoA release.' },
-    { text: 'Immutable e-signature audit trail — 21 CFR §11.50, ALCOA+, GxP compliant.' },
-    { text: 'OOS detection, stability tracking, ICH Q1A pulls, and real-time SignalR alerts.' },
-  ]
 
   const inputStyle: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box',
@@ -46,7 +111,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{
+    <div ref={wrapRef} style={{
       minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
@@ -58,9 +123,8 @@ export default function LoginPage() {
       overflow: 'hidden',
     }}>
 
-      {/* Decorative background circles */}
-      <div style={{ position:'absolute', top:'-18%', right:'-6%', width:520, height:520, borderRadius:'50%', background:'rgba(255,255,255,0.07)', pointerEvents:'none' }} />
-      <div style={{ position:'absolute', bottom:'-22%', left:'-8%', width:580, height:580, borderRadius:'50%', background:'rgba(255,255,255,0.05)', pointerEvents:'none' }} />
+      {/* Molecular network canvas */}
+      <canvas ref={canvasRef} style={{ position:'absolute', inset:0, width:'100%', height:'100%', pointerEvents:'none' }} />
 
       {/* ══ Main layout ═══════════════════════════════════════════════════════ */}
       <div style={{
@@ -68,15 +132,11 @@ export default function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         gap: 56,
+        position: 'relative', zIndex: 10,
       }}>
 
         {/* ══ LEFT — branding ═══════════════════════════════════════════════ */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-
-          {/* Logo centered */}
-          <div style={{ marginBottom: 20 }}>
-            <img src="/Logo.png" alt="Web Synergies" style={{ height: 52, width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply' }} />
-          </div>
 
           {/* LIMS heading with lab flask icon */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
@@ -99,32 +159,16 @@ export default function LoginPage() {
             </h1>
           </div>
 
-          <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: '#0d5c57', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: '#0d5c57', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Laboratory Information Management System
           </p>
-          <p style={{ margin: '0 0 20px', fontSize: 14, color: '#0d4a46', lineHeight: 1.65, maxWidth: 400, opacity: 0.85 }}>
+          <p style={{ margin: '0 0 0', fontSize: 14, color: '#0d4a46', lineHeight: 1.65, maxWidth: 400, opacity: 0.85 }}>
             End-to-end batch testing, electronic records, and quality release —
             engineered for regulated environments and audit-ready operations.
           </p>
 
-          {/* Feature cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 440 }}>
-            {features.map((f, i) => (
-              <div key={i} style={{
-                background: 'rgba(255,255,255,0.25)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255,255,255,0.4)',
-                borderRadius: 10, padding: '10px 16px',
-              }}>
-                <p style={{ margin: 0, fontSize: 12.5, color: '#0a3330', lineHeight: 1.5 }}>
-                  {f.text}
-                </p>
-              </div>
-            ))}
-          </div>
-
           {/* Compliance footer */}
-          <div style={{ marginTop: 16, fontSize: 10.5, color: 'rgba(10,46,43,0.5)', letterSpacing: '0.03em' }}>
+          <div style={{ marginTop: 28, fontSize: 10.5, color: 'rgba(10,46,43,0.5)', letterSpacing: '0.03em' }}>
             21 CFR Part 11 &nbsp;·&nbsp; EU GMP Annex 11 &nbsp;·&nbsp; ISO 17025 &nbsp;·&nbsp; ALCOA+ &nbsp;·&nbsp; GAMP 5
           </div>
         </div>
@@ -136,21 +180,24 @@ export default function LoginPage() {
           background: '#ffffff',
           borderRadius: 24,
           boxShadow: '0 32px 80px rgba(10,46,43,0.18), 0 0 0 1px rgba(255,255,255,0.5)',
-          padding: '36px 36px 28px',
+          padding: '32px 36px 28px',
         }}>
 
-          {/* Card heading */}
-          <div style={{ marginBottom: 18 }}>
-            <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, color: '#0a2e2b', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-              Sign in
-            </h2>
+          {/* WebSynergies logo at top of card */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <img src="/Logo.png" alt="Web Synergies" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
           </div>
+
+          {/* Card heading */}
+          <h2 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 700, color: '#0a2e2b', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+            Sign in
+          </h2>
 
           {/* System status */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
             background: '#f0fdf9', border: '1px solid #99f6e4',
-            borderRadius: 8, padding: '9px 14px', marginBottom: 24,
+            borderRadius: 8, padding: '9px 14px', marginBottom: 22,
           }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0, boxShadow: '0 0 6px #22c55e' }} />
             <span style={{ fontSize: 12.5, fontWeight: 600, color: '#0d6e6e' }}>
