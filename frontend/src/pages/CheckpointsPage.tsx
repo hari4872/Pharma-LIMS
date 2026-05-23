@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Checkpoint {
@@ -64,6 +65,8 @@ export default function CheckpointsPage() {
   const [processLogRows, setProcessLogRows]   = useState<ProcessLogRow[]>([])
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
+
+  const { triggerCheckpoint, pendingCount, isOnline } = useOfflineScanQueue()
 
   // ── Form state ──────────────────────────────────────────────────────────────
   const [cpName, setCpName]               = useState('')
@@ -152,6 +155,7 @@ export default function CheckpointsPage() {
         checkpointType: cpType,
         timeSlots,
         shiftIntervalHrs: shiftHrs ? Number(shiftHrs) : null,
+        parameterIds: selectedParams,   // link parameters to this checkpoint
       })
       setShowForm(false); load()
     } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
@@ -162,13 +166,6 @@ export default function CheckpointsPage() {
   async function loadProcessLog(checkpointId: number) {
     const r = await api.get(`/checkpoints/${checkpointId}/process-log`)
     setProcessLogRows(r.data); setShowProcessLog(checkpointId)
-  }
-
-  async function triggerCheckpoint(id: number) {
-    try {
-      await api.post(`/checkpoints/${id}/trigger`, {})
-      alert('Checkpoint triggered — task added to Work Queue')
-    } catch (err: any) { alert(err.response?.data?.message ?? 'Trigger failed') }
   }
 
   async function submitSignRow(e: React.FormEvent) {
@@ -205,6 +202,28 @@ export default function CheckpointsPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Offline / pending-sync banner ────────────────────────────────── */}
+      {(!isOnline || pendingCount > 0) && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 16px', borderRadius: 8, marginBottom: 16,
+          background: !isOnline ? '#fef3c7' : '#d1fae5',
+          border: `1px solid ${!isOnline ? '#fcd34d' : '#6ee7b7'}`,
+        }}>
+          <span style={{ fontSize: 18 }}>{!isOnline ? '📶' : '🔄'}</span>
+          <div>
+            <strong style={{ fontSize: 13, color: !isOnline ? '#92400e' : '#065f46' }}>
+              {!isOnline ? 'Offline — scans will be queued' : 'Back online — syncing…'}
+            </strong>
+            {pendingCount > 0 && (
+              <span style={{ fontSize: 12, color: '#374151', marginLeft: 8 }}>
+                {pendingCount} scan{pendingCount > 1 ? 's' : ''} pending sync (Annex 11 §4.3)
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Table ────────────────────────────────────────────────────────── */}
       <DataTable loading={loading} data={data} columns={[

@@ -96,3 +96,39 @@ public class ProcessLogRowConfiguration : IEntityTypeConfiguration<ProcessLogRow
         builder.HasOne(r => r.Signature).WithMany().HasForeignKey(r => r.SignatureId).OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+public class CheckpointParameterConfiguration : IEntityTypeConfiguration<CheckpointParameter>
+{
+    public void Configure(EntityTypeBuilder<CheckpointParameter> builder)
+    {
+        builder.ToTable("checkpoint_parameters");
+        builder.HasKey(cp => cp.CheckpointParameterId);
+        builder.HasIndex(cp => new { cp.CheckpointId, cp.ParameterId }).IsUnique();
+        builder.HasOne(cp => cp.Checkpoint)
+            .WithMany(c => c.CheckpointParameters)
+            .HasForeignKey(cp => cp.CheckpointId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(cp => cp.Parameter)
+            .WithMany()
+            .HasForeignKey(cp => cp.ParameterId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class SampleCheckpointConfiguration : IEntityTypeConfiguration<SampleCheckpoint>
+{
+    public void Configure(EntityTypeBuilder<SampleCheckpoint> builder)
+    {
+        builder.ToTable("sample_checkpoints");
+        builder.HasKey(sc => sc.SampleCheckpointId);
+        builder.HasIndex(sc => new { sc.SampleId, sc.CheckpointId }).IsUnique();
+        builder.HasOne(sc => sc.Sample)
+            .WithMany(s => s.SampleCheckpoints)
+            .HasForeignKey(sc => sc.SampleId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(sc => sc.Checkpoint)
+            .WithMany()
+            .HasForeignKey(sc => sc.CheckpointId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}

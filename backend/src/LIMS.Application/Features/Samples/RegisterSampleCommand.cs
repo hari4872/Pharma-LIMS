@@ -12,7 +12,8 @@ namespace LIMS.Application.Features.Samples;
 public record RegisterSampleCommand(
     int LabId, int MaterialId, string LotNumber,
     DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId,   // Gap 2 fix: FK to SampleType master (was free-text string)
-    int AnalystId, string CreatedBy) : IRequest<Result<int>>;
+    int AnalystId, string CreatedBy,
+    List<int>? CheckpointIds = null) : IRequest<Result<int>>;   // operator-selected checkpoints for this sample
 
 public class RegisterSampleValidator : AbstractValidator<RegisterSampleCommand>
 {
@@ -103,6 +104,22 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
         });
 
         await _db.SaveChangesAsync(ct);
+
+        // Save checkpoint links — operator-selected at registration (Contract 1)
+        if (request.CheckpointIds is { Count: > 0 })
+        {
+            foreach (var checkpointId in request.CheckpointIds.Distinct())
+            {
+                var cpExists = await _db.Checkpoints.AnyAsync(c => c.CheckpointId == checkpointId && c.IsActive, ct);
+                if (cpExists)
+                    _db.SampleCheckpoints.Add(new SampleCheckpoint
+                    {
+                        SampleId     = sample.SampleId,
+                        CheckpointId = checkpointId
+                    });
+            }
+            await _db.SaveChangesAsync(ct);
+        }
 
         await _audit.LogAsync("Sample", sample.SampleId, "Registered", null,
             new { sample.SampleNumber, sample.LotNumber, SampleType = sampleType.TypeCode, Status = "Registered" },

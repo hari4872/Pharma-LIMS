@@ -6,6 +6,7 @@ public class Laboratory
 {
     public int LabId { get; set; }
     public string LabName { get; set; } = default!;
+    public string Site { get; set; } = string.Empty;       // Site/facility name (spec Master Data entity)
     public string Location { get; set; } = default!;
     public LabType LabType { get; set; }
     public bool IsActive { get; set; } = true;

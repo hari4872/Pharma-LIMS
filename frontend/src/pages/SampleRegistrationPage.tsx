@@ -64,7 +64,7 @@ const label: React.CSSProperties = {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function SampleRegistrationPage() {
-  const { fullName, userId } = useSelector((s: RootState) => s.auth)
+  const { fullName, labId } = useSelector((s: RootState) => s.auth)
 
   const [data, setData]               = useState<Sample[]>([])
   const [materials, setMaterials]     = useState<Material[]>([])
@@ -110,12 +110,12 @@ export default function SampleRegistrationPage() {
   }
   useEffect(() => { load() }, [statusFilter])
 
-  // When material changes — select all checkpoints by default
-  function onMaterialChange(mid: string) {
-    setMaterialId(mid)
-    if (mid) setSelectedCps(checkpoints.map(c => c.checkpointId))
-    else setSelectedCps([])
-  }
+  // Pre-select all active checkpoints when the list loads or when the form is opened
+  useEffect(() => {
+    if (showForm && checkpoints.length > 0 && selectedCps.length === 0) {
+      setSelectedCps(checkpoints.map(c => c.checkpointId))
+    }
+  }, [showForm, checkpoints])
 
   function toggleCheckpoint(id: number) {
     setSelectedCps(prev =>
@@ -128,7 +128,6 @@ export default function SampleRegistrationPage() {
     if (selectedCps.length === 0) return null
     const selected = checkpoints.filter(c => selectedCps.includes(c.checkpointId))
     const modes = [...new Set(selected.map(c => c.triggerMode))]
-    const hasTimeBased = modes.includes('TimeBased')
     if (modes.length === 1) {
       return TRIGGER_LABEL[modes[0]] ?? modes[0]
     }
@@ -142,7 +141,9 @@ export default function SampleRegistrationPage() {
 
   // ── Reset form ──────────────────────────────────────────────────────────────
   function resetForm() {
-    setMaterialId(''); setSampleTypeId(''); setSelectedCps([])
+    setMaterialId(''); setSampleTypeId('')
+    // Pre-select all active checkpoints — operator unchecks what is not needed
+    setSelectedCps(checkpoints.map(c => c.checkpointId))
     setTankSourceId(''); setSampleLabel(''); setLotNumber('')
     setMfgDate(''); setExpDate(''); setError('')
   }
@@ -154,12 +155,13 @@ export default function SampleRegistrationPage() {
     setSaving(true); setError('')
     try {
       await api.post('/samples', {
-        labId: 1,                        // from logged-in user's lab (server also enforces)
+        labId: labId ?? 1,               // from logged-in user's lab assignment
         materialId: Number(materialId),
         lotNumber,
         mfgDate,
         expDate,
         sampleTypeId: Number(sampleTypeId),
+        checkpointIds: selectedCps,      // operator-selected checkpoints for this sample
       })
       setShowForm(false); resetForm(); load()
     } catch (err: any) {
@@ -185,7 +187,6 @@ export default function SampleRegistrationPage() {
     finally { setSaving(false) }
   }
 
-  const selectedMaterial = materials.find(m => m.materialId === Number(materialId))
   const freqText = frequencySummary()
 
   return (
@@ -280,7 +281,7 @@ export default function SampleRegistrationPage() {
                   {/* Product / Material */}
                   <div>
                     <span style={label}>Product / Test Type <span style={{ color: '#ef4444' }}>*</span></span>
-                    <select style={inp} value={materialId} onChange={e => onMaterialChange(e.target.value)} required>
+                    <select style={inp} value={materialId} onChange={e => setMaterialId(e.target.value)} required>
                       <option value="">— Select a product —</option>
                       {materials.map(m => (
                         <option key={m.materialId} value={m.materialId}>
@@ -306,47 +307,62 @@ export default function SampleRegistrationPage() {
               </Section>
 
               {/* ── Section 2: Checkpoints ──────────────────────────────── */}
-              <Section num={2} title="Checkpoints" subtitle="Pick one or more. All checkpoints are selected by default — uncheck anything you don't need.">
-                {!materialId ? (
-                  <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>
-                    Select a product to see its checkpoints.
-                  </p>
-                ) : checkpoints.length === 0 ? (
-                  <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>No active checkpoints configured for this lab.</p>
+              <Section num={2} title="Checkpoints" subtitle="All active checkpoints are pre-selected. Uncheck any that do not apply to this sample.">
+                {checkpoints.length === 0 ? (
+                  <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>No active checkpoints configured. Please add checkpoints in master data first.</p>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {checkpoints.map(cp => {
-                      const checked = selectedCps.includes(cp.checkpointId)
-                      return (
-                        <label key={cp.checkpointId}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 12,
-                            padding: '10px 14px', borderRadius: 7, cursor: 'pointer',
-                            background: checked ? '#eff6ff' : '#f9fafb',
-                            border: `1px solid ${checked ? '#bfdbfe' : '#e5e7eb'}`,
-                            transition: 'all 0.15s'
-                          }}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleCheckpoint(cp.checkpointId)}
-                            style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#1e3a5f' }}
-                          />
-                          <div style={{ flex: 1 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{cp.checkpointCode}</span>
-                            <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 10 }}>{cp.checkpointType}</span>
-                          </div>
-                          <span style={{
-                            fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10,
-                            background: checked ? '#dbeafe' : '#f3f4f6',
-                            color: checked ? '#1e40af' : '#9ca3af'
-                          }}>
-                            {TRIGGER_LABEL[cp.triggerMode] ?? cp.triggerMode}
-                          </span>
-                        </label>
-                      )
-                    })}
-                  </div>
+                  <>
+                    {/* Select / deselect all controls */}
+                    <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
+                      <button type="button"
+                        onClick={() => setSelectedCps(checkpoints.map(c => c.checkpointId))}
+                        style={{ fontSize: 12, color: '#1e3a5f', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>
+                        ✓ Select All
+                      </button>
+                      <span style={{ color: '#d1d5db' }}>|</span>
+                      <button type="button"
+                        onClick={() => setSelectedCps([])}
+                        style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                        ✗ Clear All
+                      </button>
+                      <span style={{ fontSize: 12, color: '#9ca3af', marginLeft: 'auto' }}>
+                        {selectedCps.length} / {checkpoints.length} selected
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {checkpoints.map(cp => {
+                        const checked = selectedCps.includes(cp.checkpointId)
+                        return (
+                          <label key={cp.checkpointId}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 12,
+                              padding: '10px 14px', borderRadius: 7, cursor: 'pointer',
+                              background: checked ? '#eff6ff' : '#f9fafb',
+                              border: `1px solid ${checked ? '#bfdbfe' : '#e5e7eb'}`,
+                              transition: 'all 0.15s'
+                            }}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleCheckpoint(cp.checkpointId)}
+                              style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#1e3a5f' }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{cp.checkpointCode}</span>
+                              <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 10 }}>{cp.checkpointType}</span>
+                            </div>
+                            <span style={{
+                              fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10,
+                              background: checked ? '#dbeafe' : '#f3f4f6',
+                              color: checked ? '#1e40af' : '#9ca3af'
+                            }}>
+                              {TRIGGER_LABEL[cp.triggerMode] ?? cp.triggerMode}
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </>
                 )}
               </Section>
 
@@ -406,7 +422,7 @@ export default function SampleRegistrationPage() {
                   </div>
                 </div>
                 <p style={{ fontSize: 11, color: '#9ca3af', margin: '12px 0 0' }}>
-                  ℹ Sample ID is server-generated · Barcode auto-printed · 5 GMP checks run server-side · Form Template auto-selected
+                  ℹ Sample ID is server-generated · Barcode auto-printed · 5 GMP checks run server-side
                 </p>
               </Section>
 

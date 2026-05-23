@@ -30,6 +30,7 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<UserTrainingRecord> UserTrainingRecords => Set<UserTrainingRecord>();
     public DbSet<MasterDataAuditLog> MasterDataAuditLogs => Set<MasterDataAuditLog>();
     public DbSet<SampleType> SampleTypes => Set<SampleType>();
+    public DbSet<ReagentStandard> ReagentStandards => Set<ReagentStandard>();
     // Phase 2
     public DbSet<Sample> Samples => Set<Sample>();
     public DbSet<BarcodePrintLog> BarcodePrintLogs => Set<BarcodePrintLog>();
@@ -38,6 +39,9 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<CheckpointLocation> CheckpointLocations => Set<CheckpointLocation>();
     public DbSet<CheckpointTriggerLog> CheckpointTriggerLogs => Set<CheckpointTriggerLog>();
     public DbSet<ProcessLogRow> ProcessLogRows => Set<ProcessLogRow>();
+    public DbSet<CheckpointParameter> CheckpointParameters => Set<CheckpointParameter>();
+    // Phase 2 join tables
+    public DbSet<SampleCheckpoint> SampleCheckpoints => Set<SampleCheckpoint>();
     // Phase 3: Testing Execution + Digital Logbook
     public DbSet<TestExecution> TestExecutions => Set<TestExecution>();
     public DbSet<DigitalLogbookEntry> DigitalLogbookEntries => Set<DigitalLogbookEntry>();

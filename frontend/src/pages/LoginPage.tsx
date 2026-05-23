@@ -472,6 +472,7 @@ export default function LoginPage() {
 
             {/* Sign In button */}
             <button
+              type="submit"
               style={btnStyle}
               disabled={loading}
               onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#1e293b' }}

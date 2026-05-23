@@ -11,6 +11,7 @@ public class LaboratoryConfiguration : IEntityTypeConfiguration<Laboratory>
         builder.ToTable("laboratories");
         builder.HasKey(l => l.LabId);
         builder.Property(l => l.LabName).HasMaxLength(200).IsRequired();
+        builder.Property(l => l.Site).HasMaxLength(200);
         builder.Property(l => l.Location).HasMaxLength(300).IsRequired();
         builder.Property(l => l.CreatedBy).HasMaxLength(100).IsRequired();
         builder.Property(l => l.CreatedAt).HasColumnType("timestamptz");
@@ -200,6 +201,27 @@ public class ParameterLookupRowConfiguration : IEntityTypeConfiguration<Paramete
         builder.Property(r => r.InputValue2).HasColumnType("decimal(18,6)");
         builder.Property(r => r.ResultValue).HasColumnType("decimal(18,6)");
         builder.HasOne(r => r.LookupTable).WithMany(t => t.Rows).HasForeignKey(r => r.LookupTableId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+public class ReagentStandardConfiguration : IEntityTypeConfiguration<ReagentStandard>
+{
+    public void Configure(EntityTypeBuilder<ReagentStandard> builder)
+    {
+        builder.ToTable("reagent_standards");
+        builder.HasKey(r => r.ReagentId);
+        builder.Property(r => r.ReagentCode).HasMaxLength(50).IsRequired();
+        builder.HasIndex(r => r.ReagentCode).IsUnique();
+        builder.Property(r => r.ReagentName).HasMaxLength(200).IsRequired();
+        builder.Property(r => r.ReagentType).HasMaxLength(50).IsRequired();
+        builder.Property(r => r.LotNumber).HasMaxLength(100).IsRequired();
+        builder.Property(r => r.Potency).HasColumnType("decimal(18,6)");
+        builder.Property(r => r.PotencyUom).HasMaxLength(30);
+        builder.Property(r => r.Manufacturer).HasMaxLength(200);
+        builder.Property(r => r.StorageCondition).HasMaxLength(100);
+        builder.Property(r => r.CreatedBy).HasMaxLength(100).IsRequired();
+        builder.Property(r => r.CreatedAt).HasColumnType("timestamptz");
+        builder.HasOne(r => r.LinkedMethod).WithMany().HasForeignKey(r => r.LinkedMethodId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

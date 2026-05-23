@@ -9,6 +9,7 @@ interface Excursion {
   excursionStart: string; excursionEnd: string | null
   recordedBy: string; recordedAt: string
   impactAssessed: boolean; impactOutcome: string | null
+  affectedSampleCount: number
 }
 interface StorageLocation { locationId: number; locationCode: string; locationName: string }
 
@@ -27,13 +28,11 @@ export default function ConditionExcursionsPage() {
 
   async function load() {
     setLoading(true)
-    // Load all excursions from all locations — aggregate via separate GET per location
-    const lr = await api.get('/storage-locations')
-    setLocations(lr.data)
-    // For simplicity: load from the first available location or all
-    // In production: add GET /condition-excursions endpoint
-    setData([])
-    setLoading(false)
+    const [r, lr] = await Promise.all([
+      api.get('/condition-excursions'),
+      api.get('/storage-locations')
+    ])
+    setData(r.data); setLocations(lr.data); setLoading(false)
   }
   useEffect(() => { load() }, [])
 

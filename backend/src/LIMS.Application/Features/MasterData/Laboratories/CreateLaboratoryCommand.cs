@@ -7,7 +7,7 @@ using MediatR;
 
 namespace LIMS.Application.Features.MasterData.Laboratories;
 
-public record CreateLaboratoryCommand(string LabName, string Location, string LabType, string CreatedBy) : IRequest<Result<int>>;
+public record CreateLaboratoryCommand(string LabName, string Site, string Location, string LabType, string CreatedBy) : IRequest<Result<int>>;
 
 public class CreateLaboratoryValidator : AbstractValidator<CreateLaboratoryCommand>
 {
@@ -36,6 +36,7 @@ public class CreateLaboratoryHandler : IRequestHandler<CreateLaboratoryCommand, 
         var lab = new Laboratory
         {
             LabName = request.LabName,
+            Site = request.Site,
             Location = request.Location,
             LabType = Enum.Parse<LabType>(request.LabType),
             CreatedBy = request.CreatedBy,

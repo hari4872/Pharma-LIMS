@@ -7,6 +7,47 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.Application.Features.SampleInventory;
 
+// ── Get All Condition Excursions ────────────────────────────────
+public record GetConditionExcursionsQuery(int? LocationId) : IRequest<List<ConditionExcursionDto>>;
+
+public record ConditionExcursionDto(
+    int ExcursionId, int LocationId, string LocationCode, string LocationName,
+    string ExcursionType, decimal MeasuredValue, string LimitExceeded,
+    DateTimeOffset ExcursionStart, DateTimeOffset? ExcursionEnd,
+    string RecordedBy, DateTimeOffset RecordedAt,
+    bool ImpactAssessed, string? ImpactOutcome, int AffectedSampleCount);
+
+public class GetConditionExcursionsHandler : IRequestHandler<GetConditionExcursionsQuery, List<ConditionExcursionDto>>
+{
+    private readonly ILimsDbContext _db;
+    public GetConditionExcursionsHandler(ILimsDbContext db) { _db = db; }
+
+    public async Task<List<ConditionExcursionDto>> Handle(GetConditionExcursionsQuery req, CancellationToken ct)
+    {
+        var query = _db.ConditionExcursions
+            .Include(e => e.Location)
+            .Include(e => e.AffectedSamples)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (req.LocationId.HasValue)
+            query = query.Where(e => e.LocationId == req.LocationId.Value);
+
+        var rows = await query.OrderByDescending(e => e.ExcursionStart).ToListAsync(ct);
+
+        return rows.Select(e => new ConditionExcursionDto(
+            e.ExcursionId, e.LocationId,
+            e.Location?.LocationCode ?? string.Empty,
+            e.Location?.LocationName ?? string.Empty,
+            e.ExcursionType.ToString(), e.MeasuredValue, e.LimitExceeded,
+            e.ExcursionStart, e.ExcursionEnd,
+            e.RecordedBy, e.RecordedAt,
+            e.ImpactAssessed, e.ImpactOutcome,
+            e.AffectedSamples.Count
+        )).ToList();
+    }
+}
+
 // ── Log Condition Excursion ─────────────────────────────────────
 // FR-13: ExcursionImpactService (Contract 1) called after insert
 public record LogConditionExcursionCommand(

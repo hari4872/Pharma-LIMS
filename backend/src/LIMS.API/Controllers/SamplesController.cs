@@ -28,7 +28,7 @@ public class SamplesController : ControllerBase
         var result = await _mediator.Send(new RegisterSampleCommand(
             request.LabId, request.MaterialId, request.LotNumber,
             request.MfgDate, request.ExpDate, request.SampleTypeId,
-            userId, username));
+            userId, username, request.CheckpointIds));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { sampleId = result.Value });
     }
@@ -61,5 +61,6 @@ public class SamplesController : ControllerBase
 }
 
 public record RegisterSampleRequest(int LabId, int MaterialId, string LotNumber,
-    DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId);  // Gap 2 fix: FK int (was free-text string)
+    DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId,   // Gap 2 fix: FK int (was free-text string)
+    List<int>? CheckpointIds = null);                       // operator-selected checkpoints
 public record ReprintBarcodeRequest(string Reason);

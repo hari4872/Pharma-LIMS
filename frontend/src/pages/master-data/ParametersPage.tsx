@@ -3,7 +3,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 
-interface Param { parameterId: number; methodName: string; parameterName: string; parameterCode: string; uom: string; dataType: string; formulaType: string; isCritical: boolean; isMandatory: boolean }
+interface Param { parameterId: number; methodName: string; parameterName: string; parameterCode: string; uom: string; dataType: string; formulaType: string; instrumentType: string; columnFrequency: string; isCritical: boolean; isMandatory: boolean }
 interface Method { methodId: number; methodName: string }
 
 export default function ParametersPage() {
@@ -11,7 +11,7 @@ export default function ParametersPage() {
   const [methods, setMethods] = useState<Method[]>([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', isCritical: false, isMandatory: true })
+  const [form, setForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -26,7 +26,12 @@ export default function ParametersPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
     try {
-      await api.post('/parameters', { ...form, methodId: Number(form.methodId) })
+      await api.post('/parameters', {
+        ...form,
+        methodId: Number(form.methodId),
+        instrumentType: form.instrumentType || null,
+        columnFrequency: form.columnFrequency || null,
+      })
       setShowForm(false); load()
     } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
     finally { setSaving(false) }
@@ -42,7 +47,9 @@ export default function ParametersPage() {
         { header: 'UOM', accessor: 'uom' },
         { header: 'Data Type', accessor: 'dataType' },
         { header: 'Formula', accessor: 'formulaType' },
-        { header: 'Critical', accessor: r => r.isCritical ? '✓' : '' },
+        { header: 'Instrument Type', accessor: r => r.instrumentType || '—' },
+        { header: 'Col. Frequency', accessor: r => r.columnFrequency || '—' },
+        { header: 'Critical', accessor: r => r.isCritical ? <span style={{ color: '#dc2626', fontWeight: 700 }}>✓ Critical</span> : '' },
         { header: 'Mandatory', accessor: r => r.isMandatory ? '✓' : '' },
       ]} />
       {showForm && (
@@ -67,7 +74,19 @@ export default function ParametersPage() {
                 {['Expression', 'TableLookup', 'Manual'].map(t => <option key={t}>{t}</option>)}
               </select>
             </Field>
-            {form.formulaType === 'Expression' && <Field label="Calc Formula"><input style={inp} value={form.calcFormula} onChange={e => setForm(f => ({ ...f, calcFormula: e.target.value }))} /></Field>}
+            {form.formulaType === 'Expression' && <Field label="Calc Formula"><input style={inp} value={form.calcFormula} onChange={e => setForm(f => ({ ...f, calcFormula: e.target.value }))} placeholder="e.g. (rawValue * 0.98) / 100" /></Field>}
+            <Field label="Required Instrument Type">
+              <input style={inp} value={form.instrumentType} onChange={e => setForm(f => ({ ...f, instrumentType: e.target.value }))}
+                placeholder="e.g. HPLC, pH Meter, Titrator" />
+            </Field>
+            <Field label="Column Frequency (non-critical parameters)">
+              <select style={inp} value={form.columnFrequency} onChange={e => setForm(f => ({ ...f, columnFrequency: e.target.value }))}>
+                <option value="">— Not set (every trigger) —</option>
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Periodic">Periodic</option>
+              </select>
+            </Field>
             <div style={{ display: 'flex', gap: 24 }}>
               <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 14 }}>
                 <input type="checkbox" checked={form.isCritical} onChange={e => setForm(f => ({ ...f, isCritical: e.target.checked }))} /> Critical

@@ -25,6 +25,7 @@ public interface ILimsDbContext
     DbSet<UserTrainingRecord> UserTrainingRecords { get; }
     DbSet<MasterDataAuditLog> MasterDataAuditLogs { get; }
     DbSet<SampleType> SampleTypes { get; }
+    DbSet<ReagentStandard> ReagentStandards { get; }
     // Phase 2: Sample Registration
     DbSet<Sample> Samples { get; }
     DbSet<BarcodePrintLog> BarcodePrintLogs { get; }
@@ -33,6 +34,9 @@ public interface ILimsDbContext
     DbSet<CheckpointLocation> CheckpointLocations { get; }
     DbSet<CheckpointTriggerLog> CheckpointTriggerLogs { get; }
     DbSet<ProcessLogRow> ProcessLogRows { get; }
+    DbSet<CheckpointParameter> CheckpointParameters { get; }
+    // Phase 2: Sample Registration — join tables
+    DbSet<SampleCheckpoint> SampleCheckpoints { get; }
     // Phase 3: Testing Execution + Digital Logbook
     DbSet<TestExecution> TestExecutions { get; }
     DbSet<DigitalLogbookEntry> DigitalLogbookEntries { get; }

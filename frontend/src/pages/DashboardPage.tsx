@@ -44,7 +44,7 @@ const instStatusColour = (s: string) => {
   if (s === 'Available')   return '#d1fae5'
   if (s === 'InUse')       return '#dbeafe'
   if (s === 'Maintenance') return '#fef3c7'
-  if (s === 'OutOfService') return '#fee2e2'
+  if (s === 'OutOfCalibration') return '#fee2e2'
   return '#f3f4f6'
 }
 

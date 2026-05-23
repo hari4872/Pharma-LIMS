@@ -7,6 +7,7 @@ interface AuthState {
   fullName: string | null
   role: string | null
   userType: string | null
+  labId: number | null
   loading: boolean
   error: string | null
 }
@@ -17,6 +18,7 @@ const initial: AuthState = {
   fullName: null,
   role: null,
   userType: null,
+  labId: null,
   loading: false,
   error: null
 }
@@ -43,6 +45,7 @@ const authSlice = createSlice({
       state.fullName = null
       state.role = null
       state.userType = null
+      state.labId = null
       localStorage.removeItem('lims_token')
     }
   },
@@ -55,6 +58,7 @@ const authSlice = createSlice({
       s.fullName = a.payload.fullName
       s.role = a.payload.role
       s.userType = a.payload.userType
+      s.labId = a.payload.labId ?? null
     })
     b.addCase(login.rejected, (s, a) => {
       s.loading = false

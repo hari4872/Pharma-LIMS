@@ -20,6 +20,17 @@ public class Checkpoint
     public ICollection<CheckpointLocation> Locations { get; set; } = [];
     public ICollection<CheckpointTriggerLog> TriggerLogs { get; set; } = [];
     public ICollection<ProcessLogRow> ProcessLogRows { get; set; } = [];
+    public ICollection<CheckpointParameter> CheckpointParameters { get; set; } = [];
+}
+
+// Links parameters to checkpoints — FK only (Contract 1)
+public class CheckpointParameter
+{
+    public int CheckpointParameterId { get; set; }
+    public int CheckpointId { get; set; }
+    public Checkpoint Checkpoint { get; set; } = default!;
+    public int ParameterId { get; set; }
+    public TestMethodParameter Parameter { get; set; } = default!;
 }
 
 // Grouped checkpoint column — FK only, no spec values copied (Contract 1)

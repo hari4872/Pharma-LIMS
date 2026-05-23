@@ -39,4 +39,9 @@ public class DashboardController : ControllerBase
     [Authorize(Roles = "QA,Admin")]
     public async Task<IActionResult> GetCompliance(CancellationToken ct)
         => Ok(await _svc.GetComplianceSummaryAsync(ct));
+
+    // GET api/v1/dashboard/coa-history?labId=1&periodDays=30 — vw_coa_history (Dashboards §6)
+    [HttpGet("coa-history")]
+    public async Task<IActionResult> GetCoaHistory([FromQuery] int? labId, [FromQuery] int? periodDays, CancellationToken ct)
+        => Ok(await _svc.GetCoaHistoryAsync(labId, periodDays, ct));
 }

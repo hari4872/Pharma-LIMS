@@ -35,6 +35,11 @@ public record ComplianceSummary(
     int TotalSignatures, DateTimeOffset? LastBackupAt, string SystemHealthStatus
 );
 
+public record CoaHistoryItem(
+    int CoaId, string CoaNumber, string SampleNumber, string MaterialName,
+    string Status, string? QaDecision, string? QaSignedBy, DateTimeOffset? QaSignedAt,
+    DateTimeOffset CreatedAt);
+
 public interface IDashboardAggregationService
 {
     Task<WipSummary> GetWipSummaryAsync(int? labId, CancellationToken ct = default);
@@ -42,4 +47,5 @@ public interface IDashboardAggregationService
     Task<QualityKpis> GetQualityKpisAsync(int? labId, int? periodDays, CancellationToken ct = default);
     Task<IReadOnlyList<InstrumentStatusBoardItem>> GetInstrumentStatusBoardAsync(int? labId, CancellationToken ct = default);
     Task<ComplianceSummary> GetComplianceSummaryAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<CoaHistoryItem>> GetCoaHistoryAsync(int? labId, int? periodDays, CancellationToken ct = default);
 }

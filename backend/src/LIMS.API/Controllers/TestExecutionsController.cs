@@ -57,6 +57,11 @@ public class TestExecutionsController : ControllerBase
         return Ok(result.Value);
     }
 
+    // GET api/v1/test-executions/{id}/parameters — execution-specific parameters via checkpoint links
+    [HttpGet("{id}/parameters")]
+    public async Task<IActionResult> GetParameters(int id)
+        => Ok(await _mediator.Send(new GetExecutionParametersQuery(id)));
+
     // POST api/v1/test-executions/{id}/sign-off — Step 7: §11.50 e-sig, logbook rows finalized
     [HttpPost("{id}/sign-off")]
     [Authorize(Roles = "Analyst,QCLead")]

@@ -30,6 +30,17 @@ public class Sample
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public ICollection<BarcodePrintLog> PrintLogs { get; set; } = [];
+    public ICollection<SampleCheckpoint> SampleCheckpoints { get; set; } = [];
+}
+
+// Links checkpoints to samples — operator-selected at registration
+public class SampleCheckpoint
+{
+    public int SampleCheckpointId { get; set; }
+    public int SampleId { get; set; }
+    public Sample Sample { get; set; } = default!;
+    public int CheckpointId { get; set; }
+    public Checkpoint Checkpoint { get; set; } = default!;
 }
 
 // 21 CFR 211.170: barcode label is chain-of-custody anchor; every print INSERT-only

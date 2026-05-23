@@ -156,4 +156,34 @@ public class DashboardAggregationService : IDashboardAggregationService
 
         return new ComplianceSummary(totalAuditEvents, openOos, closedOos, totalSigs, null, "Operational");
     }
+
+    public async Task<IReadOnlyList<CoaHistoryItem>> GetCoaHistoryAsync(int? labId, int? periodDays, CancellationToken ct = default)
+    {
+        var period = periodDays ?? 30;
+        var since  = DateTimeOffset.UtcNow.AddDays(-period);
+
+        var query = _db.Coas
+            .Include(c => c.Sample).ThenInclude(s => s.Material)
+            .Include(c => c.QaSignature).ThenInclude(s => s!.User)
+            .Include(c => c.Approvals).ThenInclude(a => a.Signature).ThenInclude(s => s.User)
+            .Where(c => c.CreatedAt >= since)
+            .AsQueryable();
+
+        if (labId.HasValue) query = query.Where(c => c.Sample.LabId == labId.Value);
+
+        var coas = await query.OrderByDescending(c => c.CreatedAt).Take(50).ToListAsync(ct);
+
+        return coas.Select(c =>
+        {
+            var lastApproval = c.Approvals.OrderByDescending(a => a.DecidedAt).FirstOrDefault();
+            return new CoaHistoryItem(
+                c.CoaId, c.CoaNumber, c.Sample.SampleNumber,
+                c.Sample.Material.MaterialName,
+                c.Status.ToString(),
+                lastApproval?.Decision,
+                c.QaSignature?.FullName,
+                c.QaSignature?.SignedAt,
+                c.CreatedAt);
+        }).ToList();
+    }
 }

@@ -31,7 +31,7 @@ public class AuthController : ControllerBase
             return Unauthorized(new { error = "Invalid credentials." });
 
         var token = GenerateJwt(user.UserId, user.Username, user.FullName, user.Role.ToString(), user.UserType.ToString());
-        return Ok(new { token, userId = user.UserId, fullName = user.FullName, role = user.Role.ToString(), userType = user.UserType.ToString() });
+        return Ok(new { token, userId = user.UserId, fullName = user.FullName, role = user.Role.ToString(), userType = user.UserType.ToString(), labId = user.LabId });
     }
 
     // Contract 4: first-run Tenant Admin creation — before any other user or module

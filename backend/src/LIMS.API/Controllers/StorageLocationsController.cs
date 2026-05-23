@@ -59,6 +59,20 @@ public class StorageLocationsController : ControllerBase
     }
 }
 
+// GET api/v1/condition-excursions?locationId=…  (all locations or filtered)
+[ApiController]
+[Route("api/v1/condition-excursions")]
+[Authorize]
+public class AllConditionExcursionsController : ControllerBase
+{
+    private readonly IMediator _mediator;
+    public AllConditionExcursionsController(IMediator mediator) { _mediator = mediator; }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll([FromQuery] int? locationId)
+        => Ok(await _mediator.Send(new GetConditionExcursionsQuery(locationId)));
+}
+
 // POST api/v1/storage-locations/{locationId}/excursions
 // FR-13: log condition excursion — ExcursionImpactService triggered server-side (Contract 1)
 [ApiController]
@@ -68,6 +82,11 @@ public class ConditionExcursionsController : ControllerBase
 {
     private readonly IMediator _mediator;
     public ConditionExcursionsController(IMediator mediator) { _mediator = mediator; }
+
+    // GET api/v1/storage-locations/{locationId}/excursions
+    [HttpGet]
+    public async Task<IActionResult> GetExcursions(int locationId)
+        => Ok(await _mediator.Send(new GetConditionExcursionsQuery(locationId)));
 
     [HttpPost]
     public async Task<IActionResult> LogExcursion(int locationId, [FromBody] LogExcursionRequest request)

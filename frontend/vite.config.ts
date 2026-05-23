@@ -10,8 +10,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: 'http://localhost:5000', changeOrigin: true },
-      '/hubs': { target: 'http://localhost:5000', ws: true, changeOrigin: true }
+      '/api': { target: 'http://localhost:5204', changeOrigin: true },
+      '/hubs': { target: 'http://localhost:5204', ws: true, changeOrigin: true }
     }
   }
 })

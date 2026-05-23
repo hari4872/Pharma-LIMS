@@ -1,0 +1,15 @@
+{
+  "name": "lims-playwright-tests",
+  "version": "1.0.0",
+  "description": "Playwright smoke and flow tests for Pharma LIMS",
+  "scripts": {
+    "test:smoke":     "playwright test smoke.test.ts --reporter=list",
+    "test:flow":      "playwright test full-flow.test.ts --reporter=list",
+    "test:all":       "playwright test --reporter=list",
+    "test:report":    "playwright show-report",
+    "test:headed":    "playwright test --headed --slowMo=500"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0"
+  }
+}

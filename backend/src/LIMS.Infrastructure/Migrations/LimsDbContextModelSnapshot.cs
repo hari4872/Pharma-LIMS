@@ -54,7 +54,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("SampleId");
 
-                    b.ToTable("barcode_print_logs");
+                    b.ToTable("barcode_print_logs", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.CalibrationRecord", b =>
@@ -101,7 +101,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("SignatureId");
 
-                    b.ToTable("calibration_records");
+                    b.ToTable("calibration_records", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.Checkpoint", b =>
@@ -150,7 +150,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("LabId");
 
-                    b.ToTable("checkpoints");
+                    b.ToTable("checkpoints", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.CheckpointLocation", b =>
@@ -181,7 +181,31 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("SpecLimitId");
 
-                    b.ToTable("checkpoint_locations");
+                    b.ToTable("checkpoint_locations", (string)null);
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.CheckpointParameter", b =>
+                {
+                    b.Property<int>("CheckpointParameterId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CheckpointParameterId"));
+
+                    b.Property<int>("CheckpointId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ParameterId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("CheckpointParameterId");
+
+                    b.HasIndex("ParameterId");
+
+                    b.HasIndex("CheckpointId", "ParameterId")
+                        .IsUnique();
+
+                    b.ToTable("checkpoint_parameters", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.CheckpointTriggerLog", b =>
@@ -218,7 +242,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("CheckpointId");
 
-                    b.ToTable("checkpoint_trigger_logs");
+                    b.ToTable("checkpoint_trigger_logs", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.Coa", b =>
@@ -711,7 +735,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("electronic_signatures");
+                    b.ToTable("electronic_signatures", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.ExcursionAffectedSample", b =>
@@ -831,7 +855,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("SignatureId");
 
-                    b.ToTable("form_templates");
+                    b.ToTable("form_templates", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.FormTemplateLocation", b =>
@@ -862,7 +886,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("SpecLimitId");
 
-                    b.ToTable("form_template_locations");
+                    b.ToTable("form_template_locations", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.FormTemplateParameter", b =>
@@ -883,7 +907,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("ParameterId");
 
-                    b.ToTable("form_template_parameters");
+                    b.ToTable("form_template_parameters", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.Instrument", b =>
@@ -941,7 +965,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("LabId");
 
-                    b.ToTable("instruments");
+                    b.ToTable("instruments", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.InstrumentBreakdown", b =>
@@ -981,7 +1005,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("ReturnSignatureId");
 
-                    b.ToTable("instrument_breakdowns");
+                    b.ToTable("instrument_breakdowns", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.InstrumentRepair", b =>
@@ -1024,7 +1048,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("BreakdownId");
 
-                    b.ToTable("instrument_repairs");
+                    b.ToTable("instrument_repairs", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.InstrumentUtilisationSummary", b =>
@@ -1099,7 +1123,7 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasIndex("LabId", "ConfigKey")
                         .IsUnique();
 
-                    b.ToTable("lab_configs");
+                    b.ToTable("lab_configs", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.Laboratory", b =>
@@ -1135,9 +1159,14 @@ namespace LIMS.Infrastructure.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<string>("Site")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.HasKey("LabId");
 
-                    b.ToTable("laboratories");
+                    b.ToTable("laboratories", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.MasterDataAuditLog", b =>
@@ -1177,7 +1206,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasKey("AuditId");
 
-                    b.ToTable("master_data_audit_logs");
+                    b.ToTable("master_data_audit_logs", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.Material", b =>
@@ -1222,7 +1251,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasKey("MaterialId");
 
-                    b.ToTable("materials");
+                    b.ToTable("materials", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.OosInvestigation", b =>
@@ -1313,7 +1342,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("LookupTableId");
 
-                    b.ToTable("parameter_lookup_rows");
+                    b.ToTable("parameter_lookup_rows", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.ParameterLookupTable", b =>
@@ -1351,7 +1380,7 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasIndex("LookupCode")
                         .IsUnique();
 
-                    b.ToTable("parameter_lookup_tables");
+                    b.ToTable("parameter_lookup_tables", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.ProcessLogRow", b =>
@@ -1387,7 +1416,80 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("SignatureId");
 
-                    b.ToTable("process_log_rows");
+                    b.ToTable("process_log_rows", (string)null);
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.ReagentStandard", b =>
+                {
+                    b.Property<int>("ReagentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ReagentId"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateOnly?>("ExpiryDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("LinkedMethodId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("LotNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Manufacturer")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly?>("OpenedDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal?>("Potency")
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<string>("PotencyUom")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("ReagentCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ReagentName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ReagentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("StorageCondition")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("ReagentId");
+
+                    b.HasIndex("LinkedMethodId");
+
+                    b.HasIndex("ReagentCode")
+                        .IsUnique();
+
+                    b.ToTable("reagent_standards", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.ResultEvidence", b =>
@@ -1624,7 +1726,31 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("SrfSignatureId");
 
-                    b.ToTable("samples");
+                    b.ToTable("samples", (string)null);
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.SampleCheckpoint", b =>
+                {
+                    b.Property<int>("SampleCheckpointId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SampleCheckpointId"));
+
+                    b.Property<int>("CheckpointId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SampleId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("SampleCheckpointId");
+
+                    b.HasIndex("CheckpointId");
+
+                    b.HasIndex("SampleId", "CheckpointId")
+                        .IsUnique();
+
+                    b.ToTable("sample_checkpoints", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.SampleType", b =>
@@ -1673,7 +1799,7 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasIndex("TypeCode")
                         .IsUnique();
 
-                    b.ToTable("sample_types");
+                    b.ToTable("sample_types", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.SamplingEvent", b =>
@@ -1836,7 +1962,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("SignatureId");
 
-                    b.ToTable("spec_limits");
+                    b.ToTable("spec_limits", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.StabilityPull", b =>
@@ -1987,7 +2113,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("ToLocationId");
 
-                    b.ToTable("storage_transfer_logs");
+                    b.ToTable("storage_transfer_logs", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.TatBreachLog", b =>
@@ -2156,7 +2282,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("SignatureId");
 
-                    b.ToTable("test_methods");
+                    b.ToTable("test_methods", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.TestMethodParameter", b =>
@@ -2227,7 +2353,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("MethodId");
 
-                    b.ToTable("test_method_parameters");
+                    b.ToTable("test_method_parameters", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.TraceQueryLog", b =>
@@ -2319,7 +2445,7 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasIndex("Username")
                         .IsUnique();
 
-                    b.ToTable("users");
+                    b.ToTable("users", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.UserTrainingRecord", b =>
@@ -2356,7 +2482,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("user_training_records");
+                    b.ToTable("user_training_records", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.ValidationReviewLog", b =>
@@ -2467,6 +2593,25 @@ namespace LIMS.Infrastructure.Migrations
                     b.Navigation("Checkpoint");
 
                     b.Navigation("SpecLimit");
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.CheckpointParameter", b =>
+                {
+                    b.HasOne("LIMS.Domain.Entities.Checkpoint", "Checkpoint")
+                        .WithMany("CheckpointParameters")
+                        .HasForeignKey("CheckpointId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LIMS.Domain.Entities.TestMethodParameter", "Parameter")
+                        .WithMany()
+                        .HasForeignKey("ParameterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Checkpoint");
+
+                    b.Navigation("Parameter");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.CheckpointTriggerLog", b =>
@@ -2940,6 +3085,16 @@ namespace LIMS.Infrastructure.Migrations
                     b.Navigation("Signature");
                 });
 
+            modelBuilder.Entity("LIMS.Domain.Entities.ReagentStandard", b =>
+                {
+                    b.HasOne("LIMS.Domain.Entities.TestMethod", "LinkedMethod")
+                        .WithMany()
+                        .HasForeignKey("LinkedMethodId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("LinkedMethod");
+                });
+
             modelBuilder.Entity("LIMS.Domain.Entities.ResultEvidence", b =>
                 {
                     b.HasOne("LIMS.Domain.Entities.DigitalLogbookEntry", "Entry")
@@ -3075,6 +3230,25 @@ namespace LIMS.Infrastructure.Migrations
                     b.Navigation("SampleTypeNav");
 
                     b.Navigation("SrfSignature");
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.SampleCheckpoint", b =>
+                {
+                    b.HasOne("LIMS.Domain.Entities.Checkpoint", "Checkpoint")
+                        .WithMany()
+                        .HasForeignKey("CheckpointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LIMS.Domain.Entities.Sample", "Sample")
+                        .WithMany("SampleCheckpoints")
+                        .HasForeignKey("SampleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Checkpoint");
+
+                    b.Navigation("Sample");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.SamplingEvent", b =>
@@ -3328,6 +3502,8 @@ namespace LIMS.Infrastructure.Migrations
 
             modelBuilder.Entity("LIMS.Domain.Entities.Checkpoint", b =>
                 {
+                    b.Navigation("CheckpointParameters");
+
                     b.Navigation("Locations");
 
                     b.Navigation("ProcessLogRows");
@@ -3402,6 +3578,8 @@ namespace LIMS.Infrastructure.Migrations
             modelBuilder.Entity("LIMS.Domain.Entities.Sample", b =>
                 {
                     b.Navigation("PrintLogs");
+
+                    b.Navigation("SampleCheckpoints");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.StabilityPull", b =>

@@ -39,7 +39,7 @@ export default function TestExecutionPage() {
       const ex = r.data.find((e: Execution) => e.executionId === Number(id))
       setExecution(ex ?? null)
     })
-    api.get('/parameters').then(r => setParameters(r.data))
+    api.get(`/test-executions/${id}/parameters`).then(r => setParameters(r.data))
   }, [id])
 
   async function submitResults(e: React.FormEvent) {

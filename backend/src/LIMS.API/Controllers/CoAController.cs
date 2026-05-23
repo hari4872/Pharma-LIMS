@@ -73,6 +73,32 @@ public class CoAController : ControllerBase
         return Ok(new { approvalId = result.Value, decision = "Approved" });
     }
 
+    // GET api/v1/coas/{id}/pdf — download locked PDF blob (FR-06, FR-07)
+    [HttpGet("{id}/pdf")]
+    public async Task<IActionResult> GetPdf(int id)
+    {
+        var coas = await _mediator.Send(new GetCoAQuery(null, null));
+        var coa  = coas.FirstOrDefault(c => c.CoaId == id);
+        if (coa is null) return NotFound();
+
+        // Retrieve the raw blob from DB
+        var entity = await _mediator.Send(new GetCoAPdfQuery(id));
+        if (entity?.PdfBlob is null)
+            return NotFound(new { error = "PDF_NOT_GENERATED", message = "PDF not yet generated for this CoA. Approve the CoA first." });
+
+        return File(entity.PdfBlob, "application/pdf", $"CoA_{coa.CoaNumber}.pdf");
+    }
+
+    // POST api/v1/coas/{id}/reissue — creates superseding CoA, sets SupersededById on original (FR-11)
+    [HttpPost("{id}/reissue")]
+    [Authorize(Roles = "QA,Admin")]
+    public async Task<IActionResult> Reissue(int id, [FromBody] ReissueCoARequest request)
+    {
+        var result = await _mediator.Send(new ReissueCoACommand(id, request.Reason));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { newCoaId = result.Value, supersededCoaId = id });
+    }
+
     // POST api/v1/coas/{id}/reject — QA rejection + justification, INSERT-only (EU Annex 11 §13)
     [HttpPost("{id}/reject")]
     [Authorize(Roles = "QA,Admin")]
@@ -93,3 +119,4 @@ public class CoAController : ControllerBase
 public record GenerateCoARequest(int SampleId, int ExecutionId);
 public record CoASignRequest(string Password, string Meaning, string Reason);
 public record CoARejectRequest(string Justification, string Password, string Meaning, string Reason);
+public record ReissueCoARequest(string Reason);

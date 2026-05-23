@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 
-interface Lab { labId: number; labName: string; location: string; labType: string; isActive: boolean; createdBy: string }
+interface Lab { labId: number; labName: string; site: string; location: string; labType: string; isActive: boolean; createdBy: string }
 
 export default function LaboratoriesPage() {
   const [data, setData] = useState<Lab[]>([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ labName: '', location: '', labType: 'QC' })
+  const [form, setForm] = useState({ labName: '', site: '', location: '', labType: 'QC' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -25,7 +25,7 @@ export default function LaboratoriesPage() {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post('/laboratories', form)
-      setShowForm(false); setForm({ labName: '', location: '', labType: 'QC' }); load()
+      setShowForm(false); setForm({ labName: '', site: '', location: '', labType: 'QC' }); load()
     } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
     finally { setSaving(false) }
   }
@@ -36,6 +36,7 @@ export default function LaboratoriesPage() {
       <DataTable loading={loading} data={data} columns={[
         { header: 'ID', accessor: 'labId' },
         { header: 'Name', accessor: 'labName' },
+        { header: 'Site', accessor: r => r.site || '—' },
         { header: 'Location', accessor: 'location' },
         { header: 'Type', accessor: 'labType' },
         { header: 'Status', accessor: r => <StatusBadge active={r.isActive} /> },
@@ -45,6 +46,7 @@ export default function LaboratoriesPage() {
         <Modal title="Add Laboratory" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
             <Field label="Name"><input style={inp} value={form.labName} onChange={e => setForm(f => ({ ...f, labName: e.target.value }))} required /></Field>
+            <Field label="Site / Facility"><input style={inp} value={form.site} onChange={e => setForm(f => ({ ...f, site: e.target.value }))} placeholder="e.g. Petaling Jaya Plant" /></Field>
             <Field label="Location"><input style={inp} value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} required /></Field>
             <Field label="Type">
               <select style={inp} value={form.labType} onChange={e => setForm(f => ({ ...f, labType: e.target.value }))}>

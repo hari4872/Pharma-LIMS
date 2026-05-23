@@ -21,6 +21,28 @@ public class DispatchQcController : ControllerBase
         return Ok(result);
     }
 
+    // POST api/v1/dispatch-qc/delivery-orders/{doId}/block — QA hold, sets BLOCKED
+    [HttpPost("delivery-orders/{doId}/block")]
+    [Authorize(Roles = "QA,Admin")]
+    public async Task<IActionResult> Block(int doId, [FromBody] BlockRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new BlockDispatchQcCommand(doId, request.Reason, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { doId = result.Value, status = "Blocked" });
+    }
+
+    // POST api/v1/dispatch-qc/delivery-orders/{doId}/unblock — re-enter QC flow after CAPA
+    [HttpPost("delivery-orders/{doId}/unblock")]
+    [Authorize(Roles = "QA,Admin")]
+    public async Task<IActionResult> Unblock(int doId, [FromBody] BlockRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new UnblockDispatchQcCommand(doId, request.Reason, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { doId = result.Value, status = "InDispatchQC" });
+    }
+
     // POST api/v1/dispatch-qc/{taskId}/approve — QA §11.50 e-sig, sets CLEARED
     [HttpPost("{taskId}/approve")]
     [Authorize(Roles = "QA,Admin")]
@@ -39,3 +61,4 @@ public class DispatchQcController : ControllerBase
 }
 
 public record DispatchQcApproveRequest(string Password, string Meaning, string Reason);
+public record BlockRequest(string Reason);

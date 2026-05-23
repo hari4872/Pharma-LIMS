@@ -7,7 +7,7 @@ namespace LIMS.Application.Features.MasterData.Laboratories;
 
 public record GetLaboratoriesQuery(bool IncludeInactive = false) : IRequest<List<LaboratoryDto>>;
 
-public record LaboratoryDto(int LabId, string LabName, string Location, string LabType, bool IsActive, string CreatedBy, DateTimeOffset CreatedAt);
+public record LaboratoryDto(int LabId, string LabName, string Site, string Location, string LabType, bool IsActive, string CreatedBy, DateTimeOffset CreatedAt);
 
 public class GetLaboratoriesHandler : IRequestHandler<GetLaboratoriesQuery, List<LaboratoryDto>>
 {
@@ -22,7 +22,7 @@ public class GetLaboratoriesHandler : IRequestHandler<GetLaboratoriesQuery, List
 
         return await query
             .OrderBy(l => l.LabName)
-            .Select(l => new LaboratoryDto(l.LabId, l.LabName, l.Location, l.LabType.ToString(), l.IsActive, l.CreatedBy, l.CreatedAt))
+            .Select(l => new LaboratoryDto(l.LabId, l.LabName, l.Site, l.Location, l.LabType.ToString(), l.IsActive, l.CreatedBy, l.CreatedAt))
             .ToListAsync(cancellationToken);
     }
 }

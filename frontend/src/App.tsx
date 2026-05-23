@@ -28,6 +28,8 @@ import StabilityPullsPage from '@/pages/StabilityPullsPage'
 import RetainSamplesPage from '@/pages/RetainSamplesPage'
 import ConditionExcursionsPage from '@/pages/ConditionExcursionsPage'
 import StorageLocationsPage from '@/pages/master-data/StorageLocationsPage'
+import ReagentsPage from '@/pages/master-data/ReagentsPage'
+import UserTrainingRecordsPage from '@/pages/UserTrainingRecordsPage'
 // Phase 6/7/8
 import DashboardPage from '@/pages/DashboardPage'
 import CompliancePanelPage from '@/pages/CompliancePanelPage'
@@ -57,7 +59,9 @@ export default function App() {
         <Route path="master-data/form-templates"   element={<FormTemplatesPage />} />
         <Route path="master-data/users"            element={<UsersPage />} />
         <Route path="master-data/sample-types"     element={<SampleTypesPage />} />
-        <Route path="master-data/storage-locations" element={<StorageLocationsPage />} />
+        <Route path="master-data/storage-locations"  element={<StorageLocationsPage />} />
+        <Route path="master-data/reagents"           element={<ReagentsPage />} />
+        <Route path="master-data/training-records"   element={<UserTrainingRecordsPage />} />
         {/* Phases 2–4 */}
         <Route path="samples"           element={<SampleRegistrationPage />} />
         <Route path="checkpoints"       element={<CheckpointsPage />} />

@@ -11,7 +11,8 @@ namespace LIMS.Application.Features.Checkpoints;
 public record CreateCheckpointCommand(
     string CheckpointCode, int LabId, string TriggerMode,
     string CheckpointType, string? TimeSlots, int? ShiftIntervalHrs,
-    int? FormTemplateId,                                     // Gap 1 fix — required for TimeBased/OperatorScan/ProcessLog
+    int? FormTemplateId,
+    List<int>? ParameterIds,                                 // operator-selected parameters for this checkpoint
     string CreatedBy) : IRequest<Result<int>>;
 
 public class CreateCheckpointValidator : AbstractValidator<CreateCheckpointCommand>
@@ -60,6 +61,23 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
         };
         _db.Checkpoints.Add(checkpoint);
         await _db.SaveChangesAsync(ct);
+
+        // Save parameter links (FK only — Contract 1)
+        if (request.ParameterIds is { Count: > 0 })
+        {
+            foreach (var parameterId in request.ParameterIds.Distinct())
+            {
+                var paramExists = await _db.TestMethodParameters.AnyAsync(p => p.ParameterId == parameterId, ct);
+                if (paramExists)
+                    _db.CheckpointParameters.Add(new CheckpointParameter
+                    {
+                        CheckpointId = checkpoint.CheckpointId,
+                        ParameterId  = parameterId
+                    });
+            }
+            await _db.SaveChangesAsync(ct);
+        }
+
         return Result<int>.Success(checkpoint.CheckpointId);
     }
 }

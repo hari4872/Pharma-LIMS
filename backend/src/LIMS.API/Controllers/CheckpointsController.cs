@@ -27,7 +27,7 @@ public class CheckpointsController : ControllerBase
         var result = await _mediator.Send(new CreateCheckpointCommand(
             request.CheckpointCode, request.LabId, request.TriggerMode,
             request.CheckpointType, request.TimeSlots, request.ShiftIntervalHrs,
-            request.FormTemplateId, username));
+            request.FormTemplateId, request.ParameterIds, username));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { checkpointId = result.Value });
     }
@@ -67,5 +67,6 @@ public class CheckpointsController : ControllerBase
 }
 
 public record CreateCheckpointRequest(string CheckpointCode, int LabId, string TriggerMode,
-    string CheckpointType, string? TimeSlots, int? ShiftIntervalHrs, int? FormTemplateId);
+    string CheckpointType, string? TimeSlots, int? ShiftIntervalHrs, int? FormTemplateId,
+    List<int>? ParameterIds = null);                        // parameters linked to this checkpoint
 public record TriggerCheckpointRequest(string? DeliveryOrder = null, bool IsOfflineSync = false);
