@@ -45,6 +45,7 @@ export default function LaboratoriesPage() {
       {showForm && (
         <Modal title="Add Laboratory" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
+            <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Name"><input style={inp} value={form.labName} onChange={e => setForm(f => ({ ...f, labName: e.target.value }))} required /></Field>
             <Field label="Site / Facility"><input style={inp} value={form.site} onChange={e => setForm(f => ({ ...f, site: e.target.value }))} placeholder="e.g. Petaling Jaya Plant" /></Field>
             <Field label="Location"><input style={inp} value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} required /></Field>
@@ -66,8 +67,8 @@ export default function LaboratoriesPage() {
 export function PageHeader({ title, onAdd, addLabel }: { title: string; onAdd?: () => void; addLabel?: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-      <h2 style={{ margin: 0, fontSize: 20, color: '#111827' }}>{title}</h2>
-      {onAdd && <button onClick={onAdd} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14 }}>+ {addLabel ?? 'Add'}</button>}
+      <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#111827', letterSpacing: '-0.01em' }}>{title}</h2>
+      {onAdd && <button onClick={onAdd} style={{ padding: '8px 18px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>+ {addLabel ?? 'Add'}</button>}
     </div>
   )
 }

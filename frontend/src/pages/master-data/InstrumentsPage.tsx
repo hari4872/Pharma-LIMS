@@ -203,6 +203,7 @@ export default function InstrumentsPage() {
       {showForm && (
         <Modal title="Add Instrument" onClose={() => setShowForm(false)}>
           <form onSubmit={submitInstrument}>
+            <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Laboratory">
               <select style={inp} value={form.labId} onChange={e => setForm(f => ({ ...f, labId: e.target.value }))} required>
                 <option value="">Select…</option>

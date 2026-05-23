@@ -89,6 +89,7 @@ export default function ReagentsPage() {
       {showForm && (
         <Modal title="Add Reagent / Standard" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
+            <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
               <Field label="Reagent Code *">
                 <input style={inp} value={form.reagentCode} onChange={set('reagentCode')} required />

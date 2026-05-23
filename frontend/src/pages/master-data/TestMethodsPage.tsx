@@ -48,6 +48,7 @@ export default function TestMethodsPage() {
       {showForm && (
         <Modal title="Add Test Method" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
+            <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Method Code"><input style={inp} value={form.methodCode} onChange={e => setForm(f => ({ ...f, methodCode: e.target.value }))} required /></Field>
             <Field label="Method Name"><input style={inp} value={form.methodName} onChange={e => setForm(f => ({ ...f, methodName: e.target.value }))} required /></Field>
             <Field label="SOP Reference"><input style={inp} value={form.sopReference} onChange={e => setForm(f => ({ ...f, sopReference: e.target.value }))} /></Field>

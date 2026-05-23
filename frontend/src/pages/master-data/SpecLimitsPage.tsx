@@ -86,6 +86,7 @@ export default function SpecLimitsPage() {
       {showForm && (
         <Modal title="Add Spec Limit" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
+            <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Parameter">
               <select style={inp} value={form.parameterId} onChange={e => setForm(f => ({ ...f, parameterId: e.target.value }))} required>
                 <option value="">Select…</option>

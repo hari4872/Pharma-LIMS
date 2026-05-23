@@ -55,6 +55,7 @@ export default function ParametersPage() {
       {showForm && (
         <Modal title="Add Parameter" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
+            <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Test Method">
               <select style={inp} value={form.methodId} onChange={e => setForm(f => ({ ...f, methodId: e.target.value }))} required>
                 <option value="">Select…</option>

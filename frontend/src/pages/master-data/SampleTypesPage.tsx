@@ -42,6 +42,7 @@ export default function SampleTypesPage() {
       {showForm && (
         <Modal title="Add Sample Type" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
+            <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Type Code"><input style={inp} value={form.typeCode} onChange={e => setForm(f => ({ ...f, typeCode: e.target.value }))} required placeholder="e.g. ST-LIQ-001" /></Field>
             <Field label="Type Name"><input style={inp} value={form.typeName} onChange={e => setForm(f => ({ ...f, typeName: e.target.value }))} required /></Field>
             <Field label="Matrix">

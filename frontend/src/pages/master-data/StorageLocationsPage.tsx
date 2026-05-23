@@ -109,6 +109,7 @@ export default function StorageLocationsPage() {
       {showForm && (
         <Modal title={editing ? 'Edit Storage Location' : 'Add Storage Location'} onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
+            <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             {!editing && (
               <Field label="Laboratory">
                 <select style={inp} value={form.labId} onChange={e => setForm(f => ({ ...f, labId: e.target.value }))} required>

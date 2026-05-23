@@ -40,6 +40,7 @@ export default function MaterialsPage() {
       {showForm && (
         <Modal title="Add Material" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
+            <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Material Name"><input style={inp} value={form.materialName} onChange={e => setForm(f => ({ ...f, materialName: e.target.value }))} required /></Field>
             <Field label="UOM"><input style={inp} value={form.uom} onChange={e => setForm(f => ({ ...f, uom: e.target.value }))} required /></Field>
             <Field label="Material Type">
