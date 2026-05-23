@@ -50,6 +50,9 @@ import ReportsPage from '@/pages/ReportsPage'
 // Sprint 10 — Stability Study & Workflow Config
 import StabilityStudyPage from '@/pages/StabilityStudyPage'
 import WorkflowConfigPage from '@/pages/WorkflowConfigPage'
+// Multi-site
+import MultiSiteDashboardPage from '@/pages/MultiSiteDashboardPage'
+import SiteTransferPage from '@/pages/SiteTransferPage'
 // Settings — Master Data hub
 import SettingsPage from '@/pages/SettingsPage'
 
@@ -95,8 +98,10 @@ export default function App() {
         <Route path="spc"               element={<SpcPage />} />
         <Route path="batch-release"     element={<BatchReleasePage />} />
         <Route path="reports"             element={<ReportsPage />} />
-        <Route path="stability-study"   element={<StabilityStudyPage />} />
-        <Route path="workflow-config"   element={<WorkflowConfigPage />} />
+        <Route path="stability-study"      element={<StabilityStudyPage />} />
+        <Route path="workflow-config"      element={<WorkflowConfigPage />} />
+        <Route path="multi-site-dashboard" element={<MultiSiteDashboardPage />} />
+        <Route path="site-transfers"       element={<SiteTransferPage />} />
         <Route path="settings"          element={<SettingsPage />} />
         <Route path="digital-logbook"   element={<DigitalLogbookPage />} />
         <Route path="results-review"    element={<ResultsReviewPage />} />

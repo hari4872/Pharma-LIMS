@@ -31,6 +31,11 @@ const topItems: NavItem[] = [
     iconBg: '#dcfce7', iconColor: '#16a34a',
     icon: <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>,
   },
+  {
+    label: 'Multi-site', path: '/multi-site-dashboard',
+    iconBg: '#dbeafe', iconColor: '#1d4ed8',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  },
 ]
 
 const masterDataItems: NavItem[] = [
@@ -178,6 +183,11 @@ const operationsItems: NavItem[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 17l4-8 4 6 3-4 4 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
   {
+    label: 'Site Transfers', path: '/site-transfers',
+    iconBg: '#dbeafe', iconColor: '#1d4ed8',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M8 7h12M8 12h12M8 17h12M3 7h.01M3 12h.01M3 17h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  },
+  {
     label: 'Reports & Exports', path: '/reports',
     iconBg: '#f0f9ff', iconColor: '#0369a1',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
@@ -239,8 +249,10 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/results-review':                   { section: 'Operations', label: 'Results Review' },
   '/coa-review':                       { section: 'Operations', label: 'CoA Review' },
   '/dispatch-qc':                      { section: 'Operations', label: 'Dispatch QC' },
-  '/stability-study':                  { section: 'Operations', label: 'Stability Study' },
-  '/workflow-config':                  { section: 'Settings', label: 'Workflow Config' },
+  '/stability-study':                  { section: 'Operations',  label: 'Stability Study' },
+  '/workflow-config':                  { section: 'Settings',    label: 'Workflow Config' },
+  '/multi-site-dashboard':             { section: 'Multi-site',  label: 'Multi-site Dashboard' },
+  '/site-transfers':                   { section: 'Multi-site',  label: 'Site Transfers' },
   '/reports':                          { section: 'Operations', label: 'Reports & Exports' },
   '/traceability':                     { section: 'Inventory', label: 'Traceability' },
   '/stability-pulls':                  { section: 'Inventory', label: 'Stability Pulls' },

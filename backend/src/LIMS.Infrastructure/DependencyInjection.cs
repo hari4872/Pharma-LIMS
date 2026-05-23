@@ -63,6 +63,8 @@ public static class DependencyInjection
         // Sprint 10 services — Workflow Engine + Stability Trends
         services.AddScoped<IWorkflowEngineService, WorkflowEngineService>();
         services.AddScoped<IStabilityTrendService, StabilityTrendService>();
+        // MS-4: Site Analytics
+        services.AddScoped<ISiteAnalyticsService, SiteAnalyticsService>();
         // MS-1: HTTP context accessor for ILabContext
         services.AddHttpContextAccessor();
 

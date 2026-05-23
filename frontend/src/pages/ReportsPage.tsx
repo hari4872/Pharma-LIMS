@@ -2,7 +2,7 @@ import { useState } from 'react'
 import api from '@/api/client'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type ReportType = 'samples' | 'results' | 'audit-trail'
+type ReportType = 'samples' | 'results' | 'audit-trail' | 'multi-site-summary'
 
 const REPORTS = [
   {
@@ -31,6 +31,16 @@ const REPORTS = [
     color: '#b45309',
     bg: '#fef3c7',
     filters: ['entityType'],
+    adminOnly: true,
+  },
+  {
+    id: 'multi-site-summary' as ReportType,
+    title: 'Multi-Site Summary',
+    desc: 'Consolidated cross-site KPIs, pipeline status, OOS rates and TAT breakdown per laboratory',
+    icon: '🌐',
+    color: '#1d4ed8',
+    bg: '#dbeafe',
+    filters: [],
     adminOnly: true,
   },
 ]

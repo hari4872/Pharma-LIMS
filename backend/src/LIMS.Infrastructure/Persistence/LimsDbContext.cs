@@ -88,6 +88,8 @@ public class LimsDbContext : DbContext, ILimsDbContext
     // Sprint 10: Workflow Engine
     public DbSet<WorkflowTemplate> WorkflowTemplates => Set<WorkflowTemplate>();
     public DbSet<WorkflowStep> WorkflowSteps => Set<WorkflowStep>();
+    // MS-2: Inter-site Sample Transfer
+    public DbSet<SampleTransfer> SampleTransfers => Set<SampleTransfer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
