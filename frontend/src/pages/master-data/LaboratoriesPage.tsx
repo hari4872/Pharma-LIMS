@@ -12,6 +12,15 @@ export default function LaboratoriesPage() {
   const [form, setForm] = useState({ labName: '', site: '', location: '', labType: 'QC' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+
+  function touch(field: string) { setTouched(t => ({ ...t, [field]: true })) }
+  function fieldErr(field: string, value: string, required = true): boolean {
+    return touched[field] && required && !value.trim()
+  }
+  function inpV(field: string, value: string, required = true): React.CSSProperties {
+    return { ...inp, border: `1px solid ${fieldErr(field, value, required) ? '#ef4444' : '#d1d5db'}` }
+  }
 
   async function load() {
     setLoading(true)
@@ -23,10 +32,14 @@ export default function LaboratoriesPage() {
   useEffect(() => { load() }, [])
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true); setError('')
+    e.preventDefault()
+    // Mark all required fields as touched on submit attempt
+    setTouched({ labName: true, location: true })
+    if (!form.labName.trim() || !form.location.trim()) return
+    setSaving(true); setError('')
     try {
       await api.post('/laboratories', form)
-      setShowForm(false); setForm({ labName: '', site: '', location: '', labType: 'QC' }); load()
+      setShowForm(false); setForm({ labName: '', site: '', location: '', labType: 'QC' }); setTouched({}); load()
       toast(`Laboratory "${form.labName}" added successfully`, 'success')
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'Failed'
@@ -38,8 +51,8 @@ export default function LaboratoriesPage() {
 
   return (
     <div>
-      <PageHeader title="Laboratories" onAdd={() => setShowForm(true)} />
-      <DataTable loading={loading} data={data} columns={[
+      <PageHeader title="Laboratories" onAdd={() => { setShowForm(true); setTouched({}) }} />
+      <DataTable loading={loading} data={data} exportFilename="Laboratories" columns={[
         { header: 'ID', accessor: 'labId' },
         { header: 'Name', accessor: 'labName' },
         { header: 'Site', accessor: r => r.site || '—' },
@@ -49,12 +62,24 @@ export default function LaboratoriesPage() {
         { header: 'Created By', accessor: 'createdBy' },
       ]} />
       {showForm && (
-        <Modal title="Add Laboratory" onClose={() => setShowForm(false)}>
+        <Modal title="Add Laboratory" onClose={() => { setShowForm(false); setTouched({}) }}>
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
-            <Field label="Name"><input style={inp} value={form.labName} onChange={e => setForm(f => ({ ...f, labName: e.target.value }))} required /></Field>
+            <Field label={<>Name {fieldErr('labName', form.labName) && <span style={{ color: '#ef4444', fontSize: 11, fontWeight: 400, marginLeft: 4 }}>Required</span>}</>}>
+              <input style={inpV('labName', form.labName)}
+                value={form.labName}
+                onChange={e => setForm(f => ({ ...f, labName: e.target.value }))}
+                onBlur={() => touch('labName')}
+                required />
+            </Field>
             <Field label="Site / Facility"><input style={inp} value={form.site} onChange={e => setForm(f => ({ ...f, site: e.target.value }))} placeholder="e.g. Petaling Jaya Plant" /></Field>
-            <Field label="Location"><input style={inp} value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} required /></Field>
+            <Field label={<>Location {fieldErr('location', form.location) && <span style={{ color: '#ef4444', fontSize: 11, fontWeight: 400, marginLeft: 4 }}>Required</span>}</>}>
+              <input style={inpV('location', form.location)}
+                value={form.location}
+                onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+                onBlur={() => touch('location')}
+                required />
+            </Field>
             <Field label="Type">
               <select style={inp} value={form.labType} onChange={e => setForm(f => ({ ...f, labType: e.target.value }))}>
                 {['QC', 'R&D', 'Microbiology', 'Stability', 'Analytical'].map(t => <option key={t}>{t}</option>)}

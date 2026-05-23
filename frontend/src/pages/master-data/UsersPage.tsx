@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './LaboratoriesPage'
+import { toast } from '@/components/Toast'
 
 interface UserRow { userId: number; username: string; fullName: string; email: string; userType: string; role: string; labName: string; isActive: boolean; isTenantAdmin: boolean }
 interface Lab { labId: number; labName: string }
@@ -27,15 +28,17 @@ export default function UsersPage() {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post('/users', { ...form, labId: form.labId ? Number(form.labId) : null })
-      setShowForm(false); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+      setShowForm(false)
+      toast(`User "${form.username}" created successfully`, 'success')
+      load()
+    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
   return (
     <div>
       <PageHeader title="Users" onAdd={() => setShowForm(true)} />
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={data} exportFilename="Users" columns={[
         { header: 'Username', accessor: 'username' },
         { header: 'Full Name', accessor: 'fullName' },
         { header: 'Email', accessor: 'email' },

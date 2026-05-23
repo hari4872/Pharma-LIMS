@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
+import { toast } from '@/components/Toast'
 
 interface Method { methodId: number; methodCode: string; methodName: string; methodType: string; status: string; version: string; parameterCount: number; approvedBy: string }
 
@@ -20,22 +21,32 @@ export default function TestMethodsPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
-    try { await api.post('/test-methods', form); setShowForm(false); load() }
-    catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+    try {
+      await api.post('/test-methods', form)
+      setShowForm(false)
+      toast(`Test Method "${form.methodName}" added successfully`, 'success')
+      load()
+    }
+    catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
   async function submitApprove(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
-    try { await api.post(`/test-methods/${showApprove}/approve`, approveForm); setShowApprove(null); load() }
-    catch (err: any) { setError(err.response?.data?.message ?? 'E-signature failed') }
+    try {
+      await api.post(`/test-methods/${showApprove}/approve`, approveForm)
+      setShowApprove(null)
+      toast(`Test Method approved successfully`, 'success')
+      load()
+    }
+    catch (err: any) { const msg = err.response?.data?.message ?? 'E-signature failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
   return (
     <div>
       <PageHeader title="Test Methods" onAdd={() => setShowForm(true)} />
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={data} exportFilename="TestMethods" columns={[
         { header: 'Code', accessor: 'methodCode' },
         { header: 'Name', accessor: 'methodName' },
         { header: 'Type', accessor: 'methodType' },

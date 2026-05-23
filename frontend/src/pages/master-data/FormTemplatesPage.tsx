@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
+import { toast } from '@/components/Toast'
 
 interface Template {
   formTemplateId: number; formCode: string; formName: string
@@ -51,22 +52,29 @@ export default function FormTemplatesPage() {
         labId: Number(form.labId),
         sampleTypeId: form.sampleTypeId ? Number(form.sampleTypeId) : null
       })
-      setShowForm(false); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+      setShowForm(false)
+      toast(`Form Template "${form.formName}" added successfully`, 'success')
+      load()
+    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
   async function submitApprove(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
-    try { await api.post(`/form-templates/${showApprove}/approve`, approveForm); setShowApprove(null); load() }
-    catch (err: any) { setError(err.response?.data?.message ?? 'E-signature failed') }
+    try {
+      await api.post(`/form-templates/${showApprove}/approve`, approveForm)
+      setShowApprove(null)
+      toast(`Form Template approved successfully`, 'success')
+      load()
+    }
+    catch (err: any) { const msg = err.response?.data?.message ?? 'E-signature failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
   return (
     <div>
       <PageHeader title="Form Templates" onAdd={() => setShowForm(true)} />
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={data} exportFilename="FormTemplates" columns={[
         { header: 'Code',       accessor: 'formCode' },
         { header: 'Name',       accessor: 'formName' },
         { header: 'Type',       accessor: 'formType' },

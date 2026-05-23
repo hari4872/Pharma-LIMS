@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, StatusBadge, inp } from './LaboratoriesPage'
+import { toast } from '@/components/Toast'
 
 // Master Data FR-09: Reagents & Standards — lot-traceable, potency-tracked, method-linked
 
@@ -58,8 +59,10 @@ export default function ReagentsPage() {
         linkedMethodId:   form.linkedMethodId ? Number(form.linkedMethodId) : null,
         storageCondition: form.storageCondition || null,
       })
-      setShowForm(false); setForm(emptyForm); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+      setShowForm(false); setForm(emptyForm)
+      toast(`Reagent "${form.reagentName}" added successfully`, 'success')
+      load()
+    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -74,7 +77,7 @@ export default function ReagentsPage() {
   return (
     <div>
       <PageHeader title="Reagents & Standards" onAdd={() => setShowForm(true)} />
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={data} exportFilename="Reagents" columns={[
         { header: 'Code',        accessor: 'reagentCode' },
         { header: 'Name',        accessor: 'reagentName' },
         { header: 'Type',        accessor: 'reagentType' },

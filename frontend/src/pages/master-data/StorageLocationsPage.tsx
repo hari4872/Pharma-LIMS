@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
+import { toast } from '@/components/Toast'
 
 interface StorageLocation {
   locationId: number; locationCode: string; locationName: string
@@ -72,15 +73,17 @@ export default function StorageLocationsPage() {
       }
       if (editing) await api.put(`/storage-locations/${editing.locationId}`, body)
       else await api.post('/storage-locations', body)
-      setShowForm(false); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+      setShowForm(false)
+      toast(`Storage Location "${form.locationName}" ${editing ? 'updated' : 'added'} successfully`, 'success')
+      load()
+    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
   return (
     <div>
       <PageHeader title="Storage Locations" onAdd={openAdd} />
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={data} exportFilename="StorageLocations" columns={[
         { header: 'Code',      accessor: 'locationCode' },
         { header: 'Name',      accessor: 'locationName' },
         { header: 'Type',      accessor: 'locationTyp' },

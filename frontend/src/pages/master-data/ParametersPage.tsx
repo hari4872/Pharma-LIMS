@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
+import { toast } from '@/components/Toast'
 
 interface Param { parameterId: number; methodName: string; parameterName: string; parameterCode: string; uom: string; dataType: string; formulaType: string; instrumentType: string; columnFrequency: string; isCritical: boolean; isMandatory: boolean }
 interface Method { methodId: number; methodName: string }
@@ -32,15 +33,17 @@ export default function ParametersPage() {
         instrumentType: form.instrumentType || null,
         columnFrequency: form.columnFrequency || null,
       })
-      setShowForm(false); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+      setShowForm(false)
+      toast(`Parameter "${form.parameterName}" added successfully`, 'success')
+      load()
+    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
   return (
     <div>
       <PageHeader title="Parameters" onAdd={() => setShowForm(true)} />
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={data} exportFilename="Parameters" columns={[
         { header: 'Code', accessor: 'parameterCode' },
         { header: 'Name', accessor: 'parameterName' },
         { header: 'Method', accessor: 'methodName' },

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './LaboratoriesPage'
+import { toast } from '@/components/Toast'
 
 interface SampleType { sampleTypeId: number; typeName: string; typeCode: string; matrix: string; stage: string; description: string; isActive: boolean }
 
@@ -23,15 +24,17 @@ export default function SampleTypesPage() {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post('/sample-types', form)
-      setShowForm(false); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+      setShowForm(false)
+      toast(`Sample Type "${form.typeName}" added successfully`, 'success')
+      load()
+    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
   return (
     <div>
       <PageHeader title="Sample Types" onAdd={() => setShowForm(true)} />
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={data} exportFilename="SampleTypes" columns={[
         { header: 'Code', accessor: 'typeCode' },
         { header: 'Name', accessor: 'typeName' },
         { header: 'Matrix', accessor: 'matrix' },

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './LaboratoriesPage'
+import { toast } from '@/components/Toast'
 
 interface Material { materialId: number; materialName: string; uom: string; materialType: string; productType: string; shelfLifeDays: number; isActive: boolean }
 
@@ -20,15 +21,17 @@ export default function MaterialsPage() {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post('/materials', { ...form, shelfLifeDays: Number(form.shelfLifeDays) })
-      setShowForm(false); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+      setShowForm(false)
+      toast(`Material "${form.materialName}" added successfully`, 'success')
+      load()
+    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
   return (
     <div>
       <PageHeader title="Materials" onAdd={() => setShowForm(true)} />
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={data} exportFilename="Materials" columns={[
         { header: 'ID', accessor: 'materialId' },
         { header: 'Name', accessor: 'materialName' },
         { header: 'UOM', accessor: 'uom' },
