@@ -1,4 +1,4 @@
-# PHARMA LIMS — Instrument Management (Phase 8)
+﻿# PHARMA LIMS — Instrument Management (Phase 8)
 ### Technical Design Document · v1.2 · CONFIDENTIAL
 > **v1.2 Changes:** Breakdown/Repair workflow · In-Use status (server-side) · Maintenance status · Utilisation tracking (`UtilisationSummaryJob`)
 
@@ -11,7 +11,7 @@
 | Module | Instrument Management (Phase 8) |
 | Depends On | Master Data v1.2 |
 | Version | v1.2 |
-| Status | Draft · May 2026 |
+| Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ISO 17025 · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
 

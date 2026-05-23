@@ -1,4 +1,4 @@
-# PHARMA LIMS — Results Management (Phase 4)
+﻿# PHARMA LIMS — Results Management (Phase 4)
 ### Technical Design Document · v1.2 · CONFIDENTIAL
 > **v1.2 Changes:** CoA header DO fields (Customer · Despatch Date · DO No. · Packing) auto-populated · Evidence attachment step · ERP distribution trigger on QA approval
 
@@ -11,7 +11,7 @@
 | Module | Results Management (Phase 4) |
 | Depends On | Testing Execution v1.2, Digital Logbook v1.1 |
 | Version | v1.2 |
-| Status | Draft · May 2026 |
+| Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
 

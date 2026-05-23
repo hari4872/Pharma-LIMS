@@ -409,7 +409,7 @@ STEP 4 — QC LEAD VERIFICATION
 
 ---
 
-### P8 — QA REVIEW & RELEASE 🔲 (Phase 5)
+### P8 — QA REVIEW & RELEASE ✅
 
 ```
 [QA]
@@ -451,7 +451,7 @@ STEP 4 — QC LEAD VERIFICATION
 
 ---
 
-### P9 — COA GENERATION (AUTO-TRIGGERED) 🔲 (Phase 9)
+### P9 — COA GENERATION (AUTO-TRIGGERED) ✅
 
 ```
 AUTO-TRIGGERED on QC Lead verification (single trigger point — Contract 1)
@@ -495,7 +495,7 @@ AUTO-TRIGGERED on QC Lead verification (single trigger point — Contract 1)
 
 ---
 
-### P10 — DISPATCH QC 🔲 (Phase 10)
+### P10 — DISPATCH QC ✅
 
 ```
 [ERP auto-push or Admin manual entry]
@@ -534,7 +534,7 @@ AUTO-TRIGGERED on QC Lead verification (single trigger point — Contract 1)
 
 ---
 
-### P11 — TRACEABILITY 🔲 (Phase 6)
+### P11 — TRACEABILITY ✅
 
 ```
 [QA / Admin]
@@ -570,7 +570,7 @@ AUTO-TRIGGERED on QC Lead verification (single trigger point — Contract 1)
 
 ---
 
-### P12 — SAMPLE INVENTORY & PULL PLANNING 🔲 (Phase 7)
+### P12 — SAMPLE INVENTORY & PULL PLANNING ✅
 
 ```
 [Admin]
@@ -664,20 +664,20 @@ AUTO-TRIGGERED on QC Lead verification (single trigger point — Contract 1)
 | `OosClosedAllClear` | `QA` | All OOS investigations closed | 3 ✅ |
 | `PeerReviewDone` | `QCLead` | Peer review signed | 3 ✅ |
 | `SampleReleased` | `QA` | QC Lead verification approved | 3 ✅ |
-| `CoAReady` | `Dispatch` | CoA approved by QA | 9 🔲 |
-| `CoARejected` | `QCLead` | CoA rejected by QA | 5 🔲 |
-| `DispatchBlocked` | `QA` | OOS detected in Dispatch QC | 10 🔲 |
-| `DispatchCleared` | `QA` | Dispatch QC passed | 10 🔲 |
-| `InstrumentOOC` | `QA` | CalibrationDueDateJob fires | 8 🔲 |
-| `CalDue` | `QA` | cal_due within 7 days | 8 🔲 |
-| `TATBreach` | `QCLead` | Sample exceeds TAT target | 11 🔲 |
-| `TrainingExpiring` | `Admin` | Training valid_until within 7 days | 11 🔲 |
-| `PullDue` | `Analyst` | Stability pull T-7/T-1 | 7 🔲 |
-| `PullMissed` | `QCLead` | Stability pull overdue | 7 🔲 |
-| `DestructionDue` | `QCLead` | Retain destruction T-90/T-30/T-7 | 7 🔲 |
-| `ConditionExcursion` | `QA` | Storage condition breach | 7 🔲 |
-| `LowStock` | `QCLead` | Storage inventory below threshold | 7 🔲 |
-| `DOReceived` | `Analyst` | Delivery Order created | 10 🔲 |
+| `CoAReady` | `Dispatch` | CoA approved by QA | 9 ✅ |
+| `CoARejected` | `QCLead` | CoA rejected by QA | 5 ✅ |
+| `DispatchBlocked` | `QA` | OOS detected in Dispatch QC | 10 ✅ |
+| `DispatchCleared` | `QA` | Dispatch QC passed | 10 ✅ |
+| `InstrumentOOC` | `QA` | CalibrationDueDateJob fires | 8 ✅ |
+| `CalDue` | `QA` | cal_due within 7 days | 8 ✅ |
+| `TATBreach` | `QCLead` | Sample exceeds TAT target | 11 ✅ |
+| `TrainingExpiring` | `Admin` | Training valid_until within 7 days | 11 ✅ |
+| `PullDue` | `Analyst` | Stability pull T-7/T-1 | 7 ✅ |
+| `PullMissed` | `QCLead` | Stability pull overdue | 7 ✅ |
+| `DestructionDue` | `QCLead` | Retain destruction T-90/T-30/T-7 | 7 ✅ |
+| `ConditionExcursion` | `QA` | Storage condition breach | 7 ✅ |
+| `LowStock` | `QCLead` | Storage inventory below threshold | 7 ✅ |
+| `DOReceived` | `Analyst` | Delivery Order created | 10 ✅ |
 
 ---
 
@@ -714,19 +714,45 @@ AUTO-TRIGGERED on QC Lead verification (single trigger point — Contract 1)
 | `CheckpointSchedulerJob` | 1b ✅ | time-slot config | Mode 1 time-based triggers |
 | `ProcessLogSchedulerJob` | 1b ✅ | shift config | Mode 3 row pre-population |
 | `WorkQueueEscalationJob` | 3 ✅ | escalation_minutes from lab_config | Overdue WAP alerts |
-| `CalibrationDueDateJob` | 8 🔲 | daily | OOC detection + T-7 cal due alerts |
-| `TrainingExpiryJob` | 1 🔲 | daily | Training expiry T-7 alerts |
-| `TATBreachJob` | 11 🔲 | hourly | TAT target breach detection |
-| `PullReminderJob` | 7 🔲 | daily | Stability pull T-7/T-1 reminders |
-| `MissedPullJob` | 7 🔲 | daily | Missed pull escalation |
-| `DestructionAlertJob` | 7 🔲 | daily | Retain T-90/T-30/T-7 destruction alerts |
-| `UtilisationSummaryJob` | 8 🔲 | daily | Instrument utilisation (7/30/90 days) |
-| `PMReminderJob` | 8 🔲 | daily | Preventive maintenance T-7/T-1 |
-| `StorageInventoryJob` | 7 🔲 | daily | Low-stock alert per location |
-| `MissedTriggerEscalationJob` | 1b 🔲 | daily | Missed checkpoint escalation |
-| `FormTemplateApprovalJob` | 1c 🔲 | daily | Active form template integrity check |
+| `CalibrationDueDateJob` | 8 ✅ | daily | OOC detection + T-7 cal due alerts |
+| `TrainingExpiryJob` | 1 ✅ | daily | Training expiry T-7 alerts |
+| `TATBreachJob` | 11 ✅ | hourly | TAT target breach detection |
+| `PullReminderJob` | 7 ✅ | daily | Stability pull T-7/T-1 reminders |
+| `MissedPullJob` | 7 ✅ | daily | Missed pull escalation |
+| `DestructionAlertJob` | 7 ✅ | daily | Retain T-90/T-30/T-7 destruction alerts |
+| `UtilisationSummaryJob` | 8 ✅ | daily | Instrument utilisation (7/30/90 days) |
+| `PMReminderJob` | 8 ✅ | daily | Preventive maintenance T-7/T-1 |
+| `StorageInventoryJob` | 7 ✅ | daily | Low-stock alert per location |
+| `MissedTriggerEscalationJob` | 1b ✅ | daily | Missed checkpoint escalation |
+| `FormTemplateApprovalJob` | 1c ✅ | daily | Active form template integrity check |
 
 > All intervals from `lab_config` (Contract 2 — none hardcoded)
+
+---
+
+## PHASE 12 — NORMALIZER VIEWS ✅
+
+15 PostgreSQL `vw_*` views — one definition per concern (Contract 1).
+Every UI panel reads the same view; no per-panel JOIN duplication in services.
+All views use `CREATE OR REPLACE` — zero downtime on schema change.
+
+| View | Drives |
+|---|---|
+| `vw_active_spec_limits` | Form pre-population, CoA line, spec snapshot at test time |
+| `vw_instrument_status` | Instrument board, WAP assignment gate, cal due alerts |
+| `vw_training_currency` | Sample registration training gate (21 CFR §11.10(i)) |
+| `vw_sample_pipeline` | WIP dashboard, work queue overview |
+| `vw_oos_heat` | OOS heat map, trending analysis |
+| `vw_coa_readiness` | QA 10-item pre-approval checklist gate |
+| `vw_tat_summary` | TAT KPI panel (average per test type, window from lab_config) |
+| `vw_stability_schedule` | ICH Q1A pull schedule — all time points + status |
+| `vw_compliance_summary` | Compliance panel top-line KPIs (OOS open, e-sigs, overdue reviews) |
+| `vw_alert_queue` | Active alerts — UNION ALL across cal/training/stability/OOS alert types |
+| `vw_reagent_expiry` | Reagent & standard expiry warnings (T-30/T-7) |
+| `vw_qa_checklist` | 10 boolean items per sample — all must be TRUE before QA approval |
+| `vw_sample_traceability` | Full upstream/downstream traceability graph via FK joins |
+| `vw_coa_history` | CoA audit trail + supersession chain |
+| `vw_quality_kpis` | OOS rate, RFT rate, retest rate, CAPA count |
 
 ---
 

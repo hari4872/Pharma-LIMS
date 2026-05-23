@@ -1,4 +1,4 @@
-# PHARMA LIMS — CoA Generation (Phase 9)
+﻿# PHARMA LIMS — CoA Generation (Phase 9)
 ### Technical Design Document · v1.0 · CONFIDENTIAL
 > **v1.0 — New Module:** Template-driven auto-population · DO header fields · 3 e-signatures embedded in PDF · PDF lock server-side · ERP archive
 
@@ -11,7 +11,7 @@
 | Module | CoA Generation (Phase 9) |
 | Depends On | Results Management v1.2, QA Review v1.2, Dispatch QC v1.0 |
 | Version | v1.0 |
-| Status | Draft · May 2026 |
+| Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
 

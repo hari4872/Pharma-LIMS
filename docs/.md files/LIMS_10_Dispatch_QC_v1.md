@@ -1,4 +1,4 @@
-# PHARMA LIMS — Dispatch QC (Phase 10)
+﻿# PHARMA LIMS — Dispatch QC (Phase 10)
 ### Technical Design Document · v1.0 · CONFIDENTIAL
 > **v1.0 — New Module:** DO-triggered outgoing QC · Configurable test set per product type · CoA header auto-populated from DO · CLEARED / BLOCKED status
 
@@ -11,7 +11,7 @@
 | Module | Dispatch QC (Phase 10) |
 | Depends On | Master Data v1.2, Checkpoints v1.1, Sample Registration v1.2, CoA Generation v1.0 |
 | Version | v1.0 |
-| Status | Draft · May 2026 |
+| Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
 

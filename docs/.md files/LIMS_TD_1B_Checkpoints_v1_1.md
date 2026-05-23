@@ -1,4 +1,4 @@
-# PHARMA LIMS — Checkpoints (Phase 1b)
+﻿# PHARMA LIMS — Checkpoints (Phase 1b)
 ### Technical Design Document · v1.1 · CONFIDENTIAL
 > **v1.1 Changes:** All 4 trigger modes · Grouped checkpoints · Process Log · Dispatch Event trigger · Critical flag enforcement
 
@@ -11,7 +11,7 @@
 | Module | Checkpoints (Phase 1b) |
 | Depends On | Master Data v1.2, Parameters v1.1 |
 | Version | v1.1 |
-| Status | Draft · May 2026 |
+| Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
 

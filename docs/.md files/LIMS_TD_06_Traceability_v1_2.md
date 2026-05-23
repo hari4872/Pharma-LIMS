@@ -1,4 +1,4 @@
-# PHARMA LIMS — Traceability (Phase 6)
+﻿# PHARMA LIMS — Traceability (Phase 6)
 ### Technical Design Document · v1.2 · CONFIDENTIAL
 > **v1.2 Changes:** Complaint/deviation downstream node · Sampling event upstream node · Graph view UI · Filter by Batch/Lot/Date/Analyst/Instrument · Recall scope query
 
@@ -11,7 +11,7 @@
 | Module | Traceability (Phase 6) |
 | Depends On | All phases |
 | Version | v1.2 |
-| Status | Draft · May 2026 |
+| Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
 

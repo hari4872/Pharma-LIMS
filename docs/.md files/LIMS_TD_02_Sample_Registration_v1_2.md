@@ -1,4 +1,4 @@
-# PHARMA LIMS — Sample Registration (Phase 2)
+﻿# PHARMA LIMS — Sample Registration (Phase 2)
 ### Technical Design Document · v1.2 · CONFIDENTIAL
 > **v1.2 Changes:** Barcode label auto-print at Step 4 · Configurable Sample ID format · Form Template auto-selection
 
@@ -11,7 +11,7 @@
 | Module | Sample Registration (Phase 2) |
 | Depends On | Master Data v1.2, Parameters v1.1, Checkpoints v1.1 |
 | Version | v1.2 |
-| Status | Draft · May 2026 |
+| Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
 

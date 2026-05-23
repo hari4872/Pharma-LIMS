@@ -1,4 +1,4 @@
-# PHARMA LIMS — Dashboards & Lab KPIs (Phase 11)
+﻿# PHARMA LIMS — Dashboards & Lab KPIs (Phase 11)
 ### Technical Design Document · v1.0 · CONFIDENTIAL
 > **v1.0 — New Module:** WIP · TAT · Quality KPIs · Instrument Status Board · Automated Alerts · Compliance & Audit Readiness Panel
 
@@ -11,7 +11,7 @@
 | Module | Dashboards & Lab KPIs (Phase 11) |
 | Depends On | All phases |
 | Version | v1.0 |
-| Status | Draft · May 2026 |
+| Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced in every section |
 

@@ -1,4 +1,4 @@
-# PHARMA LIMS — Form Template (Phase 1c)
+﻿# PHARMA LIMS — Form Template (Phase 1c)
 ### Technical Design Document · v1.0 · CONFIDENTIAL
 > **v1.0 — New Module:** Digital form layout engine · 4 trigger types · Grouped locations · 8-step approval lifecycle · `FormTemplateRenderService`
 
@@ -11,7 +11,7 @@
 | Module | Form Template (Phase 1c — New) |
 | Depends On | Master Data v1.2, Parameters v1.1, Checkpoints v1.1 |
 | Version | v1.0 |
-| Status | Draft · May 2026 |
+| Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
 

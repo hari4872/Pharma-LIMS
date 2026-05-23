@@ -1,4 +1,4 @@
-# PHARMA LIMS — Digital Logbook (Phase 3a)
+﻿# PHARMA LIMS — Digital Logbook (Phase 3a)
 ### Technical Design Document · v1.1 · CONFIDENTIAL
 > **v1.1 Changes:** `trigger_source` field on every row · `evidence_file_ref` per row · Process Log rows via same service · `is_oot` flag
 
@@ -11,7 +11,7 @@
 | Module | Digital Logbook (Phase 3a) |
 | Depends On | Testing Execution v1.2, Parameters v1.1 |
 | Version | v1.1 |
-| Status | Draft · May 2026 |
+| Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
 

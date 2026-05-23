@@ -1,4 +1,4 @@
-# PHARMA LIMS — Parameters (Phase 1a)
+﻿# PHARMA LIMS — Parameters (Phase 1a)
 ### Technical Design Document · v1.1 · CONFIDENTIAL
 > **v1.1 Changes:** Critical flag · Column-level frequency · Regulatory spec tier · OOT threshold · Table-lookup formula type
 
@@ -15,7 +15,7 @@
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ICH Q10 · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced in every section |
 | Version | v1.1 |
-| Status | Draft · May 2026 |
+| Status | Implemented · Live · May 2026 |
 | Classification | CONFIDENTIAL |
 
 ---

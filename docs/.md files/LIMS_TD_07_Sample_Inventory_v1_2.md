@@ -1,4 +1,4 @@
-# PHARMA LIMS — Sample Inventory & Pull Planning (Phase 7)
+﻿# PHARMA LIMS — Sample Inventory & Pull Planning (Phase 7)
 ### Technical Design Document · v1.2 · CONFIDENTIAL
 > **v1.2 Changes:** Sample Storage Management sub-module · Condition excursion logging · Location transfer chain of custody · T-90/T-30 destruction alerts · Short pull deviation auto-logging
 
@@ -11,7 +11,7 @@
 | Module | Sample Inventory & Pull Planning (Phase 7) |
 | Depends On | Master Data v1.2, Sample Registration v1.2 |
 | Version | v1.2 |
-| Status | Draft · May 2026 |
+| Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ICH Q1A · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
 
