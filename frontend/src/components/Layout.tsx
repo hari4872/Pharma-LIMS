@@ -138,7 +138,7 @@ export default function Layout() {
   return (
     <div style={{
       display: 'flex', minHeight: '100vh',
-      fontFamily: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
     }}>
 
       {/* ── Sidebar ───────────────────────────────────────────────── */}

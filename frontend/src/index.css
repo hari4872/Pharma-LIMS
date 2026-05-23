@@ -1,5 +1,5 @@
 /* ── Pharma LIMS — Global Reset & Typography ─────────────────────────────
-   Inter loaded via Google Fonts in index.html.
+   Plus Jakarta Sans loaded via Google Fonts in index.html.
    All component styles are inline (React CSSProperties) — this file only
    provides the essential reset so browser defaults don't interfere.
 ────────────────────────────────────────────────────────────────────────── */
@@ -15,7 +15,7 @@ html, body {
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: #111827;
@@ -34,7 +34,7 @@ body {
 /* ── Typography reset ────────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-weight: 600;
   color: #111827;
 }

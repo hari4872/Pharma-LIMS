@@ -106,7 +106,7 @@ export default function LoginPage() {
     border: '1.5px solid #e2e8f0', borderRadius: 10,
     padding: '11px 14px 11px 40px',
     fontSize: 14, color: '#0f172a', background: '#f8fafc',
-    outline: 'none', fontFamily: 'Inter, sans-serif',
+    outline: 'none', fontFamily: 'Plus Jakarta Sans, sans-serif',
     transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
   }
 
@@ -114,7 +114,7 @@ export default function LoginPage() {
     <div ref={wrapRef} style={{
       minHeight: '100vh',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: 'Inter, system-ui, sans-serif',
+      fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
       background: 'linear-gradient(135deg, #c8f0ea 0%, #8dd8d0 35%, #5bbfb5 65%, #2ea89c 100%)',
       padding: '32px 48px',
       position: 'relative', overflow: 'hidden',
@@ -233,7 +233,7 @@ export default function LoginPage() {
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
                 <label style={{ fontSize:13, fontWeight:600, color:'#374151' }} htmlFor="lims-password">Password</label>
                 <button type="button" onClick={() => setShowForgot(true)}
-                  style={{ background:'none', border:'none', fontSize:12.5, fontWeight:600, color:'#0d6e6e', cursor:'pointer', padding:0, fontFamily:'Inter, sans-serif' }}>
+                  style={{ background:'none', border:'none', fontSize:12.5, fontWeight:600, color:'#0d6e6e', cursor:'pointer', padding:0, fontFamily:'Plus Jakarta Sans, sans-serif' }}>
                   Forgot password?
                 </button>
               </div>
@@ -272,7 +272,7 @@ export default function LoginPage() {
                 background: loading ? '#94a3b8' : 'linear-gradient(135deg, #0d6e6e 0%, #0a4f4f 100%)',
                 color:'#ffffff', border:'none', borderRadius:10,
                 fontSize:15, fontWeight:700, cursor: loading ? 'not-allowed' : 'pointer',
-                fontFamily:'Inter, sans-serif',
+                fontFamily:'Plus Jakarta Sans, sans-serif',
                 display:'flex', alignItems:'center', justifyContent:'center', gap:8,
                 boxShadow: loading ? 'none' : '0 4px 16px rgba(13,110,110,0.35)',
                 transition:'all 0.15s',
@@ -309,7 +309,7 @@ export default function LoginPage() {
                 <p style={{ margin:0, fontSize:12.5, color:'#64748b' }}>Administrator-authorised — 21 CFR §11.300</p>
               </div>
               <button onClick={() => setShowForgot(false)}
-                style={{ background:'#f1f5f9', border:'none', width:30, height:30, borderRadius:7, fontSize:17, cursor:'pointer', color:'#64748b', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Inter, sans-serif' }}>×</button>
+                style={{ background:'#f1f5f9', border:'none', width:30, height:30, borderRadius:7, fontSize:17, cursor:'pointer', color:'#64748b', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Plus Jakarta Sans, sans-serif' }}>×</button>
             </div>
             <div style={{ background:'#f0fdf9', border:'1px solid #99f6e4', borderRadius:8, padding:'11px 14px', marginBottom:20 }}>
               <p style={{ margin:0, fontSize:12.5, color:'#065f46', lineHeight:1.65 }}>
@@ -329,7 +329,7 @@ export default function LoginPage() {
               ))}
             </div>
             <button onClick={() => setShowForgot(false)}
-              style={{ width:'100%', padding:'10px', background:'linear-gradient(135deg, #0d6e6e 0%, #0a4f4f 100%)', color:'#fff', border:'none', borderRadius:8, fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:'Inter, sans-serif' }}
+              style={{ width:'100%', padding:'10px', background:'linear-gradient(135deg, #0d6e6e 0%, #0a4f4f 100%)', color:'#fff', border:'none', borderRadius:8, fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:'Plus Jakarta Sans, sans-serif' }}
               onMouseEnter={e => { e.currentTarget.style.background='linear-gradient(135deg, #0a5555 0%, #083838 100%)' }}
               onMouseLeave={e => { e.currentTarget.style.background='linear-gradient(135deg, #0d6e6e 0%, #0a4f4f 100%)' }}>
               Understood
