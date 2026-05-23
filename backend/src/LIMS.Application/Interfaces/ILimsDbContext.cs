@@ -77,5 +77,8 @@ public interface ILimsDbContext
     DbSet<StabilityInterval> StabilityIntervals { get; }
     // Phase D: Instrument-Test Mapping
     DbSet<InstrumentTestMapping> InstrumentTestMappings { get; }
+    // Sprint 7: Batch Release
+    DbSet<BatchRelease> BatchReleases { get; }
+    DbSet<BatchReleaseCheckItem> BatchReleaseCheckItems { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -158,6 +158,11 @@ const operationsItems: NavItem[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
   {
+    label: 'Batch Release', path: '/batch-release',
+    iconBg: '#f0fdf4', iconColor: '#15803d',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
     label: 'CoA Review', path: '/coa-review',
     iconBg: '#f3e8ff', iconColor: '#7c3aed',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
@@ -166,6 +171,11 @@ const operationsItems: NavItem[] = [
     label: 'Dispatch QC', path: '/dispatch-qc',
     iconBg: '#f1f5f9', iconColor: '#64748b',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    label: 'Reports & Exports', path: '/reports',
+    iconBg: '#f0f9ff', iconColor: '#0369a1',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
 ]
 
@@ -218,10 +228,12 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/oos-investigations':               { section: 'Operations', label: 'OOS Investigations' },
   '/quality-events':                   { section: 'Operations', label: 'CAPA / Quality Events' },
   '/spc':                              { section: 'Operations', label: 'SPC / Trending' },
+  '/batch-release':                    { section: 'Operations', label: 'Batch Release' },
   '/digital-logbook':                  { section: 'Operations', label: 'Digital Logbook' },
   '/results-review':                   { section: 'Operations', label: 'Results Review' },
   '/coa-review':                       { section: 'Operations', label: 'CoA Review' },
   '/dispatch-qc':                      { section: 'Operations', label: 'Dispatch QC' },
+  '/reports':                          { section: 'Operations', label: 'Reports & Exports' },
   '/traceability':                     { section: 'Inventory', label: 'Traceability' },
   '/stability-pulls':                  { section: 'Inventory', label: 'Stability Pulls' },
   '/retain-samples':                   { section: 'Inventory', label: 'Retain Samples' },

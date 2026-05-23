@@ -43,6 +43,10 @@ import CompliancePanelPage from '@/pages/CompliancePanelPage'
 import QualityEventsPage from '@/pages/QualityEventsPage'
 // Sprint 5 — SPC Control Chart
 import SpcPage from '@/pages/SpcPage'
+// Sprint 7 — Batch Release
+import BatchReleasePage from '@/pages/BatchReleasePage'
+// Sprint 9 — Reports
+import ReportsPage from '@/pages/ReportsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useSelector((s: RootState) => s.auth.token)
@@ -84,6 +88,8 @@ export default function App() {
         <Route path="oos-investigations" element={<OosInvestigationsPage />} />
         <Route path="quality-events"    element={<QualityEventsPage />} />
         <Route path="spc"               element={<SpcPage />} />
+        <Route path="batch-release"     element={<BatchReleasePage />} />
+        <Route path="reports"           element={<ReportsPage />} />
         <Route path="digital-logbook"   element={<DigitalLogbookPage />} />
         <Route path="results-review"    element={<ResultsReviewPage />} />
         <Route path="coa-review"        element={<CoaReviewPage />} />

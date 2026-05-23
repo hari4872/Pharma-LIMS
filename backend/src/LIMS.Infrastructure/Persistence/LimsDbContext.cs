@@ -82,6 +82,9 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<StabilityInterval> StabilityIntervals => Set<StabilityInterval>();
     // Phase D: Instrument-Test Mapping
     public DbSet<InstrumentTestMapping> InstrumentTestMappings => Set<InstrumentTestMapping>();
+    // Sprint 7: Batch Release
+    public DbSet<BatchRelease> BatchReleases => Set<BatchRelease>();
+    public DbSet<BatchReleaseCheckItem> BatchReleaseCheckItems => Set<BatchReleaseCheckItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

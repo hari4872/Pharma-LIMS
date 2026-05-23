@@ -9,7 +9,7 @@
     <PackageReference Include="Npgsql" Version="8.0.3" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="migration.sql" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="*.sql" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="connstr.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
