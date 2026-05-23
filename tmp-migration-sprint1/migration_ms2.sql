@@ -3,27 +3,27 @@
 -- Migration ID: 20260523230000_MS2_SampleTransfers
 
 CREATE TABLE IF NOT EXISTS sample_transfers (
-    sample_transfer_id   SERIAL PRIMARY KEY,
-    sample_id            INTEGER NOT NULL REFERENCES samples(sample_id),
-    from_lab_id          INTEGER NOT NULL REFERENCES laboratories(lab_id),
-    to_lab_id            INTEGER NOT NULL REFERENCES laboratories(lab_id),
-    transfer_reason      VARCHAR(500) NOT NULL,
-    chain_of_custody_note VARCHAR(1000),
-    status               VARCHAR(20) NOT NULL DEFAULT 'Pending',
-    requested_by         VARCHAR(200) NOT NULL,
-    requested_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    responded_by         VARCHAR(200),
-    responded_at         TIMESTAMPTZ,
-    response_note        VARCHAR(500),
-    received_by          VARCHAR(200),
-    received_at          TIMESTAMPTZ
+    "SampleTransferId"     SERIAL PRIMARY KEY,
+    "SampleId"             INT NOT NULL REFERENCES samples("SampleId"),
+    "FromLabId"            INT NOT NULL REFERENCES laboratories("LabId"),
+    "ToLabId"              INT NOT NULL REFERENCES laboratories("LabId"),
+    "TransferReason"       VARCHAR(500) NOT NULL,
+    "ChainOfCustodyNote"   VARCHAR(1000),
+    "Status"               VARCHAR(20) NOT NULL DEFAULT 'Pending',
+    "RequestedBy"          VARCHAR(200) NOT NULL,
+    "RequestedAt"          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "RespondedBy"          VARCHAR(200),
+    "RespondedAt"          TIMESTAMPTZ,
+    "ResponseNote"         VARCHAR(500),
+    "ReceivedBy"           VARCHAR(200),
+    "ReceivedAt"           TIMESTAMPTZ
 );
 
-CREATE INDEX IF NOT EXISTS idx_sample_transfers_sample_id  ON sample_transfers(sample_id);
-CREATE INDEX IF NOT EXISTS idx_sample_transfers_status     ON sample_transfers(status);
-CREATE INDEX IF NOT EXISTS idx_sample_transfers_from_lab   ON sample_transfers(from_lab_id);
-CREATE INDEX IF NOT EXISTS idx_sample_transfers_to_lab     ON sample_transfers(to_lab_id);
-CREATE INDEX IF NOT EXISTS idx_sample_transfers_requested  ON sample_transfers(requested_at DESC);
+CREATE INDEX IF NOT EXISTS ix_sample_transfers_sample_id  ON sample_transfers("SampleId");
+CREATE INDEX IF NOT EXISTS ix_sample_transfers_status     ON sample_transfers("Status");
+CREATE INDEX IF NOT EXISTS ix_sample_transfers_from_lab   ON sample_transfers("FromLabId");
+CREATE INDEX IF NOT EXISTS ix_sample_transfers_to_lab     ON sample_transfers("ToLabId");
+CREATE INDEX IF NOT EXISTS ix_sample_transfers_requested  ON sample_transfers("RequestedAt" DESC);
 
 -- Register migration
 INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
