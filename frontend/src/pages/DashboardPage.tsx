@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useSelector } from 'react-redux'
+import { useNavigate } from 'react-router-dom'
+import type { RootState } from '@/store'
 import api from '@/api/client'
+import { toast } from '@/components/Toast'
 
 // FR-10 / FR-11: All metrics server-side from IDashboardAggregationService (Contract 2)
 // No client-side aggregation — display only
@@ -25,6 +29,13 @@ interface ComplianceSummary {
 }
 
 type Tab = 'overview' | 'quality' | 'instruments' | 'compliance'
+
+interface RecentSample {
+  sampleId: number; sampleNumber: string; materialName: string; status: string; createdAt: string
+}
+interface RecentTask {
+  executionId: number; sampleNumber: string; materialName: string; status: string; analystName: string
+}
 
 // ── Teal palette ──────────────────────────────────────────────────────────
 const T = {
@@ -83,23 +94,53 @@ const instColour = (s: string) => {
 }
 
 export default function DashboardPage() {
-  const [wip,   setWip]   = useState<WipSummary | null>(null)
-  const [tat,   setTat]   = useState<TatSummary | null>(null)
-  const [kpis,  setKpis]  = useState<QualityKpis | null>(null)
-  const [board, setBoard] = useState<InstrumentBoardItem[]>([])
-  const [comp,  setComp]  = useState<ComplianceSummary | null>(null)
+  const fullName = useSelector((s: RootState) => s.auth.fullName)
+
+  const [wip,           setWip]           = useState<WipSummary | null>(null)
+  const [tat,           setTat]           = useState<TatSummary | null>(null)
+  const [kpis,          setKpis]          = useState<QualityKpis | null>(null)
+  const [board,         setBoard]         = useState<InstrumentBoardItem[]>([])
+  const [comp,          setComp]          = useState<ComplianceSummary | null>(null)
+  const [recentSamples, setRecentSamples] = useState<RecentSample[]>([])
+  const [recentTasks,   setRecentTasks]   = useState<RecentTask[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('overview')
+  const navigate = useNavigate()
 
-  async function load() {
+  const firstName = fullName?.split(' ')[0] ?? 'there'
+
+  async function load(isRefresh = false) {
     setLoading(true)
     try {
-      const [w, t, k, b, c] = await Promise.all([
-        api.get('/dashboard/wip'), api.get('/dashboard/tat'),
-        api.get('/dashboard/quality-kpis'), api.get('/dashboard/instrument-board'),
+      const [w, t, k, b, c, sm, wq] = await Promise.all([
+        api.get('/dashboard/wip'),
+        api.get('/dashboard/tat'),
+        api.get('/dashboard/quality-kpis'),
+        api.get('/dashboard/instrument-board'),
         api.get('/dashboard/compliance'),
+        api.get('/samples').catch(() => ({ data: [] })),
+        api.get('/test-executions').catch(() => ({ data: [] })),
       ])
       setWip(w.data); setTat(t.data); setKpis(k.data); setBoard(b.data); setComp(c.data)
+      // Recent samples — last 5 newest first
+      const samples = Array.isArray(sm.data) ? sm.data : []
+      setRecentSamples(samples.slice(-5).reverse())
+      // Recent tasks — first 5 from work queue
+      const tasks = Array.isArray(wq.data) ? wq.data : []
+      setRecentTasks(tasks.slice(0, 5))
+      // Toasts
+      if (isRefresh) {
+        toast('Dashboard refreshed', 'success', 2500)
+      } else {
+        const hour = new Date().getHours()
+        const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+        toast(`${greeting}, ${firstName}! 👋 Welcome back.`, 'info', 4000)
+        // Alert if overdue samples
+        const overdueCount = (w.data as WipSummary)?.overdue ?? 0
+        if (overdueCount > 0) {
+          setTimeout(() => toast(`⚠ ${overdueCount} overdue sample${overdueCount > 1 ? 's' : ''} need attention`, 'warning', 5000), 800)
+        }
+      }
     } finally { setLoading(false) }
   }
 
@@ -131,7 +172,7 @@ export default function DashboardPage() {
           <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>Lab Dashboard</h2>
           <p style={{ margin: '3px 0 0', fontSize: 13, color: '#64748b' }}>Real-time laboratory operations overview</p>
         </div>
-        <button onClick={load} style={{
+        <button onClick={() => load(true)} style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '7px 16px', border: `1px solid ${T.border}`, borderRadius: 7,
           cursor: 'pointer', fontSize: 13, fontWeight: 500,
@@ -337,7 +378,122 @@ export default function DashboardPage() {
         </>
       )}
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              {/* ── 3 Quick-View Widgets ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 20 }}>
+
+            {/* Widget 1 — Work Queue Snapshot */}
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M4 6h16M4 10h16M4 14h10" stroke="#2563eb" strokeWidth="1.8" strokeLinecap="round"/></svg>
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Work Queue</span>
+                </div>
+                <button onClick={() => navigate('/work-queue')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: T.primary, fontWeight: 600, fontFamily: 'inherit' }}>View All →</button>
+              </div>
+              <div style={{ padding: '4px 0' }}>
+                {recentTasks.length === 0 ? (
+                  <div style={{ padding: '24px 16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>No pending tasks</div>
+                ) : recentTasks.map((t, i) => {
+                  const sc = { Assigned: { bg: '#dbeafe', color: '#1e40af' }, InProgress: { bg: '#fef9c3', color: '#854d0e' }, Completed: { bg: '#d1fae5', color: '#065f46' }, OOSOpen: { bg: '#fee2e2', color: '#991b1b' } }[t.status] ?? { bg: '#f1f5f9', color: '#374151' }
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', borderBottom: i < recentTasks.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.sampleNumber}</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.materialName}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 7px', borderRadius: 20, background: sc.bg, color: sc.color }}>{t.status}</span>
+                        {t.analystName && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{t.analystName}</div>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Widget 2 — Recent Registrations */}
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="#16a34a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Recent Samples</span>
+                </div>
+                <button onClick={() => navigate('/samples')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: T.primary, fontWeight: 600, fontFamily: 'inherit' }}>View All →</button>
+              </div>
+              <div style={{ padding: '4px 0' }}>
+                {recentSamples.length === 0 ? (
+                  <div style={{ padding: '24px 16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>No recent registrations</div>
+                ) : recentSamples.map((s, i) => {
+                  const sc = { Registered: { bg: '#dbeafe', color: '#1e40af' }, PendingTesting: { bg: '#fef9c3', color: '#854d0e' }, InTesting: { bg: '#fde8d8', color: '#9a3412' }, Released: { bg: '#d1fae5', color: '#065f46' }, Rejected: { bg: '#fee2e2', color: '#991b1b' } }[s.status] ?? { bg: '#f1f5f9', color: '#374151' }
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', borderBottom: i < recentSamples.length - 1 ? '1px solid #f8fafc' : 'none' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.sampleNumber}</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.materialName}</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 7px', borderRadius: 20, background: sc.bg, color: sc.color }}>{s.status}</span>
+                        <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>{_timeAgo(s.createdAt)}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Widget 3 — Welcome + Today's Pulse */}
+            <div style={{ background: 'linear-gradient(135deg, #f0fdfa 0%, #e0f2fe 100%)', border: '1px solid #99f6e4', borderRadius: 10, padding: '18px 18px 14px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Greeting */}
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em' }}>
+                  {(() => { const h = new Date().getHours(); return h < 12 ? '🌅' : h < 17 ? '☀️' : '🌙' })()} {fullName ? `Welcome back, ${firstName}!` : 'Welcome back!'}
+                </div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
+                  {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </div>
+              </div>
+              {/* Today's pulse */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { label: 'Registered Today', value: wip?.registeredToday ?? 0, color: '#0d9488', icon: '📋' },
+                  { label: 'In Testing',        value: wip?.inTesting ?? 0,        color: '#2563eb', icon: '🔬' },
+                  { label: 'Completed Today',   value: wip?.completedToday ?? 0,   color: '#16a34a', icon: '✅' },
+                  { label: 'Overdue',           value: wip?.overdue ?? 0,          color: wip && wip.overdue > 0 ? '#dc2626' : '#9ca3af', icon: '⏰' },
+                ].map(row => (
+                  <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.65)', borderRadius: 8, padding: '7px 12px' }}>
+                    <span style={{ fontSize: 12.5, color: '#374151', fontWeight: 500 }}>{row.icon} {row.label}</span>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: row.color }}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Status line */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 5px #22c55e', flexShrink: 0, display: 'inline-block' }} />
+                <span style={{ fontSize: 11.5, color: '#0d6e6e', fontWeight: 600 }}>
+                  {wip && wip.overdue > 0 ? `${wip.overdue} task${wip.overdue > 1 ? 's' : ''} need attention` : 'All systems operational'}
+                </span>
+              </div>
+            </div>
+
+          </div>
+
+  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function _timeAgo(dateStr: string): string {
+  if (!dateStr) return '—'
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1)  return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24)  return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
 }

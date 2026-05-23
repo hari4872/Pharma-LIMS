@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
+import { toast } from '@/components/Toast'
 
 interface Lab { labId: number; labName: string; site: string; location: string; labType: string; isActive: boolean; createdBy: string }
 
@@ -26,7 +27,12 @@ export default function LaboratoriesPage() {
     try {
       await api.post('/laboratories', form)
       setShowForm(false); setForm({ labName: '', site: '', location: '', labType: 'QC' }); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+      toast(`Laboratory "${form.labName}" added successfully`, 'success')
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Failed'
+      setError(msg)
+      toast(msg, 'error')
+    }
     finally { setSaving(false) }
   }
 

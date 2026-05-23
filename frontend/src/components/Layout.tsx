@@ -2,6 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import type { AppDispatch, RootState } from '@/store'
 import { logout } from '@/store/authSlice'
+import { ToastContainer } from '@/components/Toast'
 
 // ── Nav item type ─────────────────────────────────────────────────────────
 type NavItem = {
@@ -337,6 +338,9 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Global toast notifications */}
+      <ToastContainer />
     </div>
   )
 }
