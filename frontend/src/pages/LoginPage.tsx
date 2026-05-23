@@ -7,9 +7,8 @@ import api from '@/api/client'
 
 // Spec Contract 4 §26: Login page — all four elements mandatory:
 //   username · password · forgot-password · remember-me
-// Forgot-password: admin-initiated reset (no SMTP in system — admin resets via /api/v1/auth/reset-password)
 
-// ─── Inline SVG icons ────────────────────────────────────────────────────────
+// ─── Icons ───────────────────────────────────────────────────────────────────
 
 function IconPerson() {
   return (
@@ -49,40 +48,78 @@ function IconEyeOff() {
 
 function IconCheck() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e36b1e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="20 6 9 17 4 12" />
     </svg>
   )
 }
 
-function IconFlask() {
+// ─── WebSynergies Logo ────────────────────────────────────────────────────────
+// Inline SVG approximation of the WebSynergies brand mark
+
+function WebSynergiesLogoLight() {
+  // Light version for dark panel background
   return (
-    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-      {/* Flask body */}
-      <path
-        d="M24 4 L24 26 L10 50 C8.5 52.5 10 56 13 56 L51 56 C54 56 55.5 52.5 54 50 L40 26 L40 4 Z"
-        fill="rgba(255,255,255,0.08)"
-        stroke="rgba(255,255,255,0.6)"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      {/* Flask neck bar */}
-      <line x1="20" y1="10" x2="44" y2="10" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" />
-      {/* Liquid inside flask */}
-      <path
-        d="M16 44 C16 44 18 38 32 38 C46 38 48 44 48 44 L54 56 C54 56 52.5 58 51 58 L13 58 C11.5 58 10 56 10 56 Z"
-        fill="rgba(56,189,248,0.3)"
-        stroke="none"
-      />
-      {/* Bubbles */}
-      <circle cx="28" cy="47" r="2" fill="rgba(56,189,248,0.6)" />
-      <circle cx="36" cy="43" r="1.5" fill="rgba(56,189,248,0.5)" />
-      <circle cx="32" cy="50" r="1.2" fill="rgba(56,189,248,0.4)" />
-      {/* Molecule dots */}
-      <circle cx="50" cy="12" r="3" fill="rgba(56,189,248,0.7)" />
-      <circle cx="56" cy="20" r="2" fill="rgba(56,189,248,0.5)" />
-      <line x1="50" y1="12" x2="56" y2="20" stroke="rgba(56,189,248,0.5)" strokeWidth="1.5" />
-    </svg>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {/* W mark — two columns of stacked rectangles */}
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        {/* Left column */}
+        <rect x="2"  y="2"  width="8" height="14" rx="1" fill="rgba(255,255,255,0.95)" />
+        <rect x="2"  y="20" width="8" height="14" rx="1" fill="rgba(255,255,255,0.95)" />
+        {/* Right column */}
+        <rect x="14" y="2"  width="8" height="14" rx="1" fill="rgba(255,255,255,0.95)" />
+        <rect x="14" y="20" width="8" height="14" rx="1" fill="rgba(255,255,255,0.95)" />
+        {/* Orange diagonal band */}
+        <path d="M0 22 L36 10 L36 22 L0 34 Z" fill="#e36b1e" opacity="0.9" />
+        {/* Circular rings */}
+        <circle cx="26" cy="16" r="8"  stroke="rgba(255,255,255,0.2)" strokeWidth="1" fill="none" />
+        <circle cx="26" cy="16" r="5"  stroke="rgba(255,255,255,0.2)" strokeWidth="1" fill="none" />
+        <circle cx="26" cy="16" r="2.5" fill="rgba(255,255,255,0.35)" />
+      </svg>
+      {/* Text */}
+      <div style={{ lineHeight: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 0 }}>
+          <span style={{ fontSize: 17, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.01em', fontFamily: 'Inter, sans-serif' }}>
+            Web
+          </span>
+          <span style={{ fontSize: 17, fontWeight: 600, color: '#e36b1e', letterSpacing: '0.01em', fontFamily: 'Inter, sans-serif' }}>
+            Synergies
+          </span>
+          <sup style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginLeft: 1, lineHeight: 1 }}>®</sup>
+        </div>
+        <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.38)', letterSpacing: '0.07em', textTransform: 'uppercase', marginTop: 2, fontFamily: 'Inter, sans-serif' }}>
+          Bettering your Expectations
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function WebSynergiesLogoDark() {
+  // Dark version for white panel background
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+      <svg width="30" height="30" viewBox="0 0 36 36" fill="none">
+        <rect x="2"  y="2"  width="8" height="14" rx="1" fill="#231f20" />
+        <rect x="2"  y="20" width="8" height="14" rx="1" fill="#231f20" />
+        <rect x="14" y="2"  width="8" height="14" rx="1" fill="#231f20" />
+        <rect x="14" y="20" width="8" height="14" rx="1" fill="#231f20" />
+        <path d="M0 22 L36 10 L36 22 L0 34 Z" fill="#e36b1e" opacity="0.95" />
+        <circle cx="26" cy="16" r="8"  stroke="#9ca3af" strokeWidth="1" fill="none" />
+        <circle cx="26" cy="16" r="5"  stroke="#9ca3af" strokeWidth="1" fill="none" />
+        <circle cx="26" cy="16" r="2.5" fill="#9ca3af" />
+      </svg>
+      <div style={{ lineHeight: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline' }}>
+          <span style={{ fontSize: 15, fontWeight: 800, color: '#231f20', fontFamily: 'Inter, sans-serif' }}>Web</span>
+          <span style={{ fontSize: 15, fontWeight: 600, color: '#e36b1e', fontFamily: 'Inter, sans-serif' }}>Synergies</span>
+          <sup style={{ fontSize: 8, color: '#9ca3af', marginLeft: 1 }}>®</sup>
+        </div>
+        <div style={{ fontSize: 8.5, color: '#9ca3af', letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 2, fontFamily: 'Inter, sans-serif' }}>
+          Bettering your Expectations
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -100,7 +137,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isMobile,     setIsMobile]     = useState(false)
 
-  // Track viewport width for responsive behaviour
   useEffect(() => {
     function check() { setIsMobile(window.innerWidth < 768) }
     check()
@@ -123,7 +159,7 @@ export default function LoginPage() {
     dispatch(login({ username, password }))
   }
 
-  // ─── Styles ─────────────────────────────────────────────────────────────────
+  // ─── Styles ──────────────────────────────────────────────────────────────────
 
   const pageStyle: React.CSSProperties = {
     minHeight: '100vh',
@@ -138,61 +174,10 @@ export default function LoginPage() {
     justifyContent: 'space-between',
     width: '45%',
     minWidth: 420,
-    background: 'linear-gradient(160deg, #0f172a 0%, #1e293b 60%, #0f2942 100%)',
+    background: 'linear-gradient(160deg, #0f172a 0%, #1a2744 55%, #0f2035 100%)',
     padding: '48px 52px',
     position: 'relative',
     overflow: 'hidden',
-  }
-
-  const leftDecorStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: -80,
-    right: -80,
-    width: 320,
-    height: 320,
-    borderRadius: '50%',
-    background: 'rgba(37, 99, 235, 0.08)',
-    pointerEvents: 'none',
-  }
-
-  const leftDecorStyle2: React.CSSProperties = {
-    position: 'absolute',
-    bottom: -60,
-    left: -60,
-    width: 240,
-    height: 240,
-    borderRadius: '50%',
-    background: 'rgba(56, 189, 248, 0.06)',
-    pointerEvents: 'none',
-  }
-
-  const rightPanelStyle: React.CSSProperties = {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: isMobile ? '40px 24px' : '48px 64px',
-    background: '#ffffff',
-  }
-
-  const formCardStyle: React.CSSProperties = {
-    width: '100%',
-    maxWidth: 400,
-  }
-
-  const inputWrapperStyle: React.CSSProperties = {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-  }
-
-  const inputIconStyle: React.CSSProperties = {
-    position: 'absolute',
-    left: 14,
-    display: 'flex',
-    alignItems: 'center',
-    pointerEvents: 'none',
-    zIndex: 1,
   }
 
   const inputStyle: React.CSSProperties = {
@@ -211,7 +196,7 @@ export default function LoginPage() {
 
   const labelStyle: React.CSSProperties = {
     display: 'block',
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: 500,
     color: '#475569',
     marginBottom: 6,
@@ -228,154 +213,123 @@ export default function LoginPage() {
     fontWeight: 600,
     cursor: loading ? 'not-allowed' : 'pointer',
     letterSpacing: '0.01em',
-    transition: 'background 0.15s, transform 0.1s',
+    transition: 'background 0.15s',
     fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
   }
 
+  const features = [
+    { label: 'End-to-End Sample Lifecycle Management' },
+    { label: 'GxP-Ready Electronic Audit Trail' },
+    { label: '21 CFR §11.50 E-Signature Compliance' },
+    { label: 'EU GMP Annex 11 Validated Platform' },
+  ]
+
   return (
     <div style={pageStyle}>
+
       {/* ── Left branding panel ───────────────────────────────────────────────── */}
       <div style={leftPanelStyle}>
-        {/* Decorative circles */}
-        <div style={leftDecorStyle} />
-        <div style={leftDecorStyle2} />
+        {/* Subtle decorative circles */}
+        <div style={{ position: 'absolute', top: -100, right: -100, width: 360, height: 360, borderRadius: '50%', background: 'rgba(227,107,30,0.04)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -80, left: -80, width: 280, height: 280, borderRadius: '50%', background: 'rgba(37,99,235,0.05)', pointerEvents: 'none' }} />
 
-        {/* Top: logo mark */}
+        {/* Top: WebSynergies logo */}
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 10,
-              background: 'rgba(37, 99, 235, 0.25)',
-              border: '1px solid rgba(37, 99, 235, 0.5)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18" />
-              </svg>
-            </div>
-            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              WebSynergies
-            </span>
-          </div>
+          <WebSynergiesLogoLight />
         </div>
 
-        {/* Centre: hero content */}
-        <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingTop: 40, paddingBottom: 40 }}>
-          <div style={{ marginBottom: 32 }}>
-            <IconFlask />
-          </div>
+        {/* Centre: LIMS hero */}
+        <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', paddingTop: 48, paddingBottom: 48 }}>
 
-          <h1 style={{
-            margin: '0 0 12px',
-            fontSize: 36,
-            fontWeight: 700,
-            color: '#ffffff',
-            letterSpacing: '-0.02em',
-            lineHeight: 1.15,
-          }}>
+          {/* Divider accent */}
+          <div style={{ width: 48, height: 3, background: '#e36b1e', borderRadius: 2, marginBottom: 28 }} />
+
+          <h1 style={{ margin: '0 0 8px', fontSize: 38, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.025em', lineHeight: 1.1 }}>
             Pharma LIMS
           </h1>
-
-          <p style={{
-            margin: '0 0 36px',
-            fontSize: 15,
-            color: 'rgba(255,255,255,0.6)',
-            lineHeight: 1.6,
-            maxWidth: 320,
-          }}>
-            End-to-end laboratory information management — 21 CFR Part 11 compliant
+          <p style={{ margin: '0 0 6px', fontSize: 13.5, fontWeight: 600, color: '#e36b1e', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Laboratory Information Management System
+          </p>
+          <p style={{ margin: '0 0 40px', fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, maxWidth: 310 }}>
+            A fully integrated, regulation-grade platform managing the complete pharmaceutical sample lifecycle — from registration to CoA release.
           </p>
 
           {/* Feature bullets */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {[
-              'GxP-ready audit trail',
-              'E-signature (§11.50)',
-              'Neon PostgreSQL 16',
-            ].map(item => (
-              <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+            {features.map(f => (
+              <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{
-                  width: 24, height: 24, borderRadius: 6,
-                  background: 'rgba(56,189,248,0.12)',
-                  border: '1px solid rgba(56,189,248,0.25)',
+                  width: 22, height: 22, borderRadius: 5,
+                  background: 'rgba(227,107,30,0.15)',
+                  border: '1px solid rgba(227,107,30,0.35)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0,
                 }}>
                   <IconCheck />
                 </div>
-                <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
-                  {item}
+                <span style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.78)', fontWeight: 500 }}>
+                  {f.label}
                 </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Bottom: compliance badges */}
+        {/* Bottom: regulatory line */}
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{
-            display: 'inline-flex',
-            gap: 8,
-            flexWrap: 'wrap',
-          }}>
-            {['ISO/IEC 27001', 'EU Annex 11', '21 CFR §11'].map(badge => (
-              <span key={badge} style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: 'rgba(255,255,255,0.45)',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                padding: '4px 10px',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 20,
-              }}>
-                {badge}
-              </span>
-            ))}
-          </div>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', marginBottom: 18 }} />
+          <p style={{ margin: 0, fontSize: 11.5, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.04em', lineHeight: 1.7 }}>
+            Compliant with 21 CFR Part 11 · 21 CFR Part 211 · EU GMP Annex 11<br />
+            ICH Q1A · ISO 17025 · ALCOA+ · GAMP 5
+          </p>
         </div>
       </div>
 
       {/* ── Right form panel ──────────────────────────────────────────────────── */}
-      <div style={rightPanelStyle}>
-        <div style={formCardStyle}>
-          {/* Mobile-only logo */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: isMobile ? '40px 24px' : '48px 64px',
+        background: '#ffffff',
+      }}>
+        <div style={{ width: '100%', maxWidth: 400 }}>
+
+          {/* Mobile logo */}
           {isMobile && (
-            <div style={{ textAlign: 'center', marginBottom: 32 }}>
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                width: 52, height: 52, borderRadius: 14,
-                background: '#0f172a',
-                marginBottom: 12,
-              }}>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18" />
-                </svg>
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>Pharma LIMS</div>
+            <div style={{ marginBottom: 32 }}>
+              <WebSynergiesLogoDark />
             </div>
           )}
 
+          {/* Right-panel logo (desktop) */}
+          {!isMobile && (
+            <div style={{ marginBottom: 40 }}>
+              <WebSynergiesLogoDark />
+            </div>
+          )}
+
+          {/* Divider */}
+          <div style={{ height: 1, background: '#f1f5f9', marginBottom: 32 }} />
+
           {/* Heading */}
-          <h2 style={{
-            margin: '0 0 6px',
-            fontSize: 26,
-            fontWeight: 700,
-            color: '#0f172a',
-            letterSpacing: '-0.02em',
-          }}>
-            Welcome back
+          <h2 style={{ margin: '0 0 4px', fontSize: 24, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em' }}>
+            LIMS Sign In
           </h2>
-          <p style={{ margin: '0 0 32px', fontSize: 14, color: '#64748b', lineHeight: 1.5 }}>
-            Sign in to your laboratory account
+          <p style={{ margin: '0 0 28px', fontSize: 13.5, color: '#64748b', lineHeight: 1.5 }}>
+            Access your laboratory management account
           </p>
 
           <form onSubmit={handleSubmit} noValidate>
-            {/* Username field */}
-            <div style={{ marginBottom: 18 }}>
+            {/* Username */}
+            <div style={{ marginBottom: 16 }}>
               <label style={labelStyle} htmlFor="lims-username">Username</label>
-              <div style={inputWrapperStyle}>
-                <span style={inputIconStyle}><IconPerson /></span>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <span style={{ position: 'absolute', left: 14, display: 'flex', alignItems: 'center', pointerEvents: 'none', zIndex: 1 }}>
+                  <IconPerson />
+                </span>
                 <input
                   id="lims-username"
                   style={inputStyle}
@@ -385,17 +339,19 @@ export default function LoginPage() {
                   required
                   autoComplete="username"
                   placeholder="Enter your username"
-                  onFocus={e => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)'; e.currentTarget.style.background = '#ffffff' }}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#e36b1e'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(227,107,30,0.1)'; e.currentTarget.style.background = '#ffffff' }}
                   onBlur={e  => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.background = '#f8fafc' }}
                 />
               </div>
             </div>
 
-            {/* Password field */}
+            {/* Password */}
             <div style={{ marginBottom: 8 }}>
               <label style={labelStyle} htmlFor="lims-password">Password</label>
-              <div style={inputWrapperStyle}>
-                <span style={inputIconStyle}><IconLock /></span>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <span style={{ position: 'absolute', left: 14, display: 'flex', alignItems: 'center', pointerEvents: 'none', zIndex: 1 }}>
+                  <IconLock />
+                </span>
                 <input
                   id="lims-password"
                   style={{ ...inputStyle, paddingRight: 44 }}
@@ -405,19 +361,13 @@ export default function LoginPage() {
                   required
                   autoComplete="current-password"
                   placeholder="Enter your password"
-                  onFocus={e => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)'; e.currentTarget.style.background = '#ffffff' }}
+                  onFocus={e => { e.currentTarget.style.borderColor = '#e36b1e'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(227,107,30,0.1)'; e.currentTarget.style.background = '#ffffff' }}
                   onBlur={e  => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.background = '#f8fafc' }}
                 />
-                {/* Show/hide toggle */}
                 <button
                   type="button"
                   onClick={() => setShowPassword(v => !v)}
-                  style={{
-                    position: 'absolute', right: 12,
-                    background: 'none', border: 'none', padding: 0,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center',
-                    color: '#94a3b8',
-                  }}
+                  style={{ position: 'absolute', right: 12, background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#94a3b8' }}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <IconEyeOff /> : <IconEyeOpen />}
@@ -425,44 +375,29 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember me + Forgot password row */}
+            {/* Remember me + Forgot password */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, marginTop: 14 }}>
-              {/* Element 4: Remember me */}
-              <label style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                fontSize: 13, color: '#475569', cursor: 'pointer', userSelect: 'none',
-              }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={e => setRememberMe(e.target.checked)}
-                  style={{ width: 15, height: 15, accentColor: '#0f172a', cursor: 'pointer' }}
+                  style={{ width: 15, height: 15, accentColor: '#e36b1e', cursor: 'pointer' }}
                 />
                 Remember me
               </label>
-
-              {/* Element 3: Forgot password */}
               <button
                 type="button"
-                style={{
-                  background: 'none', border: 'none', fontSize: 13,
-                  color: '#2563eb', cursor: 'pointer', padding: 0,
-                  fontWeight: 500,
-                  fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-                }}
+                style={{ background: 'none', border: 'none', fontSize: 13, color: '#e36b1e', cursor: 'pointer', padding: 0, fontWeight: 500, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
                 onClick={() => setShowForgot(true)}
               >
                 Forgot password?
               </button>
             </div>
 
-            {/* Error message */}
+            {/* Error */}
             {error && (
-              <div style={{
-                display: 'flex', alignItems: 'flex-start', gap: 8,
-                background: '#fef2f2', border: '1px solid #fecaca',
-                borderRadius: 8, padding: '10px 12px', marginBottom: 16,
-              }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 12px', marginBottom: 16 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
                   <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
@@ -490,66 +425,41 @@ export default function LoginPage() {
           </form>
 
           {/* Footer */}
-          <p style={{ marginTop: 32, textAlign: 'center', fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
-            Pharma LIMS &mdash; 21 CFR Part 11 Compliant Platform<br />
-            <span style={{ color: '#cbd5e1' }}>Protected under ISO/IEC 27001 &amp; EU Annex 11</span>
-          </p>
+          <div style={{ marginTop: 36, paddingTop: 24, borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', lineHeight: 1.7 }}>
+              Pharma LIMS &mdash; A WebSynergies Product<br />
+              <span style={{ color: '#cbd5e1' }}>21 CFR Part 11 &nbsp;·&nbsp; EU GMP Annex 11 &nbsp;·&nbsp; ISO 17025</span>
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* ── Forgot-password modal — admin-initiated reset workflow ────────────── */}
+      {/* ── Forgot-password modal ────────────────────────────────────────────── */}
       {showForgot && (
         <div
-          style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(15,23,42,0.6)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 200, padding: 24,
-          }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 24 }}
           onClick={e => { if (e.target === e.currentTarget) setShowForgot(false) }}
         >
-          <div style={{
-            background: '#ffffff', borderRadius: 16,
-            padding: 32, width: '100%', maxWidth: 440,
-            boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-          }}>
-            {/* Modal header */}
+          <div style={{ background: '#ffffff', borderRadius: 16, padding: 32, width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
-                <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: '#0f172a' }}>
-                  Password Reset
-                </h3>
+                <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: '#0f172a' }}>Password Reset</h3>
                 <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Administrator-authorised workflow</p>
               </div>
               <button
                 onClick={() => setShowForgot(false)}
-                style={{
-                  background: '#f1f5f9', border: 'none',
-                  width: 32, height: 32, borderRadius: 8,
-                  fontSize: 18, cursor: 'pointer', color: '#64748b',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  lineHeight: 1, flexShrink: 0,
-                  fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-                }}
+                style={{ background: '#f1f5f9', border: 'none', width: 32, height: 32, borderRadius: 8, fontSize: 18, cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1, flexShrink: 0, fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
                 aria-label="Close"
-              >
-                ×
-              </button>
+              >×</button>
             </div>
 
-            {/* Info banner */}
-            <div style={{
-              background: '#eff6ff', border: '1px solid #bfdbfe',
-              borderRadius: 10, padding: '12px 16px', marginBottom: 20,
-            }}>
+            <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
               <p style={{ margin: 0, fontSize: 13, color: '#1e40af', lineHeight: 1.6 }}>
                 <strong>BCrypt authentication (21 CFR §11.300)</strong><br />
                 Password resets require administrator authorisation to maintain audit integrity.
               </p>
             </div>
 
-            {/* Steps */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
               {[
                 { step: '1', text: 'Contact your System Administrator or QA Manager' },
@@ -557,13 +467,7 @@ export default function LoginPage() {
                 { step: '3', text: 'A temporary password will be assigned and audit-logged' },
               ].map(({ step, text }) => (
                 <div key={step} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                  <div style={{
-                    width: 24, height: 24, borderRadius: 6,
-                    background: '#0f172a', color: '#ffffff',
-                    fontSize: 12, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
+                  <div style={{ width: 24, height: 24, borderRadius: 6, background: '#0f172a', color: '#ffffff', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {step}
                   </div>
                   <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, paddingTop: 2 }}>{text}</span>
@@ -573,13 +477,7 @@ export default function LoginPage() {
 
             <button
               onClick={() => setShowForgot(false)}
-              style={{
-                width: '100%', padding: '11px',
-                background: '#0f172a', color: '#ffffff',
-                border: 'none', borderRadius: 8,
-                fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-              }}
+              style={{ width: '100%', padding: '11px', background: '#0f172a', color: '#ffffff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: "'Inter', system-ui, -apple-system, sans-serif" }}
               onMouseEnter={e => { e.currentTarget.style.background = '#1e293b' }}
               onMouseLeave={e => { e.currentTarget.style.background = '#0f172a' }}
             >
@@ -589,7 +487,6 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Spinner keyframe — injected once as a style tag */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
