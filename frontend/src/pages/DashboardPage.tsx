@@ -125,24 +125,24 @@ function StatItem({ value, label, valueColor, iconPath, iconBg, iconColor, last 
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        flex: 1, display: 'flex', alignItems: 'center', gap: 10,
-        padding: '12px 16px',
+        flex: 1, display: 'flex', alignItems: 'center', gap: 14,
+        padding: '16px 24px',
         borderRight: last ? 'none' : '1px solid #f1f5f9',
         background: hov ? '#fafcff' : 'transparent',
         transition: 'background 0.12s',
         cursor: 'default',
       }}>
       <div style={{
-        width: 36, height: 36, borderRadius: 9, background: iconBg, flexShrink: 0,
+        width: 42, height: 42, borderRadius: 10, background: iconBg, flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+        <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
           <path d={iconPath} stroke={iconColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </div>
       <div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: valueColor, lineHeight: 1, letterSpacing: '-0.02em' }}>{String(value)}</div>
-        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, fontWeight: 500, whiteSpace: 'nowrap' }}>{label}</div>
+        <div style={{ fontSize: 24, fontWeight: 800, color: valueColor, lineHeight: 1, letterSpacing: '-0.02em' }}>{String(value)}</div>
+        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4, fontWeight: 500, whiteSpace: 'nowrap' }}>{label}</div>
       </div>
     </div>
   )
