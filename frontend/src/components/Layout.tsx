@@ -184,10 +184,10 @@ function SectionHead({ label, first = false }: { label: string; first?: boolean 
   return (
     <div style={{
       padding: '14px 16px 4px',
-      fontSize: 9, fontWeight: 700,
-      letterSpacing: '0.11em',
+      fontSize: 11, fontWeight: 800,
+      letterSpacing: '0.06em',
       textTransform: 'uppercase',
-      color: TEXT.sectionLabel,
+      color: '#111827',
     }}>
       {label}
     </div>
