@@ -15,6 +15,23 @@ export default function LaboratoriesPage() {
   const [error, setError] = useState('')
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [auditRow, setAuditRow] = useState<{ id: number; label: string } | null>(null)
+  const [editRow, setEditRow] = useState<Lab | null>(null)
+  const [editForm, setEditForm] = useState({ labName: '', site: '', location: '', labType: 'QC' })
+
+  function openEdit(r: Lab) {
+    setEditRow(r)
+    setEditForm({ labName: r.labName, site: r.site || '', location: r.location, labType: r.labType })
+  }
+
+  async function submitEdit(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      await api.put(`/laboratories/${editRow!.labId}`, editForm)
+      setEditRow(null); load()
+      toast(`Laboratory "${editForm.labName}" updated successfully`, 'success')
+    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    finally { setSaving(false) }
+  }
 
   function touch(field: string) { setTouched(t => ({ ...t, [field]: true })) }
   function fieldErr(field: string, value: string, required = true): boolean {
@@ -70,6 +87,13 @@ export default function LaboratoriesPage() {
             History
           </button>
         ) },
+        { header: 'Edit', accessor: r => (
+          <button onClick={() => openEdit(r)}
+            style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e5e7eb', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#374151', fontFamily:'inherit' }}>
+            <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Edit
+          </button>
+        ) },
       ]} />
       {auditRow && (
         <AuditTrailPanel
@@ -78,6 +102,28 @@ export default function LaboratoriesPage() {
           entityLabel={auditRow.label}
           onClose={() => setAuditRow(null)}
         />
+      )}
+      {editRow && (
+        <Modal title={`Edit Laboratory — ${editRow.labName}`} onClose={() => setEditRow(null)}>
+          <form onSubmit={submitEdit}>
+            <Field label="Name">
+              <input style={inp} value={editForm.labName} onChange={e => setEditForm(f => ({ ...f, labName: e.target.value }))} required />
+            </Field>
+            <Field label="Site / Facility">
+              <input style={inp} value={editForm.site} onChange={e => setEditForm(f => ({ ...f, site: e.target.value }))} placeholder="e.g. Petaling Jaya Plant" />
+            </Field>
+            <Field label="Location">
+              <input style={inp} value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} required />
+            </Field>
+            <Field label="Type">
+              <select style={inp} value={editForm.labType} onChange={e => setEditForm(f => ({ ...f, labType: e.target.value }))}>
+                {['QC', 'R&D', 'Microbiology', 'Stability', 'Analytical'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
+          </form>
+        </Modal>
       )}
       {showForm && (
         <Modal title="Add Laboratory" onClose={() => { setShowForm(false); setTouched({}) }}>

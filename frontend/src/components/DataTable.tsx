@@ -20,9 +20,9 @@ type Density = 'compact' | 'default' | 'spacious'
 const PAGE_SIZES = [10, 25, 50, 100]
 
 const DEN: Record<Density, { cell: string; head: string; fs: number }> = {
-  compact:  { cell: '5px 10px',  head: '7px 10px',  fs: 12 },
-  default:  { cell: '10px 14px', head: '10px 14px', fs: 13 },
-  spacious: { cell: '15px 14px', head: '13px 14px', fs: 13 },
+  compact:  { cell: '5px 10px',  head: '7px 10px',  fs: 13 },
+  default:  { cell: '10px 14px', head: '10px 14px', fs: 14 },
+  spacious: { cell: '15px 14px', head: '13px 14px', fs: 14 },
 }
 
 // ── Empty state components ────────────────────────────────────────────────
@@ -511,6 +511,6 @@ const pgBtn = (disabled: boolean): React.CSSProperties => ({
 
 const thBase: React.CSSProperties = {
   textAlign: 'left', fontWeight: 700,
-  color: '#111827', fontSize: 12, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap',
+  color: '#111827', fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap',
   transition: 'background 0.1s, color 0.1s',
 }

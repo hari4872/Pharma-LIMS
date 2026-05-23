@@ -30,6 +30,42 @@ export default function SpecLimitsPage() {
   const [approveForm, setApproveForm] = useState({ password: '', meaning: 'I approve this spec limit', reason: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [editRow, setEditRow] = useState<SpecLimit | null>(null)
+  const [editForm, setEditForm] = useState({
+    minValue: '', maxValue: '', ootMinValue: '', ootMaxValue: '',
+    regulatoryTier: '', regulatoryMin: '', regulatoryMax: ''
+  })
+
+  function openEdit(r: SpecLimit) {
+    setEditRow(r)
+    setEditForm({
+      minValue: r.minValue != null ? String(r.minValue) : '',
+      maxValue: r.maxValue != null ? String(r.maxValue) : '',
+      ootMinValue: r.ootMinValue != null ? String(r.ootMinValue) : '',
+      ootMaxValue: r.ootMaxValue != null ? String(r.ootMaxValue) : '',
+      regulatoryTier: r.regulatoryTier || '',
+      regulatoryMin: r.regulatoryMin != null ? String(r.regulatoryMin) : '',
+      regulatoryMax: r.regulatoryMax != null ? String(r.regulatoryMax) : '',
+    })
+  }
+
+  async function submitEdit(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      await api.put(`/spec-limits/${editRow!.specLimitId}`, {
+        minValue: editForm.minValue ? Number(editForm.minValue) : null,
+        maxValue: editForm.maxValue ? Number(editForm.maxValue) : null,
+        ootMinValue: editForm.ootMinValue ? Number(editForm.ootMinValue) : null,
+        ootMaxValue: editForm.ootMaxValue ? Number(editForm.ootMaxValue) : null,
+        regulatoryTier: editForm.regulatoryTier || null,
+        regulatoryMin: editForm.regulatoryMin ? Number(editForm.regulatoryMin) : null,
+        regulatoryMax: editForm.regulatoryMax ? Number(editForm.regulatoryMax) : null,
+      })
+      setEditRow(null); load()
+      toast(`Spec Limit updated successfully`, 'success')
+    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    finally { setSaving(false) }
+  }
 
   async function load() {
     setLoading(true)
@@ -89,7 +125,16 @@ export default function SpecLimitsPage() {
         { header: 'Reg. Max', accessor: 'regulatoryMax' },
         { header: 'Version', accessor: 'version' },
         { header: 'Status', accessor: r => <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: r.status === 'Approved' ? '#d1fae5' : '#fef9c3', color: r.status === 'Approved' ? '#065f46' : '#854d0e' }}>{r.status}</span> },
-        { header: '', accessor: r => r.status === 'Draft' ? <button onClick={() => setShowApprove(r.specLimitId)} style={{ padding: '4px 10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Approve</button> : null },
+        { header: '', accessor: r => (
+          <div style={{ display: 'flex', gap: 4 }}>
+            {r.status === 'Draft' && <button onClick={() => setShowApprove(r.specLimitId)} style={{ padding: '4px 10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Approve</button>}
+            <button onClick={() => openEdit(r)}
+              style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e5e7eb', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#374151', fontFamily:'inherit' }}>
+              <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Edit
+            </button>
+          </div>
+        ) },
       ]} />
       {showForm && (
         <Modal title="Add Spec Limit" onClose={() => setShowForm(false)}>
@@ -132,6 +177,32 @@ export default function SpecLimitsPage() {
             )}
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+          </form>
+        </Modal>
+      )}
+      {editRow && (
+        <Modal title={`Edit Spec Limit — ${editRow.parameterName}`} onClose={() => setEditRow(null)}>
+          <form onSubmit={submitEdit}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field label="Min Value"><input style={inp} type="number" step="any" value={editForm.minValue} onChange={e => setEditForm(f => ({ ...f, minValue: e.target.value }))} /></Field>
+              <Field label="Max Value"><input style={inp} type="number" step="any" value={editForm.maxValue} onChange={e => setEditForm(f => ({ ...f, maxValue: e.target.value }))} /></Field>
+              <Field label="OOT Min"><input style={inp} type="number" step="any" value={editForm.ootMinValue} onChange={e => setEditForm(f => ({ ...f, ootMinValue: e.target.value }))} /></Field>
+              <Field label="OOT Max"><input style={inp} type="number" step="any" value={editForm.ootMaxValue} onChange={e => setEditForm(f => ({ ...f, ootMaxValue: e.target.value }))} /></Field>
+            </div>
+            <Field label="Regulatory Tier">
+              <select style={inp} value={editForm.regulatoryTier} onChange={e => setEditForm(f => ({ ...f, regulatoryTier: e.target.value }))}>
+                <option value="">None</option>
+                {['USP', 'EP', 'JP', 'ICH', 'FDA', 'EMA'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+            {editForm.regulatoryTier && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Field label="Regulatory Min"><input style={inp} type="number" step="any" value={editForm.regulatoryMin} onChange={e => setEditForm(f => ({ ...f, regulatoryMin: e.target.value }))} /></Field>
+                <Field label="Regulatory Max"><input style={inp} type="number" step="any" value={editForm.regulatoryMax} onChange={e => setEditForm(f => ({ ...f, regulatoryMax: e.target.value }))} /></Field>
+              </div>
+            )}
+            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
         </Modal>
       )}

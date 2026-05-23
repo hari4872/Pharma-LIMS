@@ -15,6 +15,23 @@ export default function TestMethodsPage() {
   const [approveForm, setApproveForm] = useState({ password: '', meaning: 'I approve this test method', reason: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [editRow, setEditRow] = useState<Method | null>(null)
+  const [editForm, setEditForm] = useState({ methodName: '', sopReference: '', methodType: 'Chemical' })
+
+  function openEdit(r: Method) {
+    setEditRow(r)
+    setEditForm({ methodName: r.methodName, sopReference: '', methodType: r.methodType })
+  }
+
+  async function submitEdit(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      await api.put(`/test-methods/${editRow!.methodId}`, editForm)
+      setEditRow(null); load()
+      toast(`Test Method "${editForm.methodName}" updated successfully`, 'success')
+    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    finally { setSaving(false) }
+  }
 
   async function load() { setLoading(true); const r = await api.get('/test-methods'); setData(r.data); setLoading(false) }
   useEffect(() => { load() }, [])
@@ -54,7 +71,16 @@ export default function TestMethodsPage() {
         { header: 'Parameters', accessor: 'parameterCount' },
         { header: 'Status', accessor: r => <StatusChip status={r.status} /> },
         { header: 'Approved By', accessor: 'approvedBy' },
-        { header: '', accessor: r => r.status === 'Draft' ? <button onClick={() => setShowApprove(r.methodId)} style={approveBtn}>Approve</button> : null },
+        { header: '', accessor: r => (
+          <div style={{ display: 'flex', gap: 4 }}>
+            {r.status === 'Draft' && <button onClick={() => setShowApprove(r.methodId)} style={approveBtn}>Approve</button>}
+            <button onClick={() => openEdit(r)}
+              style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e5e7eb', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#374151', fontFamily:'inherit' }}>
+              <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Edit
+            </button>
+          </div>
+        ) },
       ]} />
       {showForm && (
         <Modal title="Add Test Method" onClose={() => setShowForm(false)}>
@@ -70,6 +96,21 @@ export default function TestMethodsPage() {
             </Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+          </form>
+        </Modal>
+      )}
+      {editRow && (
+        <Modal title={`Edit Test Method — ${editRow.methodCode}`} onClose={() => setEditRow(null)}>
+          <form onSubmit={submitEdit}>
+            <Field label="Method Name"><input style={inp} value={editForm.methodName} onChange={e => setEditForm(f => ({ ...f, methodName: e.target.value }))} required /></Field>
+            <Field label="SOP Reference"><input style={inp} value={editForm.sopReference} onChange={e => setEditForm(f => ({ ...f, sopReference: e.target.value }))} /></Field>
+            <Field label="Method Type">
+              <select style={inp} value={editForm.methodType} onChange={e => setEditForm(f => ({ ...f, methodType: e.target.value }))}>
+                {['Chemical', 'Microbiological', 'Physical', 'Instrumental'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
         </Modal>
       )}

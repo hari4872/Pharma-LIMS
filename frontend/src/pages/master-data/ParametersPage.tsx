@@ -15,6 +15,32 @@ export default function ParametersPage() {
   const [form, setForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [editRow, setEditRow] = useState<Param | null>(null)
+  const [editForm, setEditForm] = useState({ parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true })
+
+  function openEdit(r: Param) {
+    setEditRow(r)
+    setEditForm({
+      parameterName: r.parameterName, parameterCode: r.parameterCode, uom: r.uom,
+      dataType: r.dataType, formulaType: r.formulaType, calcFormula: '',
+      instrumentType: r.instrumentType || '', columnFrequency: r.columnFrequency || '',
+      isCritical: r.isCritical, isMandatory: r.isMandatory,
+    })
+  }
+
+  async function submitEdit(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      await api.put(`/parameters/${editRow!.parameterId}`, {
+        ...editForm,
+        instrumentType: editForm.instrumentType || null,
+        columnFrequency: editForm.columnFrequency || null,
+      })
+      setEditRow(null); load()
+      toast(`Parameter "${editForm.parameterName}" updated successfully`, 'success')
+    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    finally { setSaving(false) }
+  }
 
   async function load() {
     setLoading(true)
@@ -54,7 +80,55 @@ export default function ParametersPage() {
         { header: 'Col. Frequency', accessor: r => r.columnFrequency || '—' },
         { header: 'Critical', accessor: r => r.isCritical ? <span style={{ color: '#dc2626', fontWeight: 700 }}>✓ Critical</span> : '' },
         { header: 'Mandatory', accessor: r => r.isMandatory ? '✓' : '' },
+        { header: 'Edit', accessor: r => (
+          <button onClick={() => openEdit(r)}
+            style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e5e7eb', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#374151', fontFamily:'inherit' }}>
+            <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Edit
+          </button>
+        ) },
       ]} />
+      {editRow && (
+        <Modal title={`Edit Parameter — ${editRow.parameterCode}`} onClose={() => setEditRow(null)}>
+          <form onSubmit={submitEdit}>
+            <Field label="Parameter Name"><input style={inp} value={editForm.parameterName} onChange={e => setEditForm(f => ({ ...f, parameterName: e.target.value }))} required /></Field>
+            <Field label="Parameter Code"><input style={inp} value={editForm.parameterCode} onChange={e => setEditForm(f => ({ ...f, parameterCode: e.target.value }))} required /></Field>
+            <Field label="UOM"><input style={inp} value={editForm.uom} onChange={e => setEditForm(f => ({ ...f, uom: e.target.value }))} required /></Field>
+            <Field label="Data Type">
+              <select style={inp} value={editForm.dataType} onChange={e => setEditForm(f => ({ ...f, dataType: e.target.value }))}>
+                {['Numeric', 'Text', 'Boolean', 'Date', 'Image'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+            <Field label="Formula Type">
+              <select style={inp} value={editForm.formulaType} onChange={e => setEditForm(f => ({ ...f, formulaType: e.target.value }))}>
+                {['Expression', 'TableLookup', 'Manual'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </Field>
+            {editForm.formulaType === 'Expression' && <Field label="Calc Formula"><input style={inp} value={editForm.calcFormula} onChange={e => setEditForm(f => ({ ...f, calcFormula: e.target.value }))} placeholder="e.g. (rawValue * 0.98) / 100" /></Field>}
+            <Field label="Required Instrument Type">
+              <input style={inp} value={editForm.instrumentType} onChange={e => setEditForm(f => ({ ...f, instrumentType: e.target.value }))} placeholder="e.g. HPLC, pH Meter" />
+            </Field>
+            <Field label="Column Frequency">
+              <select style={inp} value={editForm.columnFrequency} onChange={e => setEditForm(f => ({ ...f, columnFrequency: e.target.value }))}>
+                <option value="">— Not set —</option>
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Periodic">Periodic</option>
+              </select>
+            </Field>
+            <div style={{ display: 'flex', gap: 24 }}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 14 }}>
+                <input type="checkbox" checked={editForm.isCritical} onChange={e => setEditForm(f => ({ ...f, isCritical: e.target.checked }))} /> Critical
+              </label>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 14 }}>
+                <input type="checkbox" checked={editForm.isMandatory} onChange={e => setEditForm(f => ({ ...f, isMandatory: e.target.checked }))} /> Mandatory
+              </label>
+            </div>
+            {error && <p style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>{error}</p>}
+            <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
+          </form>
+        </Modal>
+      )}
       {showForm && (
         <Modal title="Add Parameter" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>

@@ -36,6 +36,28 @@ export default function InstrumentsPage() {
   const [rtsForm, setRtsForm] = useState({ password: '', meaning: '', reason: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [editRow, setEditRow] = useState<Instrument | null>(null)
+  const [editForm, setEditForm] = useState({ instrumentType: '', model: '', serialNumber: '', calibrationDue: '' })
+
+  function openEdit(r: Instrument) {
+    setEditRow(r)
+    setEditForm({
+      instrumentType: r.instrumentType,
+      model: r.model || '',
+      serialNumber: r.serialNumber || '',
+      calibrationDue: r.calibrationDue ? r.calibrationDue.slice(0, 10) : '',
+    })
+  }
+
+  async function submitEditInstrument(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      await api.put(`/instruments/${editRow!.instrumentId}`, editForm)
+      setEditRow(null); load()
+      toast(`Instrument "${editRow!.instrumentCode}" updated successfully`, 'success')
+    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    finally { setSaving(false) }
+  }
 
   async function load() {
     setLoading(true)
@@ -160,6 +182,11 @@ export default function InstrumentsPage() {
                     style={{ fontSize: 12, padding: '2px 8px', background: '#ede9fe', color: '#5b21b6', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
                     Utilisation
                   </button>
+                  <button onClick={() => openEdit(r)}
+                    style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e5e7eb', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#374151', fontFamily:'inherit' }}>
+                    <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Edit
+                  </button>
                 </div>
               )
             },
@@ -278,6 +305,19 @@ export default function InstrumentsPage() {
             <Field label="Parts Used"><input style={inp} value={repairForm.partsUsed} onChange={e => setRepairForm(f => ({ ...f, partsUsed: e.target.value }))} /></Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowRepairForm(false)} label="Save Repair" />
+          </form>
+        </Modal>
+      )}
+
+      {editRow && (
+        <Modal title={`Edit Instrument — ${editRow.instrumentCode}`} onClose={() => setEditRow(null)}>
+          <form onSubmit={submitEditInstrument}>
+            <Field label="Instrument Type"><input style={inp} value={editForm.instrumentType} onChange={e => setEditForm(f => ({ ...f, instrumentType: e.target.value }))} required /></Field>
+            <Field label="Model"><input style={inp} value={editForm.model} onChange={e => setEditForm(f => ({ ...f, model: e.target.value }))} /></Field>
+            <Field label="Serial Number"><input style={inp} value={editForm.serialNumber} onChange={e => setEditForm(f => ({ ...f, serialNumber: e.target.value }))} /></Field>
+            <Field label="Calibration Due"><input style={inp} type="date" value={editForm.calibrationDue} onChange={e => setEditForm(f => ({ ...f, calibrationDue: e.target.value }))} required /></Field>
+            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
         </Modal>
       )}
