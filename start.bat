@@ -2,6 +2,10 @@
 setlocal EnableDelayedExpansion
 title Pharma LIMS — Launcher
 
+set ROOT=%~dp0
+set BACKEND=%ROOT%backend\src\LIMS.API
+set FRONTEND=%ROOT%frontend
+
 echo.
 echo  =====================================================
 echo   Pharma LIMS  ^|  Local Development Launcher
@@ -41,7 +45,7 @@ echo.
 :: ── 2. Restore backend NuGet packages if needed ──────────────────────────────
 
 echo [2/5] Restoring backend packages...
-cd /d "%~dp0backend"
+cd /d "%ROOT%backend"
 dotnet restore --nologo -v quiet
 if errorlevel 1 (
     echo [ERROR] dotnet restore failed. Check your internet connection.
@@ -53,9 +57,9 @@ echo.
 :: ── 3. Install frontend npm packages if node_modules is missing ───────────────
 
 echo [3/5] Checking frontend dependencies...
-cd /d "%~dp0frontend"
-if not exist "node_modules\" (
+if not exist "%FRONTEND%\node_modules\" (
     echo       node_modules not found — running npm install...
+    cd /d "%FRONTEND%"
     npm install --silent
     if errorlevel 1 (
         echo [ERROR] npm install failed.
@@ -73,32 +77,20 @@ echo [4/5] Starting backend API  (http://localhost:5204)...
 echo       Swagger UI will be at: http://localhost:5204/swagger
 echo.
 
-start "Pharma LIMS — Backend API" cmd /k ^
-  "title Pharma LIMS — Backend API && ^
-   cd /d "%~dp0backend\src\LIMS.API" && ^
-   echo Starting .NET API on http://localhost:5204 ... && ^
-   echo (EF migrations are applied automatically on startup) && ^
-   echo. && ^
-   dotnet run --no-restore --urls http://localhost:5204"
+start "Pharma LIMS — Backend API" cmd /k "title Pharma LIMS - Backend API && cd /d "%BACKEND%" && echo Starting .NET API on http://localhost:5204... && dotnet run --no-restore --urls http://localhost:5204"
 
-:: Give the backend a few seconds to start before launching frontend
-timeout /t 4 /nobreak >nul
+:: Give the backend time to compile before launching frontend
+timeout /t 5 /nobreak >nul
 
 :: ── 5. Start frontend in a new window ────────────────────────────────────────
 
 echo [5/5] Starting frontend dev server  (http://localhost:5173)...
 echo.
 
-start "Pharma LIMS — Frontend" cmd /k ^
-  "title Pharma LIMS — Frontend && ^
-   cd /d "%~dp0frontend" && ^
-   echo Starting Vite dev server on http://localhost:5173 ... && ^
-   echo (API calls proxied to http://localhost:5204) && ^
-   echo. && ^
-   npm run dev"
+start "Pharma LIMS — Frontend" cmd /k "title Pharma LIMS - Frontend && cd /d "%FRONTEND%" && echo Starting Vite dev server on http://localhost:5173... && npm run dev"
 
 :: Give Vite a moment to spin up
-timeout /t 5 /nobreak >nul
+timeout /t 6 /nobreak >nul
 
 :: ── Open browser ─────────────────────────────────────────────────────────────
 
@@ -112,8 +104,7 @@ echo   Swagger   :  http://localhost:5204/swagger
 echo   SignalR   :  ws://localhost:5204/hubs/lims
 echo.
 echo   Database  :  Neon PostgreSQL 16 (cloud)
-echo   First run :  Visit http://localhost:5173/setup
-echo                to create the Tenant Admin account.
+echo   Login     :  admin / Admin@123
 echo  =====================================================
 echo.
 
