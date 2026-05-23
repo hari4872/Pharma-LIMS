@@ -56,6 +56,12 @@ public static class DependencyInjection
         services.AddScoped<IPeriodicReviewService, PeriodicReviewService>();
         // Phase A services — Specification Engine
         services.AddScoped<ISpecificationEngineService, SpecificationEngineService>();
+        // Sprint 5 services — SPC
+        services.AddScoped<ISpcService, SpcService>();
+        // Sprint 6 services — Intelligent Workflow Engine
+        services.AddScoped<IWorkflowIntelligenceService, WorkflowIntelligenceService>();
+        // MS-1: HTTP context accessor for ILabContext
+        services.AddHttpContextAccessor();
 
         // SignalR (Contract 2: all push from server)
         services.AddSignalR();
@@ -82,6 +88,8 @@ public static class DependencyInjection
         // Phase 8 background jobs
         services.AddHostedService<FormTemplateApprovalJob>();
         services.AddHostedService<StorageInventoryJob>();
+        // Sprint 4 background jobs
+        services.AddHostedService<SamplingSchedulerJob>();
 
         return services;
     }

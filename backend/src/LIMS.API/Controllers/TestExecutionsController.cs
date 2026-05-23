@@ -15,10 +15,16 @@ public class TestExecutionsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILimsDbContext _db;
-    public TestExecutionsController(IMediator mediator, ILimsDbContext db)
+    private readonly IWorkflowIntelligenceService _intel;
+    private readonly ILabContext _lab;
+
+    public TestExecutionsController(IMediator mediator, ILimsDbContext db,
+        IWorkflowIntelligenceService intel, ILabContext lab)
     {
         _mediator = mediator;
         _db = db;
+        _intel = intel;
+        _lab = lab;
     }
 
     // GET api/v1/test-executions?analystId=1&labId=2&status=Assigned — Work Queue
@@ -123,6 +129,38 @@ public class TestExecutionsController : ControllerBase
             return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         }
         return Ok(new { executionId = result.Value, status = "Signed" });
+    }
+
+    // ── Sprint 6 — Intelligent Workflow Endpoints ───────────────────────────
+
+    // GET api/v1/test-executions/queue-intelligence?labId=1
+    [HttpGet("queue-intelligence")]
+    public async Task<IActionResult> QueueIntelligence([FromQuery] int? labId)
+    {
+        var effectiveLabId = _lab.IsCrossLab ? (labId ?? 0) : (_lab.LabId ?? 0);
+        if (effectiveLabId == 0) return BadRequest(new { error = "labId required for queue intelligence" });
+        var result = await _intel.GetQueueIntelligenceAsync(effectiveLabId);
+        return Ok(result);
+    }
+
+    // GET api/v1/test-executions/suggest-analyst?labId=1
+    [HttpGet("suggest-analyst")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
+    public async Task<IActionResult> SuggestAnalyst([FromQuery] int? labId)
+    {
+        var effectiveLabId = _lab.IsCrossLab ? (labId ?? 0) : (_lab.LabId ?? 0);
+        if (effectiveLabId == 0) return BadRequest(new { error = "labId required" });
+        var suggestion = await _intel.SuggestAnalystAsync(effectiveLabId);
+        if (suggestion is null) return NotFound(new { message = "No analysts available in this lab" });
+        return Ok(suggestion);
+    }
+
+    // GET api/v1/test-executions/{id}/priority-score
+    [HttpGet("{id}/priority-score")]
+    public async Task<IActionResult> GetPriorityScore(int id)
+    {
+        var score = await _intel.CalculatePriorityScoreAsync(id);
+        return Ok(new { executionId = id, priorityScore = score });
     }
 }
 

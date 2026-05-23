@@ -30,8 +30,15 @@ public class AuthController : ControllerBase
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized(new { error = "Invalid credentials." });
 
-        var token = GenerateJwt(user.UserId, user.Username, user.FullName, user.Role.ToString(), user.UserType.ToString());
-        return Ok(new { token, userId = user.UserId, fullName = user.FullName, role = user.Role.ToString(), userType = user.UserType.ToString(), labId = user.LabId });
+        // Load lab name for JWT claim
+        string labName = "";
+        if (user.LabId.HasValue)
+        {
+            var lab = await _db.Laboratories.FirstOrDefaultAsync(l => l.LabId == user.LabId.Value);
+            labName = lab?.LabName ?? "";
+        }
+        var token = GenerateJwt(user.UserId, user.Username, user.FullName, user.Role.ToString(), user.UserType.ToString(), user.LabId, labName);
+        return Ok(new { token, userId = user.UserId, fullName = user.FullName, role = user.Role.ToString(), userType = user.UserType.ToString(), labId = user.LabId, labName });
     }
 
     // Contract 4: first-run Tenant Admin creation — before any other user or module
@@ -99,19 +106,22 @@ public class AuthController : ControllerBase
         return Ok(new { message = $"Password reset for {target.Username}. User must sign in with new credentials." });
     }
 
-    private string GenerateJwt(int userId, string username, string fullName, string role, string userType)
+    private string GenerateJwt(int userId, string username, string fullName, string role, string userType, int? labId, string labName)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var expiry = DateTime.UtcNow.AddMinutes(double.Parse(_config["Jwt:ExpiryMinutes"] ?? "480"));
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, username),
             new Claim("fullName", fullName),
             new Claim(ClaimTypes.Role, role),
-            new Claim("userType", userType)
+            new Claim("userType", userType),
+            // MS-1: lab identity baked into token — backend validates from here, not request body
+            new Claim("labId",   labId?.ToString() ?? "0"),
+            new Claim("labName", labName),
         };
 
         var token = new JwtSecurityToken(_config["Jwt:Issuer"], _config["Jwt:Audience"], claims, expires: expiry, signingCredentials: creds);

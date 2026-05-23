@@ -9,6 +9,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// MS-1: Lab context resolved from JWT claims (never trusted from request body)
+builder.Services.AddScoped<LIMS.Application.Interfaces.ILabContext, LIMS.API.Services.HttpLabContext>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

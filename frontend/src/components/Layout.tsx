@@ -8,6 +8,7 @@ import CommandPalette from '@/components/CommandPalette'
 import OfflineSyncButton from '@/components/OfflineSyncButton'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
+import { useNotifications } from '@/hooks/useNotifications'
 
 // ── Nav item type ─────────────────────────────────────────────────────────
 type NavItem = {
@@ -137,6 +138,16 @@ const operationsItems: NavItem[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
   {
+    label: 'CAPA / Quality Events', path: '/quality-events',
+    iconBg: '#fce7f3', iconColor: '#9d174d',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    label: 'SPC / Trending', path: '/spc',
+    iconBg: '#f0fdf4', iconColor: '#16a34a',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 17l4-4 4 4 4-8 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
     label: 'Digital Logbook', path: '/digital-logbook',
     iconBg: '#fef3c7', iconColor: '#d97706',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
@@ -205,6 +216,8 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/checkpoints':                      { section: 'Operations', label: 'Checkpoints' },
   '/work-queue':                       { section: 'Operations', label: 'Work Queue' },
   '/oos-investigations':               { section: 'Operations', label: 'OOS Investigations' },
+  '/quality-events':                   { section: 'Operations', label: 'CAPA / Quality Events' },
+  '/spc':                              { section: 'Operations', label: 'SPC / Trending' },
   '/digital-logbook':                  { section: 'Operations', label: 'Digital Logbook' },
   '/results-review':                   { section: 'Operations', label: 'Results Review' },
   '/coa-review':                       { section: 'Operations', label: 'CoA Review' },
@@ -215,14 +228,8 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/condition-excursions':             { section: 'Inventory', label: 'Condition Excursions' },
 }
 
-// ── Notification type ─────────────────────────────────────────────────────
-interface Notif { id: number; text: string; time: string; icon: string; read: boolean }
-
-const DEMO_NOTIFS: Notif[] = [
-  { id: 1, text: 'HPLC-001 calibration due in 7 days', time: '2h ago', icon: '⏱', read: false },
-  { id: 2, text: 'OOS Investigation #3 pending QA review', time: '4h ago', icon: '⚠', read: false },
-  { id: 3, text: 'Sample SRF-2024-001 approved successfully', time: '1d ago', icon: '✓', read: true },
-]
+// Notification type re-exported for use in this file
+type Notif = import('@/hooks/useNotifications').LiveNotif
 
 // ── Layout constants ──────────────────────────────────────────────────────
 const SIDEBAR_W = 252
@@ -307,8 +314,8 @@ export default function Layout() {
   const [darkMode,     setDarkMode]     = useState(false)
   const [profileOpen,  setProfileOpen]  = useState(false)
   const [notifOpen,    setNotifOpen]    = useState(false)
-  const [notifs,       setNotifs]       = useState<Notif[]>(DEMO_NOTIFS)
   const offlineSync = useOfflineSync()
+  const { notifs, unreadCount: liveUnread, connected: hubConnected, markAllRead, markRead } = useNotifications()
 
   const profileRef = useRef<HTMLDivElement>(null)
   const notifRef   = useRef<HTMLDivElement>(null)
@@ -360,12 +367,11 @@ export default function Layout() {
   }, [])
 
   // ── Derived ───────────────────────────────────────────────────────────
-  const crumb        = BREADCRUMB_MAP[location.pathname]
-  const unreadCount  = notifs.filter(n => !n.read).length
-  const dm           = darkMode
+  const crumb       = BREADCRUMB_MAP[location.pathname]
+  const unreadCount = liveUnread
+  const dm          = darkMode
 
   function handleLogout() { dispatch(logout()); navigate('/login') }
-  function markAllRead()  { setNotifs(ns => ns.map(n => ({ ...n, read: true }))) }
 
   // ── Icon button style helper ──────────────────────────────────────────
   const iconBtn = (active = false): React.CSSProperties => ({
@@ -604,8 +610,11 @@ export default function Layout() {
                     borderBottom: `1px solid ${dm ? '#334155' : '#f1f3f4'}`,
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   }}>
-                    <span style={{ fontWeight: 700, fontSize: 13, color: dm ? '#f1f5f9' : '#111111' }}>
-                      Notifications {unreadCount > 0 && <span style={{ background: '#ef4444', color: '#fff', fontSize: 10, borderRadius: 10, padding: '1px 6px', marginLeft: 4 }}>{unreadCount}</span>}
+                    <span style={{ fontWeight: 700, fontSize: 13, color: dm ? '#f1f5f9' : '#111111', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      Notifications
+                      {unreadCount > 0 && <span style={{ background: '#ef4444', color: '#fff', fontSize: 10, borderRadius: 10, padding: '1px 6px' }}>{unreadCount}</span>}
+                      {/* SignalR connection dot */}
+                      <span title={hubConnected ? 'Real-time connected' : 'Connecting…'} style={{ width: 7, height: 7, borderRadius: '50%', background: hubConnected ? '#22c55e' : '#f59e0b', display: 'inline-block', marginLeft: 2 }} />
                     </span>
                     {unreadCount > 0 && (
                       <button onClick={markAllRead} style={{ fontSize: 11, color: '#0d9488', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit' }}>
@@ -613,12 +622,20 @@ export default function Layout() {
                       </button>
                     )}
                   </div>
+                  {notifs.length === 0 && (
+                    <div style={{ padding: '24px 16px', textAlign: 'center', color: dm ? '#64748b' : '#9ca3af', fontSize: 12 }}>
+                      No notifications yet — real-time alerts will appear here
+                    </div>
+                  )}
                   {notifs.map(n => (
-                    <div key={n.id} style={{
-                      padding: '10px 16px', display: 'flex', gap: 10, alignItems: 'flex-start',
-                      background: n.read ? 'transparent' : (dm ? '#0f172a' : '#f0fdfa'),
-                      borderBottom: `1px solid ${dm ? '#1e293b' : '#f8f9fa'}`,
-                    }}>
+                    <div key={n.id}
+                      onClick={() => markRead(n.id)}
+                      style={{
+                        padding: '10px 16px', display: 'flex', gap: 10, alignItems: 'flex-start',
+                        background: n.read ? 'transparent' : (dm ? '#0f172a' : '#f0fdfa'),
+                        borderBottom: `1px solid ${dm ? '#1e293b' : '#f8f9fa'}`,
+                        cursor: 'default',
+                      }}>
                       <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>{n.icon}</span>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 12.5, color: dm ? '#cbd5e1' : '#111111', lineHeight: 1.4 }}>{n.text}</div>
@@ -629,9 +646,11 @@ export default function Layout() {
                       )}
                     </div>
                   ))}
-                  <div style={{ padding: '8px 16px', textAlign: 'center', borderTop: `1px solid ${dm ? '#334155' : '#f1f3f4'}` }}>
-                    <span style={{ fontSize: 12, color: dm ? '#64748b' : '#80868b' }}>All notifications shown</span>
-                  </div>
+                  {notifs.length > 0 && (
+                    <div style={{ padding: '8px 16px', textAlign: 'center', borderTop: `1px solid ${dm ? '#334155' : '#f1f3f4'}` }}>
+                      <span style={{ fontSize: 12, color: dm ? '#64748b' : '#80868b' }}>Showing last {notifs.length} alert{notifs.length !== 1 ? 's' : ''}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

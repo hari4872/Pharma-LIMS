@@ -8,6 +8,7 @@ interface AuthState {
   role: string | null
   userType: string | null
   labId: number | null
+  labName: string | null   // MS-1: lab display name from JWT claim
   loading: boolean
   error: string | null
 }
@@ -19,6 +20,7 @@ const initial: AuthState = {
   role: null,
   userType: null,
   labId: null,
+  labName: null,
   loading: false,
   error: null
 }
@@ -46,6 +48,7 @@ const authSlice = createSlice({
       state.role = null
       state.userType = null
       state.labId = null
+      state.labName = null
       localStorage.removeItem('lims_token')
     }
   },
@@ -59,6 +62,7 @@ const authSlice = createSlice({
       s.role = a.payload.role
       s.userType = a.payload.userType
       s.labId = a.payload.labId ?? null
+      s.labName = a.payload.labName ?? null
     })
     b.addCase(login.rejected, (s, a) => {
       s.loading = false

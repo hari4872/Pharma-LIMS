@@ -23,20 +23,33 @@ public class SamplingEvent
     public string? Notes { get; set; }
 }
 
-// FR-08: Complaint/Deviation — downstream traceability node (v1.2)
+// FR-08: Complaint/Deviation/CAPA — downstream quality event (v1.2 + Sprint 1 enhanced)
 // FK-only references — no denormalised copies (Contract 1)
 public class ComplaintsDeviation
 {
     public int CdId { get; set; }
-    public int SampleId { get; set; }
-    public Sample Sample { get; set; } = null!;
+    public int? SampleId { get; set; }                               // Optional — CAPA may not tie to a sample
+    public Sample? Sample { get; set; }
     public CdType CdType { get; set; }                               // Complaint | Deviation | Capa
     public string CdReference { get; set; } = string.Empty;         // UNIQUE reference number
+    public string Title { get; set; } = string.Empty;               // Sprint 1: short title for listing
     public string? Description { get; set; }
-    public string Status { get; set; } = "Open";                    // Open | Closed | UnderReview
+    public string Status { get; set; } = "Open";                    // Open | UnderReview | Closed | Verified
+    public string Priority { get; set; } = "Medium";                // Low | Medium | High | Critical
+    public string? RootCause { get; set; }
+    public string? CorrectiveAction { get; set; }
+    public string? PreventiveAction { get; set; }
+    public int? AssignedToUserId { get; set; }
+    public User? AssignedTo { get; set; }
+    public DateOnly? DueDate { get; set; }
+    public int? LabId { get; set; }
+    public Laboratory? Lab { get; set; }
     public string OpenedBy { get; set; } = string.Empty;
     public DateTimeOffset OpenedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? ResolvedAt { get; set; }
+    public string? ResolvedBy { get; set; }
+    public string? UpdatedBy { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
     public int? LinkedOosId { get; set; }
     public OosInvestigation? LinkedOos { get; set; }
 }

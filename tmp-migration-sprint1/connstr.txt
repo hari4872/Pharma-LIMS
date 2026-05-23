@@ -1,0 +1,1 @@
+Host=ep-silent-morning-aqzq6po9-pooler.c-8.us-east-1.aws.neon.tech;Database=neondb;Username=neondb_owner;Password=npg_OTjlcQw9BR7p;SSL Mode=Require;Trust Server Certificate=true

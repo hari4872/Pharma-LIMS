@@ -33,15 +33,24 @@ public class ComplaintsDeviationConfiguration : IEntityTypeConfiguration<Complai
         b.HasKey(e => e.CdId);
         b.Property(e => e.CdReference).HasMaxLength(100).IsRequired();
         b.HasIndex(e => e.CdReference).IsUnique();
+        b.Property(e => e.Title).HasMaxLength(300).IsRequired();
         b.Property(e => e.Status).HasMaxLength(20).IsRequired();
+        b.Property(e => e.Priority).HasMaxLength(20).IsRequired().HasDefaultValue("Medium");
         b.Property(e => e.OpenedBy).HasMaxLength(100).IsRequired();
+        b.Property(e => e.ResolvedBy).HasMaxLength(100);
+        b.Property(e => e.UpdatedBy).HasMaxLength(100);
         b.Property(e => e.OpenedAt).HasColumnType("timestamptz");
         b.Property(e => e.ResolvedAt).HasColumnType("timestamptz");
+        b.Property(e => e.UpdatedAt).HasColumnType("timestamptz");
 
         b.HasOne(e => e.Sample).WithMany().HasForeignKey(e => e.SampleId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Restrict).IsRequired(false);
+        b.HasOne(e => e.AssignedTo).WithMany().HasForeignKey(e => e.AssignedToUserId)
+            .OnDelete(DeleteBehavior.Restrict).IsRequired(false);
+        b.HasOne(e => e.Lab).WithMany().HasForeignKey(e => e.LabId)
+            .OnDelete(DeleteBehavior.Restrict).IsRequired(false);
         b.HasOne(e => e.LinkedOos).WithMany().HasForeignKey(e => e.LinkedOosId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Restrict).IsRequired(false);
     }
 }
 

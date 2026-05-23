@@ -39,6 +39,10 @@ import InstrumentMappingPage from '@/pages/master-data/InstrumentMappingPage'
 // Phase 6/7/8
 import DashboardPage from '@/pages/DashboardPage'
 import CompliancePanelPage from '@/pages/CompliancePanelPage'
+// Sprint 1 — Quality Events (CAPA · Deviations · Complaints)
+import QualityEventsPage from '@/pages/QualityEventsPage'
+// Sprint 5 — SPC Control Chart
+import SpcPage from '@/pages/SpcPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useSelector((s: RootState) => s.auth.token)
@@ -78,6 +82,8 @@ export default function App() {
         <Route path="work-queue"        element={<WorkQueuePage />} />
         <Route path="test-execution/:id" element={<TestExecutionPage />} />
         <Route path="oos-investigations" element={<OosInvestigationsPage />} />
+        <Route path="quality-events"    element={<QualityEventsPage />} />
+        <Route path="spc"               element={<SpcPage />} />
         <Route path="digital-logbook"   element={<DigitalLogbookPage />} />
         <Route path="results-review"    element={<ResultsReviewPage />} />
         <Route path="coa-review"        element={<CoaReviewPage />} />

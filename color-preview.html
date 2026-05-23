@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Background Color Preview — Pharma LIMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: #e5e7eb; padding: 30px; }
+  h1 { text-align: center; font-size: 20px; font-weight: 700; color: #202124; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .card { border-radius: 14px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.12); }
+  .label { text-align: center; font-size: 13px; font-weight: 700; color: #202124; padding: 10px; background: #fff; border-top: 1px solid #e0e0e0; }
+  .hex { text-align: center; font-size: 11px; color: #5f6368; padding: 0 10px 10px; background: #fff; }
+  .preview { padding: 20px; }
+  .sidebar { width: 52px; background: #0d6e6e; border-radius: 8px; height: 180px; float: left; margin-right: 12px; }
+  .content { overflow: hidden; }
+  .kpi { background: #fff; border-radius: 8px; padding: 12px; margin-bottom: 8px; border-left: 3px solid #0d6e6e; }
+  .kpi-val { font-size: 20px; font-weight: 700; color: #202124; }
+  .kpi-lab { font-size: 11px; color: #5f6368; }
+  .table-head { background: #f8f9fa; padding: 8px 10px; font-size: 11px; font-weight: 700; color: #202124; border-bottom: 1px solid #e0e0e0; border-radius: 6px 6px 0 0; }
+  .table-row { background: #fff; padding: 7px 10px; font-size: 12px; color: #202124; border-bottom: 1px solid #f1f3f4; }
+  .badge { display: inline-block; background: #d1fae5; color: #065f46; padding: 2px 7px; border-radius: 10px; font-size: 10px; }
+  .clearfix::after { content:''; display:table; clear:both; }
+</style>
+</head>
+<body>
+<h1>Pharma LIMS — Background Color Preview</h1>
+<div class="grid">
+
+  <!-- Option 1: Light Teal Tint -->
+  <div class="card">
+    <div class="preview clearfix" style="background:#f0faf9;">
+      <div class="sidebar"></div>
+      <div class="content">
+        <div class="kpi"><div class="kpi-val">142</div><div class="kpi-lab">Samples Today</div></div>
+        <div class="table-head">Test Methods</div>
+        <div class="table-row">HPLC Assay &nbsp;<span class="badge">Active</span></div>
+        <div class="table-row">Dissolution &nbsp;<span class="badge">Active</span></div>
+        <div class="table-row">pH Analysis &nbsp;<span class="badge">Active</span></div>
+      </div>
+    </div>
+    <div class="label">Light Teal Tint</div>
+    <div class="hex">#f0faf9 — Brand-matched</div>
+  </div>
+
+  <!-- Option 2: Soft Blue-Gray -->
+  <div class="card">
+    <div class="preview clearfix" style="background:#f0f4f8;">
+      <div class="sidebar"></div>
+      <div class="content">
+        <div class="kpi"><div class="kpi-val">142</div><div class="kpi-lab">Samples Today</div></div>
+        <div class="table-head">Test Methods</div>
+        <div class="table-row">HPLC Assay &nbsp;<span class="badge">Active</span></div>
+        <div class="table-row">Dissolution &nbsp;<span class="badge">Active</span></div>
+        <div class="table-row">pH Analysis &nbsp;<span class="badge">Active</span></div>
+      </div>
+    </div>
+    <div class="label">Soft Blue-Gray</div>
+    <div class="hex">#f0f4f8 — Enterprise feel</div>
+  </div>
+
+  <!-- Option 3: Warm Off-White -->
+  <div class="card">
+    <div class="preview clearfix" style="background:#fafaf8;">
+      <div class="sidebar"></div>
+      <div class="content">
+        <div class="kpi"><div class="kpi-val">142</div><div class="kpi-lab">Samples Today</div></div>
+        <div class="table-head">Test Methods</div>
+        <div class="table-row">HPLC Assay &nbsp;<span class="badge">Active</span></div>
+        <div class="table-row">Dissolution &nbsp;<span class="badge">Active</span></div>
+        <div class="table-row">pH Analysis &nbsp;<span class="badge">Active</span></div>
+      </div>
+    </div>
+    <div class="label">Warm Off-White</div>
+    <div class="hex">#fafaf8 — Soft & clean</div>
+  </div>
+
+  <!-- Option 4: Current -->
+  <div class="card">
+    <div class="preview clearfix" style="background:#f8f9fa; border: 2px solid #0d6e6e;">
+      <div class="sidebar"></div>
+      <div class="content">
+        <div class="kpi"><div class="kpi-val">142</div><div class="kpi-lab">Samples Today</div></div>
+        <div class="table-head">Test Methods</div>
+        <div class="table-row">HPLC Assay &nbsp;<span class="badge">Active</span></div>
+        <div class="table-row">Dissolution &nbsp;<span class="badge">Active</span></div>
+        <div class="table-row">pH Analysis &nbsp;<span class="badge">Active</span></div>
+      </div>
+    </div>
+    <div class="label">Current (no change)</div>
+    <div class="hex">#f8f9fa — Google Material</div>
+  </div>
+
+</div>
+<p style="text-align:center; margin-top:24px; font-size:13px; color:#5f6368;">Open this file in your browser, then tell me which one to apply.</p>
+</body>
+</html>
