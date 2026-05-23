@@ -61,7 +61,7 @@ SELECT
     cr.""CertificateRef""     AS ""LastCertRef"",
     (SELECT COUNT(*) FROM instrument_breakdowns ib
      WHERE ib.""InstrumentId"" = i.""InstrumentId""
-       AND ib.""ResolvedAt"" IS NULL) AS ""OpenBreakdowns""
+       AND ib.""Status"" NOT IN ('Resolved', 'Closed')) AS ""OpenBreakdowns""
 FROM instruments i
 LEFT JOIN LATERAL (
     SELECT ""CalibrationDate"", ""NextCalibrationDue"", ""CertificateRef""
@@ -222,7 +222,7 @@ SELECT
         AS ""OosClosedLast30d"",
     (SELECT COUNT(*) FROM electronic_signatures WHERE ""SignedAt"" >= NOW() - INTERVAL '1 day')
         AS ""EsigsToday"",
-    (SELECT COUNT(*) FROM master_data_audit_logs WHERE ""ChangedAt"" >= NOW() - INTERVAL '1 day')
+    (SELECT COUNT(*) FROM master_data_audit_logs WHERE ""PerformedAt"" >= NOW() - INTERVAL '1 day')
         AS ""AuditEventsToday"",
     (SELECT COUNT(*) FROM user_training_records WHERE ""ValidUntil"" < CURRENT_DATE)
         AS ""ExpiredTrainingCount"",
