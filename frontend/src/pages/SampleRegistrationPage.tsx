@@ -211,6 +211,54 @@ export default function SampleRegistrationPage() {
         </div>
       </div>
 
+      {/* ── Workflow timeline ─────────────────────────────────────────────── */}
+      {!loading && data.length > 0 && (() => {
+        const stages = [
+          { key: 'Registered',      label: 'Registered',       color: '#2563eb', bg: '#dbeafe' },
+          { key: 'PendingTesting',  label: 'Pending Testing',  color: '#d97706', bg: '#fef3c7' },
+          { key: 'InTesting',       label: 'In Testing',       color: '#9a3412', bg: '#fde8d8' },
+          { key: 'PendingQAReview', label: 'Pending QA',       color: '#6d28d9', bg: '#ede9fe' },
+          { key: 'Released',        label: 'Released',         color: '#065f46', bg: '#d1fae5' },
+          { key: 'Rejected',        label: 'Rejected',         color: '#991b1b', bg: '#fee2e2' },
+        ]
+        const counts = stages.reduce((acc, s) => {
+          acc[s.key] = data.filter(d => d.status === s.key).length
+          return acc
+        }, {} as Record<string, number>)
+        return (
+          <div style={{ display: 'flex', gap: 4, marginBottom: 16, flexWrap: 'wrap' }}>
+            {stages.map((s, i) => (
+              <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <button
+                  onClick={() => setStatusFilter(statusFilter === s.key ? '' : s.key)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
+                    border: `1.5px solid ${statusFilter === s.key ? s.color : '#e5e7eb'}`,
+                    background: statusFilter === s.key ? s.bg : '#fff',
+                    transition: 'all 0.12s',
+                  }}>
+                  <span style={{
+                    minWidth: 22, height: 22, borderRadius: 6,
+                    background: s.bg, color: s.color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 700,
+                  }}>{counts[s.key] ?? 0}</span>
+                  <span style={{ fontSize: 12, fontWeight: statusFilter === s.key ? 700 : 500, color: statusFilter === s.key ? s.color : '#374151', whiteSpace: 'nowrap' }}>
+                    {s.label}
+                  </span>
+                </button>
+                {i < stages.length - 1 && (
+                  <svg viewBox="0 0 16 16" fill="none" width="10" height="10">
+                    <path d="M4 8h8M9 5l3 3-3 3" stroke="#d1d5db" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
       {/* ── Sample list table ─────────────────────────────────────────────── */}
       <DataTable loading={loading} data={data} columns={[
         { header: 'Sample No.', accessor: r => <strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.sampleNumber}</strong> },

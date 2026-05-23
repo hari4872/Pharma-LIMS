@@ -124,7 +124,24 @@ export default function InstrumentsPage() {
             { header: 'Lab', accessor: 'labName' },
             { header: 'Model', accessor: 'model' },
             { header: 'Serial No.', accessor: 'serialNumber' },
-            { header: 'Cal. Due', accessor: r => r.calibrationDue?.split('T')[0] ?? '' },
+            {
+              header: 'Cal. Due', accessor: r => {
+                if (!r.calibrationDue) return <span style={{ color: '#9ca3af' }}>—</span>
+                const due  = new Date(r.calibrationDue)
+                const days = Math.ceil((due.getTime() - Date.now()) / 86400000)
+                const bg   = days < 0 ? '#fee2e2' : days <= 7 ? '#fee2e2' : days <= 30 ? '#fef3c7' : '#d1fae5'
+                const fg   = days < 0 ? '#991b1b' : days <= 7 ? '#b91c1c' : days <= 30 ? '#92400e' : '#065f46'
+                const txt  = days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? 'Due today' : `${days}d left`
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span style={{ fontSize: 12, color: '#374151' }}>{due.toLocaleDateString('en-GB')}</span>
+                    <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 10.5, fontWeight: 700, background: bg, color: fg, display: 'inline-block', width: 'fit-content' }}>
+                      {days < 0 ? '⚠ ' : days <= 7 ? '⚠ ' : ''}{txt}
+                    </span>
+                  </div>
+                )
+              }
+            },
             {
               header: 'Status', accessor: r => {
                 const c = statusColour(r.status)

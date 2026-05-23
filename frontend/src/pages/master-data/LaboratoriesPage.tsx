@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { toast } from '@/components/Toast'
+import AuditTrailPanel from '@/components/AuditTrailPanel'
 
 interface Lab { labId: number; labName: string; site: string; location: string; labType: string; isActive: boolean; createdBy: string }
 
@@ -13,6 +14,7 @@ export default function LaboratoriesPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [auditRow, setAuditRow] = useState<{ id: number; label: string } | null>(null)
 
   function touch(field: string) { setTouched(t => ({ ...t, [field]: true })) }
   function fieldErr(field: string, value: string, required = true): boolean {
@@ -60,7 +62,23 @@ export default function LaboratoriesPage() {
         { header: 'Type', accessor: 'labType' },
         { header: 'Status', accessor: r => <StatusBadge active={r.isActive} /> },
         { header: 'Created By', accessor: 'createdBy' },
+        { header: '', accessor: r => (
+          <button onClick={() => setAuditRow({ id: r.labId, label: r.labName })}
+            title="View audit trail"
+            style={{ padding: '3px 9px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 11, color: '#64748b', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+            History
+          </button>
+        ) },
       ]} />
+      {auditRow && (
+        <AuditTrailPanel
+          entity="Laboratory"
+          entityId={auditRow.id}
+          entityLabel={auditRow.label}
+          onClose={() => setAuditRow(null)}
+        />
+      )}
       {showForm && (
         <Modal title="Add Laboratory" onClose={() => { setShowForm(false); setTouched({}) }}>
           <form onSubmit={submit}>

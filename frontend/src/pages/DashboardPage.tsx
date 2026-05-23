@@ -168,10 +168,6 @@ export default function DashboardPage() {
 
       {/* ── Page header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>Lab Dashboard</h2>
-          <p style={{ margin: '3px 0 0', fontSize: 13, color: '#64748b' }}>Real-time laboratory operations overview</p>
-        </div>
         <button onClick={() => load(true)} style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '7px 16px', border: `1px solid ${T.border}`, borderRadius: 7,
