@@ -53,7 +53,7 @@ public class ReportsController : ControllerBase
         var ws = package.Workbook.Worksheets.Add("Samples");
 
         // Header row
-        var headers = new[] { "Sample No.", "Material", "Lot Number", "Batch No.", "Sample Type", "Stage", "Status", "Lab", "Received Date", "Due Date", "Analyst" };
+        var headers = new[] { "Sample No.", "Material", "Lot Number", "Batch/External Ref", "Sample Type", "Status", "Lab", "Received Date", "Due Date" };
         for (int col = 1; col <= headers.Length; col++)
         {
             ws.Cells[1, col].Value = headers[col - 1];
@@ -68,16 +68,15 @@ public class ReportsController : ControllerBase
         {
             var s = samples[row];
             int r = row + 2;
-            ws.Cells[r, 1].Value  = s.SampleNumber;
-            ws.Cells[r, 2].Value  = s.Material.MaterialName;
-            ws.Cells[r, 3].Value  = s.LotNumber;
-            ws.Cells[r, 4].Value  = s.SampleNumber;
-            ws.Cells[r, 5].Value  = s.SampleTypeNav?.TypeName;
-            ws.Cells[r, 6].Value  = s.Stage.ToString();
-            ws.Cells[r, 7].Value  = s.Status.ToString();
-            ws.Cells[r, 8].Value  = s.Lab?.LabName;
-            ws.Cells[r, 9].Value  = s.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd");
-            ws.Cells[r, 10].Value = s.DueDate.HasValue ? s.DueDate.Value.ToLocalTime().ToString("yyyy-MM-dd") : "";
+            ws.Cells[r, 1].Value = s.SampleNumber;
+            ws.Cells[r, 2].Value = s.Material.MaterialName;
+            ws.Cells[r, 3].Value = s.LotNumber;
+            ws.Cells[r, 4].Value = s.ExternalBatchId ?? "";
+            ws.Cells[r, 5].Value = s.SampleTypeNav?.TypeName;
+            ws.Cells[r, 6].Value = s.Status.ToString();
+            ws.Cells[r, 7].Value = s.Lab?.LabName;
+            ws.Cells[r, 8].Value = s.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd");
+            ws.Cells[r, 9].Value = s.DueDate.HasValue ? s.DueDate.Value.ToLocalTime().ToString("yyyy-MM-dd") : "";
         }
 
         ws.Cells[ws.Dimension.Address].AutoFitColumns();
