@@ -69,17 +69,17 @@ echo.
 
 :: ── 4. Start backend in a new window ─────────────────────────────────────────
 
-echo [4/5] Starting backend API  (http://localhost:5000)...
-echo       Swagger UI will be at: http://localhost:5000/swagger
+echo [4/5] Starting backend API  (http://localhost:5204)...
+echo       Swagger UI will be at: http://localhost:5204/swagger
 echo.
 
 start "Pharma LIMS — Backend API" cmd /k ^
   "title Pharma LIMS — Backend API && ^
    cd /d "%~dp0backend\src\LIMS.API" && ^
-   echo Starting .NET API on http://localhost:5000 ... && ^
+   echo Starting .NET API on http://localhost:5204 ... && ^
    echo (EF migrations are applied automatically on startup) && ^
    echo. && ^
-   dotnet run --no-restore --urls http://localhost:5000"
+   dotnet run --no-restore --urls http://localhost:5204"
 
 :: Give the backend a few seconds to start before launching frontend
 timeout /t 4 /nobreak >nul
@@ -93,7 +93,7 @@ start "Pharma LIMS — Frontend" cmd /k ^
   "title Pharma LIMS — Frontend && ^
    cd /d "%~dp0frontend" && ^
    echo Starting Vite dev server on http://localhost:5173 ... && ^
-   echo (API calls proxied to http://localhost:5000) && ^
+   echo (API calls proxied to http://localhost:5204) && ^
    echo. && ^
    npm run dev"
 
@@ -107,9 +107,9 @@ echo  =====================================================
 echo   Both services started in separate windows.
 echo.
 echo   Frontend  :  http://localhost:5173
-echo   Backend   :  http://localhost:5000
-echo   Swagger   :  http://localhost:5000/swagger
-echo   SignalR   :  ws://localhost:5000/hubs/lims
+echo   Backend   :  http://localhost:5204
+echo   Swagger   :  http://localhost:5204/swagger
+echo   SignalR   :  ws://localhost:5204/hubs/lims
 echo.
 echo   Database  :  Neon PostgreSQL 16 (cloud)
 echo   First run :  Visit http://localhost:5173/setup
