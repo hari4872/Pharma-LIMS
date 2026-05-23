@@ -20,6 +20,15 @@ lims-frontend/.vite/
 lims-frontend/coverage/
 lims-frontend/.env
 lims-frontend/.env.local
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Tests
+tests/node_modules/
+tests/playwright-report/
+tests/test-results/
+tests/report-temp.html
 
 # OS
 .DS_Store
