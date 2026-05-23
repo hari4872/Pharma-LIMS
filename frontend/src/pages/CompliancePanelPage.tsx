@@ -96,12 +96,12 @@ export default function CompliancePanelPage() {
 
   return (
     <div>
-      <h2 style={{ margin: '0 0 20px', fontSize: 20, color: '#111827' }}>Compliance &amp; Governance</h2>
+      <h2 style={{ margin: '0 0 20px', fontSize: 26, fontWeight: 800, color: '#202124', letterSpacing: '-0.02em' }}>Compliance &amp; Governance</h2>
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid #e5e7eb', paddingBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid #e0e0e0', paddingBottom: 0 }}>
         {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{ padding: '8px 16px', border: 'none', borderBottom: tab === t.key ? '2px solid #2563eb' : '2px solid transparent', marginBottom: -2, cursor: 'pointer', fontWeight: tab === t.key ? 600 : 400, fontSize: 13, background: 'none', color: tab === t.key ? '#2563eb' : '#6b7280' }}>
+          <button key={t.key} onClick={() => setTab(t.key)} style={{ padding: '9px 18px', border: 'none', borderBottom: tab === t.key ? '2px solid #2563eb' : '2px solid transparent', marginBottom: -2, cursor: 'pointer', fontWeight: tab === t.key ? 700 : 500, fontSize: 14, background: 'none', color: tab === t.key ? '#2563eb' : '#202124', fontFamily: 'inherit' }}>
             {t.label}
           </button>
         ))}
@@ -113,19 +113,19 @@ export default function CompliancePanelPage() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
             <input placeholder="Filter entity type…" style={{ ...inp, width: 200 }} value={auditType} onChange={e => setAuditType(e.target.value)} />
             <button onClick={() => loadAudit(1)} style={{ padding: '8px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>Filter</button>
-            <span style={{ marginLeft: 'auto', fontSize: 12, color: '#9ca3af' }}>{audit ? `${audit.totalCount.toLocaleString()} entries` : ''}</span>
+            <span style={{ marginLeft: 'auto', fontSize: 13, color: '#5f6368' }}>{audit ? `${audit.totalCount.toLocaleString()} entries` : ''}</span>
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
-                <tr style={{ background: '#f9fafb' }}>
+                <tr style={{ background: '#f8f9fa' }}>
                   {['ID', 'Entity Type', 'Entity ID', 'Action', 'Changed By', 'Changed At'].map(h => <th key={h} style={th}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {loading && <tr><td colSpan={6} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>Loading…</td></tr>}
                 {!loading && audit?.items.map(a => (
-                  <tr key={a.logId} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <tr key={a.logId} style={{ borderBottom: '1px solid #f1f3f4' }}>
                     <td style={td}>{a.logId}</td>
                     <td style={td}><span style={{ padding: '2px 6px', background: '#eff6ff', borderRadius: 4, fontSize: 11, color: '#1d4ed8' }}>{a.entityType}</span></td>
                     <td style={td}>{a.entityId}</td>
@@ -141,7 +141,7 @@ export default function CompliancePanelPage() {
           {audit && audit.totalCount > 50 && (
             <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
               <button disabled={auditPage <= 1} onClick={() => { setAuditPage(p => p - 1); loadAudit(auditPage - 1) }} style={pagBtn}>← Prev</button>
-              <span style={{ fontSize: 13, color: '#6b7280', alignSelf: 'center' }}>Page {auditPage}</span>
+              <span style={{ fontSize: 13, color: '#202124', alignSelf: 'center' }}>Page {auditPage}</span>
               <button disabled={auditPage * 50 >= audit.totalCount} onClick={() => { setAuditPage(p => p + 1); loadAudit(auditPage + 1) }} style={pagBtn}>Next →</button>
             </div>
           )}
@@ -152,16 +152,16 @@ export default function CompliancePanelPage() {
       {tab === 'signatures' && (
         <>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
-                <tr style={{ background: '#f9fafb' }}>
+                <tr style={{ background: '#f8f9fa' }}>
                   {['Sig. ID', 'User', 'Meaning', 'Reason', 'Signed At (UTC)'].map(h => <th key={h} style={th}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {loading && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>Loading…</td></tr>}
                 {!loading && sigs?.items.map(s => (
-                  <tr key={s.signatureId} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <tr key={s.signatureId} style={{ borderBottom: '1px solid #f1f3f4' }}>
                     <td style={td}>{s.signatureId}</td>
                     <td style={td}>{s.fullName}</td>
                     <td style={{ ...td, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.meaning}</td>
@@ -176,7 +176,7 @@ export default function CompliancePanelPage() {
           {sigs && sigs.totalCount > 50 && (
             <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
               <button disabled={sigPage <= 1} onClick={() => { setSigPage(p => p - 1); loadSigs(sigPage - 1) }} style={pagBtn}>← Prev</button>
-              <span style={{ fontSize: 13, color: '#6b7280', alignSelf: 'center' }}>Page {sigPage}</span>
+              <span style={{ fontSize: 13, color: '#202124', alignSelf: 'center' }}>Page {sigPage}</span>
               <button disabled={sigPage * 50 >= sigs.totalCount} onClick={() => { setSigPage(p => p + 1); loadSigs(sigPage + 1) }} style={pagBtn}>Next →</button>
             </div>
           )}
@@ -190,23 +190,23 @@ export default function CompliancePanelPage() {
             <button onClick={() => setShowReviewForm(true)} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>+ Record Review</button>
           </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
-                <tr style={{ background: '#f9fafb' }}>
+                <tr style={{ background: '#f8f9fa' }}>
                   {['ID', 'Type', 'Reviewed By', 'Reviewed At', 'Outcome', 'Next Due', 'Notes'].map(h => <th key={h} style={th}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {loading && <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>Loading…</td></tr>}
                 {!loading && reviews.map(r => (
-                  <tr key={r.reviewId} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <tr key={r.reviewId} style={{ borderBottom: '1px solid #f1f3f4' }}>
                     <td style={td}>{r.reviewId}</td>
                     <td style={td}>{r.reviewType}</td>
                     <td style={td}>{r.reviewedBy}</td>
                     <td style={td}>{r.reviewedAt?.replace('T', ' ').slice(0, 16)} UTC</td>
                     <td style={td}><span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: outcomeColour(r.outcome) }}>{r.outcome}</span></td>
                     <td style={td}>{r.nextReviewDue?.replace('T', ' ').slice(0, 10)}</td>
-                    <td style={{ ...td, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#6b7280' }}>{r.notes ?? '—'}</td>
+                    <td style={{ ...td, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#5f6368' }}>{r.notes ?? '—'}</td>
                   </tr>
                 ))}
                 {!loading && reviews.length === 0 && <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>No reviews recorded</td></tr>}
@@ -250,16 +250,16 @@ export default function CompliancePanelPage() {
             </div>
           )}
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
-                <tr style={{ background: '#f9fafb' }}>
+                <tr style={{ background: '#f8f9fa' }}>
                   {['Template ID', 'Name', 'Status', 'Created At', 'Created By'].map(h => <th key={h} style={th}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {loading && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>Loading…</td></tr>}
                 {!loading && ftPending.map(t => (
-                  <tr key={t.templateId} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <tr key={t.templateId} style={{ borderBottom: '1px solid #f1f3f4' }}>
                     <td style={td}>{t.templateId}</td>
                     <td style={td}>{t.templateName}</td>
                     <td style={td}><span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: '#fef3c7', color: '#92400e' }}>{t.status}</span></td>
@@ -277,6 +277,6 @@ export default function CompliancePanelPage() {
   )
 }
 
-const th: React.CSSProperties = { padding: '8px 12px', textAlign: 'left', fontWeight: 600, fontSize: 12, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #e5e7eb' }
-const td: React.CSSProperties = { padding: '10px 12px', color: '#374151' }
-const pagBtn: React.CSSProperties = { padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', background: '#fff', fontSize: 13 }
+const th: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontWeight: 700, fontSize: 13, color: '#202124', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '2px solid #e0e0e0', background: '#f8f9fa' }
+const td: React.CSSProperties = { padding: '12px 14px', color: '#202124', fontSize: 14 }
+const pagBtn: React.CSSProperties = { padding: '6px 14px', border: '1px solid #dadce0', borderRadius: 6, cursor: 'pointer', background: '#fff', fontSize: 13, color: '#202124' }
