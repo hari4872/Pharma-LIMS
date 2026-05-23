@@ -200,17 +200,6 @@ export default function LoginPage() {
             Sign in
           </h2>
 
-          {/* System status */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: '#f0fdf9', border: '1px solid #99f6e4',
-            borderRadius: 8, padding: '9px 14px', marginBottom: 22,
-          }}>
-            <span style={{ width:7, height:7, borderRadius:'50%', background:'#22c55e', flexShrink:0, boxShadow:'0 0 6px #22c55e' }} />
-            <span style={{ fontSize:12.5, fontWeight:600, color:'#0d6e6e' }}>
-              System status: all laboratory services operational
-            </span>
-          </div>
 
           {/* Error */}
           {error && (
