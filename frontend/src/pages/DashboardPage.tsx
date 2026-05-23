@@ -58,7 +58,7 @@ function KpiCard({ label, value, sub, accent, badge }: {
       position: 'relative', overflow: 'hidden',
     }}>
       <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: bars[accent], borderRadius: '8px 0 0 8px' }} />
-      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
+      <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
       <p style={{ margin: '6px 0 0', fontSize: 30, fontWeight: 700, color: '#0f172a', lineHeight: 1 }}>{value}</p>
       {sub && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#9ca3af' }}>{sub}</p>}
       {badge && (
@@ -71,7 +71,7 @@ function KpiCard({ label, value, sub, accent, badge }: {
 }
 
 // ── Table styles ──────────────────────────────────────────────────────────
-const th: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e5e7eb', background: '#f8fafc' }
+const th: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e5e7eb', background: '#f8fafc' }
 const td: React.CSSProperties = { padding: '11px 14px', color: '#374151', borderBottom: '1px solid #f3f4f6', fontSize: 13 }
 
 const instColour = (s: string) => {
@@ -128,8 +128,8 @@ export default function DashboardPage() {
       {/* ── Page header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.01em' }}>Lab Dashboard</h2>
-          <p style={{ margin: '2px 0 0', fontSize: 12, color: '#94a3b8' }}>Real-time laboratory operations overview</p>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>Lab Dashboard</h2>
+          <p style={{ margin: '3px 0 0', fontSize: 13, color: '#64748b' }}>Real-time laboratory operations overview</p>
         </div>
         <button onClick={load} style={{
           display: 'flex', alignItems: 'center', gap: 6,
@@ -162,7 +162,7 @@ export default function DashboardPage() {
             borderRight: i < arr.length - 1 ? '1px solid #f1f5f9' : 'none',
           }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: s.c, lineHeight: 1 }}>{String(s.n)}</div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{s.l}</div>
+            <div style={{ fontSize: 12, color: '#374151', marginTop: 4, fontWeight: 500 }}>{s.l}</div>
           </div>
         ))}
       </div>
@@ -171,7 +171,7 @@ export default function DashboardPage() {
       <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', marginBottom: 20, gap: 0 }}>
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
-            padding: '10px 22px', fontSize: 13, fontWeight: tab === t.key ? 700 : 500,
+            padding: '10px 22px', fontSize: 14, fontWeight: tab === t.key ? 700 : 500,
             color: tab === t.key ? T.primary : '#6b7280',
             background: 'none', border: 'none', cursor: 'pointer',
             borderBottom: `2px solid ${tab === t.key ? T.primary : 'transparent'}`,
@@ -188,7 +188,7 @@ export default function DashboardPage() {
         <>
           {/* WIP */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Work in Progress</h3>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Work in Progress</h3>
             <span style={{ fontSize: 11, color: '#94a3b8', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '2px 10px', borderRadius: 20 }}>Today</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
@@ -216,7 +216,7 @@ export default function DashboardPage() {
 
           {/* TAT */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Turnaround Time</h3>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Turnaround Time</h3>
             <span style={{ fontSize: 11, color: '#94a3b8', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '2px 10px', borderRadius: 20 }}>Last {tat?.periodDays ?? 30} days</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
@@ -231,7 +231,7 @@ export default function DashboardPage() {
       {tab === 'quality' && (
         <>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Quality KPIs</h3>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Quality KPIs</h3>
             <span style={{ fontSize: 11, color: '#94a3b8', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '2px 10px', borderRadius: 20 }}>Last {kpis?.periodDays ?? 30} days</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
@@ -271,7 +271,7 @@ export default function DashboardPage() {
       {tab === 'instruments' && (
         <>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Instrument Status Board</h3>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Instrument Status Board</h3>
             <span style={{ fontSize: 11, color: '#94a3b8', background: '#f8fafc', border: '1px solid #e5e7eb', padding: '2px 10px', borderRadius: 20 }}>{board.length} instrument{board.length !== 1 ? 's' : ''}</span>
           </div>
           <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
@@ -315,7 +315,7 @@ export default function DashboardPage() {
       {tab === 'compliance' && comp && (
         <>
           <div style={{ marginBottom: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Compliance Overview</h3>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Compliance Overview</h3>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
             <KpiCard label="Total Audit Events" value={comp.totalAuditEvents} accent="teal" />

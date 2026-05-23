@@ -261,7 +261,6 @@ export default function Layout() {
           </div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', lineHeight: 1.2 }}>LIMS</div>
-            <div style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', marginTop: 1 }}>21 CFR Part 11</div>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', boxShadow: '0 0 5px #22c55e' }} />
