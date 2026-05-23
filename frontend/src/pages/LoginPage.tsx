@@ -75,7 +75,7 @@ export default function LoginPage() {
 
           {/* Logo centered */}
           <div style={{ marginBottom: 20 }}>
-            <img src="/Logo.png" alt="Web Synergies" style={{ height: 52, width: 'auto', objectFit: 'contain' }} />
+            <img src="/Logo.png" alt="Web Synergies" style={{ height: 52, width: 'auto', objectFit: 'contain', mixBlendMode: 'multiply' }} />
           </div>
 
           {/* LIMS heading with lab flask icon */}
@@ -249,9 +249,7 @@ export default function LoginPage() {
           </form>
 
           {/* Card footer */}
-          <div style={{ marginTop:24, paddingTop:18, borderTop:'1px solid #f1f5f9', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <span style={{ fontSize:11, color:'#94a3b8' }}>21 CFR Part 11</span>
-            <span style={{ fontSize:11, color:'#94a3b8' }}>ISO-aligned workflow</span>
+          <div style={{ marginTop:20, paddingTop:14, borderTop:'1px solid #f1f5f9', textAlign:'center' }}>
             <span style={{ fontSize:11, color:'#94a3b8' }}>© {new Date().getFullYear()} Web Synergies</span>
           </div>
         </div>
