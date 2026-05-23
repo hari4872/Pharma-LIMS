@@ -47,6 +47,8 @@ import SpcPage from '@/pages/SpcPage'
 import BatchReleasePage from '@/pages/BatchReleasePage'
 // Sprint 9 — Reports
 import ReportsPage from '@/pages/ReportsPage'
+// Settings — Master Data hub
+import SettingsPage from '@/pages/SettingsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useSelector((s: RootState) => s.auth.token)
@@ -90,6 +92,7 @@ export default function App() {
         <Route path="spc"               element={<SpcPage />} />
         <Route path="batch-release"     element={<BatchReleasePage />} />
         <Route path="reports"           element={<ReportsPage />} />
+        <Route path="settings"          element={<SettingsPage />} />
         <Route path="digital-logbook"   element={<DigitalLogbookPage />} />
         <Route path="results-review"    element={<ResultsReviewPage />} />
         <Route path="coa-review"        element={<CoaReviewPage />} />

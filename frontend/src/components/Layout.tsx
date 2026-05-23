@@ -204,6 +204,7 @@ const inventoryItems: NavItem[] = [
 
 // ── Breadcrumb map ────────────────────────────────────────────────────────
 const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
+  '/settings':                          { label: 'Master Data / Settings' },
   '/dashboard':                        { label: 'Dashboard' },
   '/compliance':                       { label: 'Compliance Panel' },
   '/master-data/laboratories':         { section: 'Master Data', label: 'Laboratories' },
@@ -456,15 +457,49 @@ export default function Layout() {
           <SectionHead label="Overview" first dm={dm} collapsed={collapsed} />
           <NavGroup items={topItems} dm={dm} collapsed={collapsed} />
 
-          <SectionHead label="Master Data" dm={dm} collapsed={collapsed} />
-          <NavGroup items={masterDataItems} dm={dm} collapsed={collapsed} />
-
           <SectionHead label="Operations" dm={dm} collapsed={collapsed} />
           <NavGroup items={operationsItems} dm={dm} collapsed={collapsed} />
 
           <SectionHead label="Inventory & Traceability" dm={dm} collapsed={collapsed} />
           <NavGroup items={inventoryItems} dm={dm} collapsed={collapsed} />
         </nav>
+
+        {/* ── Settings / Master Data button ── */}
+        <div style={{
+          padding: collapsed ? '8px 4px' : '8px 10px',
+          borderTop: `1px solid ${dm ? '#1e293b' : '#f1f3f4'}`,
+        }}>
+          <NavLink to="/settings"
+            title={collapsed ? 'Master Data / Settings' : undefined}
+            style={({ isActive }) => ({
+              display: 'flex', alignItems: 'center',
+              gap: collapsed ? 0 : 8,
+              padding: collapsed ? '8px' : '9px 12px',
+              borderRadius: 10,
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              textDecoration: 'none',
+              border: `1.5px solid ${isActive ? '#fde68a' : (dm ? '#334155' : '#fde68a')}`,
+              background: isActive ? '#fef3c7' : (dm ? '#1e293b' : '#fffbeb'),
+              color: '#92400e',
+              fontWeight: 700, fontSize: 13,
+              transition: 'background 0.12s',
+              overflow: 'hidden', whiteSpace: 'nowrap',
+            })}>
+            <div style={{
+              width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+              background: '#fef3c7',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 15,
+            }}>
+              ⚙️
+            </div>
+            {!collapsed && (
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Master Data / Settings
+              </span>
+            )}
+          </NavLink>
+        </div>
 
         {/* User footer */}
         <div style={{
