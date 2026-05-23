@@ -208,7 +208,9 @@ export default function DashboardPage() {
       setRecentTasks(tasks.slice(0, 5))
       if (isRefresh) {
         toast('Dashboard refreshed', 'success', 2500)
-      } else {
+      } else if (!sessionStorage.getItem('lims_welcomed')) {
+        // Show welcome toast only once per browser session
+        sessionStorage.setItem('lims_welcomed', '1')
         const hour = new Date().getHours()
         const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
         toast(`${greeting}, ${firstName}! 👋 Welcome back.`, 'info', 4000)

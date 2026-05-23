@@ -209,8 +209,8 @@ function navItemStyle(isActive: boolean, dm: boolean, collapsed: boolean): React
     padding: collapsed ? '7px' : '7px 10px',
     margin: collapsed ? '0 8px 3px' : '0 10px 3px',
     justifyContent: collapsed ? 'center' : 'flex-start',
-    fontSize: 13, fontWeight: isActive ? 700 : 500,
-    color: isActive ? '#0d6e6e' : (dm ? '#cbd5e1' : '#202124'),
+    fontSize: 13, fontWeight: isActive ? 700 : 600,
+    color: isActive ? '#0d6e6e' : (dm ? '#cbd5e1' : '#111827'),
     textDecoration: 'none',
     background: isActive ? (dm ? '#134e4a' : '#f0fdfa') : (dm ? '#1e293b' : '#ffffff'),
     border: `1px solid ${isActive ? '#99f6e4' : (dm ? '#334155' : '#f1f3f4')}`,
@@ -230,9 +230,9 @@ function SectionHead({ label, first = false, dm, collapsed }: { label: string; f
   return (
     <div style={{
       padding: first ? '16px 18px 8px' : '14px 18px 6px',
-      fontSize: 11.5, fontWeight: 800,
-      color: dm ? '#64748b' : '#80868b',
-      letterSpacing: '0.04em',
+      fontSize: 11, fontWeight: 800,
+      color: dm ? '#94a3b8' : '#111827',
+      letterSpacing: '0.07em',
       textTransform: 'uppercase',
       borderBottom: first ? `1px solid ${dm ? '#1e293b' : '#f1f3f4'}` : 'none',
       marginBottom: first ? 4 : 0,
