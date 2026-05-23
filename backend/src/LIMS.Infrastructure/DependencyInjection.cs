@@ -54,6 +54,8 @@ public static class DependencyInjection
         services.AddScoped<IDashboardAggregationService, DashboardAggregationService>();
         // Phase 8 services
         services.AddScoped<IPeriodicReviewService, PeriodicReviewService>();
+        // Phase A services — Specification Engine
+        services.AddScoped<ISpecificationEngineService, SpecificationEngineService>();
 
         // SignalR (Contract 2: all push from server)
         services.AddSignalR();

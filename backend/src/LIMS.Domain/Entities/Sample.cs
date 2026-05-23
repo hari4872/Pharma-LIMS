@@ -26,6 +26,21 @@ public class Sample
     public DateTimeOffset? DueDate { get; set; }             // server-calculated from DB TAT config (Contract 2)
     public int AnalystId { get; set; }                       // ALCOA+ Attributable
     public User Analyst { get; set; } = default!;
+
+    // ── Phase A: Sample receipt fields (R8) ──────────────────────────────
+    public decimal? ReceivedTemp           { get; set; }     // °C at time of receipt
+    public SampleCondition? SampleCondition { get; set; }   // OK | Damaged | Compromised
+    public bool IsRush                     { get; set; } = false;
+    public string? ExternalBatchId         { get; set; }    // MES/ERP batch reference
+
+    // ── Phase A: Specification Engine audit trail ─────────────────────────
+    // Records exactly which spec was applied and how — satisfies 21 CFR Part 11
+    public int? SpecTemplateId             { get; set; }
+    public SpecificationTemplate? SpecTemplate { get; set; }
+    public string? SpecAssignedBy          { get; set; }    // 'System' (AutoMatch) or username (ManualOverride)
+    public DateTimeOffset? SpecAssignedAt  { get; set; }
+    public SpecAssignmentReason? SpecAssignmentReason { get; set; }  // AutoMatch|ManualOverride|NoTemplateFound
+
     public string CreatedBy { get; set; } = default!;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

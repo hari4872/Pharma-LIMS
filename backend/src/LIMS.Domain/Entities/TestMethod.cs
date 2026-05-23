@@ -16,6 +16,12 @@ public class TestMethod
     public int? SignatureId { get; set; }
     public ElectronicSignature? Signature { get; set; }
     public bool IsActive { get; set; } = true;
+
+    // ── Phase A: Per-method turnaround time ───────────────────────────────
+    // Used by spec engine to calculate TestExecution.DueAt per test.
+    // Overrides lab-wide sample_tat_hours for individual tests.
+    public int TurnaroundHours { get; set; } = 24;
+
     public string CreatedBy { get; set; } = default!;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

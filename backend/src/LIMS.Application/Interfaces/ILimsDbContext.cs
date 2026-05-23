@@ -68,5 +68,14 @@ public interface ILimsDbContext
     DbSet<TatBreachLog> TatBreachLogs { get; }
     // Phase 8: Compliance & Governance
     DbSet<ValidationReviewLog> ValidationReviewLogs { get; }
+    // Phase A: Specification Engine
+    DbSet<SpecificationTemplate> SpecificationTemplates { get; }
+    DbSet<SpecTemplateItem> SpecTemplateItems { get; }
+    // Phase B: Sampling Plans & Stability Protocols
+    DbSet<SamplingPlan> SamplingPlans { get; }
+    DbSet<StabilityProtocol> StabilityProtocols { get; }
+    DbSet<StabilityInterval> StabilityIntervals { get; }
+    // Phase D: Instrument-Test Mapping
+    DbSet<InstrumentTestMapping> InstrumentTestMappings { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

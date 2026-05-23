@@ -1,8 +1,10 @@
 using LIMS.Application.Features.TestExecutions;
+using LIMS.Application.Interfaces;
 using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.API.Controllers;
 
@@ -12,7 +14,12 @@ namespace LIMS.API.Controllers;
 public class TestExecutionsController : ControllerBase
 {
     private readonly IMediator _mediator;
-    public TestExecutionsController(IMediator mediator) => _mediator = mediator;
+    private readonly ILimsDbContext _db;
+    public TestExecutionsController(IMediator mediator, ILimsDbContext db)
+    {
+        _mediator = mediator;
+        _db = db;
+    }
 
     // GET api/v1/test-executions?analystId=1&labId=2&status=Assigned — Work Queue
     [HttpGet]
@@ -61,6 +68,47 @@ public class TestExecutionsController : ControllerBase
     [HttpGet("{id}/parameters")]
     public async Task<IActionResult> GetParameters(int id)
         => Ok(await _mediator.Send(new GetExecutionParametersQuery(id)));
+
+    // GET api/v1/test-executions/suggest-instrument — Phase D auto-suggest
+    // Returns ranked list of instruments capable of running a given TestMethod or Parameter.
+    // Filters to: IsActive=true, InstrumentStatus=Available, Calibration not overdue.
+    [HttpGet("suggest-instrument")]
+    public async Task<IActionResult> SuggestInstrument(
+        [FromQuery] int? testMethodId,
+        [FromQuery] int? parameterId,
+        [FromQuery] int? labId)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var q = _db.InstrumentTestMappings
+            .Include(m => m.Instrument).ThenInclude(i => i.Lab)
+            .Where(m => m.IsActive &&
+                        m.Instrument.IsActive &&
+                        m.Instrument.Status == LIMS.Domain.Enums.InstrumentStatus.Available &&
+                        m.Instrument.CalibrationDue >= today);
+
+        if (testMethodId.HasValue) q = q.Where(m => m.TestMethodId == testMethodId);
+        if (parameterId.HasValue)  q = q.Where(m => m.ParameterId == parameterId);
+        if (labId.HasValue)        q = q.Where(m => m.Instrument.LabId == labId);
+
+        var suggestions = await q.OrderBy(m => m.Priority)
+            .Select(m => new
+            {
+                m.InstrumentId,
+                m.Instrument.InstrumentCode,
+                m.Instrument.InstrumentType,
+                m.Instrument.Model,
+                m.Instrument.CalibrationDue,
+                m.Instrument.Status,
+                m.Priority,
+                m.Notes,
+                LabName = m.Instrument.Lab.LabName,
+            })
+            .Distinct()
+            .ToListAsync();
+
+        return Ok(suggestions);
+    }
 
     // POST api/v1/test-executions/{id}/sign-off — Step 7: §11.50 e-sig, logbook rows finalized
     [HttpPost("{id}/sign-off")]

@@ -11,9 +11,24 @@ namespace LIMS.Application.Features.Samples;
 // FR-01: unified command — both manual registration and Checkpoint auto-trigger use this
 public record RegisterSampleCommand(
     int LabId, int MaterialId, string LotNumber,
-    DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId,   // Gap 2 fix: FK to SampleType master (was free-text string)
+    DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId,
     int AnalystId, string CreatedBy,
-    List<int>? CheckpointIds = null) : IRequest<Result<int>>;   // operator-selected checkpoints for this sample
+    // Phase A: receipt fields
+    decimal? ReceivedTemp     = null,
+    string?  SampleCondition  = null,      // "OK" | "Damaged" | "Compromised"
+    bool     IsRush           = false,
+    string?  ExternalBatchId  = null,
+    // Phase A: spec engine override — null = auto-match, set = manual pick
+    int?     OverrideSpecTemplateId = null,
+    List<int>? CheckpointIds  = null) : IRequest<Result<RegisterSampleResult>>;
+
+// Returns sample ID + spec match outcome so UI can show correct banner
+public record RegisterSampleResult(
+    int    SampleId,
+    string SampleNumber,
+    string SpecOutcome,         // "AutoMatch" | "ManualOverride" | "NoTemplateFound" | "Pending"
+    string SpecMessage,         // human-readable for UI banner
+    int    TestsAutoCreated);   // how many TestExecutions were auto-created
 
 public class RegisterSampleValidator : AbstractValidator<RegisterSampleCommand>
 {
@@ -26,10 +41,13 @@ public class RegisterSampleValidator : AbstractValidator<RegisterSampleCommand>
         RuleFor(x => x.AnalystId).GreaterThan(0);
         RuleFor(x => x.ExpDate).GreaterThan(x => x.MfgDate)
             .WithMessage("Expiry date must be after manufacturing date.");
+        RuleFor(x => x.SampleCondition)
+            .Must(v => v == null || new[] { "OK", "Damaged", "Compromised" }.Contains(v))
+            .WithMessage("SampleCondition must be OK, Damaged, or Compromised.");
     }
 }
 
-public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleCommand, Result<int>>
+public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleCommand, Result<RegisterSampleResult>>
 {
     private readonly ILimsDbContext _db;
     private readonly ISampleIdFormatService _sampleIdFormat;
@@ -37,98 +55,168 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
     private readonly ISampleValidatorService _validator;
     private readonly IMasterDataAuditService _audit;
     private readonly INotificationService _notifications;
+    private readonly ISpecificationEngineService _specEngine;
 
     public RegisterSampleCommandHandler(
         ILimsDbContext db, ISampleIdFormatService sampleIdFormat,
         IFormTemplateSelectorService templateSelector, ISampleValidatorService validator,
-        IMasterDataAuditService audit, INotificationService notifications)
+        IMasterDataAuditService audit, INotificationService notifications,
+        ISpecificationEngineService specEngine)
     {
         _db = db; _sampleIdFormat = sampleIdFormat; _templateSelector = templateSelector;
         _validator = validator; _audit = audit; _notifications = notifications;
+        _specEngine = specEngine;
     }
 
-    public async Task<Result<int>> Handle(RegisterSampleCommand request, CancellationToken ct)
+    public async Task<Result<RegisterSampleResult>> Handle(RegisterSampleCommand request, CancellationToken ct)
     {
-        // Step 2a: validate material exists and is active
+        // Step 1: validate material
         var material = await _db.Materials.FirstOrDefaultAsync(m => m.MaterialId == request.MaterialId && m.IsActive, ct);
-        if (material is null) return Result<int>.Failure("MATERIAL_NOT_FOUND", "Material not found or inactive.");
+        if (material is null) return Result<RegisterSampleResult>.Failure("MATERIAL_NOT_FOUND", "Material not found or inactive.");
 
-        // Step 2b: Gap 2 fix — validate SampleType FK exists and is active
+        // Step 2: validate SampleType
         var sampleType = await _db.SampleTypes.FirstOrDefaultAsync(t => t.SampleTypeId == request.SampleTypeId && t.IsActive, ct);
-        if (sampleType is null) return Result<int>.Failure("SAMPLE_TYPE_NOT_FOUND", "Sample type not found or inactive — configure in Master Data.");
+        if (sampleType is null) return Result<RegisterSampleResult>.Failure("SAMPLE_TYPE_NOT_FOUND", "Sample type not found or inactive — configure in Master Data.");
 
-        // Step 3: server-generated Sample ID (ALCOA+ Original — FR-02, FR-16)
-        var sampleNumber = await _sampleIdFormat.GenerateAsync(request.LabId, request.MaterialId, sampleType.TypeCode, request.LotNumber, ct);
-
-        // Step 4: barcode auto-printed before validation gate (FR-14)
-        var sample = new Sample
-        {
-            SampleNumber = sampleNumber,
-            LabId = request.LabId,
-            MaterialId = request.MaterialId,
-            LotNumber = request.LotNumber,
-            MfgDate = request.MfgDate,
-            ExpDate = request.ExpDate,
-            SampleTypeId = request.SampleTypeId,            // Gap 2 fix: FK instead of free-text
-            AnalystId = request.AnalystId,
-            Status = SampleStatus.Registered,
-            BarcodePrinted = true,
-            BarcodePrintedAt = DateTimeOffset.UtcNow,
-            CreatedBy = request.CreatedBy,
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-
-        // Step 5: 5 GMP pre-checks via SampleValidatorService (Contract 1 — FR-03 to FR-08)
+        // Step 3: GMP pre-checks
         var validation = await _validator.ValidateAsync(request.LabId, request.MaterialId, request.AnalystId, request.ExpDate, ct);
         if (!validation.IsValid)
-            return Result<int>.Failure("VALIDATION_FAILED", string.Join("; ", validation.Failures));
+            return Result<RegisterSampleResult>.Failure("VALIDATION_FAILED", string.Join("; ", validation.Failures));
 
-        // Step 6: Form Template auto-selected server-side (FR-17)
+        // Step 4: server-generated Sample ID (ALCOA+ Original)
+        var sampleNumber = await _sampleIdFormat.GenerateAsync(request.LabId, request.MaterialId, sampleType.TypeCode, request.LotNumber, ct);
+        var receivedAt   = DateTimeOffset.UtcNow;
+
+        // Step 5: build sample entity with Phase A receipt fields
+        var sample = new Sample
+        {
+            SampleNumber     = sampleNumber,
+            LabId            = request.LabId,
+            MaterialId       = request.MaterialId,
+            LotNumber        = request.LotNumber,
+            MfgDate          = request.MfgDate,
+            ExpDate          = request.ExpDate,
+            SampleTypeId     = request.SampleTypeId,
+            AnalystId        = request.AnalystId,
+            Status           = SampleStatus.Registered,
+            BarcodePrinted   = true,
+            BarcodePrintedAt = receivedAt,
+            // Phase A receipt fields
+            ReceivedTemp     = request.ReceivedTemp,
+            SampleCondition  = request.SampleCondition != null
+                                 ? Enum.Parse<SampleCondition>(request.SampleCondition, true)
+                                 : null,
+            IsRush           = request.IsRush,
+            ExternalBatchId  = request.ExternalBatchId,
+            CreatedBy        = request.CreatedBy,
+            CreatedAt        = receivedAt,
+        };
+
+        // Step 6: Form Template (legacy field — still populated for backward compat)
         sample.FormTemplateId = await _templateSelector.SelectAsync(request.LabId, request.MaterialId, ct);
 
-        // TAT due date from DB config (FR-10, Contract 2)
+        // Step 7: fallback TAT (used only if spec engine finds no template)
         var tatConfig = await _db.LabConfigs
             .FirstOrDefaultAsync(c => c.LabId == request.LabId && c.ConfigKey == "sample_tat_hours", ct);
         if (tatConfig is not null && int.TryParse(tatConfig.ConfigValue, out var tatHours))
-            sample.DueDate = DateTimeOffset.UtcNow.AddHours(tatHours);
+            sample.DueDate = receivedAt.AddHours(tatHours);
 
         _db.Samples.Add(sample);
 
         // Barcode print log — INSERT-only (21 CFR 211.170)
         _db.BarcodePrintLogs.Add(new BarcodePrintLog
         {
-            Sample = sample,
+            Sample    = sample,
             PrintType = "AutoOnRegistration",
             PrintedBy = request.CreatedBy,
-            PrintedAt = sample.BarcodePrintedAt!.Value
+            PrintedAt = receivedAt,
         });
 
         await _db.SaveChangesAsync(ct);
 
-        // Save checkpoint links — operator-selected at registration (Contract 1)
+        // Step 8: Checkpoint links
         if (request.CheckpointIds is { Count: > 0 })
         {
-            foreach (var checkpointId in request.CheckpointIds.Distinct())
+            foreach (var cpId in request.CheckpointIds.Distinct())
             {
-                var cpExists = await _db.Checkpoints.AnyAsync(c => c.CheckpointId == checkpointId && c.IsActive, ct);
-                if (cpExists)
-                    _db.SampleCheckpoints.Add(new SampleCheckpoint
-                    {
-                        SampleId     = sample.SampleId,
-                        CheckpointId = checkpointId
-                    });
+                if (await _db.Checkpoints.AnyAsync(c => c.CheckpointId == cpId && c.IsActive, ct))
+                    _db.SampleCheckpoints.Add(new SampleCheckpoint { SampleId = sample.SampleId, CheckpointId = cpId });
             }
             await _db.SaveChangesAsync(ct);
         }
 
+        // ── Step 9: SPECIFICATION ENGINE ─────────────────────────────────
+        string specOutcome = "Pending";
+        string specMessage = "No specification template applied — tests must be assigned manually.";
+        int    testsCreated = 0;
+
+        int? resolvedTemplateId = request.OverrideSpecTemplateId;
+
+        if (resolvedTemplateId == null)
+        {
+            // Auto-match by Material + SampleType + Stage
+            var matchResult = await _specEngine.MatchAsync(
+                request.MaterialId, request.SampleTypeId, sampleType.Stage, ct);
+
+            switch (matchResult.Outcome)
+            {
+                case SpecMatchOutcome.SingleMatch:
+                    resolvedTemplateId = matchResult.TemplateId;
+                    specOutcome        = "AutoMatch";
+                    specMessage        = matchResult.Message;
+                    break;
+
+                case SpecMatchOutcome.MultipleMatches:
+                    // Cannot auto-assign — caller must re-submit with OverrideSpecTemplateId
+                    specOutcome = "MultipleMatches";
+                    specMessage = matchResult.Message;
+                    break;
+
+                case SpecMatchOutcome.NoMatch:
+                    specOutcome = "NoTemplateFound";
+                    specMessage = matchResult.Message;
+                    break;
+
+                case SpecMatchOutcome.DraftOnly:
+                case SpecMatchOutcome.ObsoleteOnly:
+                    specOutcome = "Blocked";
+                    specMessage = matchResult.Message;
+                    break;
+            }
+        }
+        else
+        {
+            specOutcome = "ManualOverride";
+            specMessage = $"Specification applied manually by {request.CreatedBy}.";
+        }
+
+        // Apply the template (creates TestExecution rows) if we have a resolved template
+        if (resolvedTemplateId.HasValue)
+        {
+            var reason = specOutcome == "AutoMatch"
+                ? SpecAssignmentReason.AutoMatch
+                : SpecAssignmentReason.ManualOverride;
+
+            var execIds = await _specEngine.ApplyTemplateAsync(
+                sample.SampleId, resolvedTemplateId.Value,
+                specOutcome == "AutoMatch" ? "System" : request.CreatedBy,
+                reason, receivedAt, ct);
+
+            testsCreated = execIds.Count;
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+
         await _audit.LogAsync("Sample", sample.SampleId, "Registered", null,
-            new { sample.SampleNumber, sample.LotNumber, SampleType = sampleType.TypeCode, Status = "Registered" },
+            new { sample.SampleNumber, sample.LotNumber, SampleType = sampleType.TypeCode,
+                  Status = "Registered", SpecOutcome = specOutcome, TestsAutoCreated = testsCreated },
             request.CreatedBy);
 
-        // Contract 2: push via SignalR — no polling (FR-11)
         await _notifications.PushToGroupAsync("LabManager", "SampleRegistered",
-            new { sample.SampleId, sample.SampleNumber, sample.LotNumber, material.MaterialName }, ct);
+            new { sample.SampleId, sample.SampleNumber, sample.LotNumber,
+                  material.MaterialName, specOutcome, testsCreated }, ct);
 
-        return Result<int>.Success(sample.SampleId);
+        return Result<RegisterSampleResult>.Success(new RegisterSampleResult(
+            sample.SampleId, sample.SampleNumber, specOutcome, specMessage, testsCreated));
     }
 }

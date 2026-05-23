@@ -10,9 +10,19 @@ interface WorkItem {
   startedAt: string | null; completedAt: string | null
   dueDate: string | null; createdAt: string
 }
-interface Sample { sampleId: number; sampleNumber: string; materialName: string; lotNumber: string }
+interface Sample { sampleId: number; sampleNumber: string; materialName: string; lotNumber: string; specTemplateId?: number }
 interface Analyst { userId: number; fullName: string }
 interface Instrument { instrumentId: number; instrumentCode: string }
+interface SuggestedInstrument {
+  instrumentId:   number
+  instrumentCode: string
+  instrumentType: string
+  model:          string | null
+  calibrationDue: string
+  priority:       number
+  notes:          string | null
+  labName:        string
+}
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Assigned:   { bg: '#dbeafe', color: '#1e40af' },
@@ -32,6 +42,9 @@ export default function WorkQueuePage() {
   const [form, setForm] = useState({ sampleId: '', analystId: '', instrumentId: '', priorityScore: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // Phase D — auto-suggest
+  const [suggestions, setSuggestions]       = useState<SuggestedInstrument[]>([])
+  const [suggestLoading, setSuggestLoading] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -48,7 +61,22 @@ export default function WorkQueuePage() {
       api.get('/instruments'),
     ])
     setSamples(sr.data); setAnalysts(ur.data); setInstruments(ir.data)
+    setSuggestions([]); setForm({ sampleId: '', analystId: '', instrumentId: '', priorityScore: '' })
     setShowAssign(true)
+  }
+
+  async function fetchSuggestions(sampleId: string) {
+    if (!sampleId) { setSuggestions([]); return }
+    // Find the sample to get its spec template items (which carry test method IDs)
+    // For now, query without filter to get all available instruments — the endpoint
+    // returns all Available+calibrated instruments sorted by priority
+    setSuggestLoading(true)
+    try {
+      const res = await api.get('/test-executions/suggest-instrument')
+      setSuggestions(res.data)
+    } catch {
+      setSuggestions([])
+    } finally { setSuggestLoading(false) }
   }
 
   async function submitAssign(e: React.FormEvent) {
@@ -129,7 +157,11 @@ export default function WorkQueuePage() {
               ℹ WAP rules enforced: trained analyst + calibrated instrument + capacity check server-side.
             </p>
             <Field label="Sample (PendingTesting)">
-              <select style={inp} value={form.sampleId} onChange={e => setForm(f => ({ ...f, sampleId: e.target.value }))} required>
+              <select style={inp} value={form.sampleId}
+                onChange={e => {
+                  setForm(f => ({ ...f, sampleId: e.target.value, instrumentId: '' }))
+                  fetchSuggestions(e.target.value)
+                }} required>
                 <option value="">Select sample…</option>
                 {samples.map(s => <option key={s.sampleId} value={s.sampleId}>{s.sampleNumber} — {s.materialName} / {s.lotNumber}</option>)}
               </select>
@@ -141,6 +173,48 @@ export default function WorkQueuePage() {
               </select>
             </Field>
             <Field label="Instrument">
+              {/* Phase D — show auto-suggest if available, else fall back to full list */}
+              {suggestLoading && <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 6px' }}>🔍 Finding best instruments…</p>}
+              {!suggestLoading && suggestions.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: '#0d6e6e', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 6px' }}>
+                    ✦ Auto-suggested (sorted by priority)
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {suggestions.slice(0, 5).map(s => (
+                      <label key={s.instrumentId}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                          padding: '8px 12px', borderRadius: 7,
+                          border: `1.5px solid ${form.instrumentId === String(s.instrumentId) ? '#0d6e6e' : '#e0e0e0'}`,
+                          background: form.instrumentId === String(s.instrumentId) ? '#f0fdfa' : '#fff',
+                        }}>
+                        <input type="radio" name="suggestedInstrument"
+                          checked={form.instrumentId === String(s.instrumentId)}
+                          onChange={() => setForm(f => ({ ...f, instrumentId: String(s.instrumentId) }))}
+                          style={{ accentColor: '#0d6e6e' }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: '#111', fontFamily: 'monospace' }}>{s.instrumentCode}</span>
+                          <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 8 }}>{s.instrumentType}</span>
+                          {s.model && <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 6 }}>({s.model})</span>}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6b7280', textAlign: 'right' }}>
+                          <div>{s.labName}</div>
+                          <div>Cal. due: {new Date(s.calibrationDue).toLocaleDateString()}</div>
+                        </div>
+                        <span style={{
+                          minWidth: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 11, fontWeight: 700,
+                          background: s.priority === 1 ? '#dcfce7' : '#fef9c3',
+                          color: s.priority === 1 ? '#15803d' : '#92400e',
+                        }}>P{s.priority}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>Or choose manually below:</p>
+                </div>
+              )}
               <select style={inp} value={form.instrumentId} onChange={e => setForm(f => ({ ...f, instrumentId: e.target.value }))} required>
                 <option value="">Select instrument…</option>
                 {instruments.map(i => <option key={i.instrumentId} value={i.instrumentId}>{i.instrumentCode}</option>)}

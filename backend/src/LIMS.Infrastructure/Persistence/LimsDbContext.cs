@@ -73,6 +73,15 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<TatBreachLog> TatBreachLogs => Set<TatBreachLog>();
     // Phase 8: Compliance & Governance
     public DbSet<ValidationReviewLog> ValidationReviewLogs => Set<ValidationReviewLog>();
+    // Phase A: Specification Engine
+    public DbSet<SpecificationTemplate> SpecificationTemplates => Set<SpecificationTemplate>();
+    public DbSet<SpecTemplateItem> SpecTemplateItems => Set<SpecTemplateItem>();
+    // Phase B: Sampling Plans & Stability Protocols
+    public DbSet<SamplingPlan> SamplingPlans => Set<SamplingPlan>();
+    public DbSet<StabilityProtocol> StabilityProtocols => Set<StabilityProtocol>();
+    public DbSet<StabilityInterval> StabilityIntervals => Set<StabilityInterval>();
+    // Phase D: Instrument-Test Mapping
+    public DbSet<InstrumentTestMapping> InstrumentTestMappings => Set<InstrumentTestMapping>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

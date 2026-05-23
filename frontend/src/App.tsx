@@ -11,6 +11,7 @@ import TestMethodsPage from '@/pages/master-data/TestMethodsPage'
 import ParametersPage from '@/pages/master-data/ParametersPage'
 import SpecLimitsPage from '@/pages/master-data/SpecLimitsPage'
 import FormTemplatesPage from '@/pages/master-data/FormTemplatesPage'
+import SpecificationTemplatesPage from '@/pages/master-data/SpecificationTemplatesPage'
 import UsersPage from '@/pages/master-data/UsersPage'
 import SampleTypesPage from '@/pages/master-data/SampleTypesPage'
 import SampleRegistrationPage from '@/pages/SampleRegistrationPage'
@@ -30,6 +31,11 @@ import ConditionExcursionsPage from '@/pages/ConditionExcursionsPage'
 import StorageLocationsPage from '@/pages/master-data/StorageLocationsPage'
 import ReagentsPage from '@/pages/master-data/ReagentsPage'
 import UserTrainingRecordsPage from '@/pages/UserTrainingRecordsPage'
+// Phase B
+import SamplingPlansPage from '@/pages/master-data/SamplingPlansPage'
+import StabilityProtocolsPage from '@/pages/master-data/StabilityProtocolsPage'
+// Phase D
+import InstrumentMappingPage from '@/pages/master-data/InstrumentMappingPage'
 // Phase 6/7/8
 import DashboardPage from '@/pages/DashboardPage'
 import CompliancePanelPage from '@/pages/CompliancePanelPage'
@@ -56,12 +62,16 @@ export default function App() {
         <Route path="master-data/test-methods"     element={<TestMethodsPage />} />
         <Route path="master-data/parameters"       element={<ParametersPage />} />
         <Route path="master-data/spec-limits"      element={<SpecLimitsPage />} />
-        <Route path="master-data/form-templates"   element={<FormTemplatesPage />} />
+        <Route path="master-data/form-templates"          element={<FormTemplatesPage />} />
+        <Route path="master-data/specification-templates" element={<SpecificationTemplatesPage />} />
         <Route path="master-data/users"            element={<UsersPage />} />
         <Route path="master-data/sample-types"     element={<SampleTypesPage />} />
         <Route path="master-data/storage-locations"  element={<StorageLocationsPage />} />
         <Route path="master-data/reagents"           element={<ReagentsPage />} />
-        <Route path="master-data/training-records"   element={<UserTrainingRecordsPage />} />
+        <Route path="master-data/training-records"      element={<UserTrainingRecordsPage />} />
+        <Route path="master-data/sampling-plans"        element={<SamplingPlansPage />} />
+        <Route path="master-data/stability-protocols"  element={<StabilityProtocolsPage />} />
+        <Route path="master-data/instrument-mapping"   element={<InstrumentMappingPage />} />
         {/* Phases 2–4 */}
         <Route path="samples"           element={<SampleRegistrationPage />} />
         <Route path="checkpoints"       element={<CheckpointsPage />} />

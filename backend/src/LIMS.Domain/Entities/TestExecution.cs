@@ -22,6 +22,16 @@ public class TestExecution
     public int? PriorityScore { get; set; }
     public DateTimeOffset? StartedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
+
+    // ── Phase A: Spec engine linkage ──────────────────────────────────────
+    // Auto-populated when spec engine creates this execution.
+    // Null = manually created (legacy / no-template path).
+    public int? SpecTemplateItemId  { get; set; }           // which spec item drove this execution
+    public SpecTemplateItem? SpecTemplateItem { get; set; }
+    public int? ParameterId         { get; set; }           // denormalised for fast worklist queries
+    public TestMethodParameter? Parameter { get; set; }
+    public DateTimeOffset? DueAt    { get; set; }           // ReceivedAt + SpecTemplateItem.TurnaroundHours
+
     public string CreatedBy { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

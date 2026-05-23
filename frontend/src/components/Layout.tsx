@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import type { AppDispatch, RootState } from '@/store'
 import { logout } from '@/store/authSlice'
-import { ToastContainer } from '@/components/Toast'
+import { ToastContainer, toast } from '@/components/Toast'
 import CommandPalette from '@/components/CommandPalette'
+import OfflineSyncButton from '@/components/OfflineSyncButton'
+import ErrorBoundary from '@/components/ErrorBoundary'
+import { useOfflineSync } from '@/hooks/useOfflineSync'
 
 // ── Nav item type ─────────────────────────────────────────────────────────
 type NavItem = {
@@ -66,6 +69,11 @@ const masterDataItems: NavItem[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M4 6h16M4 10h16M4 14h10M4 18h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
   },
   {
+    label: 'Spec Templates', path: '/master-data/specification-templates',
+    iconBg: '#dcfce7', iconColor: '#15803d',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
     label: 'Users', path: '/master-data/users',
     iconBg: '#dbeafe', iconColor: '#2563eb',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zm14 10v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
@@ -89,6 +97,21 @@ const masterDataItems: NavItem[] = [
     label: 'Training Records', path: '/master-data/training-records',
     iconBg: '#dcfce7', iconColor: '#16a34a',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    label: 'Sampling Plans', path: '/master-data/sampling-plans',
+    iconBg: '#fef9c3', iconColor: '#ca8a04',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    label: 'Stability Protocols', path: '/master-data/stability-protocols',
+    iconBg: '#e0f2fe', iconColor: '#0369a1',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    label: 'Instrument Mapping', path: '/master-data/instrument-mapping',
+    iconBg: '#fce7f3', iconColor: '#db2777',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
 ]
 
@@ -168,12 +191,16 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/master-data/test-methods':         { section: 'Master Data', label: 'Test Methods' },
   '/master-data/parameters':           { section: 'Master Data', label: 'Parameters' },
   '/master-data/spec-limits':          { section: 'Master Data', label: 'Spec Limits' },
-  '/master-data/form-templates':       { section: 'Master Data', label: 'Form Templates' },
+  '/master-data/form-templates':             { section: 'Master Data', label: 'Form Templates' },
+  '/master-data/specification-templates':    { section: 'Master Data', label: 'Spec Templates' },
   '/master-data/users':                { section: 'Master Data', label: 'Users' },
   '/master-data/sample-types':         { section: 'Master Data', label: 'Sample Types' },
   '/master-data/storage-locations':    { section: 'Master Data', label: 'Storage Locations' },
   '/master-data/reagents':             { section: 'Master Data', label: 'Reagents & Standards' },
   '/master-data/training-records':     { section: 'Master Data', label: 'Training Records' },
+  '/master-data/sampling-plans':       { section: 'Master Data', label: 'Sampling Plans' },
+  '/master-data/stability-protocols':  { section: 'Master Data', label: 'Stability Protocols' },
+  '/master-data/instrument-mapping':   { section: 'Master Data', label: 'Instrument Mapping' },
   '/samples':                          { section: 'Operations', label: 'Sample Registration' },
   '/checkpoints':                      { section: 'Operations', label: 'Checkpoints' },
   '/work-queue':                       { section: 'Operations', label: 'Work Queue' },
@@ -281,9 +308,33 @@ export default function Layout() {
   const [profileOpen,  setProfileOpen]  = useState(false)
   const [notifOpen,    setNotifOpen]    = useState(false)
   const [notifs,       setNotifs]       = useState<Notif[]>(DEMO_NOTIFS)
+  const offlineSync = useOfflineSync()
 
   const profileRef = useRef<HTMLDivElement>(null)
   const notifRef   = useRef<HTMLDivElement>(null)
+
+  // ── Global offline-queue toast ────────────────────────────────────────
+  useEffect(() => {
+    function onQueued() {
+      toast('📥 Saved to offline queue — will sync when back online', 'success')
+    }
+    window.addEventListener('lims:offline:queued', onQueued)
+    return () => window.removeEventListener('lims:offline:queued', onQueued)
+  }, [])
+
+  // ── Global component / JS error toast ────────────────────────────────
+  // Receives events from ErrorBoundary.componentDidCatch AND
+  // window.onerror / window.onunhandledrejection (set in main.tsx).
+  useEffect(() => {
+    function onComponentError(e: Event) {
+      const detail = (e as CustomEvent).detail as { message: string } | undefined
+      const msg = detail?.message ?? 'An unexpected error occurred.'
+      // Avoid spamming: only show toast, the boundary renders its own card
+      toast(`⚠ ${msg.length > 80 ? msg.slice(0, 80) + '…' : msg}`, 'error')
+    }
+    window.addEventListener('lims:component:error', onComponentError)
+    return () => window.removeEventListener('lims:component:error', onComponentError)
+  }, [])
 
   // ── Ctrl+K for command palette ────────────────────────────────────────
   useEffect(() => {
@@ -474,7 +525,7 @@ export default function Layout() {
                   </svg>
                 </>
               )}
-              <span style={{ fontSize: 13, fontWeight: 600, color: dm ? '#e2e8f0' : '#202124', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: dm ? '#e2e8f0' : '#111111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {crumb.label}
               </span>
             </div>
@@ -484,6 +535,9 @@ export default function Layout() {
 
           {/* Right side controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+
+            {/* Offline sync indicator + button */}
+            <OfflineSyncButton sync={offlineSync} dm={dm} />
 
             {/* Date */}
             <span style={{ fontSize: 12, color: dm ? '#64748b' : '#5f6368', whiteSpace: 'nowrap', marginRight: 2 }}>
@@ -550,7 +604,7 @@ export default function Layout() {
                     borderBottom: `1px solid ${dm ? '#334155' : '#f1f3f4'}`,
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   }}>
-                    <span style={{ fontWeight: 700, fontSize: 13, color: dm ? '#f1f5f9' : '#202124' }}>
+                    <span style={{ fontWeight: 700, fontSize: 13, color: dm ? '#f1f5f9' : '#111111' }}>
                       Notifications {unreadCount > 0 && <span style={{ background: '#ef4444', color: '#fff', fontSize: 10, borderRadius: 10, padding: '1px 6px', marginLeft: 4 }}>{unreadCount}</span>}
                     </span>
                     {unreadCount > 0 && (
@@ -567,7 +621,7 @@ export default function Layout() {
                     }}>
                       <span style={{ fontSize: 15, flexShrink: 0, marginTop: 1 }}>{n.icon}</span>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12.5, color: dm ? '#cbd5e1' : '#202124', lineHeight: 1.4 }}>{n.text}</div>
+                        <div style={{ fontSize: 12.5, color: dm ? '#cbd5e1' : '#111111', lineHeight: 1.4 }}>{n.text}</div>
                         <div style={{ fontSize: 11, color: '#80868b', marginTop: 3 }}>{n.time}</div>
                       </div>
                       {!n.read && (
@@ -611,7 +665,7 @@ export default function Layout() {
                 }}>
                   {initials}
                 </div>
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: dm ? '#e2e8f0' : '#202124', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: dm ? '#e2e8f0' : '#111111', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {fullName}
                 </span>
                 <svg viewBox="0 0 24 24" fill="none" width="11" height="11">
@@ -641,14 +695,14 @@ export default function Layout() {
                       {initials}
                     </div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: dm ? '#f1f5f9' : '#202124' }}>{fullName}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: dm ? '#f1f5f9' : '#111111' }}>{fullName}</div>
                       <div style={{ fontSize: 11, color: '#80868b', marginTop: 1 }}>Administrator</div>
                     </div>
                   </div>
                   <div style={{ padding: '6px 8px' }}>
                     <button
                       onClick={() => { setDarkMode(d => !d); setProfileOpen(false) }}
-                      style={{ width: '100%', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 13, color: dm ? '#cbd5e1' : '#202124', fontFamily: 'inherit', textAlign: 'left' }}>
+                      style={{ width: '100%', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 13, color: dm ? '#cbd5e1' : '#111111', fontFamily: 'inherit', textAlign: 'left' }}>
                       {dm ? '☀️ Light Mode' : '🌙 Dark Mode'}
                     </button>
                     <div style={{ height: 1, background: dm ? '#334155' : '#f1f3f4', margin: '4px 0' }} />
@@ -668,8 +722,12 @@ export default function Layout() {
         </header>
 
         {/* Page content */}
-        <main style={{ flex: 1, padding: '24px 28px', background: dm ? '#0f172a' : '#f8f9fa', overflow: 'auto' }}>
-          <Outlet />
+        <main style={{ flex: 1, padding: '24px 28px', background: dm ? '#0f172a' : '#f0f4f8', overflow: 'auto' }}>
+          {/* Page-level boundary: catches crashes in individual pages without
+              taking down the sidebar / topbar navigation */}
+          <ErrorBoundary label="Page">
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
 

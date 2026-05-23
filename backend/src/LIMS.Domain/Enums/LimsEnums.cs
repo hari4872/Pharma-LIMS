@@ -62,3 +62,12 @@ public enum CdType { Complaint, Deviation, Capa }
 public enum BreakdownStatus { Open, InRepair, Resolved }
 
 public enum SampleMatrix { Solid, Liquid, Gas, Swab, Powder, Granule, Suspension, Emulsion }
+
+// Phase A — Specification Engine
+public enum SampleCondition    { OK, Damaged, Compromised }
+public enum SpecAssignmentReason { AutoMatch, ManualOverride, NoTemplateFound }
+public enum SpecTemplateStatus { Draft, Approved, Obsolete }
+
+// Phase B — Sampling Plans & Stability
+public enum FrequencyType { Hourly, Shift, Daily, Weekly, Monthly, Batch, Event, Stability, Environmental }
+public enum StabilityStorageCondition { Accelerated, LongTerm, Intermediate, Refrigerated }

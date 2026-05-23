@@ -1,21 +1,32 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { toast } from '@/components/Toast'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Sample {
   sampleId: number; sampleNumber: string; materialName: string; lotNumber: string
   sampleType: string; status: string; barcodePrinted: boolean; dueDate: string
-  analystName: string; createdAt: string
+  analystName: string; createdAt: string; isRush?: boolean
+  sampleCondition?: string; specTemplateName?: string; testsAutoCreated?: number
 }
-interface Material { materialId: number; materialName: string; productType: string }
-interface SampleType { sampleTypeId: number; typeName: string; typeCode: string }
+interface Material   { materialId: number; materialName: string; productType: string }
+interface SampleType { sampleTypeId: number; typeName: string; typeCode: string; stage: string }
 interface Checkpoint {
   checkpointId: number; checkpointCode: string; triggerMode: string
   checkpointType: string; shiftIntervalHrs: number; isActive: boolean
+}
+
+// Phase A — spec match preview
+interface SpecCandidate { templateId: number; templateName: string; version: string; approvedAt: string; testCount: number }
+interface SpecPreview {
+  outcome:    'SingleMatch' | 'MultipleMatches' | 'NoMatch' | 'DraftOnly' | 'ObsoleteOnly'
+  templateId: number | null
+  candidates: SpecCandidate[]
+  message:    string
 }
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
@@ -82,13 +93,24 @@ export default function SampleRegistrationPage() {
   // ── Form state ──────────────────────────────────────────────────────────────
   const [materialId, setMaterialId]       = useState('')
   const [sampleTypeId, setSampleTypeId]   = useState('')
-  const [selectedCps, setSelectedCps]     = useState<number[]>([])  // checked checkpoint IDs
-  const [tankSourceId, setTankSourceId]   = useState('')            // UI only
-  const [sampleLabel, setSampleLabel]     = useState('')            // UI only
+  const [selectedCps, setSelectedCps]     = useState<number[]>([])
+  const [tankSourceId, setTankSourceId]   = useState('')
+  const [sampleLabel, setSampleLabel]     = useState('')
   const [lotNumber, setLotNumber]         = useState('')
   const [mfgDate, setMfgDate]             = useState('')
   const [expDate, setExpDate]             = useState('')
-  const [srfForm, setSrfForm]             = useState({
+  // Phase A — receipt fields
+  const [receivedTemp,   setReceivedTemp]   = useState('')
+  const [sampleCondition, setSampleCondition] = useState('OK')
+  const [isRush,         setIsRush]         = useState(false)
+  const [externalBatchId, setExternalBatchId] = useState('')
+  // Phase A — spec engine
+  const [specPreview,   setSpecPreview]   = useState<SpecPreview | null>(null)
+  const [specLoading,   setSpecLoading]   = useState(false)
+  const [overrideSpecId, setOverrideSpecId] = useState<number | null>(null)
+  const [lastSpecResult, setLastSpecResult] = useState<{ outcome: string; message: string; testsCreated: number } | null>(null)
+
+  const [srfForm, setSrfForm] = useState({
     password: '', meaning: 'I confirm this Sample Registration Form', reason: ''
   })
 
@@ -123,6 +145,27 @@ export default function SampleRegistrationPage() {
     )
   }
 
+  // ── Phase A: spec engine preview ─────────────────────────────────────────
+  const fetchSpecPreview = useCallback(async (matId: string, stId: string) => {
+    if (!matId || !stId) { setSpecPreview(null); return }
+    const st = sampleTypes.find(t => t.sampleTypeId === Number(stId))
+    if (!st) return
+    setSpecLoading(true)
+    try {
+      const res = await api.get(`/specification-templates/match?materialId=${matId}&sampleTypeId=${stId}&stage=${st.stage}`)
+      setSpecPreview(res.data)
+      // Auto-select if single match
+      if (res.data.outcome === 'SingleMatch') setOverrideSpecId(null)
+    } catch {
+      setSpecPreview(null)
+    } finally { setSpecLoading(false) }
+  }, [sampleTypes])
+
+  useEffect(() => {
+    setSpecPreview(null); setOverrideSpecId(null)
+    if (materialId && sampleTypeId) fetchSpecPreview(materialId, sampleTypeId)
+  }, [materialId, sampleTypeId])
+
   // ── Frequency summary ───────────────────────────────────────────────────────
   function frequencySummary() {
     if (selectedCps.length === 0) return null
@@ -142,30 +185,59 @@ export default function SampleRegistrationPage() {
   // ── Reset form ──────────────────────────────────────────────────────────────
   function resetForm() {
     setMaterialId(''); setSampleTypeId('')
-    // Pre-select all active checkpoints — operator unchecks what is not needed
     setSelectedCps(checkpoints.map(c => c.checkpointId))
     setTankSourceId(''); setSampleLabel(''); setLotNumber('')
     setMfgDate(''); setExpDate(''); setError('')
+    // Phase A
+    setReceivedTemp(''); setSampleCondition('OK'); setIsRush(false)
+    setExternalBatchId(''); setSpecPreview(null); setOverrideSpecId(null)
+    setLastSpecResult(null)
   }
 
   // ── Submit registration ─────────────────────────────────────────────────────
   async function submitRegister(e: React.FormEvent) {
     e.preventDefault()
     if (!sampleTypeId) { setError('Please select a Sample Type.'); return }
+    // Block if spec engine says DraftOnly / ObsoleteOnly
+    if (specPreview?.outcome === 'DraftOnly' || specPreview?.outcome === 'ObsoleteOnly') {
+      setError(specPreview.message); return
+    }
+    // Require manual pick if multiple templates found
+    if (specPreview?.outcome === 'MultipleMatches' && !overrideSpecId) {
+      setError('Multiple specifications found — please select which one to apply below.'); return
+    }
     setSaving(true); setError('')
     try {
-      await api.post('/samples', {
-        labId: labId ?? 1,               // from logged-in user's lab assignment
-        materialId: Number(materialId),
+      const res = await api.post('/samples', {
+        labId:        labId ?? 1,
+        materialId:   Number(materialId),
         lotNumber,
         mfgDate,
         expDate,
         sampleTypeId: Number(sampleTypeId),
-        checkpointIds: selectedCps,      // operator-selected checkpoints for this sample
+        // Phase A receipt fields
+        receivedTemp:          receivedTemp ? parseFloat(receivedTemp) : null,
+        sampleCondition:       sampleCondition || null,
+        isRush,
+        externalBatchId:       externalBatchId || null,
+        overrideSpecTemplateId: overrideSpecId ?? null,
+        checkpointIds:         selectedCps,
       })
-      setShowForm(false); resetForm(); load()
+      const result = res.data
+      setLastSpecResult({ outcome: result.specOutcome, message: result.specMessage, testsCreated: result.testsAutoCreated })
+      setShowForm(false)
+      resetForm()
+      load()
+      // Show outcome toast
+      if (result.specOutcome === 'AutoMatch') {
+        toast(`✓ ${result.sampleNumber} registered — ${result.testsAutoCreated} test(s) auto-assigned from spec template`, 'success')
+      } else if (result.specOutcome === 'ManualOverride') {
+        toast(`✓ ${result.sampleNumber} registered — spec applied manually (${result.testsAutoCreated} tests)`, 'success')
+      } else {
+        toast(`✓ ${result.sampleNumber} registered — assign tests manually in Work Queue`, 'success')
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Registration failed')
+      setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Registration failed')
     } finally { setSaving(false) }
   }
 
@@ -261,7 +333,21 @@ export default function SampleRegistrationPage() {
 
       {/* ── Sample list table ─────────────────────────────────────────────── */}
       <DataTable loading={loading} data={data} columns={[
-        { header: 'Sample No.', accessor: r => <strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.sampleNumber}</strong> },
+        { header: 'Sample No.', accessor: r => (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.sampleNumber}</strong>
+            {r.isRush && (
+              <span style={{ padding: '1px 7px', background: '#fee2e2', color: '#dc2626', borderRadius: 10, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em' }}>
+                RUSH
+              </span>
+            )}
+            {r.sampleCondition && r.sampleCondition !== 'OK' && (
+              <span style={{ padding: '1px 7px', background: '#fef3c7', color: '#92400e', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>
+                {r.sampleCondition.toUpperCase()}
+              </span>
+            )}
+          </div>
+        ) },
         { header: 'Material', accessor: 'materialName' },
         { header: 'Lot / Batch', accessor: 'lotNumber' },
         { header: 'Type', accessor: 'sampleType' },
@@ -350,6 +436,56 @@ export default function SampleRegistrationPage() {
                         <option key={t.sampleTypeId} value={t.sampleTypeId}>{t.typeName} ({t.typeCode})</option>
                       ))}
                     </select>
+                  </div>
+                )}
+
+                {/* ── Phase A: Spec Engine Banner ─────────────────────── */}
+                {materialId && sampleTypeId && (
+                  <div style={{ marginTop: 14 }}>
+                    {specLoading && (
+                      <div style={{ padding: '10px 14px', background: '#f0f4f8', borderRadius: 8, fontSize: 13, color: '#5f6368' }}>
+                        🔍 Checking specification templates…
+                      </div>
+                    )}
+
+                    {!specLoading && specPreview && (() => {
+                      const bannerStyle: Record<string, { bg: string; border: string; color: string; icon: string }> = {
+                        SingleMatch:      { bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d', icon: '✓' },
+                        MultipleMatches:  { bg: '#fffbeb', border: '#fde68a', color: '#92400e', icon: '⚠' },
+                        NoMatch:          { bg: '#fffbeb', border: '#fde68a', color: '#92400e', icon: '⚠' },
+                        DraftOnly:        { bg: '#fef2f2', border: '#fecaca', color: '#dc2626', icon: '✗' },
+                        ObsoleteOnly:     { bg: '#fef2f2', border: '#fecaca', color: '#dc2626', icon: '✗' },
+                      }
+                      const bs = bannerStyle[specPreview.outcome] ?? bannerStyle.NoMatch
+                      return (
+                        <div style={{ padding: '10px 14px', background: bs.bg, border: `1px solid ${bs.border}`, borderRadius: 8 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: bs.color, marginBottom: specPreview.outcome === 'MultipleMatches' ? 8 : 0 }}>
+                            {bs.icon} {specPreview.message}
+                          </div>
+                          {/* Multiple match picker */}
+                          {specPreview.outcome === 'MultipleMatches' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                              {specPreview.candidates.map(c => (
+                                <label key={c.templateId} style={{
+                                  display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                                  padding: '8px 12px', borderRadius: 7, border: `1.5px solid ${overrideSpecId === c.templateId ? '#0d6e6e' : '#e0e0e0'}`,
+                                  background: overrideSpecId === c.templateId ? '#f0fdfa' : '#fff',
+                                }}>
+                                  <input type="radio" name="specTemplate" checked={overrideSpecId === c.templateId}
+                                    onChange={() => setOverrideSpecId(c.templateId)}
+                                    style={{ accentColor: '#0d6e6e' }} />
+                                  <div>
+                                    <span style={{ fontSize: 13, fontWeight: 700, color: '#111111' }}>{c.templateName}</span>
+                                    <span style={{ fontSize: 11, color: '#5f6368', marginLeft: 8 }}>v{c.version}</span>
+                                    <span style={{ fontSize: 11, color: '#5f6368', marginLeft: 8 }}>{c.testCount} tests</span>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
               </Section>
@@ -469,6 +605,66 @@ export default function SampleRegistrationPage() {
                     <input style={inp} type="date" value={expDate} onChange={e => setExpDate(e.target.value)} required />
                   </div>
                 </div>
+                {/* Phase A — Receipt Condition */}
+                <div style={{ marginTop: 18, padding: '16px 18px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: '#475569', marginBottom: 14 }}>
+                    📦 Receipt Condition
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+                    <div>
+                      <span style={label}>Received Temp (°C)</span>
+                      <input
+                        type="number" step="0.1" style={inp}
+                        value={receivedTemp}
+                        onChange={e => setReceivedTemp(e.target.value)}
+                        placeholder="e.g. 5.2"
+                      />
+                    </div>
+                    <div>
+                      <span style={label}>Sample Condition <span style={{ color: '#ef4444' }}>*</span></span>
+                      <select style={inp} value={sampleCondition} onChange={e => setSampleCondition(e.target.value)}>
+                        <option value="OK">✓ OK — Acceptable condition</option>
+                        <option value="Damaged">⚠ Damaged — Physical damage noted</option>
+                        <option value="Compromised">✗ Compromised — Integrity at risk</option>
+                      </select>
+                    </div>
+                    <div>
+                      <span style={label}>External Batch ID</span>
+                      <input
+                        style={inp}
+                        value={externalBatchId}
+                        onChange={e => setExternalBatchId(e.target.value)}
+                        placeholder="MES / ERP batch ref"
+                      />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 14 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '10px 14px', borderRadius: 8, border: `1.5px solid ${isRush ? '#fca5a5' : '#e5e7eb'}`, background: isRush ? '#fff5f5' : '#fff', transition: 'all 0.15s' }}>
+                      <input
+                        type="checkbox"
+                        checked={isRush}
+                        onChange={e => setIsRush(e.target.checked)}
+                        style={{ width: 16, height: 16, accentColor: '#dc2626', cursor: 'pointer' }}
+                      />
+                      <div>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: isRush ? '#dc2626' : '#374151' }}>
+                          🚨 Rush Sample
+                        </span>
+                        <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 10 }}>
+                          Flags this sample for expedited testing and elevated priority in the Work Queue
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                  {sampleCondition !== 'OK' && (
+                    <div style={{ marginTop: 12, padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6 }}>
+                      <span style={{ fontSize: 12, color: '#92400e', fontWeight: 600 }}>
+                        ⚠ Non-OK condition recorded — QA will be notified for review
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 <p style={{ fontSize: 11, color: '#9ca3af', margin: '12px 0 0' }}>
                   ℹ Sample ID is server-generated · Barcode auto-printed · 5 GMP checks run server-side
                 </p>

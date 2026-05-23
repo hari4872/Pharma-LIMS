@@ -24,13 +24,24 @@ public class SamplesController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterSampleRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-        var result = await _mediator.Send(new RegisterSampleCommand(
+        var userId   = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var result   = await _mediator.Send(new RegisterSampleCommand(
             request.LabId, request.MaterialId, request.LotNumber,
             request.MfgDate, request.ExpDate, request.SampleTypeId,
-            userId, username, request.CheckpointIds));
+            userId, username,
+            // Phase A fields
+            request.ReceivedTemp, request.SampleCondition, request.IsRush,
+            request.ExternalBatchId, request.OverrideSpecTemplateId,
+            request.CheckpointIds));
+
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
-        return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { sampleId = result.Value });
+
+        var v = result.Value!;
+        return CreatedAtAction(nameof(GetAll), new { id = v.SampleId }, new
+        {
+            v.SampleId, v.SampleNumber,
+            v.SpecOutcome, v.SpecMessage, v.TestsAutoCreated
+        });
     }
 
     // POST api/v1/samples/{id}/sign-srf — Step 7: SRF §11.50 e-sig → PendingTesting (FR-09)
@@ -60,7 +71,14 @@ public class SamplesController : ControllerBase
     }
 }
 
-public record RegisterSampleRequest(int LabId, int MaterialId, string LotNumber,
-    DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId,   // Gap 2 fix: FK int (was free-text string)
-    List<int>? CheckpointIds = null);                       // operator-selected checkpoints
+public record RegisterSampleRequest(
+    int     LabId, int MaterialId, string LotNumber,
+    DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId,
+    // Phase A receipt fields
+    decimal? ReceivedTemp           = null,
+    string?  SampleCondition        = null,     // "OK" | "Damaged" | "Compromised"
+    bool     IsRush                 = false,
+    string?  ExternalBatchId        = null,
+    int?     OverrideSpecTemplateId = null,     // set when user manually picks from MultipleMatches
+    List<int>? CheckpointIds        = null);
 public record ReprintBarcodeRequest(string Reason);
