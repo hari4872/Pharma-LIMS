@@ -31,18 +31,9 @@ export default function LoginPage() {
   }
 
   const features = [
-    {
-      icon: <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#0d6e6e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-      text: 'End-to-end sample lifecycle — registration, testing, QA review, and CoA release.',
-    },
-    {
-      icon: <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="#0d6e6e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-      text: 'Immutable e-signature audit trail — 21 CFR §11.50, ALCOA+, GxP compliant.',
-    },
-    {
-      icon: <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke="#0d6e6e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-      text: 'OOS detection, stability tracking, ICH Q1A pulls, and real-time SignalR alerts.',
-    },
+    { text: 'End-to-end sample lifecycle — registration, testing, QA review, and CoA release.' },
+    { text: 'Immutable e-signature audit trail — 21 CFR §11.50, ALCOA+, GxP compliant.' },
+    { text: 'OOS detection, stability tracking, ICH Q1A pulls, and real-time SignalR alerts.' },
   ]
 
   const inputStyle: React.CSSProperties = {
@@ -62,7 +53,7 @@ export default function LoginPage() {
       justifyContent: 'center',
       fontFamily: 'Inter, system-ui, sans-serif',
       background: 'linear-gradient(135deg, #c8f0ea 0%, #8dd8d0 35%, #5bbfb5 65%, #2ea89c 100%)',
-      padding: '40px 60px',
+      padding: '32px 48px',
       position: 'relative',
       overflow: 'hidden',
     }}>
@@ -73,52 +64,59 @@ export default function LoginPage() {
 
       {/* ══ Main layout ═══════════════════════════════════════════════════════ */}
       <div style={{
-        width: '100%', maxWidth: 1100,
+        width: '100%', maxWidth: 1060,
         display: 'flex',
         alignItems: 'center',
-        gap: 64,
+        gap: 56,
       }}>
 
         {/* ══ LEFT — branding ═══════════════════════════════════════════════ */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
 
-          {/* Logo at top */}
-          <div style={{ marginBottom: 32 }}>
-            <img src="/Logo.png" alt="Web Synergies" style={{ height: 48, width: 'auto', objectFit: 'contain' }} />
+          {/* Logo centered */}
+          <div style={{ marginBottom: 20 }}>
+            <img src="/Logo.png" alt="Web Synergies" style={{ height: 52, width: 'auto', objectFit: 'contain' }} />
           </div>
 
-          {/* LIMS heading */}
-          <h1 style={{ margin: '0 0 12px', fontSize: 60, fontWeight: 900, color: '#0a2e2b', letterSpacing: '-0.04em', lineHeight: 1 }}>
-            LIMS
-          </h1>
-          <p style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#0d5c57', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          {/* LIMS heading with lab flask icon */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 14,
+              background: 'rgba(255,255,255,0.35)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.5)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <svg viewBox="0 0 24 24" fill="none" width="26" height="26">
+                <path d="M9 3h6M9 3v7l-5 9a1 1 0 00.9 1.5h14.2a1 1 0 00.9-1.5L15 10V3M9 3h6v7l5 9H4L9 10V3z" stroke="#0a2e2b" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="10" cy="16" r="1" fill="#0d6e6e"/>
+                <circle cx="14" cy="14" r="1.2" fill="#0d6e6e" opacity="0.7"/>
+              </svg>
+            </div>
+            <h1 style={{ margin: 0, fontSize: 58, fontWeight: 900, color: '#0a2e2b', letterSpacing: '-0.04em', lineHeight: 1 }}>
+              LIMS
+            </h1>
+          </div>
+
+          <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#0d5c57', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
             Laboratory Information Management System
           </p>
-          <p style={{ margin: '0 0 36px', fontSize: 15, color: '#0d4a46', lineHeight: 1.75, maxWidth: 420, opacity: 0.82 }}>
-            A modern laboratory information management platform
-            designed for regulated environments, rapid sample tracking,
+          <p style={{ margin: '0 0 28px', fontSize: 14.5, color: '#0d4a46', lineHeight: 1.7, maxWidth: 400, opacity: 0.85 }}>
+            A modern platform for regulated environments — rapid sample tracking,
             instrument visibility, and dependable quality workflows.
           </p>
 
-          {/* Glassmorphism feature cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Feature cards — text only, no icon boxes */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 440 }}>
             {features.map((f, i) => (
               <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 16,
                 background: 'rgba(255,255,255,0.25)',
                 backdropFilter: 'blur(12px)',
                 border: '1px solid rgba(255,255,255,0.4)',
-                borderRadius: 12, padding: '14px 18px',
+                borderRadius: 12, padding: '12px 18px',
               }}>
-                <div style={{
-                  flexShrink: 0, width: 36, height: 36, borderRadius: 9,
-                  background: 'rgba(255,255,255,0.55)',
-                  border: '1px solid rgba(13,110,110,0.1)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {f.icon}
-                </div>
-                <p style={{ margin: 0, fontSize: 13.5, color: '#0a3330', lineHeight: 1.55 }}>
+                <p style={{ margin: 0, fontSize: 13, color: '#0a3330', lineHeight: 1.55 }}>
                   {f.text}
                 </p>
               </div>
@@ -126,8 +124,8 @@ export default function LoginPage() {
           </div>
 
           {/* Compliance footer */}
-          <div style={{ marginTop: 24, fontSize: 11.5, color: 'rgba(10,46,43,0.5)', letterSpacing: '0.03em' }}>
-            21 CFR Part 11 &nbsp;·&nbsp; EU GMP Annex 11 &nbsp;·&nbsp; ISO 17025 &nbsp;·&nbsp; ICH Q1A &nbsp;·&nbsp; ALCOA+ &nbsp;·&nbsp; GAMP 5
+          <div style={{ marginTop: 20, fontSize: 11, color: 'rgba(10,46,43,0.5)', letterSpacing: '0.03em' }}>
+            21 CFR Part 11 &nbsp;·&nbsp; EU GMP Annex 11 &nbsp;·&nbsp; ISO 17025 &nbsp;·&nbsp; ALCOA+ &nbsp;·&nbsp; GAMP 5
           </div>
         </div>
 
@@ -141,14 +139,11 @@ export default function LoginPage() {
           padding: '36px 36px 28px',
         }}>
 
-          {/* Card heading — no avatar, clean */}
-          <div style={{ marginBottom: 20 }}>
-            <h2 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 700, color: '#0a2e2b', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-              Sign in to your lab workspace
+          {/* Card heading */}
+          <div style={{ marginBottom: 18 }}>
+            <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, color: '#0a2e2b', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+              Sign in
             </h2>
-            <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
-              Trusted access for analysts, reviewers, and quality teams.
-            </p>
           </div>
 
           {/* System status */}
