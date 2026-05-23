@@ -28,7 +28,7 @@ export default function LoginPage() {
     })
   }, [navigate])
 
-  // ── Molecular network animation ──────────────────────────────────────────
+  // ── Molecular network animation (bigger dots) ────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current
     const wrap   = wrapRef.current
@@ -43,13 +43,13 @@ export default function LoginPage() {
     resize()
     window.addEventListener('resize', resize)
 
-    const NODES = 55
+    const NODES = 52
     const nodes = Array.from({ length: NODES }, () => ({
       x:  Math.random() * canvas.width,
       y:  Math.random() * canvas.height,
-      vx: (Math.random() - 0.5) * 0.38,
-      vy: (Math.random() - 0.5) * 0.38,
-      r:  Math.random() * 2.2 + 1.4,
+      vx: (Math.random() - 0.5) * 0.36,
+      vy: (Math.random() - 0.5) * 0.36,
+      r:  Math.random() * 3 + 3,   // bigger: 3–6px
     }))
 
     let raf: number
@@ -68,12 +68,12 @@ export default function LoginPage() {
           const dx   = nodes[i].x - nodes[j].x
           const dy   = nodes[i].y - nodes[j].y
           const dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 130) {
+          if (dist < 140) {
             ctx.beginPath()
             ctx.moveTo(nodes[i].x, nodes[i].y)
             ctx.lineTo(nodes[j].x, nodes[j].y)
-            ctx.strokeStyle = `rgba(10,46,43,${0.16 * (1 - dist / 130)})`
-            ctx.lineWidth = 0.75
+            ctx.strokeStyle = `rgba(10,46,43,${0.18 * (1 - dist / 140)})`
+            ctx.lineWidth = 1
             ctx.stroke()
           }
         }
@@ -82,7 +82,7 @@ export default function LoginPage() {
       nodes.forEach(n => {
         ctx.beginPath()
         ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2)
-        ctx.fillStyle = 'rgba(10,46,43,0.2)'
+        ctx.fillStyle = 'rgba(10,46,43,0.18)'
         ctx.fill()
       })
 
@@ -113,14 +113,11 @@ export default function LoginPage() {
   return (
     <div ref={wrapRef} style={{
       minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: 'Inter, system-ui, sans-serif',
       background: 'linear-gradient(135deg, #c8f0ea 0%, #8dd8d0 35%, #5bbfb5 65%, #2ea89c 100%)',
       padding: '32px 48px',
-      position: 'relative',
-      overflow: 'hidden',
+      position: 'relative', overflow: 'hidden',
     }}>
 
       {/* Molecular network canvas */}
@@ -129,67 +126,77 @@ export default function LoginPage() {
       {/* ══ Main layout ═══════════════════════════════════════════════════════ */}
       <div style={{
         width: '100%', maxWidth: 1060,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 56,
+        display: 'flex', alignItems: 'center', gap: 56,
         position: 'relative', zIndex: 10,
       }}>
 
-        {/* ══ LEFT — branding ═══════════════════════════════════════════════ */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+        {/* ══ LEFT — Option C: accent bar + stats ═══════════════════════════ */}
+        <div style={{
+          flex: 1, minWidth: 0,
+          paddingLeft: 28,
+          borderLeft: '4px solid rgba(255,255,255,0.65)',
+        }}>
+          {/* Big LIMS heading */}
+          <h1 style={{
+            margin: '0 0 4px', fontSize: 58, fontWeight: 900,
+            color: '#0a2e2b', letterSpacing: '-0.04em', lineHeight: 1,
+          }}>
+            LIMS
+          </h1>
 
-          {/* LIMS heading with lab flask icon */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
-            <div style={{
-              width: 52, height: 52, borderRadius: 14,
-              background: 'rgba(255,255,255,0.35)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.5)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <svg viewBox="0 0 24 24" fill="none" width="26" height="26">
-                <path d="M9 3h6M9 3v7l-5 9a1 1 0 00.9 1.5h14.2a1 1 0 00.9-1.5L15 10V3M9 3h6v7l5 9H4L9 10V3z" stroke="#0a2e2b" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="10" cy="16" r="1" fill="#0d6e6e"/>
-                <circle cx="14" cy="14" r="1.2" fill="#0d6e6e" opacity="0.7"/>
-              </svg>
-            </div>
-            <h1 style={{ margin: 0, fontSize: 44, fontWeight: 800, color: '#0a2e2b', letterSpacing: '-0.03em', lineHeight: 1 }}>
-              LIMS
-            </h1>
-          </div>
-
-          <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: '#0d5c57', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            Laboratory Information Management System
-          </p>
-          <p style={{ margin: '0 0 0', fontSize: 14, color: '#0d4a46', lineHeight: 1.65, maxWidth: 400, opacity: 0.85 }}>
-            End-to-end batch testing, electronic records, and quality release —
-            engineered for regulated environments and audit-ready operations.
+          {/* Subtitle */}
+          <p style={{
+            margin: '0 0 16px', fontSize: 20, fontWeight: 500,
+            color: 'rgba(10,46,43,0.55)', letterSpacing: '-0.01em',
+          }}>
+            Laboratory Information System
           </p>
 
-          {/* Compliance footer */}
-          <div style={{ marginTop: 28, fontSize: 10.5, color: 'rgba(10,46,43,0.5)', letterSpacing: '0.03em' }}>
-            21 CFR Part 11 &nbsp;·&nbsp; EU GMP Annex 11 &nbsp;·&nbsp; ISO 17025 &nbsp;·&nbsp; ALCOA+ &nbsp;·&nbsp; GAMP 5
+          {/* Description */}
+          <p style={{
+            margin: '0 0 28px', fontSize: 14, color: '#0d4a46',
+            lineHeight: 1.7, maxWidth: 400, opacity: 0.88,
+          }}>
+            End-to-end sample lifecycle, electronic records, and QA
+            release — engineered for regulated environments and
+            audit-ready operations.
+          </p>
+
+          {/* Stats row */}
+          <div style={{ display: 'flex', gap: 24, alignItems: 'stretch' }}>
+            {[
+              { n: '100%', l: 'Audit Trail' },
+              { n: '21 CFR', l: 'Part 11' },
+              { n: 'GxP', l: 'Compliant' },
+            ].map((s, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'stretch', gap: 24 }}>
+                <div>
+                  <div style={{ fontSize: 26, fontWeight: 800, color: '#0a2e2b', lineHeight: 1 }}>{s.n}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(10,46,43,0.55)', marginTop: 3 }}>{s.l}</div>
+                </div>
+                {i < 2 && (
+                  <div style={{ width: 1, background: 'rgba(10,46,43,0.15)', alignSelf: 'stretch' }} />
+                )}
+              </div>
+            ))}
           </div>
         </div>
 
         {/* ══ RIGHT — login card ════════════════════════════════════════════ */}
         <div style={{
-          flexShrink: 0,
-          width: 400,
-          background: '#ffffff',
-          borderRadius: 24,
+          flexShrink: 0, width: 400,
+          background: '#ffffff', borderRadius: 24,
           boxShadow: '0 32px 80px rgba(10,46,43,0.18), 0 0 0 1px rgba(255,255,255,0.5)',
           padding: '32px 36px 28px',
         }}>
 
-          {/* WebSynergies logo at top of card */}
+          {/* WebSynergies logo */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
             <img src="/Logo.png" alt="Web Synergies" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
           </div>
 
-          {/* Card heading */}
-          <h2 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 700, color: '#0a2e2b', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+          {/* Heading */}
+          <h2 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 700, color: '#0a2e2b', letterSpacing: '-0.02em' }}>
             Sign in
           </h2>
 
@@ -199,8 +206,8 @@ export default function LoginPage() {
             background: '#f0fdf9', border: '1px solid #99f6e4',
             borderRadius: 8, padding: '9px 14px', marginBottom: 22,
           }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', flexShrink: 0, boxShadow: '0 0 6px #22c55e' }} />
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#0d6e6e' }}>
+            <span style={{ width:7, height:7, borderRadius:'50%', background:'#22c55e', flexShrink:0, boxShadow:'0 0 6px #22c55e' }} />
+            <span style={{ fontSize:12.5, fontWeight:600, color:'#0d6e6e' }}>
               System status: all laboratory services operational
             </span>
           </div>
