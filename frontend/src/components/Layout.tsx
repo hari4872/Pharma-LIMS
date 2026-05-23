@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import type { AppDispatch, RootState } from '@/store'
 import { logout } from '@/store/authSlice'
@@ -72,59 +72,137 @@ const inventoryItems = [
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.95L13.75 4a2 2 0 00-3.5 0L3.25 16.05A2 2 0 005.07 19z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
 ]
 
-// ── Sidebar colours — deep teal ──────────────────────────────────────────
-const SB = {
-  bg:         '#0a1f1f',   // very dark teal
-  bgAlt:      '#0d2626',
-  border:     '#153535',
-  active:     'rgba(46,168,156,0.15)',
-  activeBdr:  '#2ea89c',
-  activeText: '#5bbfb5',
-  text:       '#7fb3af',
-  textDim:    '#3d7070',
-  sectionLbl: '#2a6060',
+// ── Icon rail items (key shortcuts for each section) ─────────────────────
+type RailItem = { path: string; prefix: string; title: string; icon: React.ReactNode } | null
+
+const railItems: RailItem[] = [
+  {
+    path: '/dashboard', prefix: '/dashboard', title: 'Dashboard',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/></svg>,
+  },
+  {
+    path: '/compliance', prefix: '/compliance', title: 'Compliance',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>,
+  },
+  null,
+  {
+    path: '/master-data/laboratories', prefix: '/master-data', title: 'Master Data',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    path: '/master-data/instruments', prefix: '/master-data/instruments', title: 'Instruments',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  },
+  {
+    path: '/master-data/users', prefix: '/master-data/users', title: 'Users',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zm14 10v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  null,
+  {
+    path: '/samples', prefix: '/samples', title: 'Sample Registration',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    path: '/work-queue', prefix: '/work-queue', title: 'Work Queue',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M4 6h16M4 10h16M4 14h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  },
+  {
+    path: '/results-review', prefix: '/results-review', title: 'Results Review',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    path: '/oos-investigations', prefix: '/oos-investigations', title: 'OOS Investigations',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  null,
+  {
+    path: '/stability-pulls', prefix: '/stability-pulls', title: 'Stability Pulls',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M9 3h6M10 3v6L5 19a2 2 0 002 3h10a2 2 0 002-3l-5-10V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    path: '/retain-samples', prefix: '/retain-samples', title: 'Retain Samples',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+]
+
+// ── Colour tokens ─────────────────────────────────────────────────────────
+const RAIL = {
+  bg:           '#f0fdfa',
+  border:       '#d1fae5',
+  iconDefault:  '#94a3b8',
+  iconHoverBg:  '#e0fdf4',
+  iconHover:    '#0d9488',
+  iconActiveBg: '#0d9488',
+  iconActive:   '#ffffff',
+  sep:          '#d1fae5',
+}
+const TEXT = {
+  bg:             '#ffffff',
+  outerBorder:    '#e5e7eb',
+  sectionFirst:   '#0f172a',
+  sectionLabel:   '#c8d5df',
+  item:           '#64748b',
+  itemHoverBg:    '#f1f5f9',
+  itemHover:      '#0f172a',
+  itemActiveBg:   '#f0fdfa',
+  itemActive:     '#0f766e',
+  divider:        '#f1f5f9',
 }
 const SIDEBAR_W = 234
 
+// ── Nav link style (text panel) ───────────────────────────────────────────
 function navLinkStyle(isActive: boolean): React.CSSProperties {
   return {
-    display: 'flex', alignItems: 'center', gap: 9,
-    padding: '7px 16px 7px 18px',
-    fontSize: 13, fontWeight: isActive ? 600 : 400,
-    color: isActive ? SB.activeText : SB.text,
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '6.5px 14px',
+    fontSize: 12.5, fontWeight: isActive ? 700 : 500,
+    color: isActive ? TEXT.itemActive : TEXT.item,
     textDecoration: 'none',
-    background: isActive ? SB.active : 'transparent',
-    borderLeft: `3px solid ${isActive ? SB.activeBdr : 'transparent'}`,
+    background: isActive ? TEXT.itemActiveBg : 'transparent',
+    borderRadius: 6,
+    margin: '0 6px 1px',
     transition: 'background 0.12s, color 0.12s',
     letterSpacing: '0.01em',
-    borderRadius: '0 6px 6px 0',
-    marginRight: 6,
   }
 }
 
+// ── Section header (text panel) ───────────────────────────────────────────
 function SectionHead({ label, first = false }: { label: string; first?: boolean }) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8,
-      padding: first ? '16px 18px 5px' : '14px 18px 5px',
-      marginTop: first ? 0 : 2,
-    }}>
-      {!first && <div style={{ flex: 1, height: 1, background: SB.border }} />}
-      <span style={{
-        fontSize: 9.5, fontWeight: 700, letterSpacing: '0.1em',
-        textTransform: 'uppercase', color: SB.sectionLbl,
-        whiteSpace: 'nowrap',
+  if (first) {
+    return (
+      <div style={{
+        padding: '14px 16px 12px',
+        fontSize: 14, fontWeight: 800,
+        color: TEXT.sectionFirst,
+        borderBottom: `1px solid ${TEXT.divider}`,
+        letterSpacing: '-0.01em',
       }}>
         {label}
-      </span>
-      <div style={{ flex: 1, height: 1, background: SB.border }} />
+      </div>
+    )
+  }
+  return (
+    <div style={{
+      padding: '14px 16px 4px',
+      fontSize: 9, fontWeight: 700,
+      letterSpacing: '0.11em',
+      textTransform: 'uppercase',
+      color: TEXT.sectionLabel,
+    }}>
+      {label}
     </div>
   )
+}
+
+// ── Divider (text panel) ──────────────────────────────────────────────────
+function SubDivider() {
+  return <div style={{ margin: '4px 16px', height: 1, background: TEXT.divider }} />
 }
 
 export default function Layout() {
   const dispatch  = useDispatch<AppDispatch>()
   const navigate  = useNavigate()
+  const location  = useLocation()
   const fullName  = useSelector((s: RootState) => s.auth.fullName)
   const initials  = fullName
     ? fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -144,102 +222,175 @@ export default function Layout() {
       {/* ── Sidebar ───────────────────────────────────────────────── */}
       <aside style={{
         width: SIDEBAR_W, minWidth: SIDEBAR_W,
-        background: SB.bg,
-        overflowY: 'auto', display: 'flex', flexDirection: 'column',
+        display: 'flex',
         position: 'sticky', top: 0, height: '100vh',
+        borderRight: `1px solid ${TEXT.outerBorder}`,
       }}>
 
-        {/* Brand */}
+        {/* ── Icon Rail (left 52 px) ─────────────────────────── */}
         <div style={{
-          padding: '16px 18px 14px',
-          borderBottom: `1px solid ${SB.border}`,
-          display: 'flex', alignItems: 'center', gap: 10,
+          width: 52, flexShrink: 0,
+          background: RAIL.bg,
+          borderRight: `1px solid ${RAIL.border}`,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center',
+          padding: '12px 0',
+          gap: 2,
+          overflowY: 'auto',
         }}>
+
+          {/* Logo mark */}
           <div style={{
-            width: 32, height: 32, flexShrink: 0,
-            background: 'linear-gradient(135deg, #2ea89c 0%, #0d6e6e 100%)',
-            borderRadius: 8,
+            width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+            background: 'linear-gradient(135deg, #0d9488, #0f766e)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 2px 10px rgba(13,148,136,0.3)',
+            marginBottom: 10,
           }}>
-            <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
-              <path d="M9 3h6M10 3v6L5 19a2 2 0 002 3h10a2 2 0 002-3l-5-10V3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg viewBox="0 0 24 24" fill="none" width="17" height="17">
+              <path d="M9 3h6M10 3v6L5 19a2 2 0 002 3h10a2 2 0 002-3l-5-10V3" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#e2f0ef', lineHeight: 1.2 }}>LIMS</div>
-            <div style={{ fontSize: 10, color: SB.sectionLbl, letterSpacing: '0.06em', marginTop: 1 }}>21 CFR Part 11</div>
-          </div>
-          {/* Live dot */}
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 5px #22c55e', display: 'inline-block' }} />
-            <span style={{ fontSize: 9, color: '#22c55e', fontWeight: 600, letterSpacing: '0.05em' }}>LIVE</span>
+
+          {/* Rail nav icons */}
+          {railItems.map((item, i) => {
+            if (!item) {
+              // Separator
+              return (
+                <div key={`sep-${i}`} style={{
+                  width: 24, height: 1,
+                  background: RAIL.sep,
+                  margin: '5px 0',
+                  flexShrink: 0,
+                }} />
+              )
+            }
+            const isActive = location.pathname.startsWith(item.prefix)
+            return (
+              <div
+                key={item.path}
+                title={item.title}
+                onClick={() => navigate(item.path)}
+                style={{
+                  width: 36, height: 36, borderRadius: 9, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                  background: isActive ? RAIL.iconActiveBg : 'transparent',
+                  color: isActive ? RAIL.iconActive : RAIL.iconDefault,
+                  boxShadow: isActive ? '0 2px 8px rgba(13,148,136,0.35)' : 'none',
+                  position: 'relative',
+                  transition: 'background 0.12s, color 0.12s',
+                }}
+              >
+                {item.icon}
+                {/* Active right-edge indicator */}
+                {isActive && (
+                  <div style={{
+                    position: 'absolute', right: -1, top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: 3, height: 20,
+                    background: '#0d9488',
+                    borderRadius: '2px 0 0 2px',
+                  }} />
+                )}
+              </div>
+            )
+          })}
+
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
+
+          {/* User avatar shortcut */}
+          <div
+            title={fullName || 'User'}
+            style={{
+              width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+              background: 'linear-gradient(135deg, #14b8a6, #0d9488)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 10, fontWeight: 700, color: '#fff',
+              cursor: 'pointer',
+            }}
+          >
+            {initials}
           </div>
         </div>
 
-        {/* Nav */}
-        <nav style={{ flex: 1, paddingBottom: 8 }}>
-          <SectionHead label="Overview" first />
-          {topItems.map(n => (
-            <NavLink key={n.path} to={n.path} style={({ isActive }) => navLinkStyle(isActive)}>
-              <span style={{ flexShrink: 0, opacity: 0.8 }}>{n.icon}</span>
-              {n.label}
-            </NavLink>
-          ))}
-
-          <SectionHead label="Master Data" />
-          {masterDataItems.map(n => (
-            <NavLink key={n.path} to={n.path} style={({ isActive }) => navLinkStyle(isActive)}>
-              <span style={{ flexShrink: 0, opacity: 0.75 }}>{n.icon}</span>
-              {n.label}
-            </NavLink>
-          ))}
-
-          <SectionHead label="Operations" />
-          {operationsItems.map(n => (
-            <NavLink key={n.path} to={n.path} style={({ isActive }) => navLinkStyle(isActive)}>
-              <span style={{ flexShrink: 0, opacity: 0.75 }}>{n.icon}</span>
-              {n.label}
-            </NavLink>
-          ))}
-
-          <SectionHead label="Inventory & Traceability" />
-          {inventoryItems.map(n => (
-            <NavLink key={n.path} to={n.path} style={({ isActive }) => navLinkStyle(isActive)}>
-              <span style={{ flexShrink: 0, opacity: 0.75 }}>{n.icon}</span>
-              {n.label}
-            </NavLink>
-          ))}
-        </nav>
-
-        {/* User footer */}
+        {/* ── Text Panel (right ~182 px) ─────────────────────── */}
         <div style={{
-          borderTop: `1px solid ${SB.border}`,
-          padding: '12px 16px',
-          display: 'flex', alignItems: 'center', gap: 9,
-          background: SB.bgAlt,
+          flex: 1,
+          background: TEXT.bg,
+          display: 'flex', flexDirection: 'column',
+          overflowY: 'auto',
         }}>
+          <nav style={{ flex: 1, paddingBottom: 8 }}>
+
+            <SectionHead label="Overview" first />
+            {topItems.map(n => (
+              <NavLink key={n.path} to={n.path} style={({ isActive }) => navLinkStyle(isActive)}>
+                <span style={{ flexShrink: 0, color: 'inherit', opacity: 0.75 }}>{n.icon}</span>
+                {n.label}
+              </NavLink>
+            ))}
+
+            <SubDivider />
+            <SectionHead label="Master Data" />
+            {masterDataItems.map(n => (
+              <NavLink key={n.path} to={n.path} style={({ isActive }) => navLinkStyle(isActive)}>
+                <span style={{ flexShrink: 0, color: 'inherit', opacity: 0.75 }}>{n.icon}</span>
+                {n.label}
+              </NavLink>
+            ))}
+
+            <SubDivider />
+            <SectionHead label="Operations" />
+            {operationsItems.map(n => (
+              <NavLink key={n.path} to={n.path} style={({ isActive }) => navLinkStyle(isActive)}>
+                <span style={{ flexShrink: 0, color: 'inherit', opacity: 0.75 }}>{n.icon}</span>
+                {n.label}
+              </NavLink>
+            ))}
+
+            <SubDivider />
+            <SectionHead label="Inventory & Traceability" />
+            {inventoryItems.map(n => (
+              <NavLink key={n.path} to={n.path} style={({ isActive }) => navLinkStyle(isActive)}>
+                <span style={{ flexShrink: 0, color: 'inherit', opacity: 0.75 }}>{n.icon}</span>
+                {n.label}
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* User footer */}
           <div style={{
-            width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-            background: 'linear-gradient(135deg, #2ea89c, #0d6e6e)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 11, fontWeight: 700, color: '#fff',
+            borderTop: `1px solid ${TEXT.divider}`,
+            padding: '11px 12px',
+            display: 'flex', alignItems: 'center', gap: 8,
+            flexShrink: 0,
           }}>
-            {initials}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: '#c8e6e4', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {fullName || 'User'}
+            <div style={{
+              width: 26, height: 26, borderRadius: 6, flexShrink: 0,
+              background: 'linear-gradient(135deg, #14b8a6, #0d9488)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 10, fontWeight: 700, color: '#fff',
+            }}>
+              {initials}
             </div>
-            <div style={{ fontSize: 10, color: SB.sectionLbl, marginTop: 1 }}>Authenticated</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {fullName || 'User'}
+              </div>
+              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>Administrator</div>
+            </div>
+            <button onClick={handleLogout} title="Sign out" style={{
+              background: 'none', border: `1px solid ${TEXT.divider}`,
+              borderRadius: 5, padding: '3px 7px', cursor: 'pointer',
+              color: '#94a3b8', fontSize: 10.5, fontWeight: 600,
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              transition: 'border-color 0.1s',
+            }}>
+              Out
+            </button>
           </div>
-          <button onClick={handleLogout} title="Sign out" style={{
-            background: 'rgba(255,255,255,0.05)', border: `1px solid ${SB.border}`,
-            borderRadius: 5, padding: '4px 8px', cursor: 'pointer',
-            color: SB.text, fontSize: 11, fontWeight: 500,
-            fontFamily: 'Inter, sans-serif', transition: 'background 0.1s',
-          }}>
-            Sign out
-          </button>
         </div>
       </aside>
 
