@@ -32,7 +32,8 @@ public class FormTemplatesController : ControllerBase
             TriggerType = f.TriggerType.ToString(), Status = f.Status.ToString(),
             f.Version, f.EvidenceMandatory, f.RegulatoryTier, f.ApprovedBy, f.ApprovedAt,
             f.SampleTypeId, SampleTypeName = f.SampleTypeNav != null ? f.SampleTypeNav.TypeName : null,
-            LocationCount = f.Locations.Count, ParameterCount = f.TemplateParameters.Count
+            LocationCount = f.Locations.Count, ParameterCount = f.TemplateParameters.Count,
+            f.FieldDefinitionsJson
         }).ToListAsync();
         return Ok(results);
     }
@@ -91,6 +92,18 @@ public class FormTemplatesController : ControllerBase
         return Ok(new { formTemplateId = result.Value, status = "Active" });
     }
 
+    // PUT api/v1/form-templates/{id}/fields  — save custom field designer layout as JSON
+    [HttpPut("{id}/fields")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> SaveFields(int id, [FromBody] SaveFieldsRequest request)
+    {
+        var template = await _db.FormTemplates.FindAsync(id);
+        if (template == null) return NotFound();
+        template.FieldDefinitionsJson = request.FieldDefinitionsJson;
+        await _db.SaveChangesAsync();
+        return Ok(new { formTemplateId = id, fieldCount = string.IsNullOrEmpty(request.FieldDefinitionsJson) ? 0 : System.Text.Json.JsonDocument.Parse(request.FieldDefinitionsJson).RootElement.GetArrayLength() });
+    }
+
     // POST api/v1/form-templates/{id}/parameters
     [HttpPost("{id}/parameters")]
     [Authorize(Roles = "Admin,QA")]
@@ -134,5 +147,6 @@ public class FormTemplatesController : ControllerBase
 
 public record CreateFormTemplateRequest(string FormCode, string FormName, int LabId, string FormType, string TriggerType, string? TimeSlots, int? ShiftIntervalHrs, string? RegulatoryTier, bool EvidenceMandatory, int? SampleTypeId);
 public record UpdateFormTemplateRequest(string FormName, string TriggerType, bool EvidenceMandatory, string? RegulatoryTier, int? SampleTypeId);
+public record SaveFieldsRequest(string? FieldDefinitionsJson);
 public record AddTemplateParameterRequest(int ParameterId, int DisplayOrder, string? ColumnFrequency);
 public record AddTemplateLocationRequest(string LocationName, int ColumnOrder, int? SpecLimitId);

@@ -167,7 +167,8 @@ INS-ONLY    — INSERT only, no UPDATE/DELETE
    │
    ├──► (1.6 Create Form Template) ────────────────────► {FORM_TEMPLATE}
    │         ├── Locations ─────────────────────────────► {FORM_TEMPLATE_LOCATION}
-   │         └── Parameters ──────────────────────────► {FORM_TEMPLATE_PARAMETER}
+   │         ├── Parameters ──────────────────────────► {FORM_TEMPLATE_PARAMETER}
+   │         └── Field Designer (PUT /form-templates/{id}/fields) → field_definitions_json (8 field types + Parameter links)
    │
    ├──► (1.7 Approve Method / Spec / Form — §11.50)
    │         │  ⊗ Password re-entry → BCrypt.Verify (§11.300)

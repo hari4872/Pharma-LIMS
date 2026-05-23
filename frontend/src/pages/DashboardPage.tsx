@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import type { RootState } from '@/store'
@@ -103,7 +103,7 @@ function KpiCard({ label, value, sub, accent, badge, icon }: {
         </div>
       )}
       <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#5f6368', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</p>
-      <p style={{ margin: '6px 0 0', fontSize: 26, fontWeight: 700, color: '#202124', lineHeight: 1, letterSpacing: '-0.01em' }}>{value}</p>
+      <p style={{ margin: '6px 0 0', fontSize: 26, fontWeight: 700, color: '#111111', lineHeight: 1, letterSpacing: '-0.01em' }}>{value}</p>
       {sub && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#80868b' }}>{sub}</p>}
       {badge && (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 8, fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 20, ...badgeStyles[badge.type] }}>
@@ -154,7 +154,7 @@ function SectionHead({ title, tag }: { title: string; tag?: string }) {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 3, height: 18, background: T.primary, borderRadius: 4 }} />
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#202124', letterSpacing: '-0.02em' }}>{title}</h3>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#111111', letterSpacing: '-0.02em' }}>{title}</h3>
       </div>
       {tag && <span style={{ fontSize: 11, color: '#80868b', background: '#f8f9fa', border: '1px solid #e0e0e0', padding: '2px 10px', borderRadius: 20, fontWeight: 500 }}>{tag}</span>}
     </div>
@@ -162,8 +162,8 @@ function SectionHead({ title, tag }: { title: string; tag?: string }) {
 }
 
 // ── Table styles ──────────────────────────────────────────────────────────
-const th: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#202124', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e0e0e0', background: '#f8f9fa' }
-const td: React.CSSProperties = { padding: '11px 14px', color: '#202124', borderBottom: '1px solid #f1f3f4', fontSize: 14 }
+const th: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#111111', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e0e0e0', background: '#f8f9fa' }
+const td: React.CSSProperties = { padding: '11px 14px', color: '#111111', borderBottom: '1px solid #f1f3f4', fontSize: 14 }
 
 const instColour = (s: string) => {
   if (s === 'Available')        return { bg: '#dcfce7', color: '#15803d' }
@@ -267,7 +267,7 @@ export default function DashboardPage() {
         boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
         overflow: 'hidden',
       }}>
-        <StatItem value={wip?.inTesting ?? 0}        label="In Testing"         valueColor="#202124"
+        <StatItem value={wip?.inTesting ?? 0}        label="In Testing"         valueColor="#111111"
           iconBg="#eff6ff" iconColor="#2563eb" iconPath={ICONS.flask} />
         <StatItem value={wip?.testsCompleted ?? 0}   label="Tests Completed"    valueColor="#16a34a"
           iconBg="#f0fdf4" iconColor="#16a34a" iconPath={ICONS.check} />
@@ -275,9 +275,9 @@ export default function DashboardPage() {
           iconBg={(kpis?.oosRate ?? 0) > 0 ? '#fef2f2' : '#f0fdf4'} iconColor={(kpis?.oosRate ?? 0) > 0 ? '#dc2626' : '#16a34a'} iconPath={ICONS.percent} />
         <StatItem value={`${kpis?.ootRate ?? 0}%`}   label="OOT Rate"           valueColor={(kpis?.ootRate ?? 0) > 0 ? '#d97706' : '#16a34a'}
           iconBg={(kpis?.ootRate ?? 0) > 0 ? '#fffbeb' : '#f0fdf4'} iconColor={(kpis?.ootRate ?? 0) > 0 ? '#d97706' : '#16a34a'} iconPath={ICONS.alert} />
-        <StatItem value={board.length}               label="Active Instruments"  valueColor="#202124"
+        <StatItem value={board.length}               label="Active Instruments"  valueColor="#111111"
           iconBg="#f8fafc" iconColor="#64748b" iconPath={ICONS.instrument} />
-        <StatItem value={kpis?.openCapas ?? 0}       label="Open CAPAs"          valueColor={(kpis?.openCapas ?? 0) > 0 ? '#dc2626' : '#202124'}
+        <StatItem value={kpis?.openCapas ?? 0}       label="Open CAPAs"          valueColor={(kpis?.openCapas ?? 0) > 0 ? '#dc2626' : '#111111'}
           iconBg={(kpis?.openCapas ?? 0) > 0 ? '#fef2f2' : '#fafafa'} iconColor={(kpis?.openCapas ?? 0) > 0 ? '#dc2626' : '#94a3b8'} iconPath={ICONS.capa} />
         <StatItem value={comp?.totalSignatures ?? 0} label="E-Signatures"        valueColor={T.primary}
           iconBg={T.light} iconColor={T.primary} iconPath={ICONS.signature} last />
@@ -324,7 +324,7 @@ export default function DashboardPage() {
 
           {(wip?.analystWorkloads?.length ?? 0) > 0 && (
             <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, overflow: 'hidden', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', fontSize: 13, fontWeight: 700, color: '#202124', display: 'flex', alignItems: 'center', gap: 7 }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', fontSize: 13, fontWeight: 700, color: '#111111', display: 'flex', alignItems: 'center', gap: 7 }}>
                 <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d={ICONS.users} stroke={T.primary} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 Analyst Workload
               </div>
@@ -360,7 +360,7 @@ export default function DashboardPage() {
 
           {(tat?.byAnalyst?.length ?? 0) > 0 && (
             <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', fontSize: 13, fontWeight: 700, color: '#202124', display: 'flex', alignItems: 'center', gap: 7 }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', fontSize: 13, fontWeight: 700, color: '#111111', display: 'flex', alignItems: 'center', gap: 7 }}>
                 <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d={ICONS.users} stroke={T.primary} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 Analyst TAT Breakdown
               </div>
@@ -461,7 +461,7 @@ export default function DashboardPage() {
               <div style={{ width: 30, height: 30, borderRadius: 8, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M4 6h16M4 10h16M4 14h10" stroke="#2563eb" strokeWidth="1.8" strokeLinecap="round"/></svg>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#202124' }}>Work Queue</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#111111' }}>Work Queue</span>
             </div>
             <button onClick={() => navigate('/work-queue')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: T.primary, fontWeight: 700, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 3 }}>
               View All
@@ -476,7 +476,7 @@ export default function DashboardPage() {
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: i < recentTasks.length - 1 ? '1px solid #f8f9fa' : 'none' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#202124', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.sampleNumber}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.sampleNumber}</div>
                     <div style={{ fontSize: 11.5, color: '#80868b', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.materialName}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -496,7 +496,7 @@ export default function DashboardPage() {
               <div style={{ width: 30, height: 30, borderRadius: 8, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="#16a34a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#202124' }}>Recent Samples</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#111111' }}>Recent Samples</span>
             </div>
             <button onClick={() => navigate('/samples')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: T.primary, fontWeight: 700, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 3 }}>
               View All
@@ -511,7 +511,7 @@ export default function DashboardPage() {
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderBottom: i < recentSamples.length - 1 ? '1px solid #f8f9fa' : 'none' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#202124', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.sampleNumber}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.sampleNumber}</div>
                     <div style={{ fontSize: 11.5, color: '#80868b', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.materialName}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -533,7 +533,7 @@ export default function DashboardPage() {
           display: 'flex', flexDirection: 'column', gap: 14,
         }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#202124', letterSpacing: '-0.01em' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#111111', letterSpacing: '-0.01em' }}>
               {(() => { const h = new Date().getHours(); return h < 12 ? '🌅' : h < 17 ? '☀️' : '🌙' })()}
               {' '}{fullName ? `Welcome back, ${firstName}!` : 'Welcome back!'}
             </div>
@@ -549,7 +549,7 @@ export default function DashboardPage() {
               { label: 'Overdue',          value: wip?.overdue ?? 0,         color: wip && wip.overdue > 0 ? '#dc2626' : '#80868b', icon: '⏰' },
             ].map(row => (
               <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.7)', borderRadius: 8, padding: '7px 12px', backdropFilter: 'blur(4px)' }}>
-                <span style={{ fontSize: 12.5, color: '#202124', fontWeight: 500 }}>{row.icon} {row.label}</span>
+                <span style={{ fontSize: 12.5, color: '#111111', fontWeight: 500 }}>{row.icon} {row.label}</span>
                 <span style={{ fontSize: 16, fontWeight: 800, color: row.color }}>{row.value}</span>
               </div>
             ))}

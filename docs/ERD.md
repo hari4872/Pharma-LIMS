@@ -242,6 +242,7 @@ NN  trigger_type     VARCHAR     (TimeBased|OperatorScan|ProcessLog|DispatchEven
     shift_interval_hrs INT
     regulatory_tier  VARCHAR
     evidence_mandatory BOOLEAN   DEFAULT false
+    field_definitions_json TEXT        (nullable — JSON array of custom field definitions)
 NN  status           VARCHAR     (Draft|Active|Retired)
 NN  version          VARCHAR
     approved_by      VARCHAR

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { toast } from '@/components/Toast'
@@ -89,7 +89,7 @@ export default function LaboratoriesPage() {
         ) },
         { header: 'Edit', accessor: r => (
           <button onClick={() => openEdit(r)}
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e0e0e0', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#202124', fontFamily:'inherit' }}>
+            style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e0e0e0', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#111111', fontFamily:'inherit' }}>
             <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             Edit
           </button>
@@ -162,7 +162,7 @@ export default function LaboratoriesPage() {
 export function PageHeader({ title, onAdd, addLabel }: { title: string; onAdd?: () => void; addLabel?: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-      <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#202124', letterSpacing: '-0.02em' }}>{title}</h2>
+      <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#111111', letterSpacing: '-0.02em' }}>{title}</h2>
       {onAdd && <button onClick={onAdd} style={{ padding: '8px 18px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>+ {addLabel ?? 'Add'}</button>}
     </div>
   )
@@ -177,7 +177,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
       <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 480, maxHeight: '80vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h3 style={{ margin: 0, fontSize: 17, color: '#202124' }}>{title}</h3>
+          <h3 style={{ margin: 0, fontSize: 17, color: '#111111' }}>{title}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#5f6368' }}>×</button>
         </div>
         {children}
@@ -187,13 +187,13 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
 }
 
 export function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
-  return <div style={{ marginBottom: 16 }}><label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#202124', marginBottom: 4 }}>{label}</label>{children}</div>
+  return <div style={{ marginBottom: 16 }}><label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#111111', marginBottom: 4 }}>{label}</label>{children}</div>
 }
 
 export function ModalFooter({ saving, onCancel, label }: { saving: boolean; onCancel: () => void; label?: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-      <button type="button" onClick={onCancel} style={{ padding: '8px 16px', border: '1px solid #dadce0', borderRadius: 4, cursor: 'pointer', background: '#fff', color: '#202124' }}>Cancel</button>
+      <button type="button" onClick={onCancel} style={{ padding: '8px 16px', border: '1px solid #dadce0', borderRadius: 4, cursor: 'pointer', background: '#fff', color: '#111111' }}>Cancel</button>
       <button type="submit" disabled={saving} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
         {saving ? 'Saving…' : (label ?? 'Save')}
       </button>
@@ -201,4 +201,4 @@ export function ModalFooter({ saving, onCancel, label }: { saving: boolean; onCa
   )
 }
 
-export const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', border: '1px solid #dadce0', borderRadius: 4, fontSize: 14, boxSizing: 'border-box', color: '#202124' }
+export const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', border: '1px solid #dadce0', borderRadius: 4, fontSize: 14, boxSizing: 'border-box', color: '#111111' }

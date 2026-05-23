@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import { Field, Modal, ModalFooter, inp } from './master-data/LaboratoriesPage'
 
@@ -96,12 +96,12 @@ export default function CompliancePanelPage() {
 
   return (
     <div>
-      <h2 style={{ margin: '0 0 20px', fontSize: 26, fontWeight: 800, color: '#202124', letterSpacing: '-0.02em' }}>Compliance &amp; Governance</h2>
+      <h2 style={{ margin: '0 0 20px', fontSize: 26, fontWeight: 800, color: '#111111', letterSpacing: '-0.02em' }}>Compliance &amp; Governance</h2>
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid #e0e0e0', paddingBottom: 0 }}>
         {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{ padding: '9px 18px', border: 'none', borderBottom: tab === t.key ? '2px solid #2563eb' : '2px solid transparent', marginBottom: -2, cursor: 'pointer', fontWeight: tab === t.key ? 700 : 500, fontSize: 14, background: 'none', color: tab === t.key ? '#2563eb' : '#202124', fontFamily: 'inherit' }}>
+          <button key={t.key} onClick={() => setTab(t.key)} style={{ padding: '9px 18px', border: 'none', borderBottom: tab === t.key ? '2px solid #2563eb' : '2px solid transparent', marginBottom: -2, cursor: 'pointer', fontWeight: tab === t.key ? 700 : 500, fontSize: 14, background: 'none', color: tab === t.key ? '#2563eb' : '#111111', fontFamily: 'inherit' }}>
             {t.label}
           </button>
         ))}
@@ -141,7 +141,7 @@ export default function CompliancePanelPage() {
           {audit && audit.totalCount > 50 && (
             <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
               <button disabled={auditPage <= 1} onClick={() => { setAuditPage(p => p - 1); loadAudit(auditPage - 1) }} style={pagBtn}>← Prev</button>
-              <span style={{ fontSize: 13, color: '#202124', alignSelf: 'center' }}>Page {auditPage}</span>
+              <span style={{ fontSize: 13, color: '#111111', alignSelf: 'center' }}>Page {auditPage}</span>
               <button disabled={auditPage * 50 >= audit.totalCount} onClick={() => { setAuditPage(p => p + 1); loadAudit(auditPage + 1) }} style={pagBtn}>Next →</button>
             </div>
           )}
@@ -176,7 +176,7 @@ export default function CompliancePanelPage() {
           {sigs && sigs.totalCount > 50 && (
             <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
               <button disabled={sigPage <= 1} onClick={() => { setSigPage(p => p - 1); loadSigs(sigPage - 1) }} style={pagBtn}>← Prev</button>
-              <span style={{ fontSize: 13, color: '#202124', alignSelf: 'center' }}>Page {sigPage}</span>
+              <span style={{ fontSize: 13, color: '#111111', alignSelf: 'center' }}>Page {sigPage}</span>
               <button disabled={sigPage * 50 >= sigs.totalCount} onClick={() => { setSigPage(p => p + 1); loadSigs(sigPage + 1) }} style={pagBtn}>Next →</button>
             </div>
           )}
@@ -277,6 +277,6 @@ export default function CompliancePanelPage() {
   )
 }
 
-const th: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontWeight: 700, fontSize: 13, color: '#202124', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '2px solid #e0e0e0', background: '#f8f9fa' }
-const td: React.CSSProperties = { padding: '12px 14px', color: '#202124', fontSize: 14 }
-const pagBtn: React.CSSProperties = { padding: '6px 14px', border: '1px solid #dadce0', borderRadius: 6, cursor: 'pointer', background: '#fff', fontSize: 13, color: '#202124' }
+const th: React.CSSProperties = { padding: '10px 14px', textAlign: 'left', fontWeight: 700, fontSize: 13, color: '#111111', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '2px solid #e0e0e0', background: '#f8f9fa' }
+const td: React.CSSProperties = { padding: '12px 14px', color: '#111111', fontSize: 14 }
+const pagBtn: React.CSSProperties = { padding: '6px 14px', border: '1px solid #dadce0', borderRadius: 6, cursor: 'pointer', background: '#fff', fontSize: 13, color: '#111111' }

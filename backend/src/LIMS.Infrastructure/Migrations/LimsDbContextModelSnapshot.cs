@@ -795,6 +795,9 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<bool>("EvidenceMandatory")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("FieldDefinitionsJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("FormCode")
                         .IsRequired()
                         .HasMaxLength(50)

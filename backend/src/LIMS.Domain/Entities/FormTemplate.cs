@@ -15,6 +15,7 @@ public class FormTemplate
     public int? SampleTypeId { get; set; }                 // FK — which SampleType to create when this template fires (no hardcoding)
     public SampleType? SampleTypeNav { get; set; }
     public string? TimeSlots { get; set; }                 // JSONB from DB config (Contract 2)
+    public string? FieldDefinitionsJson { get; set; }      // JSON array of custom field definitions designed by user
     public int? ShiftIntervalHrs { get; set; }
     public string? RegulatoryTier { get; set; }
     public bool EvidenceMandatory { get; set; } = false;

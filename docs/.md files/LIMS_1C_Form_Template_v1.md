@@ -1,6 +1,7 @@
 ﻿# PHARMA LIMS — Form Template (Phase 1c)
-### Technical Design Document · v1.0 · CONFIDENTIAL
+### Technical Design Document · v1.1 · CONFIDENTIAL
 > **v1.0 — New Module:** Digital form layout engine · 4 trigger types · Grouped locations · 8-step approval lifecycle · `FormTemplateRenderService`
+> **v1.1 Changes:** Field Designer — custom field layout (`field_definitions_json`) · 8 field types + Parameter linking · `PUT /api/v1/form-templates/{id}/fields`
 
 ---
 
@@ -10,7 +11,7 @@
 |---|---|
 | Module | Form Template (Phase 1c — New) |
 | Depends On | Master Data v1.2, Parameters v1.1, Checkpoints v1.1 |
-| Version | v1.0 |
+| Version | v1.1 |
 | Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
@@ -68,6 +69,7 @@ A **Form Template** is the digital equivalent of a paper lab form. It defines: w
 | Locations (Columns) | One row per location in `form_template_locations`. Each holds `spec_limit_id` FK — no spec values copied. |
 | Regulatory Spec Tier | In-house and regulatory spec shown side-by-side on form and CoA. |
 | Evidence Mandatory Flag | `evidence_mandatory`: overrides parameter default — requires evidence on all parameters for this form. |
+| Field Designer | User-designed custom field layout stored as `field_definitions_json` JSON array. Supports Text, Number, Decimal, Dropdown, Date, DateTime, Checkbox, Textarea, and Parameter field types. |
 
 ---
 
@@ -105,6 +107,7 @@ A **Form Template** is the digital equivalent of a paper lab form. It defines: w
 | FR-10 | All actions audit-logged INSERT-only | System | Must Have | 21 CFR §11.10(e) |
 | FR-11 | SignalR push on approval status change (Contract 2 — no polling) | System | Must Have | Contract 2 |
 | FR-12 | Form Template auto-selected for new sample by `IFormTemplateSelectorService` (Contract 1) — no UI dropdown | System | Must Have | Contract 1 |
+| FR-13 | Field Designer: Admin/QA can design a custom field layout for any template. Supports 8 field types + linked Parameters. Layout stored as `field_definitions_json` JSON in the template record. | Admin/QA | Must Have | Contract 1 |
 
 ---
 
@@ -122,6 +125,7 @@ CREATE TABLE form_templates (
   shift_interval_hrs INT,
   regulatory_tier    VARCHAR(100),
   evidence_mandatory BOOLEAN NOT NULL DEFAULT FALSE,
+  field_definitions_json TEXT,           -- JSON array of custom field definitions (nullable)
   status             VARCHAR(20)  NOT NULL DEFAULT 'Draft',
   version            VARCHAR(10)  NOT NULL DEFAULT '1.0',
   signature_id       INT REFERENCES electronic_signatures(signature_id),
@@ -159,6 +163,23 @@ CREATE TABLE form_template_parameters (
 | Form Template | Draft | Active | QA §11.50 e-sig approval | 21 CFR §11.50 |
 | Form Template | Active | Draft v+1 | Edit — version incremented; original archived | GMP / ICH Q10 |
 | Form Template | Active | Retired | Admin retires with reason; `is_active = FALSE` | ALCOA+ Enduring |
+
+---
+
+## 8. Field Designer
+
+The Field Designer allows Admin/QA users to define a custom field layout for any Form Template directly from the UI.
+
+| Capability | Detail |
+|---|---|
+| Access | "Design Fields" button on every Form Template row |
+| Field Types | Text, Number, Decimal, Dropdown, Date, DateTime, Checkbox, Textarea, Parameter |
+| Parameter Linking | Parameters from the master data Parameters list can be added directly — linked by `parameter_id` FK |
+| Field Properties | Label, Unit (numeric/parameter), Options (dropdown, comma-separated), Required/Optional toggle |
+| Reordering | Up/Down reorder controls on each field row |
+| Storage | `field_definitions_json` TEXT column on `form_templates` — JSON array of `FieldDef` objects |
+| API | `PUT /api/v1/form-templates/{id}/fields` — saves JSON layout; returns field count |
+| Compliance | Layout changes are soft — editing a template resets status to Draft (existing v+1 rule applies) |
 
 ---
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+﻿import { useState, useMemo, useRef, useEffect } from 'react'
 import { exportCsv } from '@/utils/exportCsv'
 
 interface Column<T> {
@@ -38,7 +38,7 @@ function EmptySearch({ query }: { query: string }) {
         <path d="M30 26L46 42M46 26L30 42" stroke="#cbd5e1" strokeWidth="2.2" strokeLinecap="round"/>
       </svg>
       <div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#202124', textAlign: 'center' }}>No results found</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#111111', textAlign: 'center' }}>No results found</div>
         <div style={{ fontSize: 13, color: '#80868b', textAlign: 'center', marginTop: 4 }}>
           No records match <strong style={{ color: '#5f6368' }}>"{query}"</strong> — try a different search term
         </div>
@@ -61,7 +61,7 @@ function EmptyData() {
         <path d="M24 56h20" stroke="#e9ecef" strokeWidth="2" strokeLinecap="round" strokeDasharray="5 4"/>
       </svg>
       <div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#202124', textAlign: 'center' }}>No records yet</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#111111', textAlign: 'center' }}>No records yet</div>
         <div style={{ fontSize: 13, color: '#80868b', textAlign: 'center', marginTop: 4 }}>
           Add your first record using the <strong style={{ color: '#5f6368' }}>+ Add</strong> button above
         </div>
@@ -229,7 +229,7 @@ export default function DataTable<T extends object>({
               <input
                 value={search} onChange={e => handleSearch(e.target.value)}
                 placeholder="Search records…"
-                style={{ width: '100%', paddingLeft: 32, paddingRight: 10, height: 36, border: '1px solid #dadce0', borderRadius: 8, fontSize: 13, color: '#202124', outline: 'none', fontFamily: 'inherit', background: '#fff', boxSizing: 'border-box' }}
+                style={{ width: '100%', paddingLeft: 32, paddingRight: 10, height: 36, border: '1px solid #dadce0', borderRadius: 8, fontSize: 13, color: '#111111', outline: 'none', fontFamily: 'inherit', background: '#fff', boxSizing: 'border-box' }}
               />
             </div>
           )}
@@ -264,7 +264,7 @@ export default function DataTable<T extends object>({
                   border: '1px solid #e0e0e0', borderRadius: 7,
                   background: colPickerOpen ? '#f0fdfa' : '#fff',
                   cursor: 'pointer', fontSize: 12.5, fontWeight: 500,
-                  color: colPickerOpen ? '#0d6e6e' : '#202124',
+                  color: colPickerOpen ? '#0d6e6e' : '#111111',
                   fontFamily: 'inherit',
                 }}>
                 <svg viewBox="0 0 24 24" fill="none" width="13" height="13">
@@ -290,7 +290,7 @@ export default function DataTable<T extends object>({
                   </div>
                   {columns.map(col => (
                     <label key={col.header}
-                      style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px', cursor: 'pointer', fontSize: 13, color: '#202124', userSelect: 'none' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 14px', cursor: 'pointer', fontSize: 13, color: '#111111', userSelect: 'none' }}
                       onMouseEnter={e => (e.currentTarget.style.background = '#f8f9fa')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                       <input type="checkbox"
@@ -321,7 +321,7 @@ export default function DataTable<T extends object>({
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '0 14px', height: 30,
                 border: '1px solid #e0e0e0', borderRadius: 8,
-                background: '#fff', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: '#202124',
+                background: '#fff', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: '#111111',
                 fontFamily: 'inherit', whiteSpace: 'nowrap',
               }}>
                 <svg viewBox="0 0 24 24" fill="none" width="13" height="13">
@@ -388,7 +388,7 @@ export default function DataTable<T extends object>({
                     style={{
                       ...thBase, padding: d.head,
                       width: col.width, cursor: isSortable ? 'pointer' : 'default', userSelect: 'none',
-                      color: isActive ? '#0d6e6e' : '#202124',
+                      color: isActive ? '#0d6e6e' : '#111111',
                       background: isActive ? '#f0fdfa' : '#f8f9fa',
                       position: 'sticky', top: 0, zIndex: 1,
                     }}>
@@ -456,7 +456,7 @@ export default function DataTable<T extends object>({
                       style={{ accentColor: '#0d9488', width: 14, height: 14, cursor: 'pointer' }} />
                   </td>
                   {visCols.map(col => (
-                    <td key={col.header} style={{ padding: d.cell, color: '#202124', fontSize: d.fs, verticalAlign: 'middle' }}>
+                    <td key={col.header} style={{ padding: d.cell, color: '#111111', fontSize: d.fs, verticalAlign: 'middle' }}>
                       {typeof col.accessor === 'function'
                         ? col.accessor(row)
                         : String((row as any)[col.accessor] ?? '')}
@@ -475,7 +475,7 @@ export default function DataTable<T extends object>({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, color: '#80868b' }}>Rows per page:</span>
             <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setPage(0) }}
-              style={{ fontSize: 12, border: '1px solid #e0e0e0', borderRadius: 6, padding: '3px 8px', color: '#202124', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ fontSize: 12, border: '1px solid #e0e0e0', borderRadius: 6, padding: '3px 8px', color: '#111111', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
               {PAGE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -485,7 +485,7 @@ export default function DataTable<T extends object>({
             </span>
             <button onClick={() => setPage(0)}              disabled={safePage === 0}              style={pgBtn(safePage === 0)}              title="First">«</button>
             <button onClick={() => setPage(p => p - 1)}    disabled={safePage === 0}              style={pgBtn(safePage === 0)}              title="Previous">‹</button>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#202124', padding: '0 6px' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#111111', padding: '0 6px' }}>
               {safePage + 1} / {totalPages}
             </span>
             <button onClick={() => setPage(p => p + 1)}    disabled={safePage >= totalPages - 1} style={pgBtn(safePage >= totalPages - 1)} title="Next">›</button>
@@ -504,13 +504,13 @@ export default function DataTable<T extends object>({
 // ── Static styles ─────────────────────────────────────────────────────────
 const pgBtn = (disabled: boolean): React.CSSProperties => ({
   width: 28, height: 28, border: '1px solid #e0e0e0', borderRadius: 6, background: '#fff',
-  cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 14, color: disabled ? '#d1d5db' : '#202124',
+  cursor: disabled ? 'not-allowed' : 'pointer', fontSize: 14, color: disabled ? '#d1d5db' : '#111111',
   display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit',
   opacity: disabled ? 0.5 : 1,
 })
 
 const thBase: React.CSSProperties = {
   textAlign: 'left', fontWeight: 700,
-  color: '#202124', fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap',
+  color: '#111111', fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap',
   transition: 'background 0.1s, color 0.1s',
 }

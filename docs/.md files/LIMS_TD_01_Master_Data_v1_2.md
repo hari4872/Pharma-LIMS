@@ -1,6 +1,7 @@
 ﻿# PHARMA LIMS — Master Data (Phase 1)
-### Technical Design Document · v1.2 · CONFIDENTIAL
+### Technical Design Document · v1.3 · CONFIDENTIAL
 > **v1.2 Changes:** Form Template entity · Dependency Tier model · Sample Type fields · Configurable Sample ID format
+> **v1.3 Changes:** Field Designer for Form Templates
 
 ---
 
@@ -15,7 +16,7 @@
 | Database | PostgreSQL 16 (Neon — DB-portable via connection string only) |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ICH Q10 · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced in every section |
-| Version | v1.2 |
+| Version | v1.3 |
 | Status | Implemented · Live · May 2026 |
 | Classification | CONFIDENTIAL |
 
@@ -267,6 +268,7 @@ CREATE TABLE form_templates (
   shift_interval_hrs INT,
   regulatory_tier   VARCHAR(100),
   evidence_mandatory BOOLEAN NOT NULL DEFAULT FALSE,
+  field_definitions_json TEXT,           -- JSON array of custom field definitions (nullable)
   status            VARCHAR(20)  NOT NULL DEFAULT 'Draft',
   version           VARCHAR(10)  NOT NULL DEFAULT '1.0',
   approved_by       VARCHAR(100),
@@ -419,3 +421,7 @@ LIMS.MasterData/src/
 | ALCOA+ Consistent | `parameter_id` FK throughout — zero duplication. |
 | ALCOA+ Enduring | `form_template_id` FK throughout — no form layout duplicated in any consuming module. |
 | Contract 2 | Sample ID format from `lab_config` table — not hardcoded. `ISampleIdFormatService` generates server-side. |
+
+---
+
+> **v1.3 Addition:** Form Templates now include a Field Designer (PUT /form-templates/{id}/fields). Admin/QA can define custom field layouts (8 field types + Parameters) stored as `field_definitions_json` JSON on the template record.
