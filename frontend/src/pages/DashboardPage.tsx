@@ -103,7 +103,7 @@ function KpiCard({ label, value, sub, accent, badge, icon }: {
         </div>
       )}
       <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</p>
-      <p style={{ margin: '8px 0 0', fontSize: 32, fontWeight: 800, color: '#0f172a', lineHeight: 1, letterSpacing: '-0.02em' }}>{value}</p>
+      <p style={{ margin: '6px 0 0', fontSize: 26, fontWeight: 700, color: '#0f172a', lineHeight: 1, letterSpacing: '-0.01em' }}>{value}</p>
       {sub && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#9ca3af' }}>{sub}</p>}
       {badge && (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 8, fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 20, ...badgeStyles[badge.type] }}>
