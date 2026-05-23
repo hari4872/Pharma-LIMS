@@ -131,7 +131,7 @@ export default function DataTable<T extends object>({
                   <th key={col.header} onClick={() => handleSort(col.header, col.accessor)}
                     title={isSortable ? `Sort by ${col.header}` : undefined}
                     style={{ ...thStyle, width: col.width, cursor: isSortable ? 'pointer' : 'default', userSelect: 'none',
-                      color: isActive ? '#0d6e6e' : '#374151', background: isActive ? '#f0fdfa' : '#f8fafc',
+                      color: isActive ? '#0d6e6e' : '#111827', background: isActive ? '#f0fdfa' : '#f8fafc',
                       position: 'sticky', top: 0, zIndex: 1,
                     }}
                   >
@@ -238,12 +238,12 @@ const pgBtn = (disabled: boolean): React.CSSProperties => ({
 
 const thStyle: React.CSSProperties = {
   padding: '10px 14px', textAlign: 'left', fontWeight: 700,
-  color: '#374151', fontSize: 12, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap',
+  color: '#111827', fontSize: 12, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap',
   transition: 'background 0.1s, color 0.1s',
 }
 
 const tdStyle: React.CSSProperties = {
-  padding: '10px 14px', color: '#374151', fontSize: 13, verticalAlign: 'middle',
+  padding: '10px 14px', color: '#111827', fontSize: 13, verticalAlign: 'middle',
 }
 
 const emptyCell: React.CSSProperties = {
