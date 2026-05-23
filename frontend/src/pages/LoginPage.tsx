@@ -94,29 +94,29 @@ export default function LoginPage() {
                 <circle cx="14" cy="14" r="1.2" fill="#0d6e6e" opacity="0.7"/>
               </svg>
             </div>
-            <h1 style={{ margin: 0, fontSize: 58, fontWeight: 900, color: '#0a2e2b', letterSpacing: '-0.04em', lineHeight: 1 }}>
+            <h1 style={{ margin: 0, fontSize: 44, fontWeight: 800, color: '#0a2e2b', letterSpacing: '-0.03em', lineHeight: 1 }}>
               LIMS
             </h1>
           </div>
 
-          <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#0d5c57', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+          <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: '#0d5c57', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Laboratory Information Management System
           </p>
-          <p style={{ margin: '0 0 28px', fontSize: 14.5, color: '#0d4a46', lineHeight: 1.7, maxWidth: 400, opacity: 0.85 }}>
-            A modern platform for regulated environments — rapid sample tracking,
-            instrument visibility, and dependable quality workflows.
+          <p style={{ margin: '0 0 20px', fontSize: 14, color: '#0d4a46', lineHeight: 1.65, maxWidth: 400, opacity: 0.85 }}>
+            End-to-end batch testing, electronic records, and quality release —
+            engineered for regulated environments and audit-ready operations.
           </p>
 
-          {/* Feature cards — text only, no icon boxes */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 440 }}>
+          {/* Feature cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 440 }}>
             {features.map((f, i) => (
               <div key={i} style={{
                 background: 'rgba(255,255,255,0.25)',
                 backdropFilter: 'blur(12px)',
                 border: '1px solid rgba(255,255,255,0.4)',
-                borderRadius: 12, padding: '12px 18px',
+                borderRadius: 10, padding: '10px 16px',
               }}>
-                <p style={{ margin: 0, fontSize: 13, color: '#0a3330', lineHeight: 1.55 }}>
+                <p style={{ margin: 0, fontSize: 12.5, color: '#0a3330', lineHeight: 1.5 }}>
                   {f.text}
                 </p>
               </div>
@@ -124,7 +124,7 @@ export default function LoginPage() {
           </div>
 
           {/* Compliance footer */}
-          <div style={{ marginTop: 20, fontSize: 11, color: 'rgba(10,46,43,0.5)', letterSpacing: '0.03em' }}>
+          <div style={{ marginTop: 16, fontSize: 10.5, color: 'rgba(10,46,43,0.5)', letterSpacing: '0.03em' }}>
             21 CFR Part 11 &nbsp;·&nbsp; EU GMP Annex 11 &nbsp;·&nbsp; ISO 17025 &nbsp;·&nbsp; ALCOA+ &nbsp;·&nbsp; GAMP 5
           </div>
         </div>
