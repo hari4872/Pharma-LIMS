@@ -47,6 +47,9 @@ import SpcPage from '@/pages/SpcPage'
 import BatchReleasePage from '@/pages/BatchReleasePage'
 // Sprint 9 — Reports
 import ReportsPage from '@/pages/ReportsPage'
+// Sprint 10 — Stability Study & Workflow Config
+import StabilityStudyPage from '@/pages/StabilityStudyPage'
+import WorkflowConfigPage from '@/pages/WorkflowConfigPage'
 // Settings — Master Data hub
 import SettingsPage from '@/pages/SettingsPage'
 
@@ -91,7 +94,9 @@ export default function App() {
         <Route path="quality-events"    element={<QualityEventsPage />} />
         <Route path="spc"               element={<SpcPage />} />
         <Route path="batch-release"     element={<BatchReleasePage />} />
-        <Route path="reports"           element={<ReportsPage />} />
+        <Route path="reports"             element={<ReportsPage />} />
+        <Route path="stability-study"   element={<StabilityStudyPage />} />
+        <Route path="workflow-config"   element={<WorkflowConfigPage />} />
         <Route path="settings"          element={<SettingsPage />} />
         <Route path="digital-logbook"   element={<DigitalLogbookPage />} />
         <Route path="results-review"    element={<ResultsReviewPage />} />

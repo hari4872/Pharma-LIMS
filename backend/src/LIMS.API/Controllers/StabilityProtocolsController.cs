@@ -4,6 +4,7 @@ using LIMS.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Threading;
 
 namespace LIMS.API.Controllers;
 
@@ -20,8 +21,10 @@ namespace LIMS.API.Controllers;
 public class StabilityProtocolsController : ControllerBase
 {
     private readonly ILimsDbContext _db;
+    private readonly IStabilityTrendService _trend;
 
-    public StabilityProtocolsController(ILimsDbContext db) => _db = db;
+    public StabilityProtocolsController(ILimsDbContext db, IStabilityTrendService trend)
+    { _db = db; _trend = trend; }
 
     // ── GET /stability-protocols ──────────────────────────────────────────────
     [HttpGet]
@@ -171,6 +174,22 @@ public class StabilityProtocolsController : ControllerBase
         _db.StabilityProtocols.Remove(p);
         await _db.SaveChangesAsync();
         return NoContent();
+    }
+
+    // GET api/v1/stability-protocols/{id}/trend?parameterId=
+    [HttpGet("{id}/trend")]
+    public async Task<IActionResult> GetTrend(int id, [FromQuery] int? parameterId, CancellationToken ct)
+    {
+        try { return Ok(await _trend.GetTrendDataAsync(id, parameterId, ct)); }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+    }
+
+    // GET api/v1/stability-protocols/{id}/ich-compliance
+    [HttpGet("{id}/ich-compliance")]
+    public async Task<IActionResult> GetIchCompliance(int id, CancellationToken ct)
+    {
+        try { return Ok(await _trend.GetIchComplianceAsync(id, ct)); }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
     }
 }
 

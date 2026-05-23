@@ -85,6 +85,9 @@ public class LimsDbContext : DbContext, ILimsDbContext
     // Sprint 7: Batch Release
     public DbSet<BatchRelease> BatchReleases => Set<BatchRelease>();
     public DbSet<BatchReleaseCheckItem> BatchReleaseCheckItems => Set<BatchReleaseCheckItem>();
+    // Sprint 10: Workflow Engine
+    public DbSet<WorkflowTemplate> WorkflowTemplates => Set<WorkflowTemplate>();
+    public DbSet<WorkflowStep> WorkflowSteps => Set<WorkflowStep>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

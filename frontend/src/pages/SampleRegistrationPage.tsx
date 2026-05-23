@@ -114,6 +114,45 @@ export default function SampleRegistrationPage() {
     password: '', meaning: 'I confirm this Sample Registration Form', reason: ''
   })
 
+  // ── Post-registration spec assignment ──────────────────────────────────────
+  interface SpecAssignData {
+    sampleId: number; sampleNumber: string
+    specTemplateId: number | null; specTemplateName: string | null
+    specAssignedBy: string | null; specAssignedAt: string | null
+    testsCreated: number; matchOutcome: string
+    candidates: SpecCandidate[]
+  }
+  const [showAssignSpec, setShowAssignSpec]   = useState<number | null>(null)
+  const [specAssignData, setSpecAssignData]   = useState<SpecAssignData | null>(null)
+  const [specAssignLoading, setSpecAssignLoading] = useState(false)
+  const [selectedNewSpecId, setSelectedNewSpecId] = useState<number | null>(null)
+  const [assignError, setAssignError]         = useState('')
+  const [assignSaving, setAssignSaving]       = useState(false)
+
+  async function openAssignSpec(sampleId: number) {
+    setShowAssignSpec(sampleId); setSpecAssignData(null)
+    setSelectedNewSpecId(null); setAssignError('')
+    setSpecAssignLoading(true)
+    try {
+      const r = await api.get(`/samples/${sampleId}/spec-assignment`)
+      setSpecAssignData(r.data)
+      if (r.data.candidates?.length === 1) setSelectedNewSpecId(r.data.candidates[0].templateId)
+    } catch { setAssignError('Failed to load spec candidates') }
+    finally { setSpecAssignLoading(false) }
+  }
+
+  async function submitAssignSpec(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedNewSpecId) { setAssignError('Please select a specification template.'); return }
+    setAssignSaving(true); setAssignError('')
+    try {
+      const r = await api.post(`/samples/${showAssignSpec}/apply-spec`, { specTemplateId: selectedNewSpecId })
+      toast(`✓ Spec assigned — ${r.data.testsCreated} test(s) created`, 'success')
+      setShowAssignSpec(null); load()
+    } catch (err: any) { setAssignError(err.response?.data?.message ?? 'Assignment failed') }
+    finally { setAssignSaving(false) }
+  }
+
   // ── Load master data ────────────────────────────────────────────────────────
   async function load() {
     setLoading(true)
@@ -358,15 +397,30 @@ export default function SampleRegistrationPage() {
           }
         },
         { header: 'Label', accessor: r => <span style={{ fontSize: 12, color: r.barcodePrinted ? '#16a34a' : '#dc2626' }}>{r.barcodePrinted ? '✓ Printed' : '✗ Pending'}</span> },
+        {
+          header: 'Spec Template', accessor: r => r.specTemplateName
+            ? <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#f0fdfa', color: '#0d6e6e', fontWeight: 600, border: '1px solid #99f6e4', whiteSpace: 'nowrap' }}>
+                ✓ {r.specTemplateName}
+              </span>
+            : <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#fffbeb', color: '#92400e', fontWeight: 600, border: '1px solid #fde68a' }}>
+                ⚠ Unassigned
+              </span>
+        },
         { header: 'Due', accessor: r => r.dueDate ? new Date(r.dueDate).toLocaleDateString() : '—' },
         { header: 'Analyst', accessor: 'analystName' },
         {
           header: 'Actions', accessor: r => (
-            <div style={{ display: 'flex', gap: 5 }}>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {r.status === 'Registered' && (
                 <button onClick={() => { setShowSRF(r.sampleId); setError('') }}
                   style={{ padding: '3px 9px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
                   Sign SRF
+                </button>
+              )}
+              {!r.specTemplateName && (
+                <button onClick={() => openAssignSpec(r.sampleId)}
+                  style={{ padding: '3px 9px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                  Assign Spec
                 </button>
               )}
               <button onClick={() => { setShowReprint(r.sampleId); setError('') }}
@@ -732,6 +786,87 @@ export default function SampleRegistrationPage() {
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowReprint(null)} label="Reprint Label" />
           </form>
+        </Modal>
+      )}
+
+      {/* ── Assign Spec Modal ─────────────────────────────────────────────── */}
+      {showAssignSpec && (
+        <Modal title="Assign Specification Template" onClose={() => setShowAssignSpec(null)}>
+          {specAssignLoading ? (
+            <div style={{ padding: '24px 0', textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
+              🔍 Loading specification candidates…
+            </div>
+          ) : specAssignData ? (
+            <form onSubmit={submitAssignSpec}>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Sample</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', fontFamily: 'monospace' }}>
+                  {specAssignData.sampleNumber}
+                </div>
+                {specAssignData.specTemplateName && (
+                  <div style={{ marginTop: 6, padding: '6px 10px', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: 6, fontSize: 12, color: '#0d6e6e' }}>
+                    Currently assigned: <strong>{specAssignData.specTemplateName}</strong>
+                    {specAssignData.testsCreated > 0 && ` (${specAssignData.testsCreated} tests active)`}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' as const, color: '#6b7280', marginBottom: 10 }}>
+                  Available Spec Templates
+                </div>
+                {specAssignData.candidates.length === 0 ? (
+                  <div style={{ padding: '16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 13, color: '#92400e' }}>
+                    ⚠ No approved specification templates found for this material/sample type combination.
+                    Create and approve a specification template in Settings → Spec Templates first.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {specAssignData.candidates.map(c => (
+                      <label key={c.templateId} style={{
+                        display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+                        padding: '10px 14px', borderRadius: 8,
+                        border: `1.5px solid ${selectedNewSpecId === c.templateId ? '#0d6e6e' : '#e5e7eb'}`,
+                        background: selectedNewSpecId === c.templateId ? '#f0fdfa' : '#fafafa',
+                        transition: 'all 0.12s',
+                      }}>
+                        <input type="radio" name="newSpec" checked={selectedNewSpecId === c.templateId}
+                          onChange={() => setSelectedNewSpecId(c.templateId)}
+                          style={{ accentColor: '#0d6e6e' }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{c.templateName}</div>
+                          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+                            Version {c.version} · {c.testCount} test(s) · Approved {new Date(c.approvedAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        {selectedNewSpecId === c.templateId && (
+                          <span style={{ color: '#0d6e6e', fontSize: 16 }}>✓</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {assignError && (
+                <p style={{ color: '#ef4444', fontSize: 13, margin: '0 0 12px' }}>{assignError}</p>
+              )}
+
+              {specAssignData.candidates.length > 0 && (
+                <ModalFooter saving={assignSaving} onCancel={() => setShowAssignSpec(null)} label="Apply Spec & Create Tests" />
+              )}
+              {specAssignData.candidates.length === 0 && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button type="button" onClick={() => setShowAssignSpec(null)}
+                    style={{ padding: '8px 18px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>
+                    Close
+                  </button>
+                </div>
+              )}
+            </form>
+          ) : (
+            <div style={{ padding: '16px', color: '#ef4444', fontSize: 13 }}>{assignError || 'Failed to load data.'}</div>
+          )}
         </Modal>
       )}
     </div>

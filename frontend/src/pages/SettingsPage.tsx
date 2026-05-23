@@ -15,9 +15,10 @@ import SamplingPlansPage      from './master-data/SamplingPlansPage'
 import StabilityProtocolsPage from './master-data/StabilityProtocolsPage'
 import UsersPage              from './master-data/UsersPage'
 import UserTrainingRecordsPage from './UserTrainingRecordsPage'
+import WorkflowConfigPage     from './WorkflowConfigPage'
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
-type TabId = 'lab-setup' | 'materials' | 'methods-specs' | 'users-training'
+type TabId = 'lab-setup' | 'materials' | 'methods-specs' | 'users-training' | 'workflow'
 
 interface SubTab {
   id: string
@@ -70,6 +71,12 @@ const TAB_GROUPS: TabGroup[] = [
     subtabs: [
       { id: 'users',            label: 'Users',             icon: '👥', component: UsersPage },
       { id: 'training-records', label: 'Training Records',  icon: '🎓', component: UserTrainingRecordsPage },
+    ],
+  },
+  {
+    id: 'workflow', label: 'Workflow Engine', icon: '⚙', color: '#0d6e6e', bg: '#f0fdfa',
+    subtabs: [
+      { id: 'workflow-config', label: 'Workflow Templates', icon: '⚙', component: WorkflowConfigPage },
     ],
   },
 ]

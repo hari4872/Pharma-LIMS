@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Pharma LIMS — Manual Validation Guide</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#0f172a;padding:28px}
+h1{font-size:22px;font-weight:800;margin-bottom:4px}
+.subtitle{font-size:13px;color:#6b7280;margin-bottom:24px}
+
+/* progress bar */
+.progress-bar{background:#e2e8f0;border-radius:8px;height:10px;margin-bottom:24px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#0d9488,#0d6e6e);border-radius:8px;transition:width 0.4s ease;width:0%}
+.progress-label{font-size:12px;color:#6b7280;margin-bottom:6px}
+
+/* creds box */
+.creds{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px}
+.cred-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 18px;min-width:200px}
+.cred-label{font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.cred-val{font-size:14px;font-weight:700;color:#0d6e6e;font-family:monospace}
+
+/* section */
+.section{background:#fff;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:16px;overflow:hidden}
+.section-header{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 18px;cursor:pointer;
+  border-bottom:1px solid transparent;
+  user-select:none;
+  transition:background .12s;
+}
+.section-header:hover{background:#f8fafc}
+.section-header.open{border-bottom-color:#e2e8f0}
+.sec-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0}
+.sec-title{font-size:14px;font-weight:800;flex:1}
+.sec-meta{font-size:11px;color:#9ca3af}
+.sec-arrow{font-size:11px;color:#9ca3af;transition:transform .2s}
+.sec-arrow.open{transform:rotate(180deg)}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;margin-left:6px}
+
+/* steps */
+.steps{padding:0 18px 14px}
+.step{
+  display:flex;gap:12px;align-items:flex-start;
+  padding:10px 0;
+  border-bottom:1px solid #f1f5f9;
+}
+.step:last-child{border-bottom:none}
+.step-cb{
+  width:20px;height:20px;border-radius:5px;
+  border:2px solid #d1d5db;background:#fff;
+  flex-shrink:0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;margin-top:1px;
+  transition:background .12s,border-color .12s;
+}
+.step-cb.done{background:#0d6e6e;border-color:#0d6e6e;color:#fff}
+.step-body{flex:1}
+.step-title{font-size:13px;font-weight:700;color:#0f172a;margin-bottom:3px}
+.step-desc{font-size:12px;color:#6b7280;line-height:1.6}
+.step-expect{
+  margin-top:6px;padding:7px 10px;
+  background:#f0fdfa;border-left:3px solid #0d9488;
+  border-radius:0 6px 6px 0;
+  font-size:11.5px;color:#0f766e;line-height:1.6;
+}
+.step-warn{
+  margin-top:6px;padding:7px 10px;
+  background:#fef3c7;border-left:3px solid #f59e0b;
+  border-radius:0 6px 6px 0;
+  font-size:11.5px;color:#92400e;line-height:1.6;
+}
+.step-err{
+  margin-top:6px;padding:7px 10px;
+  background:#fee2e2;border-left:3px solid #ef4444;
+  border-radius:0 6px 6px 0;
+  font-size:11.5px;color:#991b1b;line-height:1.6;
+}
+code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;font-size:11px;font-family:monospace;color:#0f172a}
+
+/* summary panel */
+#summary{
+  background:#fff;border-radius:12px;border:2px solid #0d9488;
+  padding:18px 22px;margin-top:16px;display:none;
+}
+#summary h2{font-size:16px;font-weight:800;color:#0d6e6e;margin-bottom:10px}
+.summary-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:13px}
+.summary-row:last-child{border-bottom:none}
+.pass{color:#065f46;font-weight:700}
+.fail{color:#991b1b;font-weight:700}
+
+/* quick nav */
+.quick-nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+.qn-btn{padding:5px 12px;border:1px solid #e2e8f0;border-radius:20px;background:#fff;font-size:12px;font-weight:600;cursor:pointer;color:#374151;transition:background .1s,border-color .1s}
+.qn-btn:hover{background:#f0fdfa;border-color:#0d9488;color:#0d6e6e}
+</style>
+</head>
+<body>
+
+<h1>🧪 Pharma LIMS — Manual Validation Guide</h1>
+<p class="subtitle">Step-by-step validation for all features. Check each step as you complete it — progress is tracked automatically.</p>
+
+<!-- Credentials -->
+<div class="creds">
+  <div class="cred-card"><div class="cred-label">Frontend URL</div><div class="cred-val">http://localhost:5173</div></div>
+  <div class="cred-card"><div class="cred-label">Backend URL</div><div class="cred-val">http://localhost:5204</div></div>
+  <div class="cred-card"><div class="cred-label">Username</div><div class="cred-val">admin</div></div>
+  <div class="cred-card"><div class="cred-label">Password</div><div class="cred-val">Admin@123</div></div>
+</div>
+
+<!-- Progress -->
+<div class="progress-label">Overall Progress: <span id="prog-text">0 / 0 steps completed</span></div>
+<div class="progress-bar"><div class="progress-fill" id="prog-fill"></div></div>
+
+<!-- Quick Nav -->
+<div class="quick-nav" id="qnav"></div>
+
+<!-- ═══════════════════════════════════════════════
+     SECTIONS
+═══════════════════════════════════════════════ -->
+
+<!-- 1. Start services -->
+<div class="section" id="sec-1">
+  <div class="section-header" onclick="toggle('sec-1')">
+    <div class="sec-num" style="background:#0d6e6e">1</div>
+    <div class="sec-title">Start Services &amp; Login</div>
+    <div class="sec-meta"><span id="cnt-sec-1">0/3</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-1">▼</div>
+  </div>
+  <div class="steps" id="body-sec-1">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Start the backend</div>
+        <div class="step-desc">Open a terminal in <code>D:\Pharma-LIMS\backend\src\LIMS.API</code> and run <code>dotnet run</code>. Wait for "Now listening on: http://localhost:5204".</div>
+        <div class="step-expect">✅ Expect: Console shows "Application started" with no red errors. Neon DB connection confirmed.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Start the frontend</div>
+        <div class="step-desc">Open a second terminal in <code>D:\Pharma-LIMS\frontend</code> and run <code>npm run dev</code>. Wait for "Local: http://localhost:5173".</div>
+        <div class="step-expect">✅ Expect: Vite compiles with 0 TypeScript errors.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Login as Admin</div>
+        <div class="step-desc">Navigate to <code>http://localhost:5173</code>. Enter username <code>admin</code> and password <code>Admin@123</code>. Click Sign In.</div>
+        <div class="step-expect">✅ Expect: Redirected to <code>/dashboard</code>. Sidebar shows: Dashboard, Compliance, Operations (10+ items), Inventory (4 items). Bottom of sidebar: amber ⚙️ <strong>Master Data / Settings</strong> button. Top-right: user avatar with "admin".</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 2. Settings / Master Data -->
+<div class="section" id="sec-2">
+  <div class="section-header" onclick="toggle('sec-2')">
+    <div class="sec-num" style="background:#d97706">2</div>
+    <div class="sec-title">⚙️ Settings Page (Master Data)</div>
+    <div class="sec-meta"><span id="cnt-sec-2">0/5</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-2">▼</div>
+  </div>
+  <div class="steps" id="body-sec-2" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Open Settings page</div>
+        <div class="step-desc">Click the amber ⚙️ <strong>Master Data / Settings</strong> button at the very bottom of the sidebar.</div>
+        <div class="step-expect">✅ Expect: Settings page opens at <code>/settings</code>. Four group tabs visible: 🏛 Lab Setup (4), 📦 Materials (3), 📋 Methods &amp; Specs (7), 👥 Users &amp; Training (2). Breadcrumb shows "Master Data / Settings".</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Verify Lab Setup group</div>
+        <div class="step-desc">Click <strong>🏛 Lab Setup</strong> tab. Sub-tabs: Laboratories, Instruments, Instrument Mapping, Storage Locations. Click each sub-tab.</div>
+        <div class="step-expect">✅ Expect: Each sub-tab loads its respective page inline. Laboratories table shows seeded labs. Instruments table shows seeded instruments.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Verify Materials group</div>
+        <div class="step-desc">Click <strong>📦 Materials</strong> tab. Sub-tabs: Materials, Sample Types, Reagents &amp; Standards.</div>
+        <div class="step-expect">✅ Expect: Materials list loads with seeded pharma materials (API, Excipient etc.). Sample Types shows seeded types.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Verify Methods &amp; Specs group</div>
+        <div class="step-desc">Click <strong>📋 Methods &amp; Specs</strong> tab. Click through all 7 sub-tabs: Test Methods, Parameters, Spec Limits, Form Templates, Spec Templates, Sampling Plans, Stability Protocols.</div>
+        <div class="step-expect">✅ Expect: All 7 sub-tabs load without errors. Test Methods and Parameters show seeded data.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Add a new user (Users &amp; Training tab)</div>
+        <div class="step-desc">Click <strong>👥 Users &amp; Training</strong> → <strong>Users</strong> sub-tab. Click <strong>Add User</strong>. Fill: Full Name = <code>Test Analyst</code>, Username = <code>analyst1</code>, Password = <code>Analyst@123</code>, Role = <code>Analyst</code>. Save.</div>
+        <div class="step-expect">✅ Expect: New user appears in the table. No page navigation — stays on Settings page.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 3. Sample Registration -->
+<div class="section" id="sec-3">
+  <div class="section-header" onclick="toggle('sec-3')">
+    <div class="sec-num" style="background:#0284c7">3</div>
+    <div class="sec-title">Sample Registration</div>
+    <div class="sec-meta"><span id="cnt-sec-3">0/4</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-3">▼</div>
+  </div>
+  <div class="steps" id="body-sec-3" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Open Sample Registration</div>
+        <div class="step-desc">Click <strong>Sample Registration</strong> in the Operations section of the sidebar.</div>
+        <div class="step-expect">✅ Expect: Table of existing samples. Status filter dropdown. <strong>Register Sample</strong> button top-right.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Register a new sample</div>
+        <div class="step-desc">Click <strong>Register Sample</strong>. Fill in: Material (pick any), Lot Number = <code>LOT-TEST-001</code>, Sample Type, Due Date = tomorrow's date. Submit.</div>
+        <div class="step-expect">✅ Expect: New sample appears in table with auto-generated Sample Number (e.g. <code>LIM-20260523-0001</code>). Status = <strong>Registered</strong>. Requestor field auto-filled as "admin".</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Test status filter</div>
+        <div class="step-desc">Use the Status filter dropdown — select <strong>Registered</strong>. Verify only Registered samples show. Then clear filter.</div>
+        <div class="step-expect">✅ Expect: Filter works correctly. New sample visible under Registered.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Sign SRF (electronic signature)</div>
+        <div class="step-desc">Find your new sample row. Click <strong>Sign SRF</strong>. Enter password <code>Admin@123</code>, meaning = "Sample Receipt Confirmation". Submit.</div>
+        <div class="step-expect">✅ Expect: SRF signed. Audit entry created. §11.50 compliant e-signature accepted.</div>
+        <div class="step-warn">⚠ If no "Sign SRF" button: ensure sample status is Registered and your role is Admin/QA.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 4. Work Queue -->
+<div class="section" id="sec-4">
+  <div class="section-header" onclick="toggle('sec-4')">
+    <div class="sec-num" style="background:#64748b">4</div>
+    <div class="sec-title">Work Queue &amp; Test Execution</div>
+    <div class="sec-meta"><span id="cnt-sec-4">0/4</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-4">▼</div>
+  </div>
+  <div class="steps" id="body-sec-4" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Open Work Queue</div>
+        <div class="step-desc">Click <strong>Work Queue</strong> in the sidebar.</div>
+        <div class="step-expect">✅ Expect: List of test executions. Status filter (Assigned, InProgress, Completed, OnHold). Priority score column visible.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Assign a task</div>
+        <div class="step-desc">Click <strong>Assign Task</strong> on any Pending execution. Pick an analyst. Save.</div>
+        <div class="step-expect">✅ Expect: Execution status changes to <strong>Assigned</strong>. Analyst name populated.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Open Test Execution</div>
+        <div class="step-desc">Click <strong>Start / Open</strong> on an Assigned execution to navigate to <code>/test-execution/:id</code>.</div>
+        <div class="step-expect">✅ Expect: Full test execution form with parameters listed. Status changes to InProgress.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Enter test results</div>
+        <div class="step-desc">Fill in numeric values for each parameter. Submit the execution with password <code>Admin@123</code>.</div>
+        <div class="step-expect">✅ Expect: Execution marked Completed. OOS/OOT flags auto-evaluated against spec limits. If value out of range, red OOS badge appears.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 5. OOS Investigations -->
+<div class="section" id="sec-5">
+  <div class="section-header" onclick="toggle('sec-5')">
+    <div class="sec-num" style="background:#dc2626">5</div>
+    <div class="sec-title">OOS Investigations</div>
+    <div class="sec-meta"><span id="cnt-sec-5">0/3</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-5">▼</div>
+  </div>
+  <div class="steps" id="body-sec-5" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Open OOS Investigations</div>
+        <div class="step-desc">Click <strong>OOS Investigations</strong> in the sidebar.</div>
+        <div class="step-expect">✅ Expect: Table of OOS events (auto-created when a test result was OOS). Phase 1 / Phase 2 badges. Status: Open, UnderInvestigation, Closed.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Open an OOS investigation</div>
+        <div class="step-desc">Click <strong>View</strong> on any OOS record. Review details: sample number, parameter, value, spec limit.</div>
+        <div class="step-expect">✅ Expect: Detail modal opens with root cause field, corrective action. Phase 1 metadata visible.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Escalate to Phase 2</div>
+        <div class="step-desc">Click <strong>Escalate to Phase 2</strong>. Fill in escalation reason, optional CAPA ref. Enter password <code>Admin@123</code>. Submit.</div>
+        <div class="step-expect">✅ Expect: Investigation phase changes to Phase 2. §11.50 e-signature recorded. SignalR notification sent to LabManager/QA groups.</div>
+        <div class="step-warn">⚠ This requires Admin or QA role.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 6. CAPA / Quality Events -->
+<div class="section" id="sec-6">
+  <div class="section-header" onclick="toggle('sec-6')">
+    <div class="sec-num" style="background:#9d174d">6</div>
+    <div class="sec-title">CAPA / Quality Events</div>
+    <div class="sec-meta"><span id="cnt-sec-6">0/4</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-6">▼</div>
+  </div>
+  <div class="steps" id="body-sec-6" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Open CAPA / Quality Events</div>
+        <div class="step-desc">Click <strong>CAPA / Quality Events</strong> in the sidebar.</div>
+        <div class="step-expect">✅ Expect: Three type tabs: CAPA | Deviation | Complaint. Table with priority and status badges.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Create a CAPA</div>
+        <div class="step-desc">Click <strong>New Quality Event</strong>. Type = CAPA, Title = <code>High pH OOS Investigation</code>, Priority = High, Root Cause = <code>Reagent degradation</code>, Corrective Action = <code>Replace reagent batch</code>, Due Date = 2 weeks from now. Save.</div>
+        <div class="step-expect">✅ Expect: CAPA appears with auto-generated reference (e.g. <code>CAPA-20260523-0001</code>). Status = Open. Orange "High" priority badge.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Create a Deviation</div>
+        <div class="step-desc">Click <strong>Deviation</strong> tab → <strong>New Quality Event</strong>. Fill minimum fields: Title, Priority = Medium. Save.</div>
+        <div class="step-expect">✅ Expect: Deviation reference starts with <code>DEV-</code>. Yellow "Medium" badge.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Close a CAPA</div>
+        <div class="step-desc">Click <strong>Edit</strong> on the CAPA you created. Change Status to <strong>Closed</strong>. Save.</div>
+        <div class="step-expect">✅ Expect: Status badge changes to green "Closed". ResolvedAt timestamp recorded. ResolvedBy = "admin".</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 7. SPC / Trending -->
+<div class="section" id="sec-7">
+  <div class="section-header" onclick="toggle('sec-7')">
+    <div class="sec-num" style="background:#16a34a">7</div>
+    <div class="sec-title">SPC / Statistical Process Control</div>
+    <div class="sec-meta"><span id="cnt-sec-7">0/3</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-7">▼</div>
+  </div>
+  <div class="steps" id="body-sec-7" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Open SPC / Trending</div>
+        <div class="step-desc">Click <strong>SPC / Trending</strong> in the sidebar.</div>
+        <div class="step-expect">✅ Expect: Parameter dropdown, Points selector (20/50/100/200). KPI cards area. Chart area shows placeholder until parameter selected.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Load a control chart</div>
+        <div class="step-desc">Select any parameter from the dropdown. Click <strong>Load Chart</strong>.</div>
+        <div class="step-expect">✅ Expect: Line chart renders with teal data line. Orange dashed UCL/LCL lines. Red dashed USL/LSL (if spec limits exist). KPI cards show: N (count), Mean, Std Dev, Cp, Cpk. Capability color: green ≥1.67, amber ≥1.00, red &lt;1.00.</div>
+        <div class="step-warn">⚠ If "No data" message: that parameter has no completed logbook entries yet. Try a different parameter or complete a test execution first.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Check Nelson rule violations</div>
+        <div class="step-desc">Scroll down to the <strong>Raw Data</strong> table. Check if any rows are highlighted red (OOS) or yellow (OOT).</div>
+        <div class="step-expect">✅ Expect: OOS rows = red background. OOT rows = yellow background. Out-of-control points on chart = larger red/amber dots. Nelson rules section shows which rules fired (Rule 1: ±3σ, Rule 2: 9-run, Rule 3: 6-trend).</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 8. Digital Logbook & Results -->
+<div class="section" id="sec-8">
+  <div class="section-header" onclick="toggle('sec-8')">
+    <div class="sec-num" style="background:#d97706">8</div>
+    <div class="sec-title">Digital Logbook &amp; Results Review</div>
+    <div class="sec-meta"><span id="cnt-sec-8">0/3</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-8">▼</div>
+  </div>
+  <div class="steps" id="body-sec-8" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Check Digital Logbook</div>
+        <div class="step-desc">Click <strong>Digital Logbook</strong> in the sidebar.</div>
+        <div class="step-expect">✅ Expect: All logbook entries from completed test executions. OOS entries flagged red. Signed entries show analyst name and timestamp. Entries with status Pending show Sign button.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Sign a logbook entry</div>
+        <div class="step-desc">Find a <strong>Pending</strong> entry. Click <strong>Sign</strong>. Enter password <code>Admin@123</code>. Submit.</div>
+        <div class="step-expect">✅ Expect: Entry status changes to Signed. Analyst + timestamp recorded. §11.50 e-signature attached.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Results Review</div>
+        <div class="step-desc">Click <strong>Results Review</strong>. Find a sample with completed tests. Click <strong>Review</strong>.</div>
+        <div class="step-expect">✅ Expect: QA review form. Approve or Reject with reason. Status moves to PendingQAReview → Released/Rejected on sample.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 9. Batch Release -->
+<div class="section" id="sec-9">
+  <div class="section-header" onclick="toggle('sec-9')">
+    <div class="sec-num" style="background:#15803d">9</div>
+    <div class="sec-title">Batch Release <span class="badge" style="background:#d1fae5;color:#065f46">21 CFR 211.192</span></div>
+    <div class="sec-meta"><span id="cnt-sec-9">0/4</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-9">▼</div>
+  </div>
+  <div class="steps" id="body-sec-9" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Open Batch Release</div>
+        <div class="step-desc">Click <strong>Batch Release</strong> in the sidebar.</div>
+        <div class="step-expect">✅ Expect: Table with Status filter. Columns: Sample, Material/Lot, Status, Decision, Initiated By, Reviewed By, Date. View Checklist + Make Decision buttons.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Initiate a batch review</div>
+        <div class="step-desc">Click <strong>Initiate Review</strong>. If no samples appear, first ensure a sample has status <strong>PendingQAReview</strong>. Select the sample. Click <strong>Initiate Review</strong>.</div>
+        <div class="step-expect">✅ Expect: New batch release record created with status <strong>InReview</strong>. 5-item compliance checklist auto-evaluated.</div>
+        <div class="step-warn">⚠ If "No samples in PendingQAReview": go to Results Review and approve a sample first to move it to PendingQAReview status.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">View checklist</div>
+        <div class="step-desc">Click <strong>View Checklist</strong> on the new batch release record.</div>
+        <div class="step-expect">✅ Expect: 5 checklist items with ✅ or ❌: All Tests Complete, No Open OOS, CoA Approved, No Open CAPA, Logbook Signed. Any failures show amber warning — QA can still proceed with documented justification.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Make a release decision</div>
+        <div class="step-desc">Click <strong>Make Decision</strong>. Select <strong>Released</strong>. Enter reason: <code>All checklist criteria met — batch approved for distribution</code>. Enter password <code>Admin@123</code>, Meaning = <code>QA Batch Release Decision</code>, Reason = <code>Full review complete</code>. Submit.</div>
+        <div class="step-expect">✅ Expect: Batch status → <strong>Released</strong>. Decision badge turns green. Sample status → Released. §11.50 e-signature permanently recorded in audit log.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 10. CoA & Dispatch -->
+<div class="section" id="sec-10">
+  <div class="section-header" onclick="toggle('sec-10')">
+    <div class="sec-num" style="background:#7c3aed">10</div>
+    <div class="sec-title">CoA Review &amp; Dispatch QC</div>
+    <div class="sec-meta"><span id="cnt-sec-10">0/2</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-10">▼</div>
+  </div>
+  <div class="steps" id="body-sec-10" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">CoA Review</div>
+        <div class="step-desc">Click <strong>CoA Review</strong> in the sidebar. Find a CoA in Draft/PendingApproval status. Review and approve it.</div>
+        <div class="step-expect">✅ Expect: CoA status changes to Approved/Released. Approval e-signature recorded.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Dispatch QC</div>
+        <div class="step-desc">Click <strong>Dispatch QC</strong>. Verify dispatch tasks exist. Process one dispatch task.</div>
+        <div class="step-expect">✅ Expect: Dispatch task updates to Dispatched status. Delivery order reference visible.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 11. Reports & Exports -->
+<div class="section" id="sec-11">
+  <div class="section-header" onclick="toggle('sec-11')">
+    <div class="sec-num" style="background:#0369a1">11</div>
+    <div class="sec-title">Reports &amp; Exports <span class="badge" style="background:#dbeafe;color:#1e40af">Sprint 9</span></div>
+    <div class="sec-meta"><span id="cnt-sec-11">0/3</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-11">▼</div>
+  </div>
+  <div class="steps" id="body-sec-11" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Open Reports &amp; Exports</div>
+        <div class="step-desc">Click <strong>Reports &amp; Exports</strong> near the bottom of the Operations section in the sidebar.</div>
+        <div class="step-expect">✅ Expect: Three report cards: 🧪 Sample Register (blue), 📊 Test Results (purple), 🔍 Audit Trail (amber, QA/Admin badge). No card selected by default — "Select a report type above" placeholder.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Download Sample Register Excel</div>
+        <div class="step-desc">Click the <strong>🧪 Sample Register</strong> card. Set From Date = 2026-01-01, leave To Date blank, Status filter = All Statuses. Click <strong>⬇ Download Sample Register Excel</strong>.</div>
+        <div class="step-expect">✅ Expect: Browser downloads <code>LIMS_Samples_YYYYMMDD.xlsx</code>. Open in Excel: teal header row, columns — Sample No., Material, Lot Number, Batch/External Ref, Sample Type, Status, Lab, Received Date, Due Date.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Download Audit Trail Excel (Admin only)</div>
+        <div class="step-desc">Click <strong>🔍 Audit Trail</strong> card. Leave filters blank. Click <strong>⬇ Download Audit Trail Excel</strong>.</div>
+        <div class="step-expect">✅ Expect: Downloads <code>LIMS_AuditTrail_YYYYMMDD.xlsx</code>. Columns: Entity Type, Entity ID, Event Type, Performed By, Old Value, New Value, Timestamp. Header footer reads "Pharma LIMS — Audit Trail Export (21 CFR §11.10(e))".</div>
+        <div class="step-warn">⚠ If 403 error: you must be logged in as Admin or QA role.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 12. Compliance & Dashboard -->
+<div class="section" id="sec-12">
+  <div class="section-header" onclick="toggle('sec-12')">
+    <div class="sec-num" style="background:#16a34a">12</div>
+    <div class="sec-title">Dashboard &amp; Compliance Panel</div>
+    <div class="sec-meta"><span id="cnt-sec-12">0/3</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-12">▼</div>
+  </div>
+  <div class="steps" id="body-sec-12" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Dashboard KPIs</div>
+        <div class="step-desc">Click <strong>Dashboard</strong> in the sidebar.</div>
+        <div class="step-expect">✅ Expect: KPI cards — Total Samples, Pending QA, OOS Count, Overdue Samples. Charts load with live data. No loading spinners stuck.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Compliance Panel</div>
+        <div class="step-desc">Click <strong>Compliance</strong> in the sidebar.</div>
+        <div class="step-expect">✅ Expect: 21 CFR Part 11 compliance indicators. E-signature summary, audit trail status, system access log. All green or with actionable warnings.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Real-time notifications (SignalR)</div>
+        <div class="step-desc">Click the 🔔 bell icon in the top-right header. Check the connection dot next to "Notifications".</div>
+        <div class="step-expect">✅ Expect: Green dot = SignalR connected to <code>/hubs/lims</code>. Amber dot = connecting (wait a moment). Notifications from OOS/TAT breaches appear here in real-time during workflow steps.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 13. Inventory & Traceability -->
+<div class="section" id="sec-13">
+  <div class="section-header" onclick="toggle('sec-13')">
+    <div class="sec-num" style="background:#0284c7">13</div>
+    <div class="sec-title">Inventory &amp; Traceability</div>
+    <div class="sec-meta"><span id="cnt-sec-13">0/3</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-13">▼</div>
+  </div>
+  <div class="steps" id="body-sec-13" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Traceability search</div>
+        <div class="step-desc">Click <strong>Traceability</strong>. Search by sample number or lot number.</div>
+        <div class="step-expect">✅ Expect: Full trace tree — sample → test executions → logbook entries → CoA → batch release. All linked records visible.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Stability Pulls</div>
+        <div class="step-desc">Click <strong>Stability Pulls</strong>. Check for any scheduled or overdue pulls.</div>
+        <div class="step-expect">✅ Expect: Table of stability pull schedules. Overdue pulls highlighted. Pull status: Pending/Completed/Missed.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Retain Samples &amp; Condition Excursions</div>
+        <div class="step-desc">Click <strong>Retain Samples</strong> then <strong>Condition Excursions</strong>.</div>
+        <div class="step-expect">✅ Expect: Both pages load without error. Retain Samples shows storage location and quantity. Condition Excursions shows any temperature/humidity events.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 14. Sidebar & UX -->
+<div class="section" id="sec-14">
+  <div class="section-header" onclick="toggle('sec-14')">
+    <div class="sec-num" style="background:#475569">14</div>
+    <div class="sec-title">Sidebar UX &amp; Global Features</div>
+    <div class="sec-meta"><span id="cnt-sec-14">0/4</span> steps</div>
+    <div class="sec-arrow" id="arr-sec-14">▼</div>
+  </div>
+  <div class="steps" id="body-sec-14" style="display:none">
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Collapse &amp; expand sidebar</div>
+        <div class="step-desc">Click the ← toggle button in the top-left of the header bar to collapse the sidebar.</div>
+        <div class="step-expect">✅ Expect: Sidebar collapses to icon-only mode (64px). ⚙️ gear icon still visible at bottom. Hover over any icon shows tooltip with label. Expand works with → toggle.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Command palette</div>
+        <div class="step-desc">Press <code>Ctrl+K</code> (or click the Search button in the header).</div>
+        <div class="step-expect">✅ Expect: Command palette modal opens. Type "batch" — Batch Release option appears. Press Enter or click to navigate. Esc closes it.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Dark mode</div>
+        <div class="step-desc">Click the 🌙 moon icon in the top-right header (or use the profile dropdown → Dark Mode).</div>
+        <div class="step-expect">✅ Expect: Entire app switches to dark theme. Sidebar, header, cards, tables all go dark. Toggle back with ☀️ sun icon.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Breadcrumb navigation</div>
+        <div class="step-desc">Navigate to a few different pages and check the breadcrumb in the header bar.</div>
+        <div class="step-expect">✅ Expect: Each page shows correct section + label. E.g. "Operations › Batch Release", "Operations › Reports &amp; Exports", "Master Data / Settings" (no section prefix for settings).</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Summary -->
+<div id="summary">
+  <h2>📋 Validation Summary</h2>
+  <div id="summary-rows"></div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const sections = [
+  { id:'sec-1',  label:'Start Services & Login',          total:3 },
+  { id:'sec-2',  label:'Settings Page (Master Data)',      total:5 },
+  { id:'sec-3',  label:'Sample Registration',             total:4 },
+  { id:'sec-4',  label:'Work Queue & Test Execution',     total:4 },
+  { id:'sec-5',  label:'OOS Investigations',              total:3 },
+  { id:'sec-6',  label:'CAPA / Quality Events',           total:4 },
+  { id:'sec-7',  label:'SPC / Statistical Process Control', total:3 },
+  { id:'sec-8',  label:'Digital Logbook & Results Review', total:3 },
+  { id:'sec-9',  label:'Batch Release',                   total:4 },
+  { id:'sec-10', label:'CoA Review & Dispatch QC',        total:2 },
+  { id:'sec-11', label:'Reports & Exports',               total:3 },
+  { id:'sec-12', label:'Dashboard & Compliance Panel',    total:3 },
+  { id:'sec-13', label:'Inventory & Traceability',        total:3 },
+  { id:'sec-14', label:'Sidebar UX & Global Features',   total:4 },
+]
+
+// Build quick nav
+const qnav = document.getElementById('qnav')
+sections.forEach((s,i) => {
+  const btn = document.createElement('button')
+  btn.className = 'qn-btn'
+  btn.textContent = (i+1) + '. ' + s.label.split(' ').slice(0,3).join(' ')
+  btn.onclick = () => { openSection(s.id); document.getElementById(s.id).scrollIntoView({behavior:'smooth'}) }
+  qnav.appendChild(btn)
+})
+
+function openSection(id) {
+  const body = document.getElementById('body-' + id.replace('sec-','sec-'))
+  const arr  = document.getElementById('arr-'  + id.replace('sec-','sec-'))
+  const hdr  = document.querySelector('#' + id + ' .section-header')
+  if (body && body.style.display === 'none') {
+    body.style.display = ''
+    arr.classList.add('open')
+    hdr.classList.add('open')
+  }
+}
+
+function toggle(id) {
+  const body = document.getElementById('body-' + id)
+  const arr  = document.getElementById('arr-'  + id)
+  const hdr  = document.querySelector('#' + id + ' .section-header')
+  const isOpen = body.style.display !== 'none'
+  body.style.display = isOpen ? 'none' : ''
+  arr.classList.toggle('open', !isOpen)
+  hdr.classList.toggle('open', !isOpen)
+  // First section open by default
+}
+
+// Open section 1 by default
+document.getElementById('body-sec-1').style.display = ''
+document.getElementById('arr-sec-1').classList.add('open')
+document.querySelector('#sec-1 .section-header').classList.add('open')
+
+function tick(cb) {
+  cb.classList.toggle('done')
+  cb.textContent = cb.classList.contains('done') ? '✓' : ''
+  updateProgress()
+}
+
+function updateProgress() {
+  let done = 0, total = 0
+  const summaryRows = []
+  sections.forEach(s => {
+    const body = document.getElementById('body-' + s.id)
+    const cbs  = body ? body.querySelectorAll('.step-cb') : []
+    const secDone = body ? body.querySelectorAll('.step-cb.done').length : 0
+    done  += secDone
+    total += s.total
+    // update per-section counter
+    const cnt = document.getElementById('cnt-' + s.id)
+    if (cnt) cnt.textContent = secDone + '/' + s.total
+    summaryRows.push({ label: s.label, done: secDone, total: s.total })
+  })
+  const pct = total > 0 ? Math.round(done / total * 100) : 0
+  document.getElementById('prog-fill').style.width = pct + '%'
+  document.getElementById('prog-text').textContent = done + ' / ' + total + ' steps completed (' + pct + '%)'
+
+  // Update summary panel
+  const sumEl = document.getElementById('summary')
+  const rowsEl = document.getElementById('summary-rows')
+  if (done > 0) {
+    sumEl.style.display = 'block'
+    rowsEl.innerHTML = summaryRows.map(r => `
+      <div class="summary-row">
+        <span>${r.label}</span>
+        <span class="${r.done === r.total ? 'pass' : (r.done > 0 ? '' : 'fail')}">
+          ${r.done}/${r.total} ${r.done === r.total ? '✅' : (r.done > 0 ? '🔄' : '⏳')}
+        </span>
+      </div>
+    `).join('')
+  }
+}
+
+updateProgress()
+</script>
+</body>
+</html>

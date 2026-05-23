@@ -60,6 +60,9 @@ public static class DependencyInjection
         services.AddScoped<ISpcService, SpcService>();
         // Sprint 6 services — Intelligent Workflow Engine
         services.AddScoped<IWorkflowIntelligenceService, WorkflowIntelligenceService>();
+        // Sprint 10 services — Workflow Engine + Stability Trends
+        services.AddScoped<IWorkflowEngineService, WorkflowEngineService>();
+        services.AddScoped<IStabilityTrendService, StabilityTrendService>();
         // MS-1: HTTP context accessor for ILabContext
         services.AddHttpContextAccessor();
 

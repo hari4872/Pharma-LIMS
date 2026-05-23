@@ -87,6 +87,9 @@ public class StabilityProtocol
 
     public string? Description { get; set; }
 
+    /// <summary>Intended shelf life in months — used for ICH compliance calculations</summary>
+    public int? IntendedShelfLifeMonths { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     // Audit

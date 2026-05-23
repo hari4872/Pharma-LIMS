@@ -1,7 +1,10 @@
 using LIMS.Application.Features.Samples;
+using LIMS.Application.Interfaces;
+using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.API.Controllers;
 
@@ -11,7 +14,10 @@ namespace LIMS.API.Controllers;
 public class SamplesController : ControllerBase
 {
     private readonly IMediator _mediator;
-    public SamplesController(IMediator mediator) => _mediator = mediator;
+    private readonly ILimsDbContext _db;
+    private readonly ISpecificationEngineService _specEngine;
+    public SamplesController(IMediator mediator, ILimsDbContext db, ISpecificationEngineService specEngine)
+    { _mediator = mediator; _db = db; _specEngine = specEngine; }
 
     // GET api/v1/samples?labId=1&status=PendingTesting
     [HttpGet]
@@ -69,6 +75,49 @@ public class SamplesController : ControllerBase
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { sampleId = result.Value, status = "Reprinted" });
     }
+
+    // GET api/v1/samples/{id}/spec-assignment
+    [HttpGet("{id}/spec-assignment")]
+    public async Task<IActionResult> GetSpecAssignment(int id, CancellationToken ct)
+    {
+        var sample = await _db.Samples
+            .Include(s => s.SpecTemplate).ThenInclude(t => t!.Items)
+            .FirstOrDefaultAsync(s => s.SampleId == id, ct);
+        if (sample is null) return NotFound();
+
+        // Available candidates via spec engine
+        var sampleType = await _db.SampleTypes.FindAsync([sample.SampleTypeId], ct);
+        SpecMatchResult? match = null;
+        if (sampleType is not null)
+            match = await _specEngine.MatchAsync(sample.MaterialId, sample.SampleTypeId, sampleType.Stage, ct);
+
+        return Ok(new {
+            sampleId          = sample.SampleId,
+            sampleNumber      = sample.SampleNumber,
+            specTemplateId    = sample.SpecTemplateId,
+            specTemplateName  = sample.SpecTemplate?.TemplateName,
+            specAssignedBy    = sample.SpecAssignedBy,
+            specAssignedAt    = sample.SpecAssignedAt,
+            specAssignmentReason = sample.SpecAssignmentReason?.ToString(),
+            testsCreated      = sample.SpecTemplateId.HasValue
+                ? await _db.TestExecutions.CountAsync(e => e.SampleId == id, ct) : 0,
+            candidates        = match?.Candidates ?? new List<SpecTemplateSummary>(),
+            matchOutcome      = match?.Outcome.ToString() ?? "Unknown",
+        });
+    }
+
+    // POST api/v1/samples/{id}/apply-spec
+    [HttpPost("{id}/apply-spec")]
+    public async Task<IActionResult> ApplySpec(int id, [FromBody] ApplySpecRequest req, CancellationToken ct)
+    {
+        var sample = await _db.Samples.FindAsync([id], ct);
+        if (sample is null) return NotFound();
+        var userName = User.Identity?.Name ?? "unknown";
+        var execIds = await _specEngine.ApplyTemplateAsync(
+            id, req.SpecTemplateId, userName, SpecAssignmentReason.ManualOverride,
+            DateTimeOffset.UtcNow, ct);
+        return Ok(new { testsCreated = execIds.Count, specTemplateId = req.SpecTemplateId });
+    }
 }
 
 public record RegisterSampleRequest(
@@ -82,3 +131,4 @@ public record RegisterSampleRequest(
     int?     OverrideSpecTemplateId = null,     // set when user manually picks from MultipleMatches
     List<int>? CheckpointIds        = null);
 public record ReprintBarcodeRequest(string Reason);
+public record ApplySpecRequest(int SpecTemplateId);

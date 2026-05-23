@@ -80,5 +80,8 @@ public interface ILimsDbContext
     // Sprint 7: Batch Release
     DbSet<BatchRelease> BatchReleases { get; }
     DbSet<BatchReleaseCheckItem> BatchReleaseCheckItems { get; }
+    // Sprint 10: Workflow Engine
+    DbSet<WorkflowTemplate> WorkflowTemplates { get; }
+    DbSet<WorkflowStep> WorkflowSteps { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

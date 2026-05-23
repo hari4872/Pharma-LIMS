@@ -173,6 +173,11 @@ const operationsItems: NavItem[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
   {
+    label: 'Stability Study', path: '/stability-study',
+    iconBg: '#e0f2fe', iconColor: '#0369a1',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 17l4-8 4 6 3-4 4 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
     label: 'Reports & Exports', path: '/reports',
     iconBg: '#f0f9ff', iconColor: '#0369a1',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
@@ -234,6 +239,8 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/results-review':                   { section: 'Operations', label: 'Results Review' },
   '/coa-review':                       { section: 'Operations', label: 'CoA Review' },
   '/dispatch-qc':                      { section: 'Operations', label: 'Dispatch QC' },
+  '/stability-study':                  { section: 'Operations', label: 'Stability Study' },
+  '/workflow-config':                  { section: 'Settings', label: 'Workflow Config' },
   '/reports':                          { section: 'Operations', label: 'Reports & Exports' },
   '/traceability':                     { section: 'Inventory', label: 'Traceability' },
   '/stability-pulls':                  { section: 'Inventory', label: 'Stability Pulls' },
