@@ -74,6 +74,21 @@
 
 ## 6. Electronic Signature Map — All Modules
 
+### Login Audit — 21 CFR §11.10(d) Controls
+
+| Control | Implementation |
+|---|---|
+| Failed-login counter | `users.FailedLoginCount` incremented on every failed password check. Reset to 0 on successful login. |
+| Lockout threshold | 5 consecutive failures → `users.LockedUntil = UTC+30min`. Login rejected with `ACCOUNT_LOCKED` until expiry or Admin unlock. |
+| Admin unlock | `POST /users/{id}/unlock` — resets `FailedLoginCount=0`, `LockedUntil=null`. Audit-logged. |
+| Login audit trail | Every attempt written to `LoginAuditLogs` (INSERT-only): `username_attempt`, `outcome` (Success/Failed/LockedOut), `ip_address`, `user_agent`, `attempted_at` UTC. |
+| Audit panel | Compliance Panel → "Login Audit (§11.10(d))" tab: filterable by outcome and date range, colour-coded (green/red/amber). Exported on demand. |
+| Last login metadata | `users.LastLoginAt` and `users.LastLoginIp` captured on every successful login for post-incident review. |
+
+---
+
+## 6. Electronic Signature Map — All Modules
+
 | Module | Event | E-Sig Required By | §11.50 Fields |
 |---|---|---|---|
 | Master Data | Spec Limit approval | QA | full_name + signed_at UTC + meaning + reason |
@@ -85,6 +100,7 @@
 | Testing Execution | Step sign-off after data entry | Analyst | full_name + signed_at UTC + meaning |
 | OOS Investigation | Phase 1 outcome | QA | full_name + signed_at UTC + meaning + reason |
 | OOS Investigation | Phase 2 closure + CAPA | QA | full_name + signed_at UTC + meaning + reason |
+| Digital Logbook | Post-sign Amendment (§11.10(e)) | Analyst | full_name + signed_at UTC + meaning + reason (amendment_reason mandatory) |
 | Results Management | Peer review | 2nd Analyst | full_name + signed_at UTC + meaning |
 | Results Management | QC Lead verification | QC Lead | full_name + signed_at UTC + meaning |
 | QA Review & Release | CoA approval (embedded in PDF) | QA | full_name + signed_at UTC + meaning |
@@ -224,7 +240,7 @@ All intervals from DB config (`lab_config`) — none hardcoded (Contract 2 C2-03
 | **21 CFR §11.10(a)** | GAMP 5 Cat 5 validation. IQ/OQ/PQ documented. Evidence in `validation_review_logs`. |
 | **21 CFR §11.10(b)** | All records exportable as human-readable PDF/CSV on demand. §11.50 fields on print. |
 | **21 CFR §11.10(c)** | Soft-delete only. INSERT-only audit logs. No hard delete at any DB level. |
-| **21 CFR §11.10(d)** | CRUD role model. Regular User view-only by default. Explicit write grants per module. |
+| **21 CFR §11.10(d)** | CRUD role model. Regular User view-only by default. Explicit write grants per module. Failed-login lockout: 5 consecutive failures → account locked for 30 minutes (or until Admin unlocks). Every login attempt (success/failure/lockout) recorded in `LoginAuditLogs` — INSERT-only. Login Audit panel in Compliance UI with outcome filter and date range. |
 | **21 CFR §11.10(e)** | INSERT-only audit logs: who / when / what / old value / new value. UTC server-side. On demand. |
 | **21 CFR §11.10(i)** | Training enforced at test gate. Expired = hard block. `TrainingExpiryJob` daily. |
 | **EU GMP Annex 11 §9** | Unique credentials at DB level. Password re-entry independent of session on every e-sig. |

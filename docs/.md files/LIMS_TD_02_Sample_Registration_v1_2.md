@@ -1,5 +1,6 @@
 ﻿# PHARMA LIMS — Sample Registration (Phase 2)
-### Technical Design Document · v1.2 · CONFIDENTIAL
+### Technical Design Document · v1.3 · CONFIDENTIAL
+> **v1.3 Changes:** Container/Aliquot Management (split, status tracking, controlled destruction with e-sig)
 > **v1.2 Changes:** Barcode label auto-print at Step 4 · Configurable Sample ID format · Form Template auto-selection
 
 ---
@@ -10,7 +11,7 @@
 |---|---|
 | Module | Sample Registration (Phase 2) |
 | Depends On | Master Data v1.2, Parameters v1.1, Checkpoints v1.1 |
-| Version | v1.2 |
+| Version | v1.3 |
 | Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
@@ -121,6 +122,10 @@ Available tokens: {SITE} {LAB} {MAT} {SAMPLETYPE} {DATE} {YYYYMMDD} {LOT} {SEQ} 
 | **FR-16** | **Sample ID format configurable per site/lab in `lab_config` — `ISampleIdFormatService` (Contract 2, no hardcoded format).** | Admin | Must Have | ALCOA+ / Contract 2 |
 | **FR-17** | **Form Template auto-selected server-side by `IFormTemplateSelectorService` (Contract 1). No analyst UI dropdown.** | System | Must Have | GMP / Contract 1 |
 | **FR-18** | **Barcode re-print: audit log entry with who + reason (ALCOA+ Attributable). Only analyst or Admin can trigger.** | Analyst/Admin | Must Have | 21 CFR §11.10(e) |
+| **FR-19** | **Container split: analyst splits a sample into N aliquots (type, volume, UOM). Only allowed when sample is Registered or PendingTesting.** | Analyst | Must Have | GMP Chain of Custody |
+| **FR-20** | **Each container tracked independently: status (Active / Consumed / Destroyed), barcode ref, volume.** | System | Must Have | GMP / ALCOA+ |
+| **FR-21** | **Container destruction: requires password re-entry + mandatory reason. BCrypt-verified server-side. Destruction timestamp and actor recorded immutably.** | Analyst/Admin | Must Have | 21 CFR §11.10(e) / ALCOA+ Enduring |
+| **FR-22** | **Container list retrievable per sample at any time for full chain of custody audit.** | QA/Admin | Must Have | 21 CFR 211.170 |
 
 ---
 
@@ -147,6 +152,21 @@ CREATE TABLE samples (
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE sample_containers (
+  container_id     SERIAL PRIMARY KEY,
+  sample_id        INT NOT NULL REFERENCES samples(sample_id),
+  container_type   VARCHAR(30) NOT NULL,     -- Primary | Aliquot | Reserve
+  volume_ml        DECIMAL(10,3) NOT NULL,
+  uom              VARCHAR(20) NOT NULL,
+  barcode_ref      VARCHAR(100),
+  status           VARCHAR(20) NOT NULL DEFAULT 'Active', -- Active | Consumed | Destroyed
+  destroyed_by     VARCHAR(100),
+  destroyed_at     TIMESTAMPTZ,
+  destroy_reason   TEXT,
+  created_by       VARCHAR(100) NOT NULL,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE barcode_print_log (
   print_id    SERIAL PRIMARY KEY,
   sample_id   INT NOT NULL REFERENCES samples(sample_id),
@@ -169,6 +189,14 @@ CREATE TABLE barcode_print_log (
 | In Testing | Pending QA Review | All steps signed off by analyst | GMP |
 | Pending QA Review | Released | QA approves + e-sig | 21 CFR §11.50 |
 | Pending QA Review | Rejected | QA rejects + mandatory reason + e-sig | 21 CFR §11.50 |
+
+### Container State Transitions
+
+| From | To | Trigger | Compliance |
+|---|---|---|---|
+| (new) | Active | `POST /samples/{id}/containers` — split by analyst | GMP chain of custody |
+| Active | Consumed | Container volume fully used during testing | GMP |
+| Active | Destroyed | Password re-entry + mandatory reason + actor recorded | 21 CFR §11.10(e) / ALCOA+ Enduring |
 
 ---
 

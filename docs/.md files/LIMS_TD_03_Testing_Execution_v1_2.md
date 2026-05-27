@@ -1,5 +1,6 @@
 ﻿# PHARMA LIMS — Testing Execution (Phase 3)
-### Technical Design Document · v1.2 · CONFIDENTIAL
+### Technical Design Document · v1.3 · CONFIDENTIAL
+> **v1.3 Changes:** Per-execution Re-assign (`AssignTestMethodCommand`) — override analyst/instrument on a specific execution with full training + calibration enforcement
 > **v1.2 Changes:** WAP (Lab Manager assigns via `WAPAssignmentService`) · Barcode scan to start · File import (`FileImportService`) · Auto-correction (`AutoCorrectionService`) · OOT detection · Process Log screen
 
 ---
@@ -10,7 +11,7 @@
 |---|---|
 | Module | Testing Execution (Phase 3) |
 | Depends On | Sample Registration v1.2, Parameters v1.1, Digital Logbook v1.1 |
-| Version | v1.2 |
+| Version | v1.3 |
 | Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
@@ -113,6 +114,8 @@ Testing Execution covers the full analyst workflow from Work Queue to signed res
 | **FR-20** | **Process Log screen (Mode 3): separate from Work Queue. Time-slot grid. Row e-signed §11.50 and locked.** | Analyst | Must Have | GMP / Contract 2 |
 | **FR-21** | **Process Log OOS: same `OOSDetectionService` (Contract 1 — no duplicate logic).** | System | Must Have | FDA OOS Guidance |
 | **FR-22** | **Work Queue start time: server-side UTC on task open click (ALCOA+ Contemporaneous — Contract 2).** | System | Must Have | ALCOA+ |
+| **FR-23** | **Per-execution Re-assign: `POST /test-executions/{executionId}/assign`. Overrides analyst and instrument for one specific execution. `AssignTestMethodCommand` enforces training check (§11.10(i)) and calibration check (211.68) — same gates as initial assignment. Error codes: `TRAINING_EXPIRED`, `INSTRUMENT_OOC`.** | Lab Manager | Must Have | 21 CFR §11.10(i) / 21 CFR 211.68 |
+| **FR-24** | **Re-assign allowed only while execution status is `Assigned`. Cannot re-assign an `InProgress` or `Completed` task.** | System | Must Have | GMP / Data Integrity |
 
 ---
 

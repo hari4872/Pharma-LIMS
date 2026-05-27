@@ -1,5 +1,6 @@
 ﻿# PHARMA LIMS — Digital Logbook (Phase 3a)
-### Technical Design Document · v1.1 · CONFIDENTIAL
+### Technical Design Document · v1.2 · CONFIDENTIAL
+> **v1.2 Changes:** Post-sign Amendment (§11.10(e)) — original row preserved as Superseded, new Pending entry requires e-sig re-auth; CSV export on demand (§11.10(b))
 > **v1.1 Changes:** `trigger_source` field on every row · `evidence_file_ref` per row · Process Log rows via same service · `is_oot` flag
 
 ---
@@ -10,7 +11,7 @@
 |---|---|
 | Module | Digital Logbook (Phase 3a) |
 | Depends On | Testing Execution v1.2, Parameters v1.1 |
-| Version | v1.1 |
+| Version | v1.2 |
 | Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
@@ -112,6 +113,10 @@ The Digital Logbook is the **real-time, permanent scientific record** of every p
 | FR-10 | New rows pushed via SignalR (Contract 2 — no polling) | System | Must Have | Contract 2 |
 | FR-11 | Spec snapshot captured at test time — immutable regardless of subsequent spec changes | System | Must Have | ALCOA+ Enduring |
 | FR-12 | All actions audit-logged INSERT-only | System | Must Have | 21 CFR §11.10(e) |
+| **FR-13** | **Post-sign Amendment: `POST /digital-logbook/{id}/amend`. Original row status → Superseded (immutable). New Pending row created with amended `raw_value` and mandatory `amendment_reason`. Requires password re-auth (§11.300).** | Analyst/QA | Must Have | 21 CFR §11.10(e) / ALCOA+ Enduring |
+| **FR-14** | **Amendment blocked if original row is not in `Signed` status — prevents amending already-amended or pending rows.** | System | Must Have | 21 CFR §11.10(e) |
+| **FR-15** | **Amendment e-sig: same `IElectronicSignatureService` (Contract 1). `amendment_reason` + `amendment_signature_id` stored on the superseded row.** | System | Must Have | 21 CFR §11.50 / Contract 1 |
+| **FR-16** | **CSV export: `GET /digital-logbook/export?sampleId=&status=&from=&to=`. All §11.50 fields included. On demand (§11.10(b)).** | QA/Admin | Must Have | 21 CFR §11.10(b) |
 
 ---
 
@@ -142,7 +147,9 @@ CREATE TABLE digital_logbook_entries (
   evidence_file_ref        VARCHAR(500),  -- mandatory for is_critical parameters
   status                   VARCHAR(20) NOT NULL DEFAULT 'Pending',
   -- Pending | Signed | Superseded
-  superseded_by            INT REFERENCES digital_logbook_entries(entry_id),
+  superseded_by_id         INT REFERENCES digital_logbook_entries(entry_id),
+  amendment_reason         TEXT,         -- mandatory when row is being superseded by amendment
+  amendment_signature_id   INT REFERENCES electronic_signatures(signature_id),
   created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()  -- UTC server-side
 );
 ```
@@ -155,6 +162,8 @@ CREATE TABLE digital_logbook_entries (
 |---|---|---|---|---|
 | Logbook Row | Pending | Signed | Analyst §11.50 e-sig | 21 CFR §11.50 |
 | Logbook Row | Signed | Superseded | New official retest signed — original preserved | ALCOA+ Enduring |
+| Logbook Row | Signed | Superseded | Post-sign Amendment: password re-auth + reason captured; new Pending row created | 21 CFR §11.10(e) / ALCOA+ Enduring |
+| Logbook Row | (new Pending) | Signed | Analyst signs amended row with §11.50 e-sig | 21 CFR §11.50 |
 | OOS Flag | FALSE | TRUE | `OOSDetectionService`: result outside in-house spec | FDA OOS Guidance |
 | OOT Flag | FALSE | TRUE | `OOSDetectionService` OOT mode: outside `oot_min/max` | GMP trending |
 

@@ -34,18 +34,22 @@ NN  created_at       TIMESTAMPTZ
 ```
 USER
 ──────────────────────────────────────────────
-PK  user_id          INT         IDENTITY
-UQ  username         VARCHAR     NOT NULL
-NN  password_hash    VARCHAR
-NN  full_name        VARCHAR
-NN  email            VARCHAR
-NN  user_type        VARCHAR     (Admin|RegularUser)
-NN  role             VARCHAR     (Admin|QA|QCLead|Analyst|LabManager|Viewer)
-FK  lab_id           INT         → LABORATORY  (NULL = system admin)
-    is_active        BOOLEAN     DEFAULT true
-    is_tenant_admin  BOOLEAN     DEFAULT false
-NN  created_by       VARCHAR
-NN  created_at       TIMESTAMPTZ
+PK  user_id              INT         IDENTITY
+UQ  username             VARCHAR     NOT NULL
+NN  password_hash        VARCHAR
+NN  full_name            VARCHAR
+NN  email                VARCHAR
+NN  user_type            VARCHAR     (Admin|RegularUser)
+NN  role                 VARCHAR     (Admin|QA|QCLead|Analyst|LabManager|Viewer)
+FK  lab_id               INT         → LABORATORY  (NULL = system admin)
+    is_active            BOOLEAN     DEFAULT true
+    is_tenant_admin      BOOLEAN     DEFAULT false
+    failed_login_count   INT         DEFAULT 0      (§11.10(d) lockout counter)
+    locked_until         TIMESTAMPTZ NULL           (NULL = not locked)
+    last_login_at        TIMESTAMPTZ NULL
+    last_login_ip        VARCHAR     NULL
+NN  created_by           VARCHAR
+NN  created_at           TIMESTAMPTZ
 ```
 
 ### ElectronicSignature — INS-ONLY (21 CFR §11.50) ✅
@@ -294,6 +298,20 @@ NN  created_by       VARCHAR
 NN  created_at       TIMESTAMPTZ
 ```
 
+### LoginAuditLog — INS-ONLY (21 CFR §11.10(d)) ✅
+```
+LOGIN_AUDIT_LOG
+──────────────────────────────────────────────
+PK  log_id           BIGINT      IDENTITY
+FK  user_id          INT         → USER  NULL    (NULL if username not found in DB)
+NN  username_attempt VARCHAR     NOT NULL        (as typed — preserved for forensics)
+NN  outcome          VARCHAR     (Success|Failed|LockedOut)
+    ip_address       VARCHAR
+    user_agent       VARCHAR
+NN  attempted_at     TIMESTAMPTZ NOT NULL        (UTC server-side — ALCOA+ Contemporaneous)
+```
+> Never updated or deleted. Every login attempt = new row. Admin cannot edit or suppress.
+
 ### MasterDataAuditLog — INS-ONLY (21 CFR §11.10(e)) ✅
 ```
 MASTER_DATA_AUDIT_LOG
@@ -402,6 +420,25 @@ NN  created_by       VARCHAR
 NN  created_at       TIMESTAMPTZ
 ```
 
+### SampleContainer ✅  (LabVantage Parity — Container/Aliquot Management)
+```
+SAMPLE_CONTAINER
+──────────────────────────────────────────────
+PK  container_id     INT         IDENTITY
+FK  sample_id        INT         → SAMPLE  RESTRICT
+NN  container_type   VARCHAR     (Primary|Aliquot|Reserve)
+NN  volume_ml        DECIMAL(10,3)
+NN  uom              VARCHAR
+    barcode_ref      VARCHAR
+NN  status           VARCHAR     (Active|Consumed|Destroyed)  DEFAULT 'Active'
+    destroyed_by     VARCHAR     (recorded immutably on destroy)
+    destroyed_at     TIMESTAMPTZ
+    destroy_reason   TEXT        (mandatory on destroy)
+NN  created_by       VARCHAR
+NN  created_at       TIMESTAMPTZ
+```
+> Split only allowed when sample is Registered or PendingTesting. Destruction requires BCrypt-verified password + reason. No hard-delete ever.
+
 ### BarcodePrintLog — INS-ONLY (21 CFR 211.170) ✅
 ```
 BARCODE_PRINT_LOG
@@ -466,6 +503,8 @@ FK  signature_id         INT         → ELECTRONIC_SIGNATURE  NULL
     evidence_file_ref    VARCHAR     (mandatory if is_critical before sign-off)
 NN  status               VARCHAR     (Pending|Signed|Superseded)
 FK  superseded_by_id     INT         → DIGITAL_LOGBOOK_ENTRY  NULL  (self-ref)
+    amendment_reason     TEXT        NULL  (set on row being superseded; §11.10(e))
+FK  amendment_sig_id     INT         → ELECTRONIC_SIGNATURE  NULL
 NN  created_at           TIMESTAMPTZ
 ```
 
@@ -580,6 +619,42 @@ NN  queried_at       TIMESTAMPTZ
 NN  filter_params    JSONB       (batch, lot, date, analyst, instrument)
     result_count     INT
 ```
+
+---
+
+## PHASE 3b — STABILITY STUDY ✅
+
+### StabilityProtocol ✅
+```
+STABILITY_PROTOCOL
+──────────────────────────────────────────────
+PK  protocol_id      INT         IDENTITY
+FK  material_id      INT         → MATERIAL  RESTRICT
+NN  protocol_name    VARCHAR
+NN  status           VARCHAR     (Draft|Approved|Completed)
+    intended_shelf_life_months INT  NULL  (target per ICH Q1A)
+    approved_by      VARCHAR
+    approved_at      TIMESTAMPTZ
+FK  signature_id     INT         → ELECTRONIC_SIGNATURE  NULL
+NN  created_by       VARCHAR
+NN  created_at       TIMESTAMPTZ
+```
+
+### StabilityTrendPoint ✅  (ICH Q1A regression data points)
+```
+STABILITY_TREND_POINT
+──────────────────────────────────────────────
+PK  point_id         INT         IDENTITY
+FK  protocol_id      INT         → STABILITY_PROTOCOL  CASCADE
+FK  parameter_id     INT         → TEST_METHOD_PARAMETER  RESTRICT
+NN  time_point       VARCHAR     (T0|T3M|T6M|T9M|T12M|T18M|T24M)
+NN  measured_value   DECIMAL(18,6)
+    pass_fail        VARCHAR     (PASS|FAIL)
+NN  measured_at      TIMESTAMPTZ (UTC server-side)
+NN  created_by       VARCHAR
+NN  created_at       TIMESTAMPTZ
+```
+> ICH Q1A linear regression computed server-side by `GetStabilityTrendQuery`: slope, intercept, predicted shelf life months, flag (0=Stable/1=WatchNeeded/2=ActionRequired). Never stored — always derived on demand.
 
 ---
 
@@ -775,11 +850,14 @@ LABORATORY
   │                    └── has many ──► CONDITION_EXCURSION 🔲
   └── has many ──► USER
                        ├── has many ──► USER_TRAINING_RECORD
-                       └── has many ──► ELECTRONIC_SIGNATURE (INS-ONLY)
+                       ├── has many ──► ELECTRONIC_SIGNATURE (INS-ONLY)
+                       └── has many ──► LOGIN_AUDIT_LOG (INS-ONLY)
 
 MATERIAL
-  └── has many ──► SPEC_LIMIT
-  └── has many ──► DELIVERY_ORDER 🔲
+  ├── has many ──► SPEC_LIMIT
+  ├── has many ──► DELIVERY_ORDER 🔲
+  └── has many ──► STABILITY_PROTOCOL
+                       └── has many ──► STABILITY_TREND_POINT
 
 TEST_METHOD
   └── has many ──► TEST_METHOD_PARAMETER
@@ -795,6 +873,7 @@ SAMPLE
   ├── belongs to ──► USER (analyst)
   ├── belongs to ──► ELECTRONIC_SIGNATURE (srf_signature — optional)
   ├── has many ──► BARCODE_PRINT_LOG (INS-ONLY)
+  ├── has many ──► SAMPLE_CONTAINER
   ├── has many ──► SAMPLING_EVENT 🔲
   ├── has many ──► STABILITY_PULL 🔲
   │                    └── has one  ──► SHORT_PULL_DEVIATION 🔲
@@ -810,7 +889,8 @@ SAMPLE
                        │                    ├── belongs to ──► INSTRUMENT (optional)
                        │                    ├── belongs to ──► USER (analyst)
                        │                    ├── belongs to ──► ELECTRONIC_SIGNATURE (optional)
-                       │                    ├── self-ref ──► DIGITAL_LOGBOOK_ENTRY (superseded_by)
+                       │                    ├── belongs to ──► ELECTRONIC_SIGNATURE (amendment_sig — optional)
+                       │                    ├── self-ref ──► DIGITAL_LOGBOOK_ENTRY (superseded_by_id)
                        │                    ├── has many ──► RESULT_EVIDENCE
                        │                    └── referenced by ──► COA_LINE 🔲
                        ├── has many ──► OOS_INVESTIGATION
@@ -877,8 +957,14 @@ DELIVERY_ORDER 🔲
 | 4-Eyes QCLead ≠ Analyst AND ≠ Peer | ResultsReview (QCLeadVerification) | 21 CFR §11.50 / GMP |
 | OOS gate before QCLead verification | QCLeadVerifyCommand | FDA OOS Guidance 2006 |
 | Evidence gate for critical params before sign-off | SignOffTestExecutionCommand | GAMP 5 |
-| Training gate hard-block | AssignWorkQueueItemCommand | GMP / 21 CFR §11.10(i) |
-| Calibration gate hard-block | AssignWorkQueueItemCommand | 21 CFR 211.68 |
+| Training gate hard-block | AssignWorkQueueItemCommand, AssignTestMethodCommand | GMP / 21 CFR §11.10(i) |
+| Calibration gate hard-block | AssignWorkQueueItemCommand, AssignTestMethodCommand | 21 CFR 211.68 |
+| Failed-login lockout (5 strikes → 30 min) | AuthController + LoginAuditLog | 21 CFR §11.10(d) |
+| Login audit INSERT-only | LoginAuditLog (Success/Failed/LockedOut) | 21 CFR §11.10(d) |
+| Amendment: original row preserved as Superseded | AmendLogbookEntryCommand + amendment_reason + amendment_sig_id | 21 CFR §11.10(e) / ALCOA+ Enduring |
+| Container split gate: only Registered/PendingTesting | SplitSampleContainersCommand | GMP chain of custody |
+| Container destroy: BCrypt password + mandatory reason | SampleContainersController | 21 CFR §11.10(e) / ALCOA+ Enduring |
+| ICH Q1A regression server-computed; never stored | GetStabilityTrendQuery | ICH Q1A |
 | Sample number server-generated | Sample.sample_number | Contract 2 |
 | All spec/formula compute server-side | DigitalLogbookEntry | Contract 2 |
 | CoA PDF locked server-side atomically on QA sig | CoA.locked_at + CoA.pdf_blob | EU Annex 11 §11 |
