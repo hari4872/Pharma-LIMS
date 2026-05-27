@@ -7,6 +7,7 @@ import { ToastContainer, toast } from '@/components/Toast'
 import CommandPalette from '@/components/CommandPalette'
 import OfflineSyncButton from '@/components/OfflineSyncButton'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import ChatbotWidget from '@/components/ChatbotWidget'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { useNotifications } from '@/hooks/useNotifications'
 
@@ -38,90 +39,8 @@ const topItems: NavItem[] = [
   },
 ]
 
-const masterDataItems: NavItem[] = [
-  {
-    label: 'Laboratories', path: '/master-data/laboratories',
-    iconBg: '#f0fdfa', iconColor: '#0d9488',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Instruments', path: '/master-data/instruments',
-    iconBg: '#e0f2fe', iconColor: '#0284c7',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
-  },
-  {
-    label: 'Materials', path: '/master-data/materials',
-    iconBg: '#fef3c7', iconColor: '#d97706',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM16 3H8L6 7h12l-2-4z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Test Methods', path: '/master-data/test-methods',
-    iconBg: '#f3e8ff', iconColor: '#7c3aed',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Parameters', path: '/master-data/parameters',
-    iconBg: '#fce7f3', iconColor: '#db2777',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
-  },
-  {
-    label: 'Spec Limits', path: '/master-data/spec-limits',
-    iconBg: '#dcfce7', iconColor: '#16a34a',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Form Templates', path: '/master-data/form-templates',
-    iconBg: '#f1f5f9', iconColor: '#64748b',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M4 6h16M4 10h16M4 14h10M4 18h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
-  },
-  {
-    label: 'Spec Templates', path: '/master-data/specification-templates',
-    iconBg: '#dcfce7', iconColor: '#15803d',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Users', path: '/master-data/users',
-    iconBg: '#dbeafe', iconColor: '#2563eb',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zm14 10v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Sample Types', path: '/master-data/sample-types',
-    iconBg: '#fef3c7', iconColor: '#d97706',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 3h6M10 3v6L5 19a2 2 0 002 3h10a2 2 0 002-3l-5-10V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Storage Locations', path: '/master-data/storage-locations',
-    iconBg: '#f1f5f9', iconColor: '#64748b',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Reagents & Standards', path: '/master-data/reagents',
-    iconBg: '#f3e8ff', iconColor: '#7c3aed',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Training Records', path: '/master-data/training-records',
-    iconBg: '#dcfce7', iconColor: '#16a34a',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Sampling Plans', path: '/master-data/sampling-plans',
-    iconBg: '#fef9c3', iconColor: '#ca8a04',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Stability Protocols', path: '/master-data/stability-protocols',
-    iconBg: '#e0f2fe', iconColor: '#0369a1',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Instrument Mapping', path: '/master-data/instrument-mapping',
-    iconBg: '#fce7f3', iconColor: '#db2777',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-]
-
-const operationsItems: NavItem[] = [
+// ── Lab Operations — Analyst daily workflow ───────────────────────────────
+const labOpsItems: NavItem[] = [
   {
     label: 'Sample Registration', path: '/samples',
     iconBg: '#e0f2fe', iconColor: '#0284c7',
@@ -138,6 +57,20 @@ const operationsItems: NavItem[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M4 6h16M4 10h16M4 14h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
   },
   {
+    label: 'Digital Logbook', path: '/digital-logbook',
+    iconBg: '#fef3c7', iconColor: '#d97706',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+]
+
+// ── Quality Assurance — QA Manager focus ──────────────────────────────────
+const qualityItems: NavItem[] = [
+  {
+    label: 'Results Review', path: '/results-review',
+    iconBg: '#dbeafe', iconColor: '#2563eb',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
     label: 'OOS Investigations', path: '/oos-investigations',
     iconBg: '#fee2e2', iconColor: '#dc2626',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
@@ -152,16 +85,10 @@ const operationsItems: NavItem[] = [
     iconBg: '#f0fdf4', iconColor: '#16a34a',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 17l4-4 4 4 4-8 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
-  {
-    label: 'Digital Logbook', path: '/digital-logbook',
-    iconBg: '#fef3c7', iconColor: '#d97706',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Results Review', path: '/results-review',
-    iconBg: '#dbeafe', iconColor: '#2563eb',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
+]
+
+// ── Release & Dispatch — QA + Dispatch team ───────────────────────────────
+const releaseItems: NavItem[] = [
   {
     label: 'Batch Release', path: '/batch-release',
     iconBg: '#f0fdf4', iconColor: '#15803d',
@@ -178,27 +105,18 @@ const operationsItems: NavItem[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
   {
-    label: 'Stability Study', path: '/stability-study',
-    iconBg: '#e0f2fe', iconColor: '#0369a1',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 17l4-8 4 6 3-4 4 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Site Transfers', path: '/site-transfers',
-    iconBg: '#dbeafe', iconColor: '#1d4ed8',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M8 7h12M8 12h12M8 17h12M3 7h.01M3 12h.01M3 17h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
-  },
-  {
     label: 'Reports & Exports', path: '/reports',
     iconBg: '#f0f9ff', iconColor: '#0369a1',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
 ]
 
-const inventoryItems: NavItem[] = [
+// ── Stability & Retention — ICH Q1A / 21 CFR 211.170 ─────────────────────
+const stabilityItems: NavItem[] = [
   {
-    label: 'Traceability', path: '/traceability',
-    iconBg: '#e0f2fe', iconColor: '#0284c7',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    label: 'Stability Study', path: '/stability-study',
+    iconBg: '#e0f2fe', iconColor: '#0369a1',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 17l4-8 4 6 3-4 4 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
   {
     label: 'Stability Pulls', path: '/stability-pulls',
@@ -214,6 +132,20 @@ const inventoryItems: NavItem[] = [
     label: 'Condition Excursions', path: '/condition-excursions',
     iconBg: '#fee2e2', iconColor: '#dc2626',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.95L13.75 4a2 2 0 00-3.5 0L3.25 16.05A2 2 0 005.07 19z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+]
+
+// ── Traceability & Transfers ──────────────────────────────────────────────
+const traceabilityItems: NavItem[] = [
+  {
+    label: 'Traceability', path: '/traceability',
+    iconBg: '#e0f2fe', iconColor: '#0284c7',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    label: 'Site Transfers', path: '/site-transfers',
+    iconBg: '#dbeafe', iconColor: '#1d4ed8',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M8 7h12M8 12h12M8 17h12M3 7h.01M3 12h.01M3 17h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
   },
 ]
 
@@ -260,8 +192,6 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/condition-excursions':             { section: 'Inventory', label: 'Condition Excursions' },
 }
 
-// Notification type re-exported for use in this file
-type Notif = import('@/hooks/useNotifications').LiveNotif
 
 // ── Layout constants ──────────────────────────────────────────────────────
 const SIDEBAR_W = 252
@@ -476,49 +406,63 @@ export default function Layout() {
           <SectionHead label="Overview" first dm={dm} collapsed={collapsed} />
           <NavGroup items={topItems} dm={dm} collapsed={collapsed} />
 
-          <SectionHead label="Operations" dm={dm} collapsed={collapsed} />
-          <NavGroup items={operationsItems} dm={dm} collapsed={collapsed} />
+          <SectionHead label="Lab Operations" dm={dm} collapsed={collapsed} />
+          <NavGroup items={labOpsItems} dm={dm} collapsed={collapsed} />
 
-          <SectionHead label="Inventory & Traceability" dm={dm} collapsed={collapsed} />
-          <NavGroup items={inventoryItems} dm={dm} collapsed={collapsed} />
-        </nav>
+          <SectionHead label="Quality Assurance" dm={dm} collapsed={collapsed} />
+          <NavGroup items={qualityItems} dm={dm} collapsed={collapsed} />
 
-        {/* ── Settings / Master Data button ── */}
-        <div style={{
-          padding: collapsed ? '8px 4px' : '8px 10px',
-          borderTop: `1px solid ${dm ? '#1e293b' : '#f1f3f4'}`,
-        }}>
-          <NavLink to="/settings"
-            title={collapsed ? 'Master Data / Settings' : undefined}
-            style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center',
-              gap: collapsed ? 0 : 8,
-              padding: collapsed ? '8px' : '9px 12px',
-              borderRadius: 10,
-              justifyContent: collapsed ? 'center' : 'flex-start',
-              textDecoration: 'none',
-              border: `1.5px solid ${isActive ? '#fde68a' : (dm ? '#334155' : '#fde68a')}`,
-              background: isActive ? '#fef3c7' : (dm ? '#1e293b' : '#fffbeb'),
-              color: '#92400e',
-              fontWeight: 700, fontSize: 13,
-              transition: 'background 0.12s',
-              overflow: 'hidden', whiteSpace: 'nowrap',
-            })}>
-            <div style={{
-              width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-              background: '#fef3c7',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 15,
-            }}>
-              ⚙️
-            </div>
+          <SectionHead label="Release & Dispatch" dm={dm} collapsed={collapsed} />
+          <NavGroup items={releaseItems} dm={dm} collapsed={collapsed} />
+
+          <SectionHead label="Stability & Retention" dm={dm} collapsed={collapsed} />
+          <NavGroup items={stabilityItems} dm={dm} collapsed={collapsed} />
+
+          <SectionHead label="Traceability & Transfers" dm={dm} collapsed={collapsed} />
+          <NavGroup items={traceabilityItems} dm={dm} collapsed={collapsed} />
+
+          {/* ── Master Data / Settings — single consolidated entry ── */}
+          <div style={{ padding: collapsed ? '4px 4px 0' : '4px 8px 0' }}>
             {!collapsed && (
-              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Master Data / Settings
-              </span>
+              <div style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                color: dm ? '#475569' : '#94a3b8',
+                padding: '6px 4px 2px',
+                textTransform: 'uppercase',
+              }}>Master Data</div>
             )}
-          </NavLink>
-        </div>
+            <NavLink to="/settings"
+              title={collapsed ? 'Master Data / Settings' : undefined}
+              style={({ isActive }) => ({
+                display: 'flex', alignItems: 'center',
+                gap: collapsed ? 0 : 8,
+                padding: collapsed ? '8px' : '9px 12px',
+                borderRadius: 10,
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                textDecoration: 'none',
+                border: `1.5px solid ${isActive ? '#fde68a' : (dm ? '#334155' : '#fde68a')}`,
+                background: isActive ? '#fef3c7' : (dm ? '#1e293b' : '#fffbeb'),
+                color: '#92400e',
+                fontWeight: 700, fontSize: 13,
+                transition: 'background 0.12s',
+                overflow: 'hidden', whiteSpace: 'nowrap',
+              })}>
+              <div style={{
+                width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                background: '#fef3c7',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 15,
+              }}>
+                ⚙️
+              </div>
+              {!collapsed && (
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  Master Data / Settings
+                </span>
+              )}
+            </NavLink>
+          </div>
+        </nav>
 
         {/* User footer */}
         <div style={{
@@ -819,6 +763,7 @@ export default function Layout() {
       {/* ── Global overlays ──────────────────────────────────────────── */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <ToastContainer />
+      <ChatbotWidget />
     </div>
   )
 }

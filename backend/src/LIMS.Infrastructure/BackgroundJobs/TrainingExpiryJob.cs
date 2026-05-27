@@ -21,8 +21,18 @@ public class TrainingExpiryJob : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await RunAsync(stoppingToken);
-            await Task.Delay(TimeSpan.FromHours(24), stoppingToken);
+            try
+            {
+                await RunAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "TrainingExpiryJob: run failed — will retry in 24 hours.");
+            }
+
+            try { await Task.Delay(TimeSpan.FromHours(24), stoppingToken); }
+            catch (OperationCanceledException) { break; }
         }
     }
 

@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Background jobs must NOT crash the host when DB is temporarily unreachable
+builder.Services.Configure<HostOptions>(opts =>
+    opts.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
+
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -66,16 +70,30 @@ builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer
 builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>
     options.AddPolicy("LimsFrontend", policy =>
-        policy.WithOrigins(builder.Configuration["Frontend:Origin"] ?? "http://localhost:5173")
-              .AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
+    {
+        var origins = builder.Configuration.GetSection("Frontend:Origins").Get<string[]>()
+                      ?? ["http://localhost:5173"];
+        policy.WithOrigins(origins)
+              .AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+    }));
 
 var app = builder.Build();
 
 // Auto-apply EF Core migrations on startup
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<LimsDbContext>();
-    await db.Database.MigrateAsync();
+    var db     = scope.ServiceProvider.GetRequiredService<LimsDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        await db.Database.MigrateAsync();
+        logger.LogInformation("Database migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Database migration failed — app will still start. " +
+                            "Check DB connectivity and retry.");
+    }
 }
 
 app.UseSwagger();

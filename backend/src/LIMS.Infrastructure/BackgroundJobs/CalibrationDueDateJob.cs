@@ -22,9 +22,22 @@ public class CalibrationDueDateJob : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await RunAsync(stoppingToken);
-            var intervalHours = await GetIntervalHoursAsync(stoppingToken);
-            await Task.Delay(TimeSpan.FromHours(intervalHours), stoppingToken);
+            try
+            {
+                await RunAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "CalibrationDueDateJob: run failed — will retry next interval.");
+            }
+
+            try
+            {
+                var intervalHours = await GetIntervalHoursAsync(stoppingToken);
+                await Task.Delay(TimeSpan.FromHours(intervalHours), stoppingToken);
+            }
+            catch (OperationCanceledException) { break; }
         }
     }
 

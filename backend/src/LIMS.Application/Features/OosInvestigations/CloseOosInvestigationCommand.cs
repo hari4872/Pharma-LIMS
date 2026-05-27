@@ -40,8 +40,9 @@ public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigatio
         inv.ClosedAt = DateTimeOffset.UtcNow;
 
         // Check if all OOS for this execution are now closed — if so, set execution Completed
-        var allClosed = await _db.OosInvestigations
-            .AllAsync(i => i.ExecutionId == inv.ExecutionId && i.Status == OosStatus.Closed, ct);
+        // NOTE: filter FIRST then AllAsync — without Where() the predicate runs over the entire table
+        var allClosed = !await _db.OosInvestigations
+            .AnyAsync(i => i.ExecutionId == inv.ExecutionId && i.Status == OosStatus.Open, ct);
         if (allClosed)
         {
             inv.Execution.Status = TestExecutionStatus.Completed;

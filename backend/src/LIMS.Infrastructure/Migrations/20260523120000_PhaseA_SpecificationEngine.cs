@@ -187,11 +187,6 @@ public partial class PhaseA_SpecificationEngine : Migration
             principalColumn: "ParameterId",
             onDelete: ReferentialAction.SetNull);
 
-        // ── 6. Migrations history ──────────────────────────────────────────
-        migrationBuilder.InsertData(
-            table: "__EFMigrationsHistory",
-            columns: ["MigrationId", "ProductVersion"],
-            values: new object[] { "20260523120000_PhaseA_SpecificationEngine", "8.0.0" });
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)

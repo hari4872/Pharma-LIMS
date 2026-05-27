@@ -28,8 +28,8 @@ public class CoAController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var result = await _mediator.Send(new GetCoAQuery(null, null));
-        var coa = result.FirstOrDefault(c => c.CoaId == id);
+        var result = await _mediator.Send(new GetCoAQuery(null, null, CoaId: id));
+        var coa = result.FirstOrDefault();
         if (coa is null) return NotFound();
         return Ok(coa);
     }
@@ -39,12 +39,11 @@ public class CoAController : ControllerBase
     [Authorize(Roles = "QA,Admin,QCLead")]
     public async Task<IActionResult> GetChecklist(int id)
     {
-        // Resolve sampleId for this CoA
-        var coas = await _mediator.Send(new GetCoAQuery(null, null));
-        var coa = coas.FirstOrDefault(c => c.CoaId == id);
+        var result = await _mediator.Send(new GetCoAQuery(null, null, CoaId: id));
+        var coa = result.FirstOrDefault();
         if (coa is null) return NotFound();
-        var result = await _qaGate.EvaluateChecklistAsync(coa.SampleId, id);
-        return Ok(result);
+        var checklist = await _qaGate.EvaluateChecklistAsync(coa.SampleId, id);
+        return Ok(checklist);
     }
 
     // POST api/v1/coas/generate — manual CoA generation trigger (auto-trigger is via QCLead verify)
@@ -77,8 +76,8 @@ public class CoAController : ControllerBase
     [HttpGet("{id}/pdf")]
     public async Task<IActionResult> GetPdf(int id)
     {
-        var coas = await _mediator.Send(new GetCoAQuery(null, null));
-        var coa  = coas.FirstOrDefault(c => c.CoaId == id);
+        var result = await _mediator.Send(new GetCoAQuery(null, null, CoaId: id));
+        var coa = result.FirstOrDefault();
         if (coa is null) return NotFound();
 
         // Retrieve the raw blob from DB

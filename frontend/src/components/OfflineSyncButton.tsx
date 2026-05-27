@@ -8,7 +8,6 @@
 import { useState, useEffect } from 'react'
 import type { OfflineSyncState } from '@/hooks/useOfflineSync'
 import type { QueueItem } from '@/utils/offlineQueue'
-import * as queue from '@/utils/offlineQueue'
 
 interface Props {
   sync: OfflineSyncState

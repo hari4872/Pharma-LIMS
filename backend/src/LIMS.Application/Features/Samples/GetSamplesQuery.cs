@@ -32,9 +32,13 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
 
         return await query.OrderByDescending(s => s.CreatedAt)
             .Select(s => new SampleDto(
-                s.SampleId, s.SampleNumber, s.Material.MaterialName, s.LotNumber,
-                s.SampleTypeNav.TypeName, s.Status.ToString(), s.BarcodePrinted, s.DueDate,
-                s.Analyst.FullName, s.CreatedAt, s.FormTemplateId))
+                s.SampleId, s.SampleNumber,
+                s.Material != null ? s.Material.MaterialName : "Unknown",
+                s.LotNumber,
+                s.SampleTypeNav != null ? s.SampleTypeNav.TypeName : "Unknown",
+                s.Status.ToString(), s.BarcodePrinted, s.DueDate,
+                s.Analyst != null ? s.Analyst.FullName : "Unassigned",
+                s.CreatedAt, s.FormTemplateId))
             .ToListAsync(ct);
     }
 }

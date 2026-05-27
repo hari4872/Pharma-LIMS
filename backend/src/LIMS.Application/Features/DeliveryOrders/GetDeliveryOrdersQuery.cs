@@ -1,4 +1,5 @@
 using LIMS.Application.Interfaces;
+using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,8 +33,8 @@ public class GetDeliveryOrdersHandler : IRequestHandler<GetDeliveryOrdersQuery, 
                 .ThenInclude(t => t.FormTemplate)
             .AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(q.Status))
-            query = query.Where(d => d.Status.ToString() == q.Status);
+        if (!string.IsNullOrWhiteSpace(q.Status) && Enum.TryParse<DispatchStatus>(q.Status, true, out var statusEnum))
+            query = query.Where(d => d.Status == statusEnum);
 
         var orders = await query.OrderByDescending(d => d.CreatedAt).ToListAsync(ct);
 
@@ -41,12 +42,13 @@ public class GetDeliveryOrdersHandler : IRequestHandler<GetDeliveryOrdersQuery, 
             d.DoId, d.DoNumber, d.CustomerName,
             d.DespatchDate?.ToString("yyyy-MM-dd"),
             d.PackingType,
-            d.Product.MaterialName,
+            d.Product != null ? d.Product.MaterialName : "Unknown",
             d.Status.ToString(),
             d.CreatedAt,
             d.DispatchQcTasks.Select(t => new DispatchTaskSummaryDto(
                 t.TaskId, t.Status.ToString(), t.SampleId,
-                t.Sample.SampleNumber, t.FormTemplate.FormName,
+                t.Sample != null ? t.Sample.SampleNumber : "",
+                t.FormTemplate != null ? t.FormTemplate.FormName : "Unknown",
                 t.ExecutionId)).ToList()
         )).ToList();
     }

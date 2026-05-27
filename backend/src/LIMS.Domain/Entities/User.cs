@@ -20,6 +20,12 @@ public class User
     public string CreatedBy { get; set; } = default!;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
+    // 21 CFR §11.10(d) — account lockout after consecutive failed logins
+    public int FailedLoginCount { get; set; } = 0;
+    public DateTimeOffset? LockedUntil { get; set; }
+    public DateTimeOffset? LastLoginAt { get; set; }
+    public string? LastLoginIp { get; set; }
+
     public ICollection<UserTrainingRecord> TrainingRecords { get; set; } = [];
     public ICollection<ElectronicSignature> Signatures { get; set; } = [];
 }

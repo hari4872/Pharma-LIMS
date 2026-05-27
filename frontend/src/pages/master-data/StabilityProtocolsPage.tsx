@@ -62,11 +62,6 @@ const CONDITION_LABEL: Record<string, string> = {
   Refrigerated: '5°C ± 3°C',
 }
 
-const label: React.CSSProperties = {
-  display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
-  textTransform: 'uppercase', color: '#6b7280', marginBottom: 6,
-}
-
 // ── Interval designer row ────────────────────────────────────────────────────
 interface IntervalRowDraft {
   id: string  // temp key for React
@@ -282,12 +277,8 @@ export default function StabilityProtocolsPage() {
       <div>
         <PageHeader
           title="Stability Protocols"
-          subtitle="Define study design, storage conditions, and time-points for stability testing programmes"
-          action={<button
-            onClick={() => { resetForm(); setShowCreate(true) }}
-            style={{ padding: '8px 18px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-            + New Protocol
-          </button>}
+          onAdd={() => { resetForm(); setShowCreate(true) }}
+          addLabel="+ New Protocol"
         />
 
         {/* ── Filters ──────────────────────────────────────────────────── */}

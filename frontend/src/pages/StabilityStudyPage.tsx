@@ -60,6 +60,114 @@ interface IchComplianceResult {
   intervals: IchIntervalStatus[]
 }
 
+// ── ICH Regression Trend (new endpoint: /stability-trend/{protocolId}/{parameterId}) ──
+interface IchTrendReport {
+  protocolId: number; parameterId: number
+  parameterName: string; protocolName: string
+  specMin: number | null; specMax: number | null
+  timePoints: { timePointMonths: number; label: string; measuredValue: number; measuredAt: string }[]
+  regressionSlope: number | null; regressionIntercept: number | null
+  mean: number | null; stdDev: number | null
+  predictedShelfLifeMonths: number | null
+  flag: number  // 0=Stable, 1=WatchNeeded, 2=ActionRequired
+}
+
+function IchRegressionPanel({ protocolId, parameterId, paramName, onClose }: {
+  protocolId: number; parameterId: number; paramName: string; onClose: () => void
+}) {
+  const [report, setReport]   = useState<IchTrendReport | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [err, setErr]         = useState('')
+
+  useEffect(() => {
+    setLoading(true); setErr('')
+    api.get<IchTrendReport>(`/stability-trend/${protocolId}/${parameterId}`)
+      .then(r => setReport(r.data))
+      .catch(() => setErr('Failed to load regression data'))
+      .finally(() => setLoading(false))
+  }, [protocolId, parameterId])
+
+  const FLAG_STYLE: Record<number, { bg: string; color: string; label: string }> = {
+    0: { bg: '#d1fae5', color: '#065f46', label: '✓ Stable' },
+    1: { bg: '#fef9c3', color: '#92400e', label: '⚠ Watch Needed' },
+    2: { bg: '#fee2e2', color: '#991b1b', label: '✗ Action Required' },
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '32px 16px', overflowY: 'auto' }}>
+      <div style={{ background: '#fff', borderRadius: 10, width: '100%', maxWidth: 640, padding: '24px 28px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#111827' }}>ICH Q1A Linear Regression — {paramName}</h3>
+            <p style={{ margin: '3px 0 0', fontSize: 12, color: '#6b7280' }}>Protocol #{protocolId} · Statistical trending per ICH Q1A(R2)</p>
+          </div>
+          <button onClick={onClose} style={{ background: '#f3f4f6', border: 'none', borderRadius: 6, width: 32, height: 32, cursor: 'pointer', fontSize: 18, color: '#6b7280' }}>×</button>
+        </div>
+
+        {loading && <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: 13 }}>Calculating regression…</div>}
+        {err    && <div style={{ color: '#dc2626', fontSize: 13 }}>{err}</div>}
+
+        {report && !loading && (
+          <>
+            {/* Stats bar */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 18 }}>
+              {[
+                { label: 'Flag', value: <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, ...FLAG_STYLE[report.flag] }}>{FLAG_STYLE[report.flag]?.label ?? '—'}</span> },
+                { label: 'Predicted Shelf Life', value: report.predictedShelfLifeMonths != null ? `${report.predictedShelfLifeMonths} months` : '—' },
+                { label: 'Slope / month', value: report.regressionSlope != null ? report.regressionSlope.toFixed(4) : '—' },
+                { label: 'Intercept', value: report.regressionIntercept != null ? report.regressionIntercept.toFixed(4) : '—' },
+                { label: 'Mean', value: report.mean != null ? report.mean.toFixed(4) : '—' },
+                { label: 'Std Dev', value: report.stdDev != null ? `±${report.stdDev.toFixed(4)}` : '—' },
+              ].map(s => (
+                <div key={s.label} style={{ background: '#f9fafb', borderRadius: 7, padding: '10px 14px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>{s.label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Time points table */}
+            {report.timePoints.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af', fontSize: 13, border: '1px dashed #e5e7eb', borderRadius: 8 }}>
+                No trend points recorded yet. Record pull results via Stability Pulls to populate.
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f9fafb' }}>
+                    {['Time Point', 'Measured Value', 'Spec Min', 'Spec Max', 'Pass/Fail'].map(h =>
+                      <th key={h} style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 700, color: '#6b7280', fontSize: 10, textTransform: 'uppercase', borderBottom: '1px solid #e5e7eb' }}>{h}</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.timePoints.map((tp, i) => {
+                    const pass = (report.specMin == null || tp.measuredValue >= report.specMin) &&
+                                 (report.specMax == null || tp.measuredValue <= report.specMax)
+                    return (
+                      <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        <td style={{ padding: '7px 12px', fontWeight: 600 }}>{tp.label || `T=${tp.timePointMonths}M`}</td>
+                        <td style={{ padding: '7px 12px', fontFamily: 'monospace', fontWeight: 700 }}>{tp.measuredValue}</td>
+                        <td style={{ padding: '7px 12px', color: '#6b7280' }}>{report.specMin ?? '—'}</td>
+                        <td style={{ padding: '7px 12px', color: '#6b7280' }}>{report.specMax ?? '—'}</td>
+                        <td style={{ padding: '7px 12px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: pass ? '#d1fae5' : '#fee2e2', color: pass ? '#065f46' : '#991b1b' }}>
+                            {pass ? 'PASS' : 'FAIL'}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function storageColor(condition: string): React.CSSProperties {
   const c = condition.toLowerCase()
@@ -117,6 +225,8 @@ export default function StabilityStudyPage() {
   const [ichResult, setIchResult]         = useState<IchComplianceResult | null>(null)
   const [loadingList, setLoadingList]     = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  // ICH regression panel
+  const [ichRegParam, setIchRegParam]     = useState<{ protocolId: number; parameterId: number; paramName: string } | null>(null)
 
   useEffect(() => {
     setLoadingList(true)
@@ -145,6 +255,14 @@ export default function StabilityStudyPage() {
 
   return (
     <div style={{ display: 'flex', height: '100%', minHeight: 500, background: '#f9fafb', gap: 0 }}>
+      {ichRegParam && (
+        <IchRegressionPanel
+          protocolId={ichRegParam.protocolId}
+          parameterId={ichRegParam.parameterId}
+          paramName={ichRegParam.paramName}
+          onClose={() => setIchRegParam(null)}
+        />
+      )}
 
       {/* ── Left sidebar: Protocol list ────────────────────────────────────── */}
       <div style={{ width: 280, minWidth: 280, borderRight: '1px solid #e5e7eb', background: '#fff', display: 'flex', flexDirection: 'column', borderRadius: '10px 0 0 10px', overflow: 'hidden' }}>
@@ -240,6 +358,10 @@ export default function StabilityStudyPage() {
                       R²: {param.rSquared.toFixed(3)}
                     </span>
                   )}
+                  <button onClick={() => setIchRegParam({ protocolId: selectedId!, parameterId: param.parameterId, paramName: param.parameterName })}
+                    style={{ marginLeft: 'auto', padding: '3px 10px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                    📊 ICH Regression
+                  </button>
                   <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 8px', borderRadius: 8, background: '#f3f4f6', color: '#374151' }}>
                     Shelf-life: {param.predictedShelfLifeMonths != null ? `${param.predictedShelfLifeMonths.toFixed(1)} mo` : 'Insufficient data'}
                   </span>

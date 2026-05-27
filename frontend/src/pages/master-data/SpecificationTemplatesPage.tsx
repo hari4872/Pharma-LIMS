@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
-import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
+import { PageHeader, Modal, Field, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import ErrorBoundary from '@/components/ErrorBoundary'
 
@@ -73,7 +73,6 @@ export default function SpecificationTemplatesPage() {
   const [search,       setSearch]       = useState('')
   const [showCreate,   setShowCreate]   = useState(false)
   const [designer,     setDesigner]     = useState<SpecTemplate | null>(null)
-  const [saving,       setSaving]       = useState(false)
 
   useEffect(() => { loadAll() }, [])
 
@@ -136,7 +135,6 @@ export default function SpecificationTemplatesPage() {
       <div>
         <PageHeader
           title="Specification Templates"
-          subtitle="Define what tests to run per Material / Sample Type / Stage. Approved templates auto-assign tests at sample registration."
           onAdd={() => setShowCreate(true)}
           addLabel="+ New Template"
         />
@@ -337,7 +335,16 @@ function CreateTemplateModal({
         <input type="datetime-local" style={{ ...inp, width: 220 }} value={form.effectiveFrom} onChange={e => f('effectiveFrom', e.target.value)} />
         <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>Leave blank to be effective immediately on approval</div>
       </Field>
-      <ModalFooter onClose={onClose} onSave={handleSave} saving={saving} saveLabel="Create Template" />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+        <button type="button" onClick={onClose}
+          style={{ padding: '8px 16px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', fontSize: 13, color: '#374151', fontWeight: 500 }}>
+          Cancel
+        </button>
+        <button type="button" onClick={handleSave} disabled={saving}
+          style={{ padding: '8px 18px', background: saving ? '#9ca3af' : '#0d6e6e', color: '#fff', border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+          {saving ? 'Creating…' : 'Create Template'}
+        </button>
+      </div>
     </Modal>
   )
 }

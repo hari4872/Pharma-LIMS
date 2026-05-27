@@ -1,4 +1,5 @@
 using LIMS.Application.Interfaces;
+using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,7 +26,8 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
     {
         var query = _db.Checkpoints.Include(c => c.Locations).AsQueryable();
         if (request.LabId.HasValue) query = query.Where(c => c.LabId == request.LabId);
-        if (!string.IsNullOrEmpty(request.TriggerMode)) query = query.Where(c => c.TriggerMode.ToString() == request.TriggerMode);
+        if (!string.IsNullOrEmpty(request.TriggerMode) && Enum.TryParse<TriggerType>(request.TriggerMode, true, out var triggerEnum))
+            query = query.Where(c => c.TriggerMode == triggerEnum);
         return await query.Select(c => new CheckpointDto(
             c.CheckpointId, c.CheckpointCode, c.TriggerMode.ToString(),
             c.CheckpointType, c.ShiftIntervalHrs, c.IsActive, c.Locations.Count))

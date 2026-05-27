@@ -3,6 +3,7 @@ using System;
 using LIMS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LIMS.Infrastructure.Migrations
 {
     [DbContext(typeof(LimsDbContext))]
-    partial class LimsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260527081449_Add_WorkflowEngine")]
+    partial class Add_WorkflowEngine
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -702,12 +705,6 @@ namespace LIMS.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("EntryId"));
 
-                    b.Property<string>("AmendmentReason")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("AmendmentSignatureId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("AnalystId")
                         .HasColumnType("integer");
 
@@ -787,8 +784,6 @@ namespace LIMS.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("EntryId");
-
-                    b.HasIndex("AmendmentSignatureId");
 
                     b.HasIndex("AnalystId");
 
@@ -1371,42 +1366,6 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasKey("LabId");
 
                     b.ToTable("laboratories", (string)null);
-                });
-
-            modelBuilder.Entity("LIMS.Domain.Entities.LoginAuditLog", b =>
-                {
-                    b.Property<long>("LoginAuditLogId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("LoginAuditLogId"));
-
-                    b.Property<DateTimeOffset>("AttemptedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("IpAddress")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Outcome")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("UserAgent")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("UserId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("LoginAuditLogId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("LoginAuditLogs");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.MasterDataAuditLog", b =>
@@ -2017,73 +1976,6 @@ namespace LIMS.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("sample_checkpoints", (string)null);
-                });
-
-            modelBuilder.Entity("LIMS.Domain.Entities.SampleContainer", b =>
-                {
-                    b.Property<int>("SampleContainerId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SampleContainerId"));
-
-                    b.Property<string>("ContainerLabel")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ContainerType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("DestroyedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DestroyedBy")
-                        .HasColumnType("text");
-
-                    b.Property<int?>("DestructionSignatureId")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("ParentContainerSampleContainerId")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("ParentSampleContainerId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("SampleId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int?>("StorageLocationId")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("Volume")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("VolumeUom")
-                        .HasColumnType("text");
-
-                    b.HasKey("SampleContainerId");
-
-                    b.HasIndex("DestructionSignatureId");
-
-                    b.HasIndex("ParentContainerSampleContainerId");
-
-                    b.HasIndex("SampleId");
-
-                    b.HasIndex("StorageLocationId");
-
-                    b.ToTable("SampleContainers");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.SampleTransfer", b =>
@@ -2745,47 +2637,6 @@ namespace LIMS.Infrastructure.Migrations
                     b.ToTable("stability_pulls", (string)null);
                 });
 
-            modelBuilder.Entity("LIMS.Domain.Entities.StabilityTrendPoint", b =>
-                {
-                    b.Property<int>("StabilityTrendPointId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("StabilityTrendPointId"));
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("MeasuredValue")
-                        .HasColumnType("numeric");
-
-                    b.Property<int>("ParameterId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProtocolId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("PullId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("StorageCondition")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("TimePointMonths")
-                        .HasColumnType("integer");
-
-                    b.HasKey("StabilityTrendPointId");
-
-                    b.HasIndex("ParameterId");
-
-                    b.HasIndex("ProtocolId");
-
-                    b.HasIndex("PullId");
-
-                    b.ToTable("StabilityTrendPoints");
-                });
-
             modelBuilder.Entity("LIMS.Domain.Entities.StorageLocation", b =>
                 {
                     b.Property<int>("LocationId")
@@ -3183,9 +3034,6 @@ namespace LIMS.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<int>("FailedLoginCount")
-                        .HasColumnType("integer");
-
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -3199,15 +3047,6 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.Property<int?>("LabId")
                         .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("LastLoginAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastLoginIp")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("LockedUntil")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -3719,10 +3558,6 @@ namespace LIMS.Infrastructure.Migrations
 
             modelBuilder.Entity("LIMS.Domain.Entities.DigitalLogbookEntry", b =>
                 {
-                    b.HasOne("LIMS.Domain.Entities.ElectronicSignature", "AmendmentSignature")
-                        .WithMany()
-                        .HasForeignKey("AmendmentSignatureId");
-
                     b.HasOne("LIMS.Domain.Entities.User", "Analyst")
                         .WithMany()
                         .HasForeignKey("AnalystId")
@@ -3761,8 +3596,6 @@ namespace LIMS.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("SupersededById")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("AmendmentSignature");
 
                     b.Navigation("Analyst");
 
@@ -4000,15 +3833,6 @@ namespace LIMS.Infrastructure.Migrations
                     b.Navigation("Lab");
                 });
 
-            modelBuilder.Entity("LIMS.Domain.Entities.LoginAuditLog", b =>
-                {
-                    b.HasOne("LIMS.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("LIMS.Domain.Entities.OosInvestigation", b =>
                 {
                     b.HasOne("LIMS.Domain.Entities.DigitalLogbookEntry", "Entry")
@@ -4244,35 +4068,6 @@ namespace LIMS.Infrastructure.Migrations
                     b.Navigation("Sample");
                 });
 
-            modelBuilder.Entity("LIMS.Domain.Entities.SampleContainer", b =>
-                {
-                    b.HasOne("LIMS.Domain.Entities.ElectronicSignature", "DestructionSignature")
-                        .WithMany()
-                        .HasForeignKey("DestructionSignatureId");
-
-                    b.HasOne("LIMS.Domain.Entities.SampleContainer", "ParentContainer")
-                        .WithMany("ChildContainers")
-                        .HasForeignKey("ParentContainerSampleContainerId");
-
-                    b.HasOne("LIMS.Domain.Entities.Sample", "Sample")
-                        .WithMany()
-                        .HasForeignKey("SampleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LIMS.Domain.Entities.StorageLocation", "StorageLocation")
-                        .WithMany()
-                        .HasForeignKey("StorageLocationId");
-
-                    b.Navigation("DestructionSignature");
-
-                    b.Navigation("ParentContainer");
-
-                    b.Navigation("Sample");
-
-                    b.Navigation("StorageLocation");
-                });
-
             modelBuilder.Entity("LIMS.Domain.Entities.SampleTransfer", b =>
                 {
                     b.HasOne("LIMS.Domain.Entities.Laboratory", "FromLab")
@@ -4486,33 +4281,6 @@ namespace LIMS.Infrastructure.Migrations
                     b.Navigation("Sample");
 
                     b.Navigation("Signature");
-                });
-
-            modelBuilder.Entity("LIMS.Domain.Entities.StabilityTrendPoint", b =>
-                {
-                    b.HasOne("LIMS.Domain.Entities.TestMethodParameter", "Parameter")
-                        .WithMany()
-                        .HasForeignKey("ParameterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LIMS.Domain.Entities.StabilityProtocol", "Protocol")
-                        .WithMany()
-                        .HasForeignKey("ProtocolId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("LIMS.Domain.Entities.StabilityPull", "Pull")
-                        .WithMany()
-                        .HasForeignKey("PullId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Parameter");
-
-                    b.Navigation("Protocol");
-
-                    b.Navigation("Pull");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.StorageLocation", b =>
@@ -4803,11 +4571,6 @@ namespace LIMS.Infrastructure.Migrations
                     b.Navigation("PrintLogs");
 
                     b.Navigation("SampleCheckpoints");
-                });
-
-            modelBuilder.Entity("LIMS.Domain.Entities.SampleContainer", b =>
-                {
-                    b.Navigation("ChildContainers");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.SpecificationTemplate", b =>

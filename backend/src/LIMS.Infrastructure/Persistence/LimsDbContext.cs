@@ -90,6 +90,10 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<WorkflowStep> WorkflowSteps => Set<WorkflowStep>();
     // MS-2: Inter-site Sample Transfer
     public DbSet<SampleTransfer> SampleTransfers => Set<SampleTransfer>();
+    // LabVantage Parity
+    public DbSet<LoginAuditLog> LoginAuditLogs => Set<LoginAuditLog>();
+    public DbSet<StabilityTrendPoint> StabilityTrendPoints => Set<StabilityTrendPoint>();
+    public DbSet<SampleContainer> SampleContainers => Set<SampleContainer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

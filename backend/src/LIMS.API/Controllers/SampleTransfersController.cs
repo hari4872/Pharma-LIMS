@@ -35,8 +35,8 @@ public class SampleTransfersController : ControllerBase
         if (!_lab.IsCrossLab && _lab.LabId.HasValue)
             q = q.Where(t => t.FromLabId == _lab.LabId || t.ToLabId == _lab.LabId);
 
-        if (!string.IsNullOrWhiteSpace(status))
-            q = q.Where(t => t.Status.ToString() == status);
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<SampleTransferStatus>(status, true, out var transferStatusEnum))
+            q = q.Where(t => t.Status == transferStatusEnum);
 
         var list = await q.OrderByDescending(t => t.RequestedAt).Take(500).ToListAsync(ct);
 

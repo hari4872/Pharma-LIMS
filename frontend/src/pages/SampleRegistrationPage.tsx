@@ -20,6 +20,13 @@ interface Checkpoint {
   checkpointType: string; shiftIntervalHrs: number; isActive: boolean
 }
 
+// Container management
+interface SampleContainer {
+  sampleContainerId: number; containerLabel: string; containerType: string
+  volume: number | null; volumeUom: string | null; status: string
+  createdBy: string; createdAt: string; destroyedAt: string | null
+}
+
 // Phase A — spec match preview
 interface SpecCandidate { templateId: number; templateName: string; version: string; approvedAt: string; testCount: number }
 interface SpecPreview {
@@ -108,7 +115,54 @@ export default function SampleRegistrationPage() {
   const [specPreview,   setSpecPreview]   = useState<SpecPreview | null>(null)
   const [specLoading,   setSpecLoading]   = useState(false)
   const [overrideSpecId, setOverrideSpecId] = useState<number | null>(null)
-  const [lastSpecResult, setLastSpecResult] = useState<{ outcome: string; message: string; testsCreated: number } | null>(null)
+  const [, setLastSpecResult] = useState<{ outcome: string; message: string; testsCreated: number } | null>(null)
+
+  // Container management state
+  const [containerSample, setContainerSample] = useState<Sample | null>(null)
+  const [containers, setContainers]           = useState<SampleContainer[]>([])
+  const [containersLoading, setContainersLoading] = useState(false)
+  const [splitForm, setSplitForm]             = useState({ count: '3', containerType: 'Aliquot', volumePerContainer: '', volumeUom: '' })
+  const [splitSaving, setSplitSaving]         = useState(false)
+  const [destroyingId, setDestroyingId]       = useState<number | null>(null)
+  const [destroyForm, setDestroyForm]         = useState({ password: '', reason: '' })
+  const [destroyError, setDestroyError]       = useState('')
+
+  async function loadContainers(sampleId: number) {
+    setContainersLoading(true)
+    try { const r = await api.get(`/samples/${sampleId}/containers`); setContainers(r.data) }
+    catch { setContainers([]) }
+    finally { setContainersLoading(false) }
+  }
+
+  async function submitSplit(e: React.FormEvent) {
+    e.preventDefault(); setSplitSaving(true)
+    try {
+      const r = await api.post(`/samples/${containerSample!.sampleId}/containers`, {
+        count: Number(splitForm.count),
+        containerType: splitForm.containerType,
+        volumePerContainer: splitForm.volumePerContainer ? Number(splitForm.volumePerContainer) : null,
+        volumeUom: splitForm.volumeUom || null,
+      })
+      toast(`${r.data.count} containers created`, 'success')
+      setSplitForm({ count: '3', containerType: 'Aliquot', volumePerContainer: '', volumeUom: '' })
+      loadContainers(containerSample!.sampleId)
+    } catch (err: any) { toast(err.response?.data?.message ?? 'Split failed', 'error') }
+    finally { setSplitSaving(false) }
+  }
+
+  async function submitDestroy(containerId: number) {
+    setDestroyError('')
+    try {
+      await api.post(`/samples/${containerSample!.sampleId}/containers/${containerId}/destroy`, destroyForm)
+      toast('Container destroyed', 'success')
+      setDestroyingId(null); setDestroyForm({ password: '', reason: '' })
+      loadContainers(containerSample!.sampleId)
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Destroy failed'
+      if (err.response?.data?.error === 'ESIGN_AUTH_FAILED') setDestroyError('Password incorrect (21 CFR §11.300)')
+      else setDestroyError(msg)
+    }
+  }
 
   const [srfForm, setSrfForm] = useState({
     password: '', meaning: 'I confirm this Sample Registration Form', reason: ''
@@ -426,6 +480,10 @@ export default function SampleRegistrationPage() {
               <button onClick={() => { setShowReprint(r.sampleId); setError('') }}
                 style={{ padding: '3px 9px', background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
                 Reprint
+              </button>
+              <button onClick={() => { setContainerSample(r); loadContainers(r.sampleId) }}
+                style={{ padding: '3px 9px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                🧪 Containers
               </button>
             </div>
           )
@@ -786,6 +844,121 @@ export default function SampleRegistrationPage() {
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowReprint(null)} label="Reprint Label" />
           </form>
+        </Modal>
+      )}
+
+      {/* ── Container Management Modal ───────────────────────────────────── */}
+      {containerSample && (
+        <Modal title={`Containers — ${containerSample.sampleNumber}`} onClose={() => setContainerSample(null)}>
+          {/* Split form */}
+          <form onSubmit={submitSplit}>
+            <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>Split this sample into aliquots or sub-containers.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
+              <Field label="Count (1–100)">
+                <input type="number" min={1} max={100} style={inp} value={splitForm.count}
+                  onChange={e => setSplitForm(f => ({ ...f, count: e.target.value }))} required />
+              </Field>
+              <Field label="Container Type">
+                <select style={inp} value={splitForm.containerType} onChange={e => setSplitForm(f => ({ ...f, containerType: e.target.value }))}>
+                  {['Aliquot','Primary','RetainSample','Stability','QC'].map(t => <option key={t}>{t}</option>)}
+                </select>
+              </Field>
+              <Field label="Volume (opt)">
+                <input type="number" step="0.01" style={inp} value={splitForm.volumePerContainer}
+                  onChange={e => setSplitForm(f => ({ ...f, volumePerContainer: e.target.value }))} placeholder="e.g. 5" />
+              </Field>
+              <Field label="UOM (opt)">
+                <input style={inp} value={splitForm.volumeUom}
+                  onChange={e => setSplitForm(f => ({ ...f, volumeUom: e.target.value }))} placeholder="mL, g…" />
+              </Field>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+              <button type="submit" disabled={splitSaving}
+                style={{ padding: '7px 18px', background: splitSaving ? '#9ca3af' : '#6d28d9', color: '#fff', border: 'none', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: splitSaving ? 'not-allowed' : 'pointer' }}>
+                {splitSaving ? 'Splitting…' : 'Split into Containers'}
+              </button>
+            </div>
+          </form>
+
+          <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '16px 0' }} />
+
+          {/* Container list */}
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+            Existing Containers {containersLoading && <span style={{ fontWeight: 400, color: '#9ca3af' }}>Loading…</span>}
+          </div>
+          {!containersLoading && containers.length === 0 && (
+            <p style={{ fontSize: 13, color: '#9ca3af', textAlign: 'center', padding: '12px 0' }}>No containers yet — split the sample above.</p>
+          )}
+          {containers.length > 0 && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: '#f9fafb' }}>
+                  {['Label','Type','Volume','Status','Created By','Actions'].map(h =>
+                    <th key={h} style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 700, color: '#6b7280', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid #e5e7eb' }}>{h}</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {containers.map(c => {
+                  const statusStyle: Record<string, { bg: string; color: string }> = {
+                    Available:  { bg: '#d1fae5', color: '#065f46' },
+                    InUse:      { bg: '#dbeafe', color: '#1e40af' },
+                    Consumed:   { bg: '#f3f4f6', color: '#6b7280' },
+                    Destroyed:  { bg: '#fee2e2', color: '#991b1b' },
+                  }
+                  const sc = statusStyle[c.status] ?? { bg: '#f3f4f6', color: '#374151' }
+                  return (
+                    <>
+                      <tr key={c.sampleContainerId} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                        <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 600 }}>{c.containerLabel}</td>
+                        <td style={{ padding: '7px 10px', color: '#374151' }}>{c.containerType}</td>
+                        <td style={{ padding: '7px 10px', color: '#374151' }}>{c.volume != null ? `${c.volume} ${c.volumeUom ?? ''}` : '—'}</td>
+                        <td style={{ padding: '7px 10px' }}>
+                          <span style={{ padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: sc.bg, color: sc.color }}>{c.status}</span>
+                        </td>
+                        <td style={{ padding: '7px 10px', color: '#6b7280' }}>{c.createdBy}</td>
+                        <td style={{ padding: '7px 10px' }}>
+                          {c.status !== 'Destroyed' && (
+                            <button onClick={() => { setDestroyingId(c.sampleContainerId); setDestroyForm({ password: '', reason: '' }); setDestroyError('') }}
+                              style={{ padding: '2px 8px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                              Destroy
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {destroyingId === c.sampleContainerId && (
+                        <tr key={`destroy-${c.sampleContainerId}`}>
+                          <td colSpan={6} style={{ padding: '10px 12px', background: '#fff5f5', borderBottom: '1px solid #fecaca' }}>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                              <div>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: '#991b1b', textTransform: 'uppercase', marginBottom: 4 }}>Password (e-sig)</div>
+                                <input type="password" style={{ ...inp, margin: 0, width: 140 }} value={destroyForm.password}
+                                  onChange={e => setDestroyForm(f => ({ ...f, password: e.target.value }))} placeholder="Your password" />
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 10, fontWeight: 700, color: '#991b1b', textTransform: 'uppercase', marginBottom: 4 }}>Reason</div>
+                                <input style={{ ...inp, margin: 0 }} value={destroyForm.reason}
+                                  onChange={e => setDestroyForm(f => ({ ...f, reason: e.target.value }))} placeholder="e.g. Stability testing complete" />
+                              </div>
+                              <button type="button" onClick={() => submitDestroy(c.sampleContainerId)}
+                                style={{ padding: '7px 14px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                                Confirm Destroy
+                              </button>
+                              <button type="button" onClick={() => setDestroyingId(null)}
+                                style={{ padding: '7px 12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 5, fontSize: 12, cursor: 'pointer' }}>
+                                Cancel
+                              </button>
+                            </div>
+                            {destroyError && <p style={{ color: '#dc2626', fontSize: 12, marginTop: 6 }}>{destroyError}</p>}
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
         </Modal>
       )}
 

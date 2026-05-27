@@ -2,6 +2,7 @@ using LIMS.Application.Features.DigitalLogbook;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace LIMS.API.Controllers;
 
@@ -20,6 +21,25 @@ public class DigitalLogbookController : ControllerBase
         [FromQuery] string? status,
         [FromQuery] DateTimeOffset? dateFrom, [FromQuery] DateTimeOffset? dateTo)
         => Ok(await _mediator.Send(new GetLogbookEntriesQuery(sampleId, executionId, labId, status, dateFrom, dateTo)));
+
+    // POST api/v1/digital-logbook/{id}/amend — post-sign amendment; original preserved as Superseded
+    // 21 CFR §11.10(e): original never deleted; amendment reason + e-sig mandatory
+    [HttpPost("{id}/amend")]
+    [Authorize(Roles = "Analyst,QCLead,QA,Admin")]
+    public async Task<IActionResult> Amend(int id, [FromBody] AmendEntryRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var result = await _mediator.Send(new AmendLogbookEntryCommand(
+            id, userId, request.NewRawValue, request.AmendmentReason,
+            request.Password, request.Meaning, request.Reason));
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
+            if (result.ErrorCode == "NOT_FOUND") return NotFound();
+            return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        }
+        return Ok(new { newEntryId = result.Value, originalEntryId = id, status = "AmendmentCreated" });
+    }
 
     // GET api/v1/digital-logbook/export?format=csv — FR-09: export with all §11.50 manifestations
     [HttpGet("export")]
@@ -48,3 +68,5 @@ public class DigitalLogbookController : ControllerBase
         return File(bytes, "text/csv", fileName);
     }
 }
+
+public record AmendEntryRequest(string NewRawValue, string AmendmentReason, string Password, string Meaning, string Reason);

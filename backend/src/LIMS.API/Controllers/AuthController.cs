@@ -1,4 +1,6 @@
 using LIMS.Application.Interfaces;
+using LIMS.Domain.Entities;
+using LIMS.Domain.Enums;
 using LIMS.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,15 +22,73 @@ public class AuthController : ControllerBase
     public AuthController(LimsDbContext db, IConfiguration config) { _db = db; _config = config; }
 
     // Contract 4: Login page — username · password · remember-me (all four in frontend)
+    // 21 CFR §11.10(d): every attempt logged; 5 consecutive failures → 30-min lockout
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password))
             return BadRequest(new { error = "Username and password are required." });
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == request.Username && u.IsActive);
-        if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var ua = Request.Headers.UserAgent.ToString();
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
+
+        // Check account lockout before verifying password (§11.10(d))
+        if (user is not null && user.LockedUntil.HasValue && user.LockedUntil > DateTimeOffset.UtcNow)
+        {
+            _db.LoginAuditLogs.Add(new LoginAuditLog
+            {
+                Username = request.Username, UserId = user.UserId,
+                IpAddress = ip, UserAgent = ua,
+                Outcome = LoginOutcome.AccountLocked,
+                AttemptedAt = DateTimeOffset.UtcNow
+            });
+            await _db.SaveChangesAsync();
+            var lockedMins = (int)Math.Ceiling((user.LockedUntil.Value - DateTimeOffset.UtcNow).TotalMinutes);
+            return StatusCode(423, new { error = "ACCOUNT_LOCKED", message = $"Account locked. Try again in {lockedMins} minute(s)." });
+        }
+
+        // Validate credentials — same error message for not-found and wrong password (prevents user enumeration)
+        bool credentialsValid = user is not null && user.IsActive &&
+                                BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
+
+        if (!credentialsValid)
+        {
+            var outcome = user is null ? LoginOutcome.UserNotFound
+                        : !user.IsActive ? LoginOutcome.AccountInactive
+                        : LoginOutcome.InvalidPassword;
+
+            _db.LoginAuditLogs.Add(new LoginAuditLog
+            {
+                Username = request.Username, UserId = user?.UserId,
+                IpAddress = ip, UserAgent = ua,
+                Outcome = outcome, AttemptedAt = DateTimeOffset.UtcNow
+            });
+
+            if (user is not null && user.IsActive)
+            {
+                user.FailedLoginCount++;
+                if (user.FailedLoginCount >= 5)
+                    user.LockedUntil = DateTimeOffset.UtcNow.AddMinutes(30);
+            }
+
+            await _db.SaveChangesAsync();
             return Unauthorized(new { error = "Invalid credentials." });
+        }
+
+        // Successful login — reset lockout counters
+        user!.FailedLoginCount = 0;
+        user.LockedUntil  = null;
+        user.LastLoginAt  = DateTimeOffset.UtcNow;
+        user.LastLoginIp  = ip;
+
+        _db.LoginAuditLogs.Add(new LoginAuditLog
+        {
+            Username = request.Username, UserId = user.UserId,
+            IpAddress = ip, UserAgent = ua,
+            Outcome = LoginOutcome.Success, AttemptedAt = DateTimeOffset.UtcNow
+        });
 
         // Load lab name for JWT claim
         string labName = "";
@@ -37,6 +97,9 @@ public class AuthController : ControllerBase
             var lab = await _db.Laboratories.FirstOrDefaultAsync(l => l.LabId == user.LabId.Value);
             labName = lab?.LabName ?? "";
         }
+
+        await _db.SaveChangesAsync();
+
         var token = GenerateJwt(user.UserId, user.Username, user.FullName, user.Role.ToString(), user.UserType.ToString(), user.LabId, labName);
         return Ok(new { token, userId = user.UserId, fullName = user.FullName, role = user.Role.ToString(), userType = user.UserType.ToString(), labId = user.LabId, labName });
     }

@@ -13,8 +13,35 @@ interface AuthState {
   error: string | null
 }
 
+/** Decode a JWT payload without a library (base64url → JSON) */
+function decodeJwt(token: string): Record<string, any> | null {
+  try {
+    const payload = token.split('.')[1]
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+    return JSON.parse(json)
+  } catch {
+    return null
+  }
+}
+
+/** Rehydrate auth state from a stored JWT so role/fullName survive page refresh */
+function hydrateFromToken(token: string | null): Partial<AuthState> {
+  if (!token) return {}
+  const claims = decodeJwt(token)
+  if (!claims) return {}
+  return {
+    userId:   claims['sub']       ? Number(claims['sub']) : null,
+    fullName: claims['name']      ?? claims['unique_name'] ?? null,
+    role:     claims['role']      ?? claims['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? null,
+    userType: claims['userType']  ?? null,
+    labId:    claims['labId']     ? Number(claims['labId']) : null,
+    labName:  claims['labName']   ?? null,
+  }
+}
+
+const storedToken = localStorage.getItem('lims_token')
 const initial: AuthState = {
-  token: localStorage.getItem('lims_token'),
+  token: storedToken,
   userId: null,
   fullName: null,
   role: null,
@@ -22,7 +49,8 @@ const initial: AuthState = {
   labId: null,
   labName: null,
   loading: false,
-  error: null
+  error: null,
+  ...hydrateFromToken(storedToken),
 }
 
 export const login = createAsyncThunk('auth/login',

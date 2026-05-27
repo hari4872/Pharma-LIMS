@@ -51,6 +51,7 @@ public class RejectCoAHandler : IRequestHandler<RejectCoACommand, Result<int>>
         };
         _db.CoaApprovals.Add(approval);
 
+        coa.Status = CoaStatus.Rejected;          // prevent re-approval of rejected CoA
         coa.Sample.Status = SampleStatus.Rejected;
         await _db.SaveChangesAsync(ct);
 

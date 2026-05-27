@@ -29,10 +29,10 @@ const labColor = (i: number) => COLORS[i % COLORS.length]
 function KpiCard({ label, value, sub, alert }: { label: string; value: string | number; sub?: string; alert?: boolean }) {
   return (
     <div style={{
-      background: '#fff', border: `1px solid ${alert ? '#fca5a5' : '#e5e7eb'}`,
-      borderRadius: 10, padding: '14px 18px', minWidth: 120,
       background: alert ? '#fff5f5' : '#fff',
-    } as React.CSSProperties}>
+      border: `1px solid ${alert ? '#fca5a5' : '#e5e7eb'}`,
+      borderRadius: 10, padding: '14px 18px', minWidth: 120,
+    }}>
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#6b7280', marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 24, fontWeight: 800, color: alert ? '#dc2626' : '#111827', lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>{sub}</div>}
@@ -293,9 +293,9 @@ export default function MultiSiteDashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} unit="%" />
-                <Tooltip formatter={(v: number) => [`${v}%`, 'OOS Rate']} />
+                <Tooltip formatter={(v) => [`${v}%`, 'OOS Rate']} />
                 <Bar dataKey="OOS %" radius={[4, 4, 0, 0]}>
-                  {kpis.map((k, i) => (
+                  {kpis.map((k) => (
                     <Cell key={k.labId} fill={k.oosRatePct > 5 ? '#dc2626' : k.oosRatePct > 2 ? '#d97706' : '#16a34a'} />
                   ))}
                 </Bar>
@@ -320,7 +320,7 @@ export default function MultiSiteDashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} unit="d" />
-                  <Tooltip formatter={(v: number, name: string) => [`${v} days`, name]} />
+                  <Tooltip formatter={(v, name) => [`${v} days`, name]} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="Min" fill="#d1fae5" />
                   <Bar dataKey="Avg" fill="#0d6e6e" />

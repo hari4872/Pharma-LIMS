@@ -176,12 +176,8 @@ export default function InstrumentMappingPage() {
       <div>
         <PageHeader
           title="Instrument ↔ Test Mapping"
-          subtitle="Map instruments to the test methods / parameters they can execute. Powers Work Queue auto-suggest."
-          action={<button
-            onClick={() => { resetForm(); setShowCreate(true) }}
-            style={{ padding: '8px 18px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-            + Add Mapping
-          </button>}
+          onAdd={() => { resetForm(); setShowCreate(true) }}
+          addLabel="+ Add Mapping"
         />
 
         {/* ── Info banner ───────────────────────────────────────────────── */}

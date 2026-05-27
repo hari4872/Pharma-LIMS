@@ -162,7 +162,24 @@ public class TestExecutionsController : ControllerBase
         var score = await _intel.CalculatePriorityScoreAsync(id);
         return Ok(new { executionId = id, priorityScore = score });
     }
+
+    // POST api/v1/test-executions/{id}/assign — per-test-method assignment (LabVantage parity)
+    // Different from POST / (sample-level) — this targets a specific execution row directly.
+    [HttpPost("{id}/assign")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
+    public async Task<IActionResult> AssignTestMethod(int id, [FromBody] AssignTestMethodRequest request)
+    {
+        var assignedById = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var result = await _mediator.Send(new AssignTestMethodCommand(
+            id, request.AnalystId, request.InstrumentId, assignedById, request.PriorityScore));
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.ErrorCode, message = result.ErrorMessage })
+                : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { executionId = result.Value, status = "Assigned" });
+    }
 }
 
 public record AssignWorkQueueRequest(int SampleId, int AnalystId, int InstrumentId, int? PriorityScore = null);
+public record AssignTestMethodRequest(int AnalystId, int InstrumentId, int? PriorityScore = null);
 public record SubmitResultsRequest(List<ResultEntryDto> Entries, EntryMethod EntryMethod = EntryMethod.Manual);

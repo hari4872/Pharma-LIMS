@@ -1,4 +1,5 @@
 using LIMS.Application.Interfaces;
+using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,18 +27,22 @@ public class GetDispatchQcTasksHandler : IRequestHandler<GetDispatchQcTasksQuery
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(q.Status))
-            query = query.Where(t => t.Status.ToString() == q.Status);
+        if (!string.IsNullOrWhiteSpace(q.Status) && Enum.TryParse<DispatchTaskStatus>(q.Status, true, out var taskStatusEnum))
+            query = query.Where(t => t.Status == taskStatusEnum);
         if (q.DoId.HasValue)
             query = query.Where(t => t.DoId == q.DoId.Value);
 
         var tasks = await query.OrderByDescending(t => t.CreatedAt).ToListAsync(ct);
 
         return tasks.Select(t => new DispatchQcTaskDto(
-            t.TaskId, t.DoId, t.DeliveryOrder.DoNumber, t.DeliveryOrder.CustomerName,
+            t.TaskId, t.DoId,
+            t.DeliveryOrder != null ? t.DeliveryOrder.DoNumber : "",
+            t.DeliveryOrder?.CustomerName,
             t.SampleId, t.Sample.SampleNumber,
-            t.Sample.Material.MaterialName, t.Sample.LotNumber,
-            t.FormTemplate.FormName, t.ExecutionId,
-            t.Status.ToString(), t.CreatedAt
+            t.Sample.Material != null ? t.Sample.Material.MaterialName : "Unknown",
+            t.Sample.LotNumber,
+            t.FormTemplate != null ? t.FormTemplate.FormName : "Unknown",
+            t.ExecutionId, t.Status.ToString(), t.CreatedAt
         )).ToList();
     }
 }

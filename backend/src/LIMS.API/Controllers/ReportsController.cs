@@ -1,4 +1,5 @@
 using LIMS.Application.Interfaces;
+using LIMS.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -45,8 +46,8 @@ public class ReportsController : ControllerBase
 
         if (from.HasValue)  q = q.Where(s => s.CreatedAt >= from.Value);
         if (to.HasValue)    q = q.Where(s => s.CreatedAt <= to.Value.AddDays(1));
-        if (!string.IsNullOrWhiteSpace(status))
-            q = q.Where(s => s.Status.ToString() == status);
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<SampleStatus>(status, true, out var sampleStatusEnum))
+            q = q.Where(s => s.Status == sampleStatusEnum);
 
         var samples = await q.OrderByDescending(s => s.CreatedAt).ToListAsync();
 
@@ -71,7 +72,7 @@ public class ReportsController : ControllerBase
             var s = samples[row];
             int r = row + 2;
             ws.Cells[r, 1].Value = s.SampleNumber;
-            ws.Cells[r, 2].Value = s.Material.MaterialName;
+            ws.Cells[r, 2].Value = s.Material?.MaterialName ?? "Unknown";
             ws.Cells[r, 3].Value = s.LotNumber;
             ws.Cells[r, 4].Value = s.ExternalBatchId ?? "";
             ws.Cells[r, 5].Value = s.SampleTypeNav?.TypeName;
@@ -132,8 +133,8 @@ public class ReportsController : ControllerBase
         {
             var e = entries[row];
             int r = row + 2;
-            ws.Cells[r, 1].Value  = e.Execution.Sample.SampleNumber;
-            ws.Cells[r, 2].Value  = e.Execution.Sample.Material.MaterialName;
+            ws.Cells[r, 1].Value  = e.Execution?.Sample?.SampleNumber ?? "";
+            ws.Cells[r, 2].Value  = e.Execution?.Sample?.Material?.MaterialName ?? "Unknown";
             ws.Cells[r, 3].Value  = e.Parameter.ParameterName;
             ws.Cells[r, 4].Value  = e.RawValue;
             ws.Cells[r, 5].Value  = e.CalculatedResult.HasValue ? (object)e.CalculatedResult.Value : "";
@@ -141,7 +142,7 @@ public class ReportsController : ControllerBase
             ws.Cells[r, 7].Value  = e.PassFail;
             ws.Cells[r, 8].Value  = e.IsOos ? "YES" : "NO";
             ws.Cells[r, 9].Value  = e.IsOot ? "YES" : "NO";
-            ws.Cells[r, 10].Value = e.Analyst.FullName;
+            ws.Cells[r, 10].Value = e.Analyst?.FullName ?? "Unknown";
             ws.Cells[r, 11].Value = e.Status.ToString();
             ws.Cells[r, 12].Value = e.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 

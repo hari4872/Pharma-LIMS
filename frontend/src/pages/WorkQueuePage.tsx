@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { toast } from '@/components/Toast'
 
 interface WorkItem {
   executionId: number; sampleId: number; sampleNumber: string; materialName: string
@@ -42,6 +43,11 @@ export default function WorkQueuePage() {
   const [form, setForm] = useState({ sampleId: '', analystId: '', instrumentId: '', priorityScore: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // Re-assign (per-test-method)
+  const [reassignItem, setReassignItem]   = useState<WorkItem | null>(null)
+  const [reassignForm, setReassignForm]   = useState({ analystId: '', instrumentId: '', priorityScore: '' })
+  const [reassignSaving, setReassignSaving] = useState(false)
+  const [reassignError, setReassignError]   = useState('')
   // Phase D — auto-suggest
   const [suggestions, setSuggestions]       = useState<SuggestedInstrument[]>([])
   const [suggestLoading, setSuggestLoading] = useState(false)
@@ -93,6 +99,34 @@ export default function WorkQueuePage() {
     finally { setSaving(false) }
   }
 
+  async function openReassign(item: WorkItem) {
+    if (analysts.length === 0) {
+      const [ur, ir] = await Promise.all([api.get('/users'), api.get('/instruments')])
+      setAnalysts(ur.data); setInstruments(ir.data)
+    }
+    setReassignItem(item)
+    setReassignForm({ analystId: '', instrumentId: '', priorityScore: item.priorityScore != null ? String(item.priorityScore) : '' })
+    setReassignError('')
+  }
+
+  async function submitReassign(e: React.FormEvent) {
+    e.preventDefault(); setReassignSaving(true); setReassignError('')
+    try {
+      await api.post(`/test-executions/${reassignItem!.executionId}/assign`, {
+        analystId:    Number(reassignForm.analystId),
+        instrumentId: Number(reassignForm.instrumentId),
+        priorityScore: reassignForm.priorityScore ? Number(reassignForm.priorityScore) : null,
+      })
+      toast('Execution re-assigned successfully', 'success')
+      setReassignItem(null); load()
+    } catch (err: any) {
+      const code = err.response?.data?.error
+      if (code === 'TRAINING_EXPIRED') setReassignError('Analyst training expired — cannot assign (21 CFR §11.10(i))')
+      else if (code === 'INSTRUMENT_OOC') setReassignError('Instrument out of calibration (21 CFR 211.68)')
+      else setReassignError(err.response?.data?.message ?? 'Re-assign failed')
+    } finally { setReassignSaving(false) }
+  }
+
   async function startTask(executionId: number) {
     try {
       await api.post(`/test-executions/${executionId}/start`, {})
@@ -140,6 +174,12 @@ export default function WorkQueuePage() {
                 Start Task
               </button>
             )}
+            {r.status === 'Assigned' && (
+              <button onClick={() => openReassign(r)}
+                style={{ padding: '3px 8px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                Re-assign
+              </button>
+            )}
             {r.status === 'InProgress' && (
               <a href={`/test-execution/${r.executionId}`}
                 style={{ padding: '3px 8px', background: '#7c3aed', color: '#fff', borderRadius: 4, textDecoration: 'none', fontSize: 11 }}>
@@ -149,6 +189,36 @@ export default function WorkQueuePage() {
           </div>
         )},
       ]} />
+
+      {/* ── Re-assign Modal ───────────────────────────────────────────── */}
+      {reassignItem && (
+        <Modal title={`Re-assign Execution #${reassignItem.executionId} — ${reassignItem.sampleNumber}`} onClose={() => setReassignItem(null)}>
+          <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
+            ℹ Per-test-method assignment — overrides analyst and instrument for this specific execution.
+            Training and calibration checks enforced server-side.
+          </p>
+          <form onSubmit={submitReassign}>
+            <Field label="New Analyst">
+              <select style={inp} value={reassignForm.analystId} onChange={e => setReassignForm(f => ({ ...f, analystId: e.target.value }))} required>
+                <option value="">Select analyst…</option>
+                {analysts.map(u => <option key={u.userId} value={u.userId}>{u.fullName}</option>)}
+              </select>
+            </Field>
+            <Field label="New Instrument">
+              <select style={inp} value={reassignForm.instrumentId} onChange={e => setReassignForm(f => ({ ...f, instrumentId: e.target.value }))} required>
+                <option value="">Select instrument…</option>
+                {instruments.map(i => <option key={i.instrumentId} value={i.instrumentId}>{i.instrumentCode}</option>)}
+              </select>
+            </Field>
+            <Field label="Priority Score (optional)">
+              <input style={inp} type="number" min="1" max="100" value={reassignForm.priorityScore}
+                onChange={e => setReassignForm(f => ({ ...f, priorityScore: e.target.value }))} placeholder="1–100 (lower = higher priority)" />
+            </Field>
+            {reassignError && <p style={{ color: '#ef4444', fontSize: 13, margin: '4px 0' }}>{reassignError}</p>}
+            <ModalFooter saving={reassignSaving} onCancel={() => setReassignItem(null)} label="Re-assign" />
+          </form>
+        </Modal>
+      )}
 
       {showAssign && (
         <Modal title="Assign Task (WAP)" onClose={() => setShowAssign(false)}>

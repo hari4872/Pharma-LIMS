@@ -13,6 +13,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddHttpClient(); // for ChatbotController → Groq API
         // DB — Neon PostgreSQL via connection string only (Contract 1: DB-portable)
         services.AddDbContext<LimsDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"),

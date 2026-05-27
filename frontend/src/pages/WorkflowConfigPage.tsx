@@ -309,7 +309,7 @@ export default function WorkflowConfigPage() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {[...selected.steps].sort((a, b) => a.stepOrder - b.stepOrder).map((s, i) => {
+                  {[...selected.steps].sort((a, b) => a.stepOrder - b.stepOrder).map((s) => {
                     const rc = ROLE_COLOR[s.requiredRole] ?? { bg: '#f3f4f6', color: '#374151' }
                     return (
                       <div key={s.workflowStepId} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -410,7 +410,7 @@ export default function WorkflowConfigPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: 12, marginBottom: 12 }}>
               <Field label="Order *">
                 <input style={inp} type="number" min={1} value={stepForm.stepOrder}
-                  onChange={e => setStepForm(f => ({ ...f, stepOrder: e.target.value }))} required />
+                  onChange={e => setStepForm(f => ({ ...f, stepOrder: parseInt(e.target.value) || 1 }))} required />
               </Field>
               <Field label="Step Name *">
                 <input style={inp} value={stepForm.stepName}

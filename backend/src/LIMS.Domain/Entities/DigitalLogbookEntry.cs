@@ -45,6 +45,11 @@ public class DigitalLogbookEntry
     public int? SupersededById { get; set; }
     public DigitalLogbookEntry? SupersededByEntry { get; set; }
 
+    // Amendment trail (21 CFR §11.10(e) — original preserved, new entry links back)
+    public string? AmendmentReason { get; set; }
+    public int? AmendmentSignatureId { get; set; }
+    public ElectronicSignature? AmendmentSignature { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public ICollection<ResultEvidence> Evidences { get; set; } = [];

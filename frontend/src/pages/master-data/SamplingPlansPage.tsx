@@ -51,11 +51,6 @@ const FREQ_LABEL: Record<string, string> = {
   Environmental: 'Environmental monitoring',
 }
 
-const label: React.CSSProperties = {
-  display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em',
-  textTransform: 'uppercase', color: '#6b7280', marginBottom: 6,
-}
-
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function SamplingPlansPage() {
@@ -206,12 +201,8 @@ export default function SamplingPlansPage() {
       <div>
         <PageHeader
           title="Sampling Plans"
-          subtitle="Define when and how many samples to collect per material / stage combination"
-          action={<button
-            onClick={() => { resetForm(); setShowCreate(true) }}
-            style={{ padding: '8px 18px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-            + New Plan
-          </button>}
+          onAdd={() => { resetForm(); setShowCreate(true) }}
+          addLabel="+ New Plan"
         />
 
         {/* ── Filters ──────────────────────────────────────────────────── */}

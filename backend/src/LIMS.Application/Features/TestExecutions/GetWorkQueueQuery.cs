@@ -37,8 +37,10 @@ public class GetWorkQueueHandler : IRequestHandler<GetWorkQueueQuery, List<WorkQ
             .ThenBy(e => e.Sample.DueDate)
             .Select(e => new WorkQueueItemDto(
                 e.ExecutionId, e.SampleId, e.Sample.SampleNumber,
-                e.Sample.Material.MaterialName, e.Sample.LotNumber,
-                e.Analyst.FullName, e.Instrument.InstrumentCode,
+                e.Sample.Material != null ? e.Sample.Material.MaterialName : "Unknown",
+                e.Sample.LotNumber,
+                e.Analyst != null ? e.Analyst.FullName : "Unknown",
+                e.Instrument != null ? e.Instrument.InstrumentCode : "",
                 e.Status.ToString(), e.PriorityScore,
                 e.StartedAt, e.CompletedAt,
                 e.Sample.DueDate, e.CreatedAt))

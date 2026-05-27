@@ -5,12 +5,13 @@ import { Field, Modal, ModalFooter, inp } from './master-data/LaboratoriesPage'
 // FR-18 / FR-20: Compliance & Governance — audit trail, signature log, validation reviews
 // QA/Admin access only
 
-type Tab = 'audit' | 'signatures' | 'reviews' | 'formTemplates'
+type Tab = 'audit' | 'signatures' | 'reviews' | 'formTemplates' | 'loginAudit'
 
 interface AuditItem  { logId: number; entityType: string; entityId: string; action: string; changedBy: string; changedAt: string; before: string | null; after: string | null }
 interface SigItem    { signatureId: number; userId: number; fullName: string; meaning: string; reason: string; signedAt: string }
 interface ReviewItem { reviewId: number; reviewType: string; reviewedBy: string; reviewedAt: string; outcome: string; notes: string | null; nextReviewDue: string }
 interface FtItem     { templateId: number; templateName: string; status: string; createdAt: string; createdBy: string }
+interface LoginAuditRow { loginAuditLogId: number; username: string; userId: number | null; ipAddress: string; userAgent: string | null; outcome: string; attemptedAt: string }
 
 interface AuditPage  { items: AuditItem[];  totalCount: number; page: number; pageSize: number }
 interface SigPage    { items: SigItem[];    totalCount: number; page: number; pageSize: number }
@@ -39,6 +40,13 @@ export default function CompliancePanelPage() {
   // Form templates pending
   const [ftPending, setFtPending]   = useState<FtItem[]>([])
 
+  // Login Audit
+  const [loginAuditRows, setLoginAuditRows]   = useState<LoginAuditRow[]>([])
+  const [loginAuditLoading, setLoginAuditLoading] = useState(false)
+  const [loginAuditOutcome, setLoginAuditOutcome] = useState('')
+  const [loginAuditFrom, setLoginAuditFrom]   = useState('')
+  const [loginAuditTo, setLoginAuditTo]       = useState('')
+
   const [loading, setLoading] = useState(false)
 
   async function loadAudit(page = auditPage) {
@@ -60,6 +68,19 @@ export default function CompliancePanelPage() {
     const r = await api.get('/compliance/validation-reviews')
     setReviews(r.data)
     setLoading(false)
+  }
+
+  async function loadLoginAudit() {
+    setLoginAuditLoading(true)
+    const params: Record<string, string> = {}
+    if (loginAuditOutcome) params.outcome = loginAuditOutcome
+    if (loginAuditFrom)    params.from    = new Date(loginAuditFrom).toISOString()
+    if (loginAuditTo)      params.to      = new Date(loginAuditTo + 'T23:59:59').toISOString()
+    try {
+      const r = await api.get('/audit/login-history', { params })
+      setLoginAuditRows(r.data)
+    } catch { setLoginAuditRows([]) }
+    finally { setLoginAuditLoading(false) }
   }
 
   async function loadFtPending() {
@@ -92,6 +113,7 @@ export default function CompliancePanelPage() {
     { key: 'signatures',   label: 'Signature Log' },
     { key: 'reviews',      label: 'Validation Reviews' },
     { key: 'formTemplates', label: `Form Templates${ftPending.length ? ` (${ftPending.length})` : ''}` },
+    { key: 'loginAudit',  label: '🔐 Login Audit (§11.10(d))' },
   ]
 
   return (
@@ -268,6 +290,56 @@ export default function CompliancePanelPage() {
                   </tr>
                 ))}
                 {!loading && ftPending.length === 0 && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>No pending reviews — all form templates are approved ✓</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* ── Login Audit Trail ── */}
+      {tab === 'loginAudit' && (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select style={{ ...inp, width: 200, margin: 0 }} value={loginAuditOutcome} onChange={e => setLoginAuditOutcome(e.target.value)}>
+              <option value="">All Outcomes</option>
+              {['Success','InvalidPassword','UserNotFound','AccountLocked','AccountInactive'].map(o => <option key={o}>{o}</option>)}
+            </select>
+            <input type="date" style={{ ...inp, width: 160, margin: 0 }} value={loginAuditFrom} onChange={e => setLoginAuditFrom(e.target.value)} placeholder="From" />
+            <input type="date" style={{ ...inp, width: 160, margin: 0 }} value={loginAuditTo}   onChange={e => setLoginAuditTo(e.target.value)}   placeholder="To" />
+            <button onClick={loadLoginAudit} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>Load</button>
+            <span style={{ marginLeft: 'auto', fontSize: 12, color: '#6b7280' }}>{loginAuditRows.length} record{loginAuditRows.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f8f9fa' }}>
+                  {['Date / Time (UTC)', 'Username', 'IP Address', 'Outcome', 'User Agent'].map(h => <th key={h} style={th}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {loginAuditLoading && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>Loading…</td></tr>}
+                {!loginAuditLoading && loginAuditRows.map(row => {
+                  const outcomeStyle: Record<string, { bg: string; color: string }> = {
+                    Success:         { bg: '#d1fae5', color: '#065f46' },
+                    InvalidPassword: { bg: '#fee2e2', color: '#991b1b' },
+                    UserNotFound:    { bg: '#fee2e2', color: '#991b1b' },
+                    AccountLocked:   { bg: '#fef3c7', color: '#92400e' },
+                    AccountInactive: { bg: '#f3f4f6', color: '#6b7280' },
+                  }
+                  const oc = outcomeStyle[row.outcome] ?? { bg: '#f3f4f6', color: '#374151' }
+                  return (
+                    <tr key={row.loginAuditLogId} style={{ borderBottom: '1px solid #f1f3f4' }}>
+                      <td style={td}>{new Date(row.attemptedAt).toLocaleString()}</td>
+                      <td style={{ ...td, fontFamily: 'monospace', fontWeight: 600 }}>{row.username}</td>
+                      <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{row.ipAddress}</td>
+                      <td style={td}><span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: oc.bg, color: oc.color }}>{row.outcome}</span></td>
+                      <td style={{ ...td, fontSize: 11, color: '#6b7280', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.userAgent ?? '—'}</td>
+                    </tr>
+                  )
+                })}
+                {!loginAuditLoading && loginAuditRows.length === 0 && (
+                  <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>Click Load to fetch login records</td></tr>
+                )}
               </tbody>
             </table>
           </div>

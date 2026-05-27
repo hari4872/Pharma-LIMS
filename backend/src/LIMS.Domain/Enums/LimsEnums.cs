@@ -12,7 +12,7 @@ public enum ApprovalStatus { Draft, Approved, Retired }
 
 public enum FormTemplateStatus { Draft, Active, Retired }
 
-public enum TriggerType { TimeBased, OperatorScan, ProcessLog, DispatchEvent }
+public enum TriggerType { TimeBased, OperatorScan, ProcessLog, DispatchEvent, Manual }
 
 public enum FormType { Single, Grouped }
 
@@ -43,9 +43,9 @@ public enum OosPhase { Phase1, Phase2 }
 
 public enum OosStatus { Open, Closed }
 
-public enum CoaStatus { Draft, Released, Superseded }
+public enum CoaStatus { Draft, Released, Superseded, Rejected }
 
-public enum DispatchStatus { Pending, InDispatchQC, Cleared, Blocked }
+public enum DispatchStatus { Pending, InDispatchQC, Cleared, Blocked, Dispatched }
 
 public enum DispatchTaskStatus { Open, InProgress, Passed, Failed, QAApproved }
 
@@ -71,3 +71,11 @@ public enum SpecTemplateStatus { Draft, Approved, Obsolete }
 // Phase B — Sampling Plans & Stability
 public enum FrequencyType { Hourly, Shift, Daily, Weekly, Monthly, Batch, Event, Stability, Environmental }
 public enum StabilityStorageCondition { Accelerated, LongTerm, Intermediate, Refrigerated }
+public enum TrendFlag { Stable, WatchNeeded, ActionRequired }
+
+// LabVantage Parity — Login Audit (21 CFR §11.10(d))
+public enum LoginOutcome { Success, InvalidPassword, UserNotFound, AccountLocked, AccountInactive }
+
+// LabVantage Parity — Sample Containers / Aliquots
+public enum ContainerType { Primary, Aliquot, RetainSample, Stability, QC }
+public enum ContainerStatus { Available, InUse, Consumed, Destroyed }

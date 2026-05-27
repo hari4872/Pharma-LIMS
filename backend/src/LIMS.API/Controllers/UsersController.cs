@@ -1,7 +1,9 @@
 using LIMS.Application.Features.MasterData.Users;
+using LIMS.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.API.Controllers;
 
@@ -11,7 +13,8 @@ namespace LIMS.API.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IMediator _mediator;
-    public UsersController(IMediator mediator) => _mediator = mediator;
+    private readonly ILimsDbContext _db;
+    public UsersController(IMediator mediator, ILimsDbContext db) { _mediator = mediator; _db = db; }
 
     [HttpGet]
     [Authorize(Roles = "Admin")]
@@ -46,6 +49,32 @@ public class UsersController : ControllerBase
         var result = await _mediator.Send(new DeactivateUserCommand(id, request.Reason, username));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { userId = result.Value, status = "Inactive" });
+    }
+
+    // POST api/v1/users/{id}/unlock — Admin unlocks a locked account (21 CFR §11.10(d))
+    [HttpPost("{id}/unlock")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Unlock(int id)
+    {
+        var adminName = User.Identity?.Name ?? "System";
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == id);
+        if (user is null) return NotFound();
+
+        user.LockedUntil       = null;
+        user.FailedLoginCount  = 0;
+
+        _db.MasterDataAuditLogs.Add(new LIMS.Domain.Entities.MasterDataAuditLog
+        {
+            EntityType  = "User",
+            EntityId    = id,
+            EventType   = "AccountUnlocked",
+            PerformedBy = adminName,
+            NewValue    = $"{{\"unlockedBy\":\"{adminName}\"}}",
+            PerformedAt = DateTimeOffset.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { userId = id, status = "Unlocked" });
     }
 }
 

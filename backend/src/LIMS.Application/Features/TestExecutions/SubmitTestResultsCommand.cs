@@ -58,20 +58,22 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
             .ToListAsync(ct);
         _db.DigitalLogbookEntries.RemoveRange(priorPending);
 
-        var results = new List<LogbookEntryResult>();
         bool hasOos = false, hasOot = false;
 
-        foreach (var entry in cmd.Entries)
+        // Collect (entry entity, param, detection) — save once after loop to avoid partial commits
+        var staged = new List<(DigitalLogbookEntry Entry, TestMethodParameter Param, OosDetectionResult Detection)>();
+
+        foreach (var item in cmd.Entries)
         {
             var param = await _db.TestMethodParameters
                 .Include(p => p.SpecLimits)
-                .FirstOrDefaultAsync(p => p.ParameterId == entry.ParameterId, ct);
+                .FirstOrDefaultAsync(p => p.ParameterId == item.ParameterId, ct);
             if (param is null) continue;
 
             var specLimit = param.SpecLimits?.FirstOrDefault(s => s.IsActive && s.Status == ApprovalStatus.Approved);
 
             // Auto-correction before formula (Contract 2: server-side, correction table from DB)
-            decimal? numericRaw = decimal.TryParse(entry.RawValue, out var parsed) ? parsed : null;
+            decimal? numericRaw = decimal.TryParse(item.RawValue, out var parsed) ? parsed : null;
             string? correctionDetail = null;
             bool autoCorrected = false;
             if (numericRaw.HasValue)
@@ -106,9 +108,9 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
             {
                 SampleId = execution.SampleId,
                 ExecutionId = cmd.ExecutionId,
-                ParameterId = entry.ParameterId,
+                ParameterId = item.ParameterId,
                 TriggerSource = TriggerType.OperatorScan,
-                RawValue = entry.RawValue,
+                RawValue = item.RawValue,
                 CalculatedResult = calculated,
                 AutoCorrectionApplied = autoCorrected,
                 CorrectionDetail = correctionDetail,
@@ -122,22 +124,24 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
                 IsOot = detection.IsOot,
                 InstrumentId = execution.InstrumentId,
                 AnalystId = cmd.AnalystId,
-                EvidenceFileRef = entry.EvidenceFileRef,
+                EvidenceFileRef = item.EvidenceFileRef,
                 Status = LogbookEntryStatus.Pending,
                 CreatedAt = DateTimeOffset.UtcNow
             };
             _db.DigitalLogbookEntries.Add(logbookEntry);
-            await _db.SaveChangesAsync(ct); // flush to get EntryId
-
-            results.Add(new LogbookEntryResult(
-                logbookEntry.EntryId, param.ParameterId, param.ParameterName,
-                entry.RawValue, calculated, detection.PassFail,
-                detection.IsOos, detection.IsOot,
-                param.IsCritical, logbookEntry.EvidenceFileRef is not null));
+            staged.Add((logbookEntry, param, detection));
         }
 
+        // Single atomic commit — all entries succeed or none do
         execution.EntryMethod = cmd.EntryMethod;
         await _db.SaveChangesAsync(ct);
+
+        // Build response AFTER save so EF-generated EntryIds are populated
+        var results = staged.Select(s => new LogbookEntryResult(
+            s.Entry.EntryId, s.Param.ParameterId, s.Param.ParameterName,
+            s.Entry.RawValue, s.Entry.CalculatedResult, s.Detection.PassFail,
+            s.Detection.IsOos, s.Detection.IsOot,
+            s.Param.IsCritical, s.Entry.EvidenceFileRef is not null)).ToList();
 
         return Result<SubmitTestResultsResponse>.Success(
             new SubmitTestResultsResponse(cmd.ExecutionId, results, hasOos, hasOot));

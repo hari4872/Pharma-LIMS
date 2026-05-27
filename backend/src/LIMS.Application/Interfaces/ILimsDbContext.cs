@@ -85,5 +85,9 @@ public interface ILimsDbContext
     DbSet<WorkflowStep> WorkflowSteps { get; }
     // MS-2: Inter-site Sample Transfer
     DbSet<SampleTransfer> SampleTransfers { get; }
+    // LabVantage Parity
+    DbSet<LoginAuditLog> LoginAuditLogs { get; }
+    DbSet<StabilityTrendPoint> StabilityTrendPoints { get; }
+    DbSet<SampleContainer> SampleContainers { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -34,6 +34,14 @@ export default function UsersPage() {
     finally { setSaving(false) }
   }
 
+  async function unlockUser(userId: number, fullName: string) {
+    try {
+      await api.post(`/users/${userId}/unlock`, {})
+      toast(`Account unlocked for ${fullName}`, 'success')
+      load()
+    } catch { toast('Unlock failed', 'error') }
+  }
+
   async function load() {
     setLoading(true)
     const [r, lr] = await Promise.all([api.get('/users'), api.get('/laboratories')])
@@ -65,6 +73,12 @@ export default function UsersPage() {
         { header: 'Lab', accessor: 'labName' },
         { header: 'Admin', accessor: r => r.isTenantAdmin ? '✓' : '' },
         { header: 'Status', accessor: r => <StatusBadge active={r.isActive} /> },
+        { header: 'Unlock', accessor: r => (
+          <button onClick={() => unlockUser(r.userId, r.fullName)}
+            style={{ padding: '3px 8px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+            🔓 Unlock
+          </button>
+        )},
         { header: 'Edit', accessor: r => (
           <button onClick={() => openEdit(r)}
             style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e5e7eb', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#374151', fontFamily:'inherit' }}>

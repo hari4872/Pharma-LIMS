@@ -42,21 +42,39 @@ public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCom
         if (instrument.CalibrationDue < today)
             return Result<int>.Failure("INSTRUMENT_OOC", "Instrument calibration expired — WAP assignment blocked. (21 CFR 211.68)");
 
-        var formTemplateId = sample.FormTemplateId;
+        // Re-use any execution the spec engine already created at registration (Assigned, no analyst yet).
+        // Creating a second row would leave the spec-engine execution orphaned and confuse downstream
+        // sign-off, peer review, and CoA generation which all key off ExecutionId.
+        var execution = await _db.TestExecutions
+            .FirstOrDefaultAsync(e => e.SampleId == cmd.SampleId
+                && (e.Status == TestExecutionStatus.Assigned || e.Status == TestExecutionStatus.InProgress), ct);
 
-        var execution = new TestExecution
+        if (execution is not null)
         {
-            SampleId = cmd.SampleId,
-            InstrumentId = cmd.InstrumentId,
-            AnalystId = cmd.AnalystId,
-            AssignedById = cmd.AssignedById,
-            FormTemplateId = formTemplateId,
-            PriorityScore = cmd.PriorityScore,
-            Status = TestExecutionStatus.Assigned,
-            CreatedBy = analyst.FullName,
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-        _db.TestExecutions.Add(execution);
+            // Update the existing execution with the assigned analyst + instrument
+            execution.AnalystId    = cmd.AnalystId;
+            execution.InstrumentId = cmd.InstrumentId;
+            execution.AssignedById = cmd.AssignedById;
+            execution.PriorityScore = cmd.PriorityScore ?? execution.PriorityScore;
+            execution.Status       = TestExecutionStatus.Assigned;
+        }
+        else
+        {
+            // No spec-engine execution exists — create one (manual assignment path)
+            execution = new TestExecution
+            {
+                SampleId       = cmd.SampleId,
+                InstrumentId   = cmd.InstrumentId,
+                AnalystId      = cmd.AnalystId,
+                AssignedById   = cmd.AssignedById,
+                FormTemplateId = sample.FormTemplateId,
+                PriorityScore  = cmd.PriorityScore,
+                Status         = TestExecutionStatus.Assigned,
+                CreatedBy      = analyst.FullName,
+                CreatedAt      = DateTimeOffset.UtcNow
+            };
+            _db.TestExecutions.Add(execution);
+        }
 
         sample.Status = SampleStatus.InTesting;
         await _db.SaveChangesAsync(ct);

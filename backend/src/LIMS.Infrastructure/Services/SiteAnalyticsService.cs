@@ -1,5 +1,6 @@
 using LIMS.Application.Interfaces;
 using LIMS.Domain.Entities;
+using LIMS.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.Infrastructure.Services;
@@ -29,14 +30,14 @@ public class SiteAnalyticsService : ISiteAnalyticsService
             .Select(g => new {
                 LabId          = g.Key,
                 Total          = g.Count(),
-                Registered     = g.Count(s => s.Status.ToString() == "Registered"),
-                PendingTesting = g.Count(s => s.Status.ToString() == "PendingTesting"),
-                InTesting      = g.Count(s => s.Status.ToString() == "InTesting"),
-                PendingQA      = g.Count(s => s.Status.ToString() == "PendingQAReview"),
-                Released       = g.Count(s => s.Status.ToString() == "Released"),
-                Rejected       = g.Count(s => s.Status.ToString() == "Rejected"),
+                Registered     = g.Count(s => s.Status == SampleStatus.Registered),
+                PendingTesting = g.Count(s => s.Status == SampleStatus.PendingTesting),
+                InTesting      = g.Count(s => s.Status == SampleStatus.InTesting),
+                PendingQA      = g.Count(s => s.Status == SampleStatus.PendingQAReview),
+                Released       = g.Count(s => s.Status == SampleStatus.Released),
+                Rejected       = g.Count(s => s.Status == SampleStatus.Rejected),
                 Overdue        = g.Count(s => s.DueDate.HasValue && s.DueDate < DateTimeOffset.UtcNow
-                                    && s.Status.ToString() != "Released" && s.Status.ToString() != "Rejected"),
+                                    && s.Status != SampleStatus.Released && s.Status != SampleStatus.Rejected),
             })
             .ToDictionaryAsync(g => g.LabId, ct);
 
@@ -53,14 +54,14 @@ public class SiteAnalyticsService : ISiteAnalyticsService
             .ToDictionaryAsync(g => g.LabId, ct);
 
         var transferGroups = await _db.SampleTransfers
-            .Where(t => t.Status.ToString() == "Pending" || t.Status.ToString() == "Accepted" || t.Status.ToString() == "InTransit")
+            .Where(t => t.Status == SampleTransferStatus.Pending || t.Status == SampleTransferStatus.Accepted || t.Status == SampleTransferStatus.InTransit)
             .GroupBy(t => t.ToLabId)
             .Select(g => new { LabId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(g => g.LabId, ct);
 
         // TAT: Released samples in period
         var tatGroups = await _db.Samples
-            .Where(s => s.Status.ToString() == "Released" && s.CreatedAt >= cutoff)
+            .Where(s => s.Status == SampleStatus.Released && s.CreatedAt >= cutoff)
             .Select(s => new { s.LabId, s.CreatedAt, s.DueDate })
             .ToListAsync(ct);
 
@@ -111,7 +112,7 @@ public class SiteAnalyticsService : ISiteAnalyticsService
         var cutoff = DateTimeOffset.UtcNow.AddDays(-(periodDays ?? 30));
 
         var rows = await _db.Samples
-            .Where(s => s.Status.ToString() == "Released" && s.CreatedAt >= cutoff && s.DueDate.HasValue)
+            .Where(s => s.Status == SampleStatus.Released && s.CreatedAt >= cutoff && s.DueDate.HasValue)
             .Select(s => new { s.LabId, TatDays = (s.DueDate!.Value - s.CreatedAt).TotalDays, Lab = s.Lab.LabName })
             .ToListAsync(ct);
 
