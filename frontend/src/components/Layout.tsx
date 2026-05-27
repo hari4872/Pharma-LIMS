@@ -239,12 +239,13 @@ function SectionHead({ label, first = false, dm, collapsed }: { label: string; f
 }
 
 // ── Nav group ─────────────────────────────────────────────────────────────
-function NavGroup({ items, dm, collapsed }: { items: NavItem[]; dm: boolean; collapsed: boolean }) {
+function NavGroup({ items, dm, collapsed, onNavigate }: { items: NavItem[]; dm: boolean; collapsed: boolean; onNavigate?: () => void }) {
   return (
     <>
       {items.map(n => (
         <NavLink key={n.path} to={n.path}
           title={collapsed ? n.label : undefined}
+          onClick={onNavigate}
           style={({ isActive }) => navItemStyle(isActive, dm, collapsed)}>
           <div style={{
             width: 30, height: 30, borderRadius: 8, flexShrink: 0,
@@ -276,11 +277,24 @@ export default function Layout() {
   const [darkMode,     setDarkMode]     = useState(false)
   const [profileOpen,  setProfileOpen]  = useState(false)
   const [notifOpen,    setNotifOpen]    = useState(false)
+  const [isMobile,     setIsMobile]     = useState(() => window.innerWidth < 768)
+  const [mobileOpen,   setMobileOpen]   = useState(false)
   const offlineSync = useOfflineSync()
   const { notifs, unreadCount: liveUnread, connected: hubConnected, markAllRead, markRead } = useNotifications()
 
   const profileRef = useRef<HTMLDivElement>(null)
   const notifRef   = useRef<HTMLDivElement>(null)
+
+  // ── Mobile resize detection ───────────────────────────────────────────
+  useEffect(() => {
+    function onResize() {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      if (!mobile) setMobileOpen(false)
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   // ── Global offline-queue toast ────────────────────────────────────────
   useEffect(() => {
@@ -355,16 +369,36 @@ export default function Layout() {
       fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, sans-serif",
     }}>
 
+      {/* ── Mobile backdrop ─────────────────────────────────────────── */}
+      {isMobile && mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            zIndex: 199,
+          }}
+        />
+      )}
+
       {/* ── Sidebar ─────────────────────────────────────────────────── */}
       <aside style={{
-        width: collapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_W,
-        minWidth: collapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_W,
+        width: isMobile ? SIDEBAR_W : (collapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_W),
+        minWidth: isMobile ? SIDEBAR_W : (collapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_W),
         background: dm ? '#0f172a' : '#ffffff',
         borderRight: `1px solid ${dm ? '#1e293b' : '#e0e0e0'}`,
         display: 'flex', flexDirection: 'column',
-        position: 'sticky', top: 0, height: '100vh',
+        position: isMobile ? 'fixed' : 'sticky',
+        top: 0, left: 0,
+        height: '100vh',
+        zIndex: isMobile ? 200 : undefined,
         overflowY: 'auto', overflowX: 'hidden',
-        transition: 'width 0.2s ease, min-width 0.2s ease',
+        transition: isMobile
+          ? 'transform 0.25s ease'
+          : 'width 0.2s ease, min-width 0.2s ease',
+        transform: isMobile
+          ? (mobileOpen ? 'translateX(0)' : 'translateX(-100%)')
+          : undefined,
         flexShrink: 0,
       }}>
 
@@ -404,22 +438,22 @@ export default function Layout() {
         {/* Nav */}
         <nav style={{ flex: 1, paddingBottom: 10 }}>
           <SectionHead label="Overview" first dm={dm} collapsed={collapsed} />
-          <NavGroup items={topItems} dm={dm} collapsed={collapsed} />
+          <NavGroup items={topItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
 
           <SectionHead label="Lab Operations" dm={dm} collapsed={collapsed} />
-          <NavGroup items={labOpsItems} dm={dm} collapsed={collapsed} />
+          <NavGroup items={labOpsItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
 
           <SectionHead label="Quality Assurance" dm={dm} collapsed={collapsed} />
-          <NavGroup items={qualityItems} dm={dm} collapsed={collapsed} />
+          <NavGroup items={qualityItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
 
           <SectionHead label="Release & Dispatch" dm={dm} collapsed={collapsed} />
-          <NavGroup items={releaseItems} dm={dm} collapsed={collapsed} />
+          <NavGroup items={releaseItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
 
           <SectionHead label="Stability & Retention" dm={dm} collapsed={collapsed} />
-          <NavGroup items={stabilityItems} dm={dm} collapsed={collapsed} />
+          <NavGroup items={stabilityItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
 
           <SectionHead label="Traceability & Transfers" dm={dm} collapsed={collapsed} />
-          <NavGroup items={traceabilityItems} dm={dm} collapsed={collapsed} />
+          <NavGroup items={traceabilityItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
 
           {/* ── Master Data / Settings — single consolidated entry ── */}
           <div style={{ padding: collapsed ? '4px 4px 0' : '4px 8px 0' }}>
@@ -433,6 +467,7 @@ export default function Layout() {
             )}
             <NavLink to="/settings"
               title={collapsed ? 'Master Data / Settings' : undefined}
+              onClick={isMobile ? () => setMobileOpen(false) : undefined}
               style={({ isActive }) => ({
                 display: 'flex', alignItems: 'center',
                 gap: collapsed ? 0 : 8,
@@ -518,16 +553,22 @@ export default function Layout() {
           flexShrink: 0,
         }}>
 
-          {/* Sidebar collapse toggle */}
-          <button onClick={() => setCollapsed(c => !c)}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          {/* Sidebar collapse toggle / hamburger */}
+          <button
+            onClick={isMobile ? () => setMobileOpen(o => !o) : () => setCollapsed(c => !c)}
+            title={isMobile ? 'Open menu' : (collapsed ? 'Expand sidebar' : 'Collapse sidebar')}
             style={iconBtn()}>
-            <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
-              {collapsed
-                ? <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                : <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              }
-            </svg>
+            {isMobile
+              ? <span style={{ fontSize: 16, lineHeight: 1 }}>☰</span>
+              : (
+                <svg viewBox="0 0 24 24" fill="none" width="14" height="14">
+                  {collapsed
+                    ? <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    : <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  }
+                </svg>
+              )
+            }
           </button>
 
           {/* Breadcrumb */}
@@ -555,18 +596,18 @@ export default function Layout() {
             {/* Offline sync indicator + button */}
             <OfflineSyncButton sync={offlineSync} dm={dm} />
 
-            {/* Date */}
-            <span style={{ fontSize: 12, color: dm ? '#64748b' : '#5f6368', whiteSpace: 'nowrap', marginRight: 2 }}>
+            {/* Date — hidden on mobile */}
+            <span style={{ fontSize: 12, color: dm ? '#64748b' : '#5f6368', whiteSpace: 'nowrap', marginRight: 2, display: isMobile ? 'none' : undefined }}>
               {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
             </span>
 
-            <div style={{ width: 1, height: 20, background: dm ? '#334155' : '#e0e0e0' }} />
+            <div style={{ width: 1, height: 20, background: dm ? '#334155' : '#e0e0e0', display: isMobile ? 'none' : undefined }} />
 
-            {/* Search / Command palette */}
+            {/* Search / Command palette — hidden on mobile */}
             <button onClick={() => setPaletteOpen(true)} title="Search (Ctrl+K)"
               style={{
                 height: 32, padding: '0 10px',
-                display: 'flex', alignItems: 'center', gap: 6,
+                display: isMobile ? 'none' : 'flex', alignItems: 'center', gap: 6,
                 border: `1px solid ${dm ? '#334155' : '#e0e0e0'}`,
                 borderRadius: 7, background: dm ? '#0f172a' : '#f8f9fa',
                 cursor: 'pointer',
