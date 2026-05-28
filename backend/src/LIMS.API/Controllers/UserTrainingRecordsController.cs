@@ -29,4 +29,4 @@ public class UserTrainingRecordsController : ControllerBase
     }
 }
 
-public record CreateTrainingRecordRequest(int UserId, int MethodId, DateOnly TrainingDate, DateOnly ValidUntil);
+public record CreateTrainingRecordRequest(int UserId, int MethodId, DateOnly TrainingDate, DateOnly? ValidUntil);

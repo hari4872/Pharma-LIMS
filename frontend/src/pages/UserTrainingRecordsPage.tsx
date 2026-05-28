@@ -8,13 +8,14 @@ import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 interface TrainingRecord {
   trainingId: number; userId: number; userName: string
   methodId: number; methodCode: string; methodName: string
-  trainingDate: string; validUntil: string; recordedBy: string; createdAt: string
+  trainingDate: string; validUntil: string | null; recordedBy: string; createdAt: string
 }
 
 interface User { userId: number; fullName: string; username: string }
 interface Method { methodId: number; methodCode: string; methodName: string }
 
-function validityBadge(validUntil: string) {
+function validityBadge(validUntil: string | null) {
+  if (!validUntil) return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: '#e0f2fe', color: '#0369a1' }}>No Expiry</span>
   const days = Math.floor((new Date(validUntil).getTime() - Date.now()) / 86400000)
   if (days < 0) return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: '#fee2e2', color: '#991b1b' }}>EXPIRED</span>
   if (days <= 30) return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: '#fef9c3', color: '#854d0e' }}>Exp. {days}d</span>
@@ -55,7 +56,7 @@ export default function UserTrainingRecordsPage() {
         userId: Number(form.userId),
         methodId: Number(form.methodId),
         trainingDate: form.trainingDate,
-        validUntil: form.validUntil,
+        validUntil: form.validUntil || null,
       })
       setShowForm(false)
       setForm({ userId: '', methodId: '', trainingDate: '', validUntil: '' })
@@ -88,7 +89,7 @@ export default function UserTrainingRecordsPage() {
         { header: 'Method Code',   accessor: 'methodCode' },
         { header: 'Method Name',   accessor: 'methodName' },
         { header: 'Training Date', accessor: r => new Date(r.trainingDate).toLocaleDateString() },
-        { header: 'Valid Until',   accessor: r => new Date(r.validUntil).toLocaleDateString() },
+        { header: 'Valid Until',   accessor: r => r.validUntil ? new Date(r.validUntil).toLocaleDateString() : '—' },
         { header: 'Status',        accessor: r => validityBadge(r.validUntil) },
         { header: 'Recorded By',   accessor: 'recordedBy' },
       ]} />
@@ -111,8 +112,9 @@ export default function UserTrainingRecordsPage() {
             <Field label="Training Date *">
               <input style={inp} type="date" value={form.trainingDate} onChange={set('trainingDate')} required />
             </Field>
-            <Field label="Valid Until *">
-              <input style={inp} type="date" value={form.validUntil} onChange={set('validUntil')} required />
+            <Field label="Valid Until (optional)">
+              <input style={inp} type="date" value={form.validUntil} onChange={set('validUntil')} />
+              <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>Leave blank for permanent (no expiry) training.</p>
             </Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />

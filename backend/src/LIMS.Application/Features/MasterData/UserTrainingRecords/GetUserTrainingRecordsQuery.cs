@@ -7,7 +7,7 @@ namespace LIMS.Application.Features.MasterData.UserTrainingRecords;
 public record GetUserTrainingRecordsQuery(int? UserId, int? MethodId) : IRequest<List<TrainingRecordDto>>;
 
 public record TrainingRecordDto(int TrainingId, int UserId, string UserFullName, int MethodId,
-    string MethodName, DateOnly TrainingDate, DateOnly ValidUntil, bool IsExpired,
+    string MethodName, DateOnly TrainingDate, DateOnly? ValidUntil, bool IsExpired,
     string RecordedBy, DateTimeOffset CreatedAt);
 
 public class GetUserTrainingRecordsQueryHandler : IRequestHandler<GetUserTrainingRecordsQuery, List<TrainingRecordDto>>

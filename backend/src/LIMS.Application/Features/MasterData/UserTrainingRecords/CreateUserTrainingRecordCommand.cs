@@ -7,7 +7,7 @@ using MediatR;
 namespace LIMS.Application.Features.MasterData.UserTrainingRecords;
 
 public record CreateUserTrainingRecordCommand(int UserId, int MethodId, DateOnly TrainingDate,
-    DateOnly ValidUntil, string RecordedBy) : IRequest<Result<int>>;
+    DateOnly? ValidUntil, string RecordedBy) : IRequest<Result<int>>;
 
 public class CreateUserTrainingRecordCommandValidator : AbstractValidator<CreateUserTrainingRecordCommand>
 {
@@ -15,8 +15,9 @@ public class CreateUserTrainingRecordCommandValidator : AbstractValidator<Create
     {
         RuleFor(x => x.UserId).GreaterThan(0);
         RuleFor(x => x.MethodId).GreaterThan(0);
-        RuleFor(x => x.ValidUntil).GreaterThan(x => x.TrainingDate)
-            .WithMessage("ValidUntil must be after TrainingDate.");
+        When(x => x.ValidUntil.HasValue, () =>
+            RuleFor(x => x.ValidUntil!.Value).GreaterThan(x => x.TrainingDate)
+                .WithMessage("ValidUntil must be after TrainingDate."));
     }
 }
 

@@ -9,8 +9,8 @@ public class UserTrainingRecord
     public int MethodId { get; set; }
     public TestMethod Method { get; set; } = default!;
     public DateOnly TrainingDate { get; set; }
-    public DateOnly ValidUntil { get; set; }
-    public bool IsExpired => DateOnly.FromDateTime(DateTime.UtcNow) > ValidUntil;
+    public DateOnly? ValidUntil { get; set; }
+    public bool IsExpired => ValidUntil.HasValue && DateOnly.FromDateTime(DateTime.UtcNow) > ValidUntil.Value;
     public string RecordedBy { get; set; } = default!;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
