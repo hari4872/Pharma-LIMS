@@ -55,6 +55,10 @@ import MultiSiteDashboardPage from '@/pages/MultiSiteDashboardPage'
 import SiteTransferPage from '@/pages/SiteTransferPage'
 // Settings — Master Data hub
 import SettingsPage from '@/pages/SettingsPage'
+// Tabbed wrapper pages
+import QualityAssurancePage from '@/pages/QualityAssurancePage'
+import ReleaseDispatchPage from '@/pages/ReleaseDispatchPage'
+import StabilityRetentionPage from '@/pages/StabilityRetentionPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useSelector((s: RootState) => s.auth.token)
@@ -112,6 +116,10 @@ export default function App() {
         <Route path="stability-pulls"       element={<StabilityPullsPage />} />
         <Route path="retain-samples"        element={<RetainSamplesPage />} />
         <Route path="condition-excursions"  element={<ConditionExcursionsPage />} />
+        {/* Tabbed wrapper pages */}
+        <Route path="quality-assurance"     element={<QualityAssurancePage />} />
+        <Route path="release-dispatch"      element={<ReleaseDispatchPage />} />
+        <Route path="stability-retention"   element={<StabilityRetentionPage />} />
       </Route>
     </Routes>
   )

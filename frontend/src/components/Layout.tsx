@@ -61,72 +61,27 @@ const labOpsItems: NavItem[] = [
 // ── Quality Assurance — QA Manager focus ──────────────────────────────────
 const qualityItems: NavItem[] = [
   {
-    label: 'Results Review', path: '/results-review',
+    label: 'Quality Assurance', path: '/quality-assurance',
     iconBg: '#dbeafe', iconColor: '#2563eb',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'OOS Investigations', path: '/oos-investigations',
-    iconBg: '#fee2e2', iconColor: '#dc2626',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4m0 4h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'CAPA / Quality Events', path: '/quality-events',
-    iconBg: '#fce7f3', iconColor: '#9d174d',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'SPC / Trending', path: '/spc',
-    iconBg: '#f0fdf4', iconColor: '#16a34a',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 17l4-4 4 4 4-8 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
 ]
 
 // ── Release & Dispatch — QA + Dispatch team ───────────────────────────────
 const releaseItems: NavItem[] = [
   {
-    label: 'Batch Release', path: '/batch-release',
+    label: 'Release & Dispatch', path: '/release-dispatch',
     iconBg: '#f0fdf4', iconColor: '#15803d',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'CoA Review', path: '/coa-review',
-    iconBg: '#f3e8ff', iconColor: '#7c3aed',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Dispatch QC', path: '/dispatch-qc',
-    iconBg: '#f1f5f9', iconColor: '#64748b',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Reports & Exports', path: '/reports',
-    iconBg: '#f0f9ff', iconColor: '#0369a1',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
 ]
 
 // ── Stability & Retention — ICH Q1A / 21 CFR 211.170 ─────────────────────
 const stabilityItems: NavItem[] = [
   {
-    label: 'Stability Study', path: '/stability-study',
+    label: 'Stability & Retention', path: '/stability-retention',
     iconBg: '#e0f2fe', iconColor: '#0369a1',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 17l4-8 4 6 3-4 4 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Stability Pulls', path: '/stability-pulls',
-    iconBg: '#fef3c7', iconColor: '#d97706',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 3h6M10 3v6L5 19a2 2 0 002 3h10a2 2 0 002-3l-5-10V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Retain Samples', path: '/retain-samples',
-    iconBg: '#dcfce7', iconColor: '#16a34a',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Condition Excursions', path: '/condition-excursions',
-    iconBg: '#fee2e2', iconColor: '#dc2626',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.95L13.75 4a2 2 0 00-3.5 0L3.25 16.05A2 2 0 005.07 19z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   },
 ]
 
@@ -185,6 +140,9 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/stability-pulls':                  { section: 'Inventory', label: 'Stability Pulls' },
   '/retain-samples':                   { section: 'Inventory', label: 'Retain Samples' },
   '/condition-excursions':             { section: 'Inventory', label: 'Condition Excursions' },
+  '/quality-assurance':                { section: 'Quality Assurance', label: 'Quality Assurance' },
+  '/release-dispatch':                 { section: 'Release & Dispatch', label: 'Release & Dispatch' },
+  '/stability-retention':              { section: 'Stability & Retention', label: 'Stability & Retention' },
 }
 
 

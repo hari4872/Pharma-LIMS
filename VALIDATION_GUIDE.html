@@ -103,8 +103,7 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
 
 <!-- Credentials -->
 <div class="creds">
-  <div class="cred-card"><div class="cred-label">Frontend URL</div><div class="cred-val">http://localhost:5173</div></div>
-  <div class="cred-card"><div class="cred-label">Backend URL</div><div class="cred-val">http://localhost:5204</div></div>
+  <div class="cred-card"><div class="cred-label">Live URL</div><div class="cred-val">https://limslite.websynergiesdigital.com</div></div>
   <div class="cred-card"><div class="cred-label">Username</div><div class="cred-val">admin</div></div>
   <div class="cred-card"><div class="cred-label">Password</div><div class="cred-val">Admin@123</div></div>
 </div>
@@ -133,18 +132,9 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
     <div class="step">
       <div class="step-cb" onclick="tick(this)"></div>
       <div class="step-body">
-        <div class="step-title">Start the backend</div>
-        <div class="step-desc">Open a terminal in <code>D:\Pharma-LIMS\backend\src\LIMS.API</code> and run <code>dotnet run</code>. Wait for "Now listening on: http://localhost:5204".</div>
-        <div class="step-expect">✅ Expect: Console shows "Application started" with no red errors. Neon DB connection confirmed.</div>
-      </div>
-    </div>
-
-    <div class="step">
-      <div class="step-cb" onclick="tick(this)"></div>
-      <div class="step-body">
-        <div class="step-title">Start the frontend</div>
-        <div class="step-desc">Open a second terminal in <code>D:\Pharma-LIMS\frontend</code> and run <code>npm run dev</code>. Wait for "Local: http://localhost:5173".</div>
-        <div class="step-expect">✅ Expect: Vite compiles with 0 TypeScript errors.</div>
+        <div class="step-title">Verify live site is up</div>
+        <div class="step-desc">Open a browser and navigate to <code>https://limslite.websynergiesdigital.com</code>.</div>
+        <div class="step-expect">✅ Expect: Login page loads within 3 seconds. No nginx error page. Backend (PostgreSQL on Azure VM) is running.</div>
       </div>
     </div>
 
@@ -152,8 +142,18 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
       <div class="step-cb" onclick="tick(this)"></div>
       <div class="step-body">
         <div class="step-title">Login as Admin</div>
-        <div class="step-desc">Navigate to <code>http://localhost:5173</code>. Enter username <code>admin</code> and password <code>Admin@123</code>. Click Sign In.</div>
+        <div class="step-desc">Enter username <code>admin</code> and password <code>Admin@123</code>. Click Sign In.</div>
         <div class="step-expect">✅ Expect: Redirected to <code>/dashboard</code>. Sidebar shows: Dashboard, Compliance, Operations (10+ items), Inventory (4 items). Bottom of sidebar: amber ⚙️ <strong>Master Data / Settings</strong> button. Top-right: user avatar with "admin".</div>
+        <div class="step-err">❌ If HTTP 500: backend service may be down — IT to run <code>sudo systemctl restart limslite</code> on server.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Check mobile view</div>
+        <div class="step-desc">Open the site on a mobile phone (or DevTools device mode). Resize browser to under 768px width.</div>
+        <div class="step-expect">✅ Expect: Hamburger ☰ button visible top-left. Sidebar hidden by default. Tap ☰ to slide sidebar in. Tap any nav link — sidebar closes automatically. Dark backdrop visible when sidebar is open.</div>
       </div>
     </div>
 
@@ -223,7 +223,7 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
   <div class="section-header" onclick="toggle('sec-3')">
     <div class="sec-num" style="background:#0284c7">3</div>
     <div class="sec-title">Sample Registration</div>
-    <div class="sec-meta"><span id="cnt-sec-3">0/4</span> steps</div>
+    <div class="sec-meta"><span id="cnt-sec-3">0/6</span> steps</div>
     <div class="sec-arrow" id="arr-sec-3">▼</div>
   </div>
   <div class="steps" id="body-sec-3" style="display:none">
@@ -233,16 +233,52 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
       <div class="step-body">
         <div class="step-title">Open Sample Registration</div>
         <div class="step-desc">Click <strong>Sample Registration</strong> in the Operations section of the sidebar.</div>
-        <div class="step-expect">✅ Expect: Table of existing samples. Status filter dropdown. <strong>Register Sample</strong> button top-right.</div>
+        <div class="step-expect">✅ Expect: 6 seeded samples already visible (SAMP-2026-001 through SAMP-2026-006). Status filter dropdown visible. <strong>Register Sample</strong> button top-right.</div>
       </div>
     </div>
 
     <div class="step">
       <div class="step-cb" onclick="tick(this)"></div>
       <div class="step-body">
-        <div class="step-title">Register a new sample</div>
-        <div class="step-desc">Click <strong>Register Sample</strong>. Fill in: Material (pick any), Lot Number = <code>LOT-TEST-001</code>, Sample Type, Due Date = tomorrow's date. Submit.</div>
-        <div class="step-expect">✅ Expect: New sample appears in table with auto-generated Sample Number (e.g. <code>LIM-20260523-0001</code>). Status = <strong>Registered</strong>. Requestor field auto-filled as "admin".</div>
+        <div class="step-title">Register Sample A — Normal (in-range result)</div>
+        <div class="step-desc">Click <strong>Register Sample</strong>. Fill in exactly:<br/>
+          • Material = <code>Paracetamol API</code><br/>
+          • Lot Number = <code>LOT-TEST-VALID-001</code><br/>
+          • Sample Type = <code>Finished Product</code><br/>
+          • Due Date = <code>2026-06-30</code><br/>
+          Submit.
+        </div>
+        <div class="step-expect">✅ Expect: New sample appears with auto-generated number (e.g. SAMP-2026-007). Status = <strong>Registered</strong>. Requestor = "admin".</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Register Sample B — OOS (out-of-range result)</div>
+        <div class="step-desc">Click <strong>Register Sample</strong> again. Fill in exactly:<br/>
+          • Material = <code>Paracetamol API</code><br/>
+          • Lot Number = <code>LOT-TEST-OOS-001</code><br/>
+          • Sample Type = <code>Finished Product</code><br/>
+          • Due Date = <code>2026-06-30</code><br/>
+          Submit.
+        </div>
+        <div class="step-expect">✅ Expect: Second new sample appears (e.g. SAMP-2026-008). Status = <strong>Registered</strong>. This sample will be used to trigger an OOS investigation in Section 5.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Register Sample C — Water (for batch release test)</div>
+        <div class="step-desc">Click <strong>Register Sample</strong> again. Fill in exactly:<br/>
+          • Material = <code>Purified Water</code><br/>
+          • Lot Number = <code>LOT-TEST-WATER-001</code><br/>
+          • Sample Type = <code>Water Sample</code><br/>
+          • Due Date = <code>2026-06-30</code><br/>
+          Submit.
+        </div>
+        <div class="step-expect">✅ Expect: Third new sample appears (e.g. SAMP-2026-009). Status = <strong>Registered</strong>.</div>
       </div>
     </div>
 
@@ -250,17 +286,17 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
       <div class="step-cb" onclick="tick(this)"></div>
       <div class="step-body">
         <div class="step-title">Test status filter</div>
-        <div class="step-desc">Use the Status filter dropdown — select <strong>Registered</strong>. Verify only Registered samples show. Then clear filter.</div>
-        <div class="step-expect">✅ Expect: Filter works correctly. New sample visible under Registered.</div>
+        <div class="step-desc">Use the Status filter dropdown — select <strong>Registered</strong>.</div>
+        <div class="step-expect">✅ Expect: Only Registered samples show — your 3 new samples + SAMP-2026-002 (seeded). Clear filter to see all 9 samples.</div>
       </div>
     </div>
 
     <div class="step">
       <div class="step-cb" onclick="tick(this)"></div>
       <div class="step-body">
-        <div class="step-title">Sign SRF (electronic signature)</div>
-        <div class="step-desc">Find your new sample row. Click <strong>Sign SRF</strong>. Enter password <code>Admin@123</code>, meaning = "Sample Receipt Confirmation". Submit.</div>
-        <div class="step-expect">✅ Expect: SRF signed. Audit entry created. §11.50 compliant e-signature accepted.</div>
+        <div class="step-title">Sign SRF on Sample A (electronic signature)</div>
+        <div class="step-desc">Find <code>LOT-TEST-VALID-001</code> row. Click <strong>Sign SRF</strong>. Enter password <code>Admin@123</code>, Meaning = <code>Sample Receipt Confirmation</code>. Submit.</div>
+        <div class="step-expect">✅ Expect: SRF signed. Audit entry created. §11.50 e-signature accepted.</div>
         <div class="step-warn">⚠ If no "Sign SRF" button: ensure sample status is Registered and your role is Admin/QA.</div>
       </div>
     </div>
@@ -273,7 +309,7 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
   <div class="section-header" onclick="toggle('sec-4')">
     <div class="sec-num" style="background:#64748b">4</div>
     <div class="sec-title">Work Queue &amp; Test Execution</div>
-    <div class="sec-meta"><span id="cnt-sec-4">0/4</span> steps</div>
+    <div class="sec-meta"><span id="cnt-sec-4">0/6</span> steps</div>
     <div class="sec-arrow" id="arr-sec-4">▼</div>
   </div>
   <div class="steps" id="body-sec-4" style="display:none">
@@ -290,27 +326,48 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
     <div class="step">
       <div class="step-cb" onclick="tick(this)"></div>
       <div class="step-body">
-        <div class="step-title">Assign a task</div>
-        <div class="step-desc">Click <strong>Assign Task</strong> on any Pending execution. Pick an analyst. Save.</div>
-        <div class="step-expect">✅ Expect: Execution status changes to <strong>Assigned</strong>. Analyst name populated.</div>
+        <div class="step-title">Assign Sample A (LOT-TEST-VALID-001)</div>
+        <div class="step-desc">Find the execution for <code>LOT-TEST-VALID-001</code>. Click <strong>Assign Task</strong>. Assign to <code>analyst1</code> (Dr. Priya Nair). Save.</div>
+        <div class="step-expect">✅ Expect: Status changes to <strong>Assigned</strong>. Analyst = Dr. Priya Nair.</div>
       </div>
     </div>
 
     <div class="step">
       <div class="step-cb" onclick="tick(this)"></div>
       <div class="step-body">
-        <div class="step-title">Open Test Execution</div>
-        <div class="step-desc">Click <strong>Start / Open</strong> on an Assigned execution to navigate to <code>/test-execution/:id</code>.</div>
-        <div class="step-expect">✅ Expect: Full test execution form with parameters listed. Status changes to InProgress.</div>
+        <div class="step-title">Enter PASS results for Sample A</div>
+        <div class="step-desc">Click <strong>Start</strong> on Sample A execution. Enter these values (all within spec):<br/>
+          • Assay % = <code>99.5</code> &nbsp;(spec: 98.0 – 102.0 ✅)<br/>
+          • RSD % = <code>0.8</code><br/>
+          Submit with password <code>Admin@123</code>.
+        </div>
+        <div class="step-expect">✅ Expect: Execution → Completed. No OOS flag. Sample status → PendingQAReview.</div>
       </div>
     </div>
 
     <div class="step">
       <div class="step-cb" onclick="tick(this)"></div>
       <div class="step-body">
-        <div class="step-title">Enter test results</div>
-        <div class="step-desc">Fill in numeric values for each parameter. Submit the execution with password <code>Admin@123</code>.</div>
-        <div class="step-expect">✅ Expect: Execution marked Completed. OOS/OOT flags auto-evaluated against spec limits. If value out of range, red OOS badge appears.</div>
+        <div class="step-title">Enter OOS results for Sample B (LOT-TEST-OOS-001)</div>
+        <div class="step-desc">Assign execution for <code>LOT-TEST-OOS-001</code> to <code>analyst1</code>. Click Start. Enter:<br/>
+          • Assay % = <code>95.0</code> &nbsp;(spec: 98.0 – 102.0 ❌ OUT OF RANGE)<br/>
+          • RSD % = <code>1.2</code><br/>
+          Submit with password <code>Admin@123</code>.
+        </div>
+        <div class="step-expect">✅ Expect: Red <strong>OOS</strong> badge appears on Assay%. OOS investigation auto-created in Section 5. Sample status → PendingQAReview.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Enter results for Sample C (LOT-TEST-WATER-001)</div>
+        <div class="step-desc">Assign execution for <code>LOT-TEST-WATER-001</code> to <code>analyst1</code>. Click Start. Enter:<br/>
+          • pH Value = <code>6.5</code> &nbsp;(spec: 5.0 – 7.0 ✅)<br/>
+          • Conductivity = <code>1.2</code> µS/cm<br/>
+          Submit with password <code>Admin@123</code>.
+        </div>
+        <div class="step-expect">✅ Expect: Execution → Completed. All Pass. Sample C → PendingQAReview.</div>
       </div>
     </div>
 
@@ -339,9 +396,9 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
     <div class="step">
       <div class="step-cb" onclick="tick(this)"></div>
       <div class="step-body">
-        <div class="step-title">Open an OOS investigation</div>
-        <div class="step-desc">Click <strong>View</strong> on any OOS record. Review details: sample number, parameter, value, spec limit.</div>
-        <div class="step-expect">✅ Expect: Detail modal opens with root cause field, corrective action. Phase 1 metadata visible.</div>
+        <div class="step-title">Open the OOS investigation for Sample B</div>
+        <div class="step-desc">Click <strong>View</strong> on the OOS record for <code>LOT-TEST-OOS-001</code>. Review details.</div>
+        <div class="step-expect">✅ Expect: Detail modal shows Parameter = "Assay %", Value = 95.0, Spec = 98.0–102.0. Root cause field and corrective action field editable. Phase 1 metadata visible.<br/><br/>Note: SAMP-2026-003 (LOT-IBU-2026-001) also has a seeded OOS from Dissolution at 45min = 68.5% (spec ≥75%).</div>
       </div>
     </div>
 
@@ -510,10 +567,10 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
     <div class="step">
       <div class="step-cb" onclick="tick(this)"></div>
       <div class="step-body">
-        <div class="step-title">Initiate a batch review</div>
-        <div class="step-desc">Click <strong>Initiate Review</strong>. If no samples appear, first ensure a sample has status <strong>PendingQAReview</strong>. Select the sample. Click <strong>Initiate Review</strong>.</div>
-        <div class="step-expect">✅ Expect: New batch release record created with status <strong>InReview</strong>. 5-item compliance checklist auto-evaluated.</div>
-        <div class="step-warn">⚠ If "No samples in PendingQAReview": go to Results Review and approve a sample first to move it to PendingQAReview status.</div>
+        <div class="step-title">Initiate a batch review for Sample A</div>
+        <div class="step-desc">Click <strong>Initiate Review</strong>. Select <code>LOT-TEST-VALID-001</code> (Sample A — all tests passed, no OOS). Click <strong>Initiate Review</strong>.</div>
+        <div class="step-expect">✅ Expect: New batch release record created with status <strong>InReview</strong>. 5-item compliance checklist auto-evaluated.<br/><br/>Also seeded: SAMP-2026-005 (LOT-PARA-2026-003) is already in PendingQAReview status — can be used as an alternative.</div>
+        <div class="step-warn">⚠ If Sample A not in PendingQAReview: complete Section 8 Results Review first — approve Sample A to advance its status.</div>
       </div>
     </div>
 
@@ -703,9 +760,9 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
     <div class="step">
       <div class="step-cb" onclick="tick(this)"></div>
       <div class="step-body">
-        <div class="step-title">Collapse &amp; expand sidebar</div>
-        <div class="step-desc">Click the ← toggle button in the top-left of the header bar to collapse the sidebar.</div>
-        <div class="step-expect">✅ Expect: Sidebar collapses to icon-only mode (64px). ⚙️ gear icon still visible at bottom. Hover over any icon shows tooltip with label. Expand works with → toggle.</div>
+        <div class="step-title">Collapse &amp; expand sidebar (desktop)</div>
+        <div class="step-desc">On desktop (screen &gt; 768px): click the ‹ toggle button in the top-left of the header bar to collapse the sidebar.</div>
+        <div class="step-expect">✅ Expect: Sidebar collapses to icon-only mode (64px). ⚙️ gear icon still visible at bottom. Hover over any icon shows tooltip with label. Expand works with › toggle.<br/><br/>📱 On mobile: ☰ hamburger replaces the toggle. Tap to open overlay sidebar; tap backdrop or any link to close.</div>
       </div>
     </div>
 
@@ -750,8 +807,8 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
 const sections = [
   { id:'sec-1',  label:'Start Services & Login',          total:3 },
   { id:'sec-2',  label:'Settings Page (Master Data)',      total:5 },
-  { id:'sec-3',  label:'Sample Registration',             total:4 },
-  { id:'sec-4',  label:'Work Queue & Test Execution',     total:4 },
+  { id:'sec-3',  label:'Sample Registration',             total:6 },
+  { id:'sec-4',  label:'Work Queue & Test Execution',     total:6 },
   { id:'sec-5',  label:'OOS Investigations',              total:3 },
   { id:'sec-6',  label:'CAPA / Quality Events',           total:4 },
   { id:'sec-7',  label:'SPC / Statistical Process Control', total:3 },
