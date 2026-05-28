@@ -806,7 +806,7 @@ export default function SampleRegistrationPage() {
 
       {/* ── Sign SRF — §11.50 e-sig ──────────────────────────────────────── */}
       {showSRF && (
-        <Modal title="Sign Sample Registration Form (§11.50)" onClose={() => setShowSRF(null)}>
+        <Modal title="Sign Sample Registration Form" onClose={() => setShowSRF(null)}>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
             21 CFR §11.50 — Your full name, timestamp, meaning, and reason will be captured and immutably recorded.
           </p>

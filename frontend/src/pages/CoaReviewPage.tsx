@@ -281,12 +281,12 @@ export default function CoaReviewPage() {
 
       {/* Approve Modal */}
       {showApprove && selected && (
-        <Modal title="Approve CoA — QA §11.50 E-Signature" onClose={() => setShowApprove(false)}>
+        <Modal title="Approve CoA — E-Signature" onClose={() => setShowApprove(false)}>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
             This will lock the CoA PDF atomically and release the sample. All 3 e-signatures embedded in locked PDF (21 CFR §11.50).
           </p>
           <form onSubmit={submitApprove}>
-            <Field label="Password (re-enter — §11.300)"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+            <Field label="Password (re-enter)"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={form.meaning} onChange={e => setForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. All results reviewed and meet specification" /></Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
@@ -297,7 +297,7 @@ export default function CoaReviewPage() {
 
       {/* Reject Modal */}
       {showReject && selected && (
-        <Modal title="Reject CoA — QA §11.50 E-Signature" onClose={() => setShowReject(false)}>
+        <Modal title="Reject CoA — E-Signature" onClose={() => setShowReject(false)}>
           <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', borderRadius: 6, fontSize: 13, color: '#991b1b' }}>
             ⚠ Rejection is permanent and immutable (EU Annex 11 §13). Justification is mandatory.
           </div>
@@ -305,7 +305,7 @@ export default function CoaReviewPage() {
             <Field label="Justification (mandatory)">
               <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={form.justification} onChange={e => setForm(f => ({ ...f, justification: e.target.value }))} required placeholder="Reason for rejection…" />
             </Field>
-            <Field label="Password (re-enter — §11.300)"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+            <Field label="Password (re-enter)"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={form.meaning} onChange={e => setForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required /></Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}

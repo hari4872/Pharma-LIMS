@@ -181,7 +181,7 @@ export default function DispatchQcPage() {
             No role can set CLEARED manually.
           </p>
           <form onSubmit={submitApprove}>
-            <Field label="Password (re-enter — §11.300)"><input style={inp} type="password" value={approveForm.password} onChange={e => setApproveForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+            <Field label="Password (re-enter)"><input style={inp} type="password" value={approveForm.password} onChange={e => setApproveForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={approveForm.meaning} onChange={e => setApproveForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={approveForm.reason} onChange={e => setApproveForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. All Dispatch QC tests passed, product cleared" /></Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}

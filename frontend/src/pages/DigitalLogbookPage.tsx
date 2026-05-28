@@ -149,7 +149,7 @@ export default function DigitalLogbookPage() {
 
       {/* ── Amendment Modal — §11.10(e) ──────────────────────────────────── */}
       {amendEntry && (
-        <Modal title={`Amend Entry — §11.10(e)`} onClose={() => setAmendEntry(null)}>
+        <Modal title="Amend Entry" onClose={() => setAmendEntry(null)}>
           <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
             21 CFR §11.10(e) — Original preserved as Superseded. New entry created as Pending.
             E-signature re-authentication required.

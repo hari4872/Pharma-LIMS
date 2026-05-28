@@ -117,7 +117,7 @@ export default function RetainSamplesPage() {
       )}
 
       {showDestroy && (
-        <Modal title="Destroy Retain Sample (QA E-Signature §11.50)" onClose={() => setShowDestroy(null)}>
+        <Modal title="Destroy Retain Sample — E-Signature" onClose={() => setShowDestroy(null)}>
           <p style={{ fontSize: 13, color: '#374151', marginBottom: 12 }}>
             Sample: <strong>{showDestroy.sampleNumber}</strong> · Lot: <strong>{showDestroy.lotNumber}</strong> · Qty: <strong>{showDestroy.quantity} {showDestroy.quantityUom}</strong>
           </p>

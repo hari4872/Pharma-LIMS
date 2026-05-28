@@ -149,7 +149,7 @@ export default function TestExecutionPage() {
           <div style={{ marginTop: 16 }}>
             <button onClick={() => { setShowSignOff(true); setError('') }}
               style={{ padding: '8px 20px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14 }}>
-              Step 7 — Sign Off (§11.50 E-Signature)
+              Step 7 — Sign Off (E-Signature)
             </button>
           </div>
         </div>
@@ -157,7 +157,7 @@ export default function TestExecutionPage() {
 
       {/* Step 7: Sign-off modal */}
       {showSignOff && (
-        <Modal title="Analyst Sign-Off — Step 7 (§11.50)" onClose={() => setShowSignOff(false)}>
+        <Modal title="Analyst Sign-Off — Step 7" onClose={() => setShowSignOff(false)}>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
             21 CFR §11.50 — Your full name, timestamp UTC, meaning, and reason will be captured and immutably recorded.
             Logbook rows created atomically. {hasOos && <strong style={{ color: '#dc2626' }}>OOS investigations will be auto-raised.</strong>}

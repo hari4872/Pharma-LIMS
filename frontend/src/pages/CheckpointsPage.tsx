@@ -516,7 +516,7 @@ export default function CheckpointsPage() {
                   {row.status === 'Open' && (
                     <button onClick={() => { setShowSignRow({ checkpointId: showProcessLog, rowId: row.rowId }); setError('') }}
                       style={{ padding: '3px 8px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                      Sign Row §11.50
+                      Sign Row
                     </button>
                   )}
                 </div>
@@ -528,7 +528,7 @@ export default function CheckpointsPage() {
 
       {/* ── Sign Process Log Row §11.50 ───────────────────────────────────── */}
       {showSignRow && (
-        <Modal title="Sign Process Log Row (§11.50)" onClose={() => setShowSignRow(null)}>
+        <Modal title="Sign Process Log Row" onClose={() => setShowSignRow(null)}>
           <form onSubmit={submitSignRow}>
             <Field label="Password (re-enter)">
               <input style={inp} type="password" value={signForm.password}

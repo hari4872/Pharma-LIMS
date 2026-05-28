@@ -329,7 +329,7 @@ export default function InstrumentsPage() {
             ⚠️ This action marks the instrument as Available and triggers OOC impact assessment on all logbook entries during the breakdown window. 21 CFR §11.50 e-signature required.
           </p>
           <form onSubmit={submitRts}>
-            <Field label="Password (§11.300 BCrypt verify)"><input style={inp} type="password" value={rtsForm.password} onChange={e => setRtsForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+            <Field label="Password (re-enter)"><input style={inp} type="password" value={rtsForm.password} onChange={e => setRtsForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning of Signature"><input style={inp} value={rtsForm.meaning} onChange={e => setRtsForm(f => ({ ...f, meaning: e.target.value }))} required placeholder="e.g. QA Return-to-Service Approval" /></Field>
             <Field label="Reason for Signature"><input style={inp} value={rtsForm.reason} onChange={e => setRtsForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Instrument verified in-spec post-repair" /></Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}

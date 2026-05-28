@@ -113,7 +113,7 @@ export default function CompliancePanelPage() {
     { key: 'signatures',   label: 'Signature Log' },
     { key: 'reviews',      label: 'Validation Reviews' },
     { key: 'formTemplates', label: `Form Templates${ftPending.length ? ` (${ftPending.length})` : ''}` },
-    { key: 'loginAudit',  label: '🔐 Login Audit (§11.10(d))' },
+    { key: 'loginAudit',  label: '🔐 Login Audit' },
   ]
 
   return (
@@ -252,7 +252,7 @@ export default function CompliancePanelPage() {
                   <textarea style={{ ...inp, height: 72, resize: 'vertical' }} value={reviewForm.notes} onChange={e => setReviewForm(f => ({ ...f, notes: e.target.value }))} />
                 </Field>
                 <p style={{ fontSize: 12, color: '#6b7280', margin: '12px 0 0', fontWeight: 500 }}>21 CFR §11.50 Electronic Signature</p>
-                <Field label="Password (§11.300 BCrypt verify)"><input style={inp} type="password" value={reviewForm.password} onChange={e => setReviewForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+                <Field label="Password (re-enter)"><input style={inp} type="password" value={reviewForm.password} onChange={e => setReviewForm(f => ({ ...f, password: e.target.value }))} required /></Field>
                 <Field label="Meaning"><input style={inp} value={reviewForm.meaning} onChange={e => setReviewForm(f => ({ ...f, meaning: e.target.value }))} required placeholder="e.g. Periodic re-validation approval" /></Field>
                 <Field label="Reason"><input style={inp} value={reviewForm.reason} onChange={e => setReviewForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Annual review cycle completed" /></Field>
                 {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}

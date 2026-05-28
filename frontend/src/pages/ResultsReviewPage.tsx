@@ -75,7 +75,7 @@ export default function ResultsReviewPage() {
 
       {showReview && (
         <Modal
-          title={showReview.type === 'peer' ? 'Peer Review — §11.50 E-Signature' : 'QC Lead Verification — §11.50 E-Signature'}
+          title={showReview.type === 'peer' ? 'Peer Review — E-Signature' : 'QC Lead Verification — E-Signature'}
           onClose={() => setShowReview(null)}
         >
           {showReview.type === 'qclead' && (
