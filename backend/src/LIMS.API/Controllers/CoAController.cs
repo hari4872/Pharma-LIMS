@@ -1,8 +1,11 @@
+using LIMS.API.Pdf;
 using LIMS.Application.Features.CoA;
 using LIMS.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QuestPDF.Fluent;
+using QuestPDF.Infrastructure;
 
 namespace LIMS.API.Controllers;
 
@@ -72,7 +75,7 @@ public class CoAController : ControllerBase
         return Ok(new { approvalId = result.Value, decision = "Approved" });
     }
 
-    // GET api/v1/coas/{id}/pdf — download locked PDF blob (FR-06, FR-07)
+    // GET api/v1/coas/{id}/pdf — generate and download CoA PDF (on-the-fly, QuestPDF)
     [HttpGet("{id}/pdf")]
     public async Task<IActionResult> GetPdf(int id)
     {
@@ -80,12 +83,15 @@ public class CoAController : ControllerBase
         var coa = result.FirstOrDefault();
         if (coa is null) return NotFound();
 
-        // Retrieve the raw blob from DB
-        var entity = await _mediator.Send(new GetCoAPdfQuery(id));
-        if (entity?.PdfBlob is null)
-            return NotFound(new { error = "PDF_NOT_GENERATED", message = "PDF not yet generated for this CoA. Approve the CoA first." });
+        if (coa.Status == "Draft")
+            return BadRequest(new { error = "DRAFT_COA", message = "CoA must be approved (Released) before the PDF can be downloaded." });
 
-        return File(entity.PdfBlob, "application/pdf", $"CoA_{coa.CoaNumber}.pdf");
+        // Generate PDF on-the-fly using QuestPDF (Community license)
+        QuestPDF.Settings.License = LicenseType.Community;
+        var doc   = new CoAPdfDocument(coa);
+        var bytes = doc.GeneratePdf();
+
+        return File(bytes, "application/pdf", $"CoA_{coa.CoaNumber}.pdf");
     }
 
     // POST api/v1/coas/{id}/reissue — creates superseding CoA, sets SupersededById on original (FR-11)

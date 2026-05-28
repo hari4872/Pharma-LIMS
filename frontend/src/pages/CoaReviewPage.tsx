@@ -107,6 +107,19 @@ export default function CoaReviewPage() {
     finally { setSaving(false) }
   }
 
+  async function downloadPdf(coa: CoaItem) {
+    try {
+      const r = await api.get(`/coas/${coa.coaId}/pdf`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url; a.download = `CoA_${coa.coaNumber}.pdf`; a.click()
+      URL.revokeObjectURL(url)
+      toast(`CoA ${coa.coaNumber} PDF downloaded`, 'success')
+    } catch {
+      toast('Failed to download PDF — CoA may not be approved yet', 'error')
+    }
+  }
+
   function handlePrint(coa: CoaItem) {
     const win = window.open('', '_blank', 'width=900,height=700')
     if (!win) return
@@ -188,16 +201,28 @@ export default function CoaReviewPage() {
           ? <span style={{ fontSize: 12 }}>{r.qaSignedBy}<br /><span style={{ color: '#6b7280' }}>{new Date(r.qaSignedAt!).toLocaleString()}</span></span>
           : '—' },
         { header: 'Actions', accessor: r => (
-          <button onClick={() => openDetail(r)} style={{ padding: '3px 10px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-            Review
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => openDetail(r)} style={{ padding: '3px 10px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+              Review
+            </button>
+            {r.status === 'Released' && (
+              <button onClick={() => downloadPdf(r)} style={{ padding: '3px 10px', background: '#065f46', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                📄 PDF
+              </button>
+            )}
+          </div>
         )},
       ]} />
 
       {/* CoA Detail + Checklist Panel */}
       {selected && !showApprove && !showReject && (
         <Modal title={`CoA Review — ${selected.coaNumber}`} onClose={() => setSelected(null)}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
+            {selected.status === 'Released' && (
+              <button onClick={() => downloadPdf(selected)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 14px', border: 'none', borderRadius: 7, background: '#065f46', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
+                📄 Download CoA PDF
+              </button>
+            )}
             <button onClick={() => handlePrint(selected)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', border: '1px solid #e5e7eb', borderRadius: 7, background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#374151', fontFamily: 'inherit' }}>
               <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
               Print CoA
