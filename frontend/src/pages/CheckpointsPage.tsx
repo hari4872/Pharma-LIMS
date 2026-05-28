@@ -3,6 +3,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'
+import { toast } from '@/components/Toast'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Checkpoint {
@@ -155,10 +156,16 @@ export default function CheckpointsPage() {
         checkpointType: cpType,
         timeSlots,
         shiftIntervalHrs: shiftHrs ? Number(shiftHrs) : null,
-        parameterIds: selectedParams,   // link parameters to this checkpoint
+        parameterIds: selectedParams,
       })
-      setShowForm(false); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+      setShowForm(false)
+      toast(`Checkpoint "${cpName}" added successfully`, 'success')
+      load()
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'Failed to create checkpoint'
+      setError(msg)
+      toast(msg, 'error')
+    }
     finally { setSaving(false) }
   }
 
@@ -173,8 +180,14 @@ export default function CheckpointsPage() {
     if (!showSignRow) return
     try {
       await api.post(`/checkpoints/${showSignRow.checkpointId}/process-log/${showSignRow.rowId}/sign`, signForm)
-      setShowSignRow(null); loadProcessLog(showSignRow.checkpointId)
-    } catch (err: any) { setError(err.response?.data?.message ?? 'E-signature failed') }
+      setShowSignRow(null)
+      toast('Process log row signed and locked ✓', 'success')
+      loadProcessLog(showSignRow.checkpointId)
+    } catch (err: any) {
+      const msg = err.response?.data?.message ?? 'E-signature failed'
+      setError(msg)
+      toast(msg, 'error')
+    }
     finally { setSaving(false) }
   }
 
@@ -242,7 +255,7 @@ export default function CheckpointsPage() {
           header: 'Actions', accessor: r => (
             <div style={{ display: 'flex', gap: 5 }}>
               {(r.triggerMode === 'OperatorScan' || r.triggerMode === 'DispatchEvent') && (
-                <button onClick={() => triggerCheckpoint(r.checkpointId)}
+                <button onClick={() => { triggerCheckpoint(r.checkpointId); toast(`Checkpoint "${r.checkpointCode}" triggered`, 'success') }}
                   style={{ padding: '3px 9px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
                   Trigger
                 </button>
