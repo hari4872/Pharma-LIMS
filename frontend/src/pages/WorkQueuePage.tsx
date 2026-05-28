@@ -166,7 +166,12 @@ export default function WorkQueuePage() {
     try {
       await api.post(`/test-executions/${executionId}/start`, {})
       load()
-    } catch (err: any) { alert(err.response?.data?.message ?? 'Start failed') }
+    } catch (err: any) {
+      const status = err.response?.status
+      const msg = err.response?.data?.message ?? err.response?.data?.error
+      if (status === 403) toast('Permission denied — only Analyst, QC Lead or Admin can start tasks', 'error')
+      else toast(msg ?? 'Start failed — please try again', 'error')
+    }
   }
 
   function isOverdue(item: WorkItem) {

@@ -49,7 +49,7 @@ public class TestExecutionsController : ControllerBase
 
     // POST api/v1/test-executions/{id}/start — Analyst opens task / barcode scan (FR-22 started_at UTC)
     [HttpPost("{id}/start")]
-    [Authorize(Roles = "Analyst,QCLead")]
+    [Authorize(Roles = "Admin,Analyst,QCLead")]
     public async Task<IActionResult> Start(int id)
     {
         var analystId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
