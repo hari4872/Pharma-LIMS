@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store'
 import LaboratoriesPage       from './master-data/LaboratoriesPage'
 import InstrumentsPage        from './master-data/InstrumentsPage'
 import InstrumentMappingPage  from './master-data/InstrumentMappingPage'
@@ -84,15 +86,25 @@ const TAB_GROUPS: TabGroup[] = [
 ]
 
 export default function SettingsPage() {
+  const role = useSelector((s: RootState) => s.auth.role) ?? ''
+  const isAdmin = role === 'Admin'
+
   const [activeGroup,  setActiveGroup]  = useState<TabId>('lab-setup')
   const [activeSub,    setActiveSub]    = useState<string>('laboratories')
 
-  const group    = TAB_GROUPS.find(g => g.id === activeGroup)!
+  // Filter out the Users subtab for non-Admin roles
+  const visibleGroups = TAB_GROUPS.map(g =>
+    g.id === 'users-training'
+      ? { ...g, subtabs: g.subtabs.filter(s => s.id !== 'users' || isAdmin) }
+      : g
+  )
+
+  const group    = visibleGroups.find(g => g.id === activeGroup)!
   const subtab   = group.subtabs.find(s => s.id === activeSub) ?? group.subtabs[0]
   const PageComp = subtab.component
 
   function selectGroup(gid: TabId) {
-    const g = TAB_GROUPS.find(x => x.id === gid)!
+    const g = visibleGroups.find(x => x.id === gid)!
     setActiveGroup(gid)
     setActiveSub(g.subtabs[0].id)
   }
@@ -111,7 +123,7 @@ export default function SettingsPage() {
 
       {/* ── Group tabs (top row) ── */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 0, flexWrap: 'wrap' }}>
-        {TAB_GROUPS.map(g => (
+        {visibleGroups.map(g => (
           <button
             key={g.id}
             onClick={() => selectGroup(g.id)}

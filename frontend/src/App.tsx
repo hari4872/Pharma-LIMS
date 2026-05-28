@@ -65,6 +65,12 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return token ? <>{children}</> : <Navigate to="/login" replace />
 }
 
+/** Redirect to /dashboard if the logged-in user doesn't have one of the required roles */
+function RequireRole({ roles, children }: { roles: string[]; children: React.ReactNode }) {
+  const role = useSelector((s: RootState) => s.auth.role) ?? ''
+  return roles.includes(role) ? <>{children}</> : <Navigate to="/dashboard" replace />
+}
+
 export default function App() {
   return (
     <Routes>
@@ -84,7 +90,7 @@ export default function App() {
         <Route path="master-data/spec-limits"      element={<SpecLimitsPage />} />
         <Route path="master-data/form-templates"          element={<FormTemplatesPage />} />
         <Route path="master-data/specification-templates" element={<SpecificationTemplatesPage />} />
-        <Route path="master-data/users"            element={<UsersPage />} />
+        <Route path="master-data/users"            element={<RequireRole roles={['Admin']}><UsersPage /></RequireRole>} />
         <Route path="master-data/sample-types"     element={<SampleTypesPage />} />
         <Route path="master-data/storage-locations"  element={<StorageLocationsPage />} />
         <Route path="master-data/reagents"           element={<ReagentsPage />} />

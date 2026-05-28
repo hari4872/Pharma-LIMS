@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './LaboratoriesPage'
@@ -8,6 +10,9 @@ interface UserRow { userId: number; username: string; fullName: string; email: s
 interface Lab { labId: number; labName: string }
 
 export default function UsersPage() {
+  const role    = useSelector((s: RootState) => s.auth.role) ?? ''
+  const isAdmin = role === 'Admin'
+
   const [data, setData] = useState<UserRow[]>([])
   const [labs, setLabs] = useState<Lab[]>([])
   const [loading, setLoading] = useState(false)
@@ -63,7 +68,7 @@ export default function UsersPage() {
 
   return (
     <div>
-      <PageHeader title="Users" onAdd={() => setShowForm(true)} />
+      <PageHeader title="Users" onAdd={isAdmin ? () => setShowForm(true) : undefined} />
       <DataTable loading={loading} data={data} exportFilename="Users" columns={[
         { header: 'Username', accessor: 'username' },
         { header: 'Full Name', accessor: 'fullName' },
@@ -73,19 +78,19 @@ export default function UsersPage() {
         { header: 'Lab', accessor: 'labName' },
         { header: 'Admin', accessor: r => r.isTenantAdmin ? '✓' : '' },
         { header: 'Status', accessor: r => <StatusBadge active={r.isActive} /> },
-        { header: 'Unlock', accessor: r => (
+        { header: 'Unlock', accessor: r => isAdmin ? (
           <button onClick={() => unlockUser(r.userId, r.fullName)}
             style={{ padding: '3px 8px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
             🔓 Unlock
           </button>
-        )},
-        { header: 'Edit', accessor: r => (
+        ) : <span style={{ fontSize: 11, color: '#d1d5db' }}>—</span> },
+        { header: 'Edit', accessor: r => isAdmin ? (
           <button onClick={() => openEdit(r)}
             style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e5e7eb', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#374151', fontFamily:'inherit' }}>
             <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             Edit
           </button>
-        ) },
+        ) : <span style={{ fontSize: 11, color: '#d1d5db' }}>—</span> },
       ]} />
       {editRow && (
         <Modal title={`Edit User — ${editRow.username}`} onClose={() => setEditRow(null)}>
