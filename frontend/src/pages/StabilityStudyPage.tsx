@@ -242,8 +242,8 @@ export default function StabilityStudyPage() {
     setIchResult(null)
     setLoadingDetail(true)
     Promise.all([
-      api.get<StabilityTrendResult>(`/stability-trends/${id}`),
-      api.get<IchComplianceResult>(`/stability-trends/${id}/ich-compliance`),
+      api.get<StabilityTrendResult>(`/stability-protocols/${id}/trend`),
+      api.get<IchComplianceResult>(`/stability-protocols/${id}/ich-compliance`),
     ])
       .then(([t, i]) => { setTrendResult(t.data); setIchResult(i.data) })
       .catch(() => {})
