@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
-import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface BatchRelease {
@@ -39,10 +39,31 @@ const CHECK_LABELS: Record<string, string> = {
   LogbookSigned:    'All Logbook Entries Signed',
 }
 
+const CHIPS = [
+  { label: 'All',           value: '',              color: '#374151' },
+  { label: 'PendingReview', value: 'PendingReview', color: '#6b7280' },
+  { label: 'InReview',      value: 'InReview',      color: '#d97706' },
+  { label: 'Released',      value: 'Released',      color: '#16a34a' },
+  { label: 'Rejected',      value: 'Rejected',      color: '#dc2626' },
+  { label: 'OnHold',        value: 'OnHold',        color: '#f97316' },
+]
+
+function chipStyle(active: boolean, color: string): React.CSSProperties {
+  return {
+    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+    border: `1.5px solid ${active ? color : '#e5e7eb'}`,
+    background: active ? color : '#fff',
+    color: active ? '#fff' : '#374151',
+    cursor: 'pointer', whiteSpace: 'nowrap',
+  }
+}
+
 export default function BatchReleasePage() {
   const [data,       setData]       = useState<BatchRelease[]>([])
   const [loading,    setLoading]    = useState(false)
   const [statusFilter, setStatusFilter] = useState('')
+  const [dateFrom,   setDateFrom]   = useState('')
+  const [dateTo,     setDateTo]     = useState('')
   const [showDetail, setShowDetail] = useState(false)
   const [detail,     setDetail]     = useState<ReleaseDetail | null>(null)
   const [showInitiate, setShowInitiate] = useState(false)
@@ -56,11 +77,19 @@ export default function BatchReleasePage() {
 
   async function load() {
     setLoading(true)
-    const params = statusFilter ? `?status=${statusFilter}` : ''
-    const r = await api.get(`/batch-releases${params}`)
+    const r = await api.get('/batch-releases')
     setData(r.data); setLoading(false)
   }
-  useEffect(() => { load() }, [statusFilter])
+  useEffect(() => { load() }, [])
+
+  const filtered = useMemo(() => {
+    return data.filter(r => {
+      if (statusFilter && r.status !== statusFilter) return false
+      if (dateFrom && r.initiatedAt < dateFrom) return false
+      if (dateTo && r.initiatedAt.slice(0, 10) > dateTo) return false
+      return true
+    })
+  }, [data, statusFilter, dateFrom, dateTo])
 
   async function openDetail(id: number) {
     const r = await api.get(`/batch-releases/${id}`)
@@ -107,22 +136,40 @@ export default function BatchReleasePage() {
   return (
     <div>
       {/* ── Header ── */}
-      <div style={{ marginBottom: 16 }}>
-        <PageHeader title="Batch Release (21 CFR 211.192)" onAdd={openInitiate} addLabel="Initiate Review" />
+      <div style={{ marginBottom: 4 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: 0 }}>Batch Release (21 CFR 211.192)</h2>
         <p style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 0' }}>
           QA reviews each batch before release — automated checklist + e-signature required
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <select style={{ ...inp, width: 180 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="">All Statuses</option>
-          {['PendingReview', 'InReview', 'Released', 'Rejected', 'OnHold'].map(s => <option key={s}>{s}</option>)}
-        </select>
+      {/* ── Toolbar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16, marginTop: 14 }}>
+        {CHIPS.map(c => (
+          <button key={c.value} onClick={() => setStatusFilter(c.value)} style={chipStyle(statusFilter === c.value, c.color)}>
+            {c.label}
+          </button>
+        ))}
+
+        <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4 }}>From</span>
+        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+          style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+        <span style={{ fontSize: 12, color: '#6b7280' }}>To</span>
+        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+          style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: '#6b7280' }}>{filtered.length} record{filtered.length !== 1 ? 's' : ''}</span>
+          <button onClick={openInitiate}
+            style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+            Initiate Review
+          </button>
+        </div>
       </div>
 
       {/* ── Table ── */}
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={filtered} columns={[
         { header: 'Sample', accessor: r => <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12 }}>{r.sampleNumber}</span> },
         { header: 'Material / Lot', accessor: r => <span>{r.materialName}<br /><span style={{ fontSize: 11, color: '#6b7280' }}>{r.lotNumber}</span></span> },
         { header: 'Status', accessor: r => {
@@ -140,12 +187,12 @@ export default function BatchReleasePage() {
         { header: 'Actions', accessor: r => (
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => openDetail(r.batchReleaseId)}
-              style={{ padding: '3px 8px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+              style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: 12, padding: 0 }}>
               View Checklist
             </button>
             {(r.status === 'InReview' || r.status === 'PendingReview') && (
               <button onClick={() => openDecide(r.batchReleaseId)}
-                style={{ padding: '3px 8px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: 12, padding: 0 }}>
                 Make Decision
               </button>
             )}

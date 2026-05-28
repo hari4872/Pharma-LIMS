@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
-import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
 
 interface OosItem {
@@ -17,10 +17,28 @@ const FLAG_COLORS: Record<string, { bg: string; color: string }> = {
   OOT: { bg: '#fef9c3', color: '#854d0e' },
 }
 
+const CHIPS = [
+  { label: 'All',    value: '',       color: '#374151' },
+  { label: 'Open',   value: 'Open',   color: '#dc2626' },
+  { label: 'Closed', value: 'Closed', color: '#16a34a' },
+]
+
+function chipStyle(active: boolean, color: string): React.CSSProperties {
+  return {
+    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+    border: `1.5px solid ${active ? color : '#e5e7eb'}`,
+    background: active ? color : '#fff',
+    color: active ? '#fff' : '#374151',
+    cursor: 'pointer', whiteSpace: 'nowrap',
+  }
+}
+
 export default function OosInvestigationsPage() {
   const [data, setData] = useState<OosItem[]>([])
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState('Open')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [showClose, setShowClose] = useState<OosItem | null>(null)
   const [closeForm, setCloseForm] = useState({ rootCause: '', capaRef: '', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' })
   const [saving, setSaving] = useState(false)
@@ -28,11 +46,19 @@ export default function OosInvestigationsPage() {
 
   async function load() {
     setLoading(true)
-    const params = statusFilter ? `?status=${statusFilter}` : ''
-    const r = await api.get(`/oos-investigations${params}`)
+    const r = await api.get('/oos-investigations')
     setData(r.data); setLoading(false)
   }
-  useEffect(() => { load() }, [statusFilter])
+  useEffect(() => { load() }, [])
+
+  const filtered = useMemo(() => {
+    return data.filter(r => {
+      if (statusFilter && r.status !== statusFilter) return false
+      if (dateFrom && r.openedAt < dateFrom) return false
+      if (dateTo && r.openedAt.slice(0, 10) > dateTo) return false
+      return true
+    })
+  }, [data, statusFilter, dateFrom, dateTo])
 
   async function downloadPdf(item: OosItem) {
     try {
@@ -60,16 +86,28 @@ export default function OosInvestigationsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <PageHeader title="OOS / OOT Investigations" />
-        <select style={{ ...inp, width: 160, marginTop: 0 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="">All</option>
-          <option value="Open">Open</option>
-          <option value="Closed">Closed</option>
-        </select>
+      {/* ── Toolbar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a', marginRight: 4 }}>OOS / OOT Investigations</h2>
+        {CHIPS.map(c => (
+          <button key={c.value} onClick={() => setStatusFilter(c.value)} style={chipStyle(statusFilter === c.value, c.color)}>
+            {c.label}
+          </button>
+        ))}
+
+        <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4 }}>From</span>
+        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+          style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+        <span style={{ fontSize: 12, color: '#6b7280' }}>To</span>
+        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+          style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+
+        <div style={{ marginLeft: 'auto' }}>
+          <span style={{ fontSize: 12, color: '#6b7280' }}>{filtered.length} record{filtered.length !== 1 ? 's' : ''}</span>
+        </div>
       </div>
 
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={filtered} columns={[
         { header: 'Sample', accessor: r => <strong style={{ fontFamily: 'monospace' }}>{r.sampleNumber}</strong> },
         { header: 'Parameter', accessor: 'parameterName' },
         { header: 'Type', accessor: r => {
@@ -87,24 +125,19 @@ export default function OosInvestigationsPage() {
         { header: 'Opened', accessor: r => new Date(r.openedAt).toLocaleDateString() },
         { header: 'Closed', accessor: r => r.closedAt ? new Date(r.closedAt).toLocaleDateString() : '—' },
         { header: 'Actions', accessor: r => (
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {r.status === 'Open' && (
               <button
                 onClick={() => { setShowClose(r); setCloseForm(f => ({ ...f, rootCause: '', capaRef: '' })); setError('') }}
-                style={{ padding: '3px 8px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                style={{ background: 'none', border: 'none', color: '#16a34a', cursor: 'pointer', fontSize: 12, padding: 0 }}>
                 Close Investigation
               </button>
             )}
             <button
               onClick={() => downloadPdf(r)}
               title="Download OOS Investigation Report PDF"
-              style={{
-                padding: '3px 10px', border: 'none', borderRadius: 4,
-                cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                background: r.status === 'Closed' ? '#7c3aed' : '#e9d5ff',
-                color: r.status === 'Closed' ? '#fff' : '#7c3aed',
-              }}>
-              📄 PDF
+              style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: 12, padding: 0 }}>
+              PDF
             </button>
           </div>
         )},

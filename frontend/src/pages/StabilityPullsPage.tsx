@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
-import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 
 interface StabilityPull {
   pullId: number; sampleId: number; sampleNumber: string; materialName: string
@@ -17,10 +17,30 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Escalated: { bg: '#fce7f3', color: '#9d174d' },
 }
 
+const CHIPS = [
+  { label: 'All',       value: '',          color: '#374151' },
+  { label: 'Pending',   value: 'Pending',   color: '#d97706' },
+  { label: 'Pulled',    value: 'Pulled',    color: '#16a34a' },
+  { label: 'Missed',    value: 'Missed',    color: '#dc2626' },
+  { label: 'Escalated', value: 'Escalated', color: '#9d174d' },
+]
+
+function chipStyle(active: boolean, color: string): React.CSSProperties {
+  return {
+    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+    border: `1.5px solid ${active ? color : '#e5e7eb'}`,
+    background: active ? color : '#fff',
+    color: active ? '#fff' : '#374151',
+    cursor: 'pointer', whiteSpace: 'nowrap',
+  }
+}
+
 export default function StabilityPullsPage() {
   const [data, setData]           = useState<StabilityPull[]>([])
   const [loading, setLoading]     = useState(false)
   const [filterStatus, setFilter] = useState('')
+  const [dateFrom, setDateFrom]   = useState('')
+  const [dateTo, setDateTo]       = useState('')
   const [showSchedule, setShowSchedule] = useState(false)
   const [showExecute, setShowExecute]   = useState<StabilityPull | null>(null)
   const [schedForm, setSchedForm] = useState({ sampleId: '', timePoint: '', dueDate: '', requiredQty: '', requiredQtyUom: 'g' })
@@ -30,11 +50,19 @@ export default function StabilityPullsPage() {
 
   async function load() {
     setLoading(true)
-    const params = filterStatus ? `?status=${filterStatus}` : ''
-    const r = await api.get(`/stability-pulls${params}`)
+    const r = await api.get('/stability-pulls')
     setData(r.data); setLoading(false)
   }
-  useEffect(() => { load() }, [filterStatus])
+  useEffect(() => { load() }, [])
+
+  const filtered = useMemo(() => {
+    return data.filter(r => {
+      if (filterStatus && r.status !== filterStatus) return false
+      if (dateFrom && r.dueDate < dateFrom) return false
+      if (dateTo && r.dueDate.slice(0, 10) > dateTo) return false
+      return true
+    })
+  }, [data, filterStatus, dateFrom, dateTo])
 
   async function submitSchedule(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
@@ -59,15 +87,34 @@ export default function StabilityPullsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <PageHeader title="Stability Pulls" onAdd={() => { setSchedForm({ sampleId: '', timePoint: '', dueDate: '', requiredQty: '', requiredQtyUom: 'g' }); setError(''); setShowSchedule(true) }} />
-        <select style={{ ...inp, width: 160, marginTop: 0 }} value={filterStatus} onChange={e => setFilter(e.target.value)}>
-          <option value="">All Statuses</option>
-          {['Pending', 'Pulled', 'Missed', 'Escalated'].map(s => <option key={s}>{s}</option>)}
-        </select>
+      {/* ── Toolbar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a', marginRight: 4 }}>Stability Pulls</h2>
+        {CHIPS.map(c => (
+          <button key={c.value} onClick={() => setFilter(c.value)} style={chipStyle(filterStatus === c.value, c.color)}>
+            {c.label}
+          </button>
+        ))}
+
+        <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4 }}>From</span>
+        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+          style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+        <span style={{ fontSize: 12, color: '#6b7280' }}>To</span>
+        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+          style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: '#6b7280' }}>{filtered.length} record{filtered.length !== 1 ? 's' : ''}</span>
+          <button
+            onClick={() => { setSchedForm({ sampleId: '', timePoint: '', dueDate: '', requiredQty: '', requiredQtyUom: 'g' }); setError(''); setShowSchedule(true) }}
+            style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+            Schedule Pull
+          </button>
+        </div>
       </div>
 
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={filtered} columns={[
         { header: 'Sample',     accessor: 'sampleNumber' },
         { header: 'Material',   accessor: 'materialName' },
         { header: 'Time-Point', accessor: 'timePoint' },
@@ -84,7 +131,7 @@ export default function StabilityPullsPage() {
         },
         { header: '', accessor: r => r.status === 'Pending'
           ? <button onClick={() => { setExecForm({ actualQty: '', shortReason: '', password: '', meaning: 'I confirm this stability pull was performed correctly' }); setError(''); setShowExecute(r) }}
-              style={{ padding: '4px 10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>
+              style={{ background: 'none', border: 'none', color: '#16a34a', cursor: 'pointer', fontSize: 12, padding: 0, fontWeight: 600 }}>
               Execute Pull
             </button>
           : null

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
@@ -31,12 +31,41 @@ const TASK_STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   QAApproved:  { bg: '#ede9fe', color: '#6d28d9' },
 }
 
+const TASK_CHIPS = [
+  { label: 'All',        value: '',           color: '#374151' },
+  { label: 'Open',       value: 'Open',       color: '#d97706' },
+  { label: 'InProgress', value: 'InProgress', color: '#2563eb' },
+  { label: 'Passed',     value: 'Passed',     color: '#16a34a' },
+  { label: 'Failed',     value: 'Failed',     color: '#dc2626' },
+  { label: 'QAApproved', value: 'QAApproved', color: '#7c3aed' },
+]
+
+const ORDER_CHIPS = [
+  { label: 'All',          value: '',             color: '#374151' },
+  { label: 'Pending',      value: 'Pending',      color: '#6b7280' },
+  { label: 'InDispatchQC', value: 'InDispatchQC', color: '#2563eb' },
+  { label: 'CLEARED',      value: 'CLEARED',      color: '#16a34a' },
+  { label: 'BLOCKED',      value: 'BLOCKED',      color: '#dc2626' },
+]
+
+function chipStyle(active: boolean, color: string): React.CSSProperties {
+  return {
+    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+    border: `1.5px solid ${active ? color : '#e5e7eb'}`,
+    background: active ? color : '#fff',
+    color: active ? '#fff' : '#374151',
+    cursor: 'pointer', whiteSpace: 'nowrap',
+  }
+}
+
 export default function DispatchQcPage() {
   const [orders, setOrders] = useState<DeliveryOrder[]>([])
   const [tasks, setTasks] = useState<DispatchTask[]>([])
   const [loading, setLoading] = useState(false)
   const [view, setView] = useState<'orders' | 'tasks'>('tasks')
   const [statusFilter, setStatusFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [showCreateDO, setShowCreateDO] = useState(false)
   const [showApprove, setShowApprove] = useState<DispatchTask | null>(null)
   const [doForm, setDoForm] = useState({ doNumber: '', customerName: '', despatchDate: '', packingType: '', productId: '' })
@@ -48,8 +77,8 @@ export default function DispatchQcPage() {
   async function load() {
     setLoading(true)
     const [ordersRes, tasksRes] = await Promise.all([
-      api.get('/delivery-orders' + (statusFilter ? `?status=${statusFilter}` : '')),
-      api.get('/dispatch-qc' + (statusFilter ? `?status=${statusFilter}` : ''))
+      api.get('/delivery-orders'),
+      api.get('/dispatch-qc')
     ])
     setOrders(ordersRes.data); setTasks(tasksRes.data); setLoading(false)
   }
@@ -59,8 +88,32 @@ export default function DispatchQcPage() {
     setProducts(r.data)
   }
 
-  useEffect(() => { load() }, [statusFilter])
+  useEffect(() => { load() }, [])
   useEffect(() => { loadProducts() }, [])
+
+  // Reset filter when switching views
+  function switchView(v: 'tasks' | 'orders') {
+    setView(v)
+    setStatusFilter('')
+  }
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(r => {
+      if (statusFilter && r.status !== statusFilter) return false
+      if (dateFrom && r.createdAt < dateFrom) return false
+      if (dateTo && r.createdAt.slice(0, 10) > dateTo) return false
+      return true
+    })
+  }, [tasks, statusFilter, dateFrom, dateTo])
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter(r => {
+      if (statusFilter && r.status !== statusFilter) return false
+      if (dateFrom && r.createdAt < dateFrom) return false
+      if (dateTo && r.createdAt.slice(0, 10) > dateTo) return false
+      return true
+    })
+  }, [orders, statusFilter, dateFrom, dateTo])
 
   async function submitCreateDO(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
@@ -86,36 +139,58 @@ export default function DispatchQcPage() {
     finally { setSaving(false) }
   }
 
+  const chips = view === 'tasks' ? TASK_CHIPS : ORDER_CHIPS
+  const displayCount = view === 'tasks' ? filteredTasks.length : filteredOrders.length
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#111827' }}>Dispatch QC</h1>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {(['tasks', 'orders'] as const).map(v => (
-            <button key={v} onClick={() => setView(v)} style={{
-              padding: '5px 14px', fontSize: 13, borderRadius: 4, border: '1px solid #d1d5db', cursor: 'pointer',
-              background: view === v ? '#1e40af' : '#fff', color: view === v ? '#fff' : '#374151'
-            }}>{v === 'tasks' ? 'QC Tasks' : 'Delivery Orders'}</button>
-          ))}
-        </div>
-        <select style={{ ...inp, width: 160, marginTop: 0 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="">All Statuses</option>
-          {view === 'tasks'
-            ? ['Open','InProgress','Passed','Failed','QAApproved'].map(s => <option key={s} value={s}>{s}</option>)
-            : ['Pending','InDispatchQC','CLEARED','BLOCKED'].map(s => <option key={s} value={s}>{s}</option>)
-          }
-        </select>
-        <button onClick={() => { setShowCreateDO(true); setError('') }}
-          style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
-          + New Delivery Order
-        </button>
+      <div style={{ marginBottom: 4 }}>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#111827' }}>Dispatch QC</h2>
       </div>
-      <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+      <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
         GMP — Dispatch QC triggered by Delivery Order. BLOCKED = OOS open. CLEARED = QA e-signature approved. Full traceability: DO → Sample → Test → CoA.
       </p>
 
+      {/* ── Tab bar ── */}
+      <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', marginBottom: 14 }}>
+        {(['tasks', 'orders'] as const).map(v => (
+          <button key={v} onClick={() => switchView(v)} style={{
+            padding: '8px 20px', fontSize: 13, fontWeight: 600, border: 'none', background: 'none',
+            cursor: 'pointer', color: view === v ? '#2563eb' : '#6b7280',
+            borderBottom: view === v ? '2px solid #2563eb' : '2px solid transparent',
+            marginBottom: -2,
+          }}>
+            {v === 'tasks' ? 'QC Tasks' : 'Delivery Orders'}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Toolbar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        {chips.map(c => (
+          <button key={c.value} onClick={() => setStatusFilter(c.value)} style={chipStyle(statusFilter === c.value, c.color)}>
+            {c.label}
+          </button>
+        ))}
+
+        <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4 }}>From</span>
+        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+          style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+        <span style={{ fontSize: 12, color: '#6b7280' }}>To</span>
+        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+          style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: '#6b7280' }}>{displayCount} record{displayCount !== 1 ? 's' : ''}</span>
+          <button onClick={() => { setShowCreateDO(true); setError('') }}
+            style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit' }}>
+            + New Delivery Order
+          </button>
+        </div>
+      </div>
+
       {view === 'tasks' && (
-        <DataTable loading={loading} data={tasks} columns={[
+        <DataTable loading={loading} data={filteredTasks} columns={[
           { header: 'DO No.', accessor: r => <strong style={{ fontFamily: 'monospace' }}>{r.doNumber}</strong> },
           { header: 'Customer', accessor: r => r.customerName ?? '—' },
           { header: 'Sample', accessor: 'sampleNumber' },
@@ -127,7 +202,7 @@ export default function DispatchQcPage() {
           }},
           { header: 'Actions', accessor: r => r.status === 'Passed' ? (
             <button onClick={() => { setShowApprove(r); setApproveForm(f => ({ ...f, password: '', reason: '' })); setError('') }}
-              style={{ padding: '3px 10px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+              style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: 12, padding: 0 }}>
               QA Approve (CLEARED)
             </button>
           ) : null },
@@ -135,7 +210,7 @@ export default function DispatchQcPage() {
       )}
 
       {view === 'orders' && (
-        <DataTable loading={loading} data={orders} columns={[
+        <DataTable loading={loading} data={filteredOrders} columns={[
           { header: 'DO No.', accessor: r => <strong style={{ fontFamily: 'monospace' }}>{r.doNumber}</strong> },
           { header: 'Customer', accessor: r => r.customerName ?? '—' },
           { header: 'Product', accessor: 'productName' },

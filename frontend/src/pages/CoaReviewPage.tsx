@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
@@ -35,10 +35,29 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Superseded: { bg: '#f3f4f6', color: '#6b7280' },
 }
 
+const CHIPS = [
+  { label: 'All',        value: '',           color: '#374151' },
+  { label: 'Draft',      value: 'Draft',      color: '#d97706' },
+  { label: 'Released',   value: 'Released',   color: '#16a34a' },
+  { label: 'Superseded', value: 'Superseded', color: '#6b7280' },
+]
+
+function chipStyle(active: boolean, color: string): React.CSSProperties {
+  return {
+    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+    border: `1.5px solid ${active ? color : '#e5e7eb'}`,
+    background: active ? color : '#fff',
+    color: active ? '#fff' : '#374151',
+    cursor: 'pointer', whiteSpace: 'nowrap',
+  }
+}
+
 export default function CoaReviewPage() {
   const [data, setData] = useState<CoaItem[]>([])
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState('Draft')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [selected, setSelected] = useState<CoaItem | null>(null)
   const [checklist, setChecklist] = useState<ChecklistItem[] | null>(null)
   const [checklistLoading, setChecklistLoading] = useState(false)
@@ -109,10 +128,19 @@ export default function CoaReviewPage() {
 
   async function load() {
     setLoading(true)
-    const r = await api.get(`/coas?status=${statusFilter}`)
+    const r = await api.get('/coas')
     setData(r.data); setLoading(false)
   }
-  useEffect(() => { load() }, [statusFilter])
+  useEffect(() => { load() }, [])
+
+  const filtered = useMemo(() => {
+    return data.filter(r => {
+      if (statusFilter && r.status !== statusFilter) return false
+      if (dateFrom && r.createdAt < dateFrom) return false
+      if (dateTo && r.createdAt.slice(0, 10) > dateTo) return false
+      return true
+    })
+  }, [data, statusFilter, dateFrom, dateTo])
 
   async function openDetail(coa: CoaItem) {
     setSelected(coa); setChecklistLoading(true); setError('')
@@ -234,28 +262,41 @@ export default function CoaReviewPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#111827' }}>CoA Review &amp; QA Release</h1>
-        <select style={{ ...inp, width: 160, marginTop: 0 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="">All</option>
-          <option value="Draft">Draft</option>
-          <option value="Released">Released</option>
-          <option value="Superseded">Superseded</option>
-        </select>
-        <button onClick={openGenerate} style={{
-          marginLeft: 'auto', padding: '7px 16px', background: '#7c3aed', color: '#fff',
-          border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13,
-          fontWeight: 700, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6,
-        }}>
-          <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
-          Generate CoA
-        </button>
+      {/* ── Toolbar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#111827', marginRight: 4 }}>CoA Review &amp; QA Release</h1>
       </div>
-      <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+      <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
         21 CFR 211.194 — QA 10-item checklist must pass before approval. PDF locked server-side atomically on QA e-signature.
       </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        {CHIPS.map(c => (
+          <button key={c.value} onClick={() => setStatusFilter(c.value)} style={chipStyle(statusFilter === c.value, c.color)}>
+            {c.label}
+          </button>
+        ))}
 
-      <DataTable loading={loading} data={data} exportFilename="CoA_Review" columns={[
+        <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4 }}>From</span>
+        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+          style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+        <span style={{ fontSize: 12, color: '#6b7280' }}>To</span>
+        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+          style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: '#6b7280' }}>{filtered.length} record{filtered.length !== 1 ? 's' : ''}</span>
+          <button onClick={openGenerate} style={{
+            padding: '7px 16px', background: '#7c3aed', color: '#fff',
+            border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13,
+            fontWeight: 700, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+            Generate CoA
+          </button>
+        </div>
+      </div>
+
+      <DataTable loading={loading} data={filtered} exportFilename="CoA_Review" columns={[
         { header: 'CoA No.', accessor: r => <strong style={{ fontFamily: 'monospace' }}>{r.coaNumber}</strong> },
         { header: 'Sample', accessor: 'sampleNumber' },
         { header: 'Material', accessor: 'materialName' },
@@ -269,19 +310,19 @@ export default function CoaReviewPage() {
           ? <span style={{ fontSize: 12 }}>{r.qaSignedBy}<br /><span style={{ color: '#6b7280' }}>{new Date(r.qaSignedAt!).toLocaleString()}</span></span>
           : '—' },
         { header: 'Actions', accessor: r => (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <button onClick={() => openDetail(r)} style={{ padding: '3px 10px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={() => openDetail(r)} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: 12, padding: 0 }}>
               Review
             </button>
             {r.status === 'Released' && (
               <>
-                <button onClick={() => downloadPdf(r)} style={{ padding: '3px 10px', background: '#065f46', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  📄 PDF
+                <button onClick={() => downloadPdf(r)} style={{ background: 'none', border: 'none', color: '#065f46', cursor: 'pointer', fontSize: 12, padding: 0 }}>
+                  PDF
                 </button>
                 <button
                   onClick={() => { setReissueTarget(r); setReissueReason(''); setReissueError(''); setShowReissue(true) }}
                   title="Issue a replacement CoA — supersedes this one"
-                  style={{ padding: '3px 10px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                  style={{ background: 'none', border: 'none', color: '#d97706', cursor: 'pointer', fontSize: 12, padding: 0 }}>
                   Reissue
                 </button>
               </>

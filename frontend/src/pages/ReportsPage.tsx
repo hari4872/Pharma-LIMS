@@ -105,93 +105,110 @@ export default function ReportsPage() {
         </p>
       </div>
 
-      {/* ── Report cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginBottom: 28 }}>
-        {REPORTS.map(r => (
-          <div key={r.id}
-            onClick={() => { setSelected(r.id); setStatus(''); setEntityType('') }}
-            style={{
-              padding: '18px 20px', borderRadius: 12, cursor: 'pointer',
-              border: `2px solid ${selected === r.id ? r.color : '#e2e8f0'}`,
-              background: selected === r.id ? r.bg : '#fff',
-              boxShadow: selected === r.id ? `0 4px 16px ${r.color}22` : '0 1px 4px rgba(0,0,0,0.05)',
-              transition: 'all 0.15s',
-            }}>
-            <div style={{ fontSize: 26, marginBottom: 8 }}>{r.icon}</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: selected === r.id ? r.color : '#0f172a', marginBottom: 4 }}>
-              {r.title}
-              {r.adminOnly && <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', borderRadius: 8, padding: '1px 6px', marginLeft: 6 }}>QA/Admin</span>}
+      {/* ── Two-column layout ── */}
+      <div style={{ display: 'flex', gap: 0, minHeight: 480, border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
+
+        {/* Left panel — report type list */}
+        <div style={{ width: 320, flexShrink: 0, borderRight: '1px solid #e2e8f0', background: '#f8fafc' }}>
+          {REPORTS.map(r => (
+            <div
+              key={r.id}
+              onClick={() => { setSelected(r.id); setStatus(''); setEntityType('') }}
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 0,
+                cursor: 'pointer',
+                borderLeft: `4px solid ${selected === r.id ? r.color : 'transparent'}`,
+                background: selected === r.id ? `${r.bg}` : 'transparent',
+                borderBottom: '1px solid #e2e8f0',
+                transition: 'all 0.12s',
+              }}
+            >
+              <div style={{ padding: '16px 18px', flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 20 }}>{r.icon}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: selected === r.id ? r.color : '#0f172a' }}>
+                    {r.title}
+                  </span>
+                  {r.adminOnly && (
+                    <span style={{ fontSize: 10, background: '#fee2e2', color: '#991b1b', borderRadius: 8, padding: '1px 6px', marginLeft: 2 }}>
+                      QA/Admin
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.5 }}>{r.desc}</div>
+              </div>
             </div>
-            <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.5 }}>{r.desc}</div>
-          </div>
-        ))}
+          ))}
+        </div>
+
+        {/* Right panel — export config */}
+        <div style={{ flex: 1, padding: '28px 32px' }}>
+          {selected && report ? (
+            <>
+              <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>
+                Export: {report.title}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>From Date</label>
+                  <input type="date" style={inp} value={from} onChange={e => setFrom(e.target.value)} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>To Date</label>
+                  <input type="date" style={inp} value={to} onChange={e => setTo(e.target.value)} />
+                </div>
+              </div>
+
+              {report.filters.includes('status') && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>Filter by Status (optional)</label>
+                  <select style={inp} value={status} onChange={e => setStatus(e.target.value)}>
+                    <option value="">All Statuses</option>
+                    {SAMPLE_STATUSES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {report.filters.includes('entityType') && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>Filter by Entity Type (optional)</label>
+                  <select style={inp} value={entityType} onChange={e => setEntityType(e.target.value)}>
+                    <option value="">All Entity Types</option>
+                    {ENTITY_TYPES.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Format note */}
+              <div style={{ padding: '10px 14px', background: '#f0fdfa', borderRadius: 8, border: '1px solid #99f6e4', marginBottom: 16, fontSize: 12, color: '#0f766e' }}>
+                📥 Output: Excel (.xlsx) — formatted with teal header row, auto-fitted columns, header/footer with date stamp
+              </div>
+
+              {error && <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', borderRadius: 6, fontSize: 12, color: '#991b1b' }}>{error}</div>}
+
+              <button
+                onClick={download}
+                disabled={downloading}
+                style={{
+                  width: '100%', padding: '11px 0',
+                  background: downloading ? '#9ca3af' : report.color,
+                  color: '#fff', border: 'none', borderRadius: 9,
+                  cursor: downloading ? 'not-allowed' : 'pointer',
+                  fontWeight: 700, fontSize: 14, fontFamily: 'inherit',
+                }}>
+                {downloading ? '⏳ Generating Excel…' : `⬇ Download ${report.title} Excel`}
+              </button>
+            </>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af' }}>
+              <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Select a report type</div>
+              <div style={{ fontSize: 13 }}>Choose from the list on the left to configure and download</div>
+            </div>
+          )}
+        </div>
       </div>
-
-      {/* ── Export panel ── */}
-      {selected && report && (
-        <div style={{ background: '#fff', borderRadius: 12, padding: '20px 24px', border: '1px solid #e2e8f0', maxWidth: 600 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 16 }}>
-            Export: {report.title}
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>From Date</label>
-              <input type="date" style={inp} value={from} onChange={e => setFrom(e.target.value)} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>To Date</label>
-              <input type="date" style={inp} value={to} onChange={e => setTo(e.target.value)} />
-            </div>
-          </div>
-
-          {report.filters.includes('status') && (
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>Filter by Status (optional)</label>
-              <select style={inp} value={status} onChange={e => setStatus(e.target.value)}>
-                <option value="">All Statuses</option>
-                {SAMPLE_STATUSES.map(s => <option key={s}>{s}</option>)}
-              </select>
-            </div>
-          )}
-
-          {report.filters.includes('entityType') && (
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>Filter by Entity Type (optional)</label>
-              <select style={inp} value={entityType} onChange={e => setEntityType(e.target.value)}>
-                <option value="">All Entity Types</option>
-                {ENTITY_TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-          )}
-
-          {/* Format note */}
-          <div style={{ padding: '10px 14px', background: '#f0fdfa', borderRadius: 8, border: '1px solid #99f6e4', marginBottom: 16, fontSize: 12, color: '#0f766e' }}>
-            📥 Output: Excel (.xlsx) — formatted with teal header row, auto-fitted columns, header/footer with date stamp
-          </div>
-
-          {error && <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', borderRadius: 6, fontSize: 12, color: '#991b1b' }}>{error}</div>}
-
-          <button
-            onClick={download}
-            disabled={downloading}
-            style={{
-              width: '100%', padding: '11px 0',
-              background: downloading ? '#9ca3af' : report.color,
-              color: '#fff', border: 'none', borderRadius: 9,
-              cursor: downloading ? 'not-allowed' : 'pointer',
-              fontWeight: 700, fontSize: 14, fontFamily: 'inherit',
-            }}>
-            {downloading ? '⏳ Generating Excel…' : `⬇ Download ${report.title} Excel`}
-          </button>
-        </div>
-      )}
-
-      {!selected && (
-        <div style={{ padding: '32px 0', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
-          Select a report type above to configure and download
-        </div>
-      )}
     </div>
   )
 }
