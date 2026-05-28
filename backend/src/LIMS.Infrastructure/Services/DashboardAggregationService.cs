@@ -157,6 +157,78 @@ public class DashboardAggregationService : IDashboardAggregationService
         return new ComplianceSummary(totalAuditEvents, openOos, closedOos, totalSigs, null, "Operational");
     }
 
+    public async Task<IReadOnlyList<SamplePipelineItem>> GetSamplePipelineAsync(int? labId, CancellationToken ct = default)
+    {
+        var q = _db.Samples.AsQueryable();
+        if (labId.HasValue) q = q.Where(s => s.LabId == labId.Value);
+
+        var counts = await q
+            .GroupBy(s => s.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        // Ordered pipeline with colors
+        var pipeline = new[]
+        {
+            (SampleStatus.Registered,       "Registered",       "#3b82f6"),
+            (SampleStatus.PendingTesting,   "Pending Testing",  "#f59e0b"),
+            (SampleStatus.InTesting,        "In Testing",       "#8b5cf6"),
+            (SampleStatus.PendingQAReview,  "Pending QA",       "#0d9488"),
+            (SampleStatus.Released,         "Released",         "#22c55e"),
+            (SampleStatus.Rejected,         "Rejected",         "#ef4444"),
+        };
+
+        return pipeline
+            .Select(p => new SamplePipelineItem(p.Item2,
+                counts.FirstOrDefault(c => c.Status == p.Item1)?.Count ?? 0, p.Item3))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<SampleTrendPoint>> GetSampleTrendAsync(int? labId, int days, CancellationToken ct = default)
+    {
+        var since = DateTime.UtcNow.AddDays(-days + 1).Date;
+        var q = _db.Samples.Where(s => s.CreatedAt >= since);
+        if (labId.HasValue) q = q.Where(s => s.LabId == labId.Value);
+
+        var grouped = await q
+            .GroupBy(s => s.CreatedAt.Date)
+            .Select(g => new { Date = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var result = new List<SampleTrendPoint>();
+        for (int i = days - 1; i >= 0; i--)
+        {
+            var d = DateTime.UtcNow.AddDays(-i).Date;
+            var found = grouped.FirstOrDefault(g => g.Date == d);
+            result.Add(new SampleTrendPoint(d.ToString("MMM dd"), found?.Count ?? 0));
+        }
+        return result;
+    }
+
+    public async Task<IReadOnlyList<OosTrendPoint>> GetOosTrendAsync(int? labId, int days, CancellationToken ct = default)
+    {
+        var since = DateTime.UtcNow.AddDays(-days + 1).Date;
+        var q = _db.DigitalLogbookEntries
+            .Where(e => e.CreatedAt >= since && e.Status != LogbookEntryStatus.Superseded);
+        if (labId.HasValue) q = q.Where(e => e.Sample.LabId == labId.Value);
+
+        var grouped = await q
+            .GroupBy(e => e.CreatedAt.Date)
+            .Select(g => new { Date = g.Key, Total = g.Count(), OosCount = g.Count(e => e.IsOos) })
+            .ToListAsync(ct);
+
+        var result = new List<OosTrendPoint>();
+        for (int i = days - 1; i >= 0; i--)
+        {
+            var d = DateTime.UtcNow.AddDays(-i).Date;
+            var found = grouped.FirstOrDefault(g => g.Date == d);
+            decimal rate = found != null && found.Total > 0
+                ? Math.Round((decimal)found.OosCount / found.Total * 100, 1) : 0;
+            result.Add(new OosTrendPoint(d.ToString("MMM dd"), found?.OosCount ?? 0, found?.Total ?? 0, rate));
+        }
+        return result;
+    }
+
     public async Task<IReadOnlyList<CoaHistoryItem>> GetCoaHistoryAsync(int? labId, int? periodDays, CancellationToken ct = default)
     {
         var period = periodDays ?? 30;

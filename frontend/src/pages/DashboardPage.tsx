@@ -4,6 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import { toast } from '@/components/Toast'
+import {
+  AreaChart, Area, BarChart, Bar, LineChart, Line,
+  PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, Legend,
+} from 'recharts'
 
 // FR-10 / FR-11: All metrics server-side from IDashboardAggregationService (Contract 2)
 // No client-side aggregation — display only
@@ -33,6 +38,9 @@ interface RecentSample {
 interface RecentTask {
   executionId: number; sampleNumber: string; materialName: string; status: string; analystName: string
 }
+interface SamplePipelineItem { status: string; count: number; color: string }
+interface SampleTrendPoint   { date: string; count: number }
+interface OosTrendPoint      { date: string; oosCount: number; totalCount: number; rate: number }
 
 type Tab = 'overview' | 'quality' | 'instruments' | 'compliance'
 
@@ -183,6 +191,9 @@ export default function DashboardPage() {
   const [comp,          setComp]          = useState<ComplianceSummary | null>(null)
   const [recentSamples, setRecentSamples] = useState<RecentSample[]>([])
   const [recentTasks,   setRecentTasks]   = useState<RecentTask[]>([])
+  const [pipeline,      setPipeline]      = useState<SamplePipelineItem[]>([])
+  const [sampleTrend,   setSampleTrend]   = useState<SampleTrendPoint[]>([])
+  const [oosTrend,      setOosTrend]      = useState<OosTrendPoint[]>([])
   const [loading,       setLoading]       = useState(true)
   const [tab,           setTab]           = useState<Tab>('overview')
   const navigate = useNavigate()
@@ -192,7 +203,7 @@ export default function DashboardPage() {
   async function load(isRefresh = false) {
     setLoading(true)
     try {
-      const [w, t, k, b, c, sm, wq] = await Promise.all([
+      const [w, t, k, b, c, sm, wq, pl, st, ot] = await Promise.all([
         api.get('/dashboard/wip'),
         api.get('/dashboard/tat'),
         api.get('/dashboard/quality-kpis'),
@@ -200,8 +211,12 @@ export default function DashboardPage() {
         api.get('/dashboard/compliance'),
         api.get('/samples').catch(() => ({ data: [] })),
         api.get('/test-executions').catch(() => ({ data: [] })),
+        api.get('/dashboard/sample-pipeline').catch(() => ({ data: [] })),
+        api.get('/dashboard/sample-trend?days=14').catch(() => ({ data: [] })),
+        api.get('/dashboard/oos-trend?days=30').catch(() => ({ data: [] })),
       ])
       setWip(w.data); setTat(t.data); setKpis(k.data); setBoard(b.data); setComp(c.data)
+      setPipeline(pl.data); setSampleTrend(st.data); setOosTrend(ot.data)
       const samples = Array.isArray(sm.data) ? sm.data : []
       setRecentSamples(samples.slice(-5).reverse())
       const tasks = Array.isArray(wq.data) ? wq.data : []
@@ -338,10 +353,55 @@ export default function DashboardPage() {
           )}
 
           <SectionHead title="Turnaround Time" tag={`Last ${tat?.periodDays ?? 30} days`} />
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
             <KpiCard label="Avg TAT (hrs)"  value={(tat?.avgTatHours ?? 0).toFixed(1)} accent="teal"  icon="clock" />
             <KpiCard label="Target (hrs)"   value={(tat?.targetHours ?? 0).toFixed(0)} accent="slate" icon="chart" sub="From lab_config tat_target_hrs" />
             <KpiCard label="Breach Count"   value={tat?.breachCount ?? 0}              accent="red"   icon="alert" sub="Completed tests over target" badge={tat && tat.breachCount > 0 ? { text: '⚠ Breached', type: 'bad' } : { text: '✓ On Track', type: 'ok' }} />
+          </div>
+
+          {/* ── Charts row ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            {/* Sample Pipeline Bar Chart */}
+            <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12, padding: '16px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 3, height: 14, background: T.primary, borderRadius: 4, display: 'inline-block' }} />
+                Sample Pipeline — All Status
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={pipeline} layout="vertical" margin={{ left: 10, right: 30, top: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" tick={{ fontSize: 11, fill: '#6b7280' }} />
+                  <YAxis type="category" dataKey="status" tick={{ fontSize: 11, fill: '#374151' }} width={90} />
+                  <Tooltip formatter={(v: any) => [v, 'Samples']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                    {pipeline.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Daily Registrations Area Chart */}
+            <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12, padding: '16px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 3, height: 14, background: '#3b82f6', borderRadius: 4, display: 'inline-block' }} />
+                Daily Registrations — Last 14 Days
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={sampleTrend} margin={{ left: -10, right: 10, top: 4, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="grad1" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#6b7280' }} interval={1} />
+                  <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} allowDecimals={false} />
+                  <Tooltip formatter={(v: any) => [v, 'Samples']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                  <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} fill="url(#grad1)" dot={{ r: 3, fill: '#3b82f6' }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </>
       )}
@@ -359,7 +419,7 @@ export default function DashboardPage() {
           </div>
 
           {(tat?.byAnalyst?.length ?? 0) > 0 && (
-            <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 10, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: 20 }}>
               <div style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', fontSize: 13, fontWeight: 700, color: '#111111', display: 'flex', alignItems: 'center', gap: 7 }}>
                 <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d={ICONS.users} stroke={T.primary} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 Analyst TAT Breakdown
@@ -383,6 +443,61 @@ export default function DashboardPage() {
               </table>
             </div>
           )}
+
+          {/* ── Quality Charts ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            {/* Pass / Fail / OOT Donut */}
+            <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12, padding: '16px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 3, height: 14, background: '#22c55e', borderRadius: 4, display: 'inline-block' }} />
+                Result Distribution
+              </div>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>Last {kpis?.periodDays ?? 30} days</div>
+              {kpis && (() => {
+                const rft  = Math.max(0, kpis.rftRate)
+                const oos  = Math.max(0, kpis.oosRate)
+                const oot  = Math.max(0, kpis.ootRate)
+                const rest = Math.max(0, 100 - rft - oos - oot)
+                const pieData = [
+                  { name: 'Right First Time', value: rft,  fill: '#22c55e' },
+                  { name: 'OOS',              value: oos,  fill: '#ef4444' },
+                  { name: 'OOT',              value: oot,  fill: '#f59e0b' },
+                  { name: 'Other',            value: rest, fill: '#e2e8f0' },
+                ].filter(d => d.value > 0)
+                return (
+                  <ResponsiveContainer width="100%" height={190}>
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={52} outerRadius={78}
+                        paddingAngle={2} dataKey="value">
+                        {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                      </Pie>
+                      <Tooltip formatter={(v: any) => [`${Number(v).toFixed(1)}%`, '']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                      <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )
+              })()}
+            </div>
+
+            {/* OOS Rate Trend Line Chart */}
+            <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12, padding: '16px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 3, height: 14, background: '#ef4444', borderRadius: 4, display: 'inline-block' }} />
+                OOS Rate Trend
+              </div>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>Last 30 days (%)</div>
+              <ResponsiveContainer width="100%" height={190}>
+                <LineChart data={oosTrend} margin={{ left: -10, right: 10, top: 4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#6b7280' }} interval={4} />
+                  <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} unit="%" domain={[0, 'auto']} />
+                  <Tooltip formatter={(v: any) => [`${v}%`, 'OOS Rate']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                  <Line type="monotone" dataKey="rate" stroke="#ef4444" strokeWidth={2}
+                    dot={{ r: 2, fill: '#ef4444' }} activeDot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </>
       )}
 
@@ -424,6 +539,44 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Calibration Timeline */}
+          {board.length > 0 && (
+            <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12, padding: '16px 20px', marginTop: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 3, height: 14, background: '#f59e0b', borderRadius: 4, display: 'inline-block' }} />
+                Calibration Due — Next 90 Days
+              </div>
+              {board.slice().sort((a, b) => a.calDaysRemaining - b.calDaysRemaining).map(inst => {
+                const pct   = Math.min(100, Math.max(0, (inst.calDaysRemaining / 90) * 100))
+                const color = inst.calDaysRemaining < 0 ? '#ef4444'
+                            : inst.calDaysRemaining <= 7 ? '#ef4444'
+                            : inst.calDaysRemaining <= 30 ? '#f59e0b' : '#22c55e'
+                const label = inst.calDaysRemaining < 0 ? `⛔ ${Math.abs(inst.calDaysRemaining)}d overdue`
+                            : inst.calDaysRemaining === 0 ? '🔴 Due today'
+                            : inst.calDaysRemaining <= 7 ? `🔴 ${inst.calDaysRemaining}d`
+                            : inst.calDaysRemaining <= 30 ? `🟡 ${inst.calDaysRemaining}d`
+                            : `🟢 ${inst.calDaysRemaining}d`
+                return (
+                  <div key={inst.instrumentId} style={{ marginBottom: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
+                      <span style={{ fontWeight: 600, color: '#374151' }}>{inst.instrumentCode} <span style={{ fontWeight: 400, color: '#9ca3af' }}>({inst.instrumentType})</span></span>
+                      <span style={{ fontWeight: 700, color, fontSize: 11 }}>{label}</span>
+                    </div>
+                    <div style={{ height: 8, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4, transition: 'width 0.4s ease' }} />
+                    </div>
+                  </div>
+                )
+              })}
+              <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 11, color: '#6b7280' }}>
+                <span>🔴 Overdue / ≤7d</span>
+                <span>🟡 ≤30d</span>
+                <span>🟢 &gt;30d</span>
+                <span style={{ marginLeft: 'auto' }}>Bar = days remaining / 90d window</span>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -524,41 +677,65 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Widget 3 — Welcome + Today's Pulse */}
+        {/* Widget 3 — TAT Gauge + Welcome */}
         <div style={{
-          background: 'linear-gradient(140deg, #f0fdfa 0%, #e0f2fe 60%, #ede9fe 100%)',
-          border: '1px solid #99f6e4', borderRadius: 12,
-          padding: '18px 18px 16px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-          display: 'flex', flexDirection: 'column', gap: 14,
+          background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12,
+          padding: '18px 18px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+          display: 'flex', flexDirection: 'column', gap: 12,
         }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#111111', letterSpacing: '-0.01em' }}>
-              {(() => { const h = new Date().getHours(); return h < 12 ? '🌅' : h < 17 ? '☀️' : '🌙' })()}
-              {' '}{fullName ? `Welcome back, ${firstName}!` : 'Welcome back!'}
+          {/* Welcome line */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>
+                {(() => { const h = new Date().getHours(); return h < 12 ? '🌅' : h < 17 ? '☀️' : '🌙' })()}
+                {' '}{firstName ? `${firstName}` : 'Welcome'}
+              </div>
+              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
+                {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+              </div>
             </div>
-            <div style={{ fontSize: 12, color: '#5f6368', marginTop: 3 }}>
-              {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </div>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e80', display: 'inline-block' }} />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+
+          {/* TAT Gauge */}
+          <div style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 16px' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 10 }}>⏱ Turnaround Time</div>
+            {(() => {
+              const avg    = tat?.avgTatHours ?? 0
+              const target = tat?.targetHours ?? 48
+              const pct    = target > 0 ? Math.min(100, (avg / target) * 100) : 0
+              const color  = pct > 100 ? '#ef4444' : pct > 80 ? '#f59e0b' : '#22c55e'
+              return (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#6b7280', marginBottom: 6 }}>
+                    <span>Avg: <strong style={{ color: '#111' }}>{avg.toFixed(1)}h</strong></span>
+                    <span>Target: <strong style={{ color: '#111' }}>{target.toFixed(0)}h</strong></span>
+                  </div>
+                  <div style={{ height: 10, background: '#e2e8f0', borderRadius: 6, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 6, transition: 'width 0.5s ease' }} />
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color }}>
+                    {pct > 100 ? '⚠ Over target' : pct > 80 ? '⚡ Approaching target' : '✓ On track'}
+                    <span style={{ fontWeight: 400, color: '#9ca3af', marginLeft: 4 }}>({pct.toFixed(0)}% of target)</span>
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+
+          {/* Quick stats */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {[
-              { label: 'Registered Today', value: wip?.registeredToday ?? 0, color: '#0d9488', icon: '📋' },
-              { label: 'In Testing',       value: wip?.inTesting ?? 0,       color: '#2563eb', icon: '🔬' },
-              { label: 'Completed Today',  value: wip?.completedToday ?? 0,  color: '#16a34a', icon: '✅' },
-              { label: 'Overdue',          value: wip?.overdue ?? 0,         color: wip && wip.overdue > 0 ? '#dc2626' : '#80868b', icon: '⏰' },
+              { label: '📋 Registered Today', value: wip?.registeredToday ?? 0, color: '#0d9488' },
+              { label: '🔬 In Testing',        value: wip?.inTesting ?? 0,       color: '#2563eb' },
+              { label: '✅ Completed Today',   value: wip?.completedToday ?? 0,  color: '#16a34a' },
+              { label: '⏰ Overdue',           value: wip?.overdue ?? 0,         color: wip && wip.overdue > 0 ? '#dc2626' : '#9ca3af' },
             ].map(row => (
-              <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.7)', borderRadius: 8, padding: '7px 12px', backdropFilter: 'blur(4px)' }}>
-                <span style={{ fontSize: 12.5, color: '#111111', fontWeight: 500 }}>{row.icon} {row.label}</span>
-                <span style={{ fontSize: 16, fontWeight: 800, color: row.color }}>{row.value}</span>
+              <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+                <span style={{ color: '#374151' }}>{row.label}</span>
+                <span style={{ fontWeight: 800, color: row.color }}>{row.value}</span>
               </div>
             ))}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto', paddingTop: 2 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e80', flexShrink: 0, display: 'inline-block' }} />
-            <span style={{ fontSize: 11.5, color: T.primary, fontWeight: 600 }}>
-              {wip && wip.overdue > 0 ? `${wip.overdue} task${wip.overdue > 1 ? 's' : ''} need attention` : 'All systems operational'}
-            </span>
           </div>
         </div>
 

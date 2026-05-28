@@ -44,4 +44,19 @@ public class DashboardController : ControllerBase
     [HttpGet("coa-history")]
     public async Task<IActionResult> GetCoaHistory([FromQuery] int? labId, [FromQuery] int? periodDays, CancellationToken ct)
         => Ok(await _svc.GetCoaHistoryAsync(labId, periodDays, ct));
+
+    // GET api/v1/dashboard/sample-pipeline — samples by status (for pipeline bar chart)
+    [HttpGet("sample-pipeline")]
+    public async Task<IActionResult> GetSamplePipeline([FromQuery] int? labId, CancellationToken ct)
+        => Ok(await _svc.GetSamplePipelineAsync(labId, ct));
+
+    // GET api/v1/dashboard/sample-trend?days=14 — daily registrations trend
+    [HttpGet("sample-trend")]
+    public async Task<IActionResult> GetSampleTrend([FromQuery] int? labId, [FromQuery] int? days, CancellationToken ct)
+        => Ok(await _svc.GetSampleTrendAsync(labId, days ?? 14, ct));
+
+    // GET api/v1/dashboard/oos-trend?days=30 — daily OOS rate trend
+    [HttpGet("oos-trend")]
+    public async Task<IActionResult> GetOosTrend([FromQuery] int? labId, [FromQuery] int? days, CancellationToken ct)
+        => Ok(await _svc.GetOosTrendAsync(labId, days ?? 30, ct));
 }

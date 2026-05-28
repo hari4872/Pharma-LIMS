@@ -40,6 +40,11 @@ public record CoaHistoryItem(
     string Status, string? QaDecision, string? QaSignedBy, DateTimeOffset? QaSignedAt,
     DateTimeOffset CreatedAt);
 
+// Chart data records
+public record SamplePipelineItem(string Status, int Count, string Color);
+public record SampleTrendPoint(string Date, int Count);
+public record OosTrendPoint(string Date, int OosCount, int TotalCount, decimal Rate);
+
 public interface IDashboardAggregationService
 {
     Task<WipSummary> GetWipSummaryAsync(int? labId, CancellationToken ct = default);
@@ -48,4 +53,8 @@ public interface IDashboardAggregationService
     Task<IReadOnlyList<InstrumentStatusBoardItem>> GetInstrumentStatusBoardAsync(int? labId, CancellationToken ct = default);
     Task<ComplianceSummary> GetComplianceSummaryAsync(CancellationToken ct = default);
     Task<IReadOnlyList<CoaHistoryItem>> GetCoaHistoryAsync(int? labId, int? periodDays, CancellationToken ct = default);
+    // Chart endpoints
+    Task<IReadOnlyList<SamplePipelineItem>> GetSamplePipelineAsync(int? labId, CancellationToken ct = default);
+    Task<IReadOnlyList<SampleTrendPoint>> GetSampleTrendAsync(int? labId, int days, CancellationToken ct = default);
+    Task<IReadOnlyList<OosTrendPoint>> GetOosTrendAsync(int? labId, int days, CancellationToken ct = default);
 }
