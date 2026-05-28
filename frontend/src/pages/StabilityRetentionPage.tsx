@@ -4,17 +4,18 @@ import StabilityPullsPage from './StabilityPullsPage'
 import RetainSamplesPage from './RetainSamplesPage'
 import ConditionExcursionsPage from './ConditionExcursionsPage'
 
-type TabId = 'stability-study' | 'stability-pulls' | 'retain-samples' | 'condition-excursions'
+type TabId = 'retain-samples' | 'stability-pulls' | 'stability-study' | 'condition-excursions'
 
+// Tabs ordered by process flow: Retain → Pull → Study trends → Excursions
 const TABS = [
-  { id: 'stability-study' as TabId, label: 'Stability Study', icon: '🔬', component: StabilityStudyPage },
-  { id: 'stability-pulls' as TabId, label: 'Stability Pulls', icon: '⏰', component: StabilityPullsPage },
-  { id: 'retain-samples' as TabId, label: 'Retain Samples', icon: '🗃', component: RetainSamplesPage },
+  { id: 'retain-samples' as TabId,      label: 'Retain Samples',       icon: '🗃',  component: RetainSamplesPage },
+  { id: 'stability-pulls' as TabId,     label: 'Stability Pulls',      icon: '⏰', component: StabilityPullsPage },
+  { id: 'stability-study' as TabId,     label: 'Stability Study',      icon: '🔬', component: StabilityStudyPage },
   { id: 'condition-excursions' as TabId, label: 'Condition Excursions', icon: '⚠️', component: ConditionExcursionsPage },
 ]
 
 export default function StabilityRetentionPage() {
-  const [active, setActive] = useState<TabId>('stability-study')
+  const [active, setActive] = useState<TabId>('retain-samples')
   const tab = TABS.find(t => t.id === active)!
   const PageComp = tab.component
 

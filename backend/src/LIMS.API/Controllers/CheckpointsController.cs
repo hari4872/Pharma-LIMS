@@ -45,14 +45,19 @@ public class CheckpointsController : ControllerBase
         return Ok(new { checkpointId = result.Value, status = "Triggered" });
     }
 
-    // GET api/v1/checkpoints/{id}/process-log?date=2026-05-12 — Mode 3 rows
+    // GET api/v1/checkpoints/process-log?date=2026-05-28 — ALL checkpoints, for Digital Logbook tab
+    [HttpGet("process-log")]
+    public async Task<IActionResult> GetAllProcessLog([FromQuery] DateOnly? date)
+        => Ok(await _mediator.Send(new GetAllProcessLogQuery(date)));
+
+    // GET api/v1/checkpoints/{id}/process-log?date=2026-05-12 — Mode 3 rows (per checkpoint)
     [HttpGet("{id}/process-log")]
     public async Task<IActionResult> GetProcessLog(int id, [FromQuery] DateOnly? date)
         => Ok(await _mediator.Send(new GetProcessLogQuery(id, date)));
 
     // POST api/v1/checkpoints/{id}/process-log/{rowId}/sign — Mode 3: row §11.50 e-sig (FR-12)
     [HttpPost("{id}/process-log/{rowId:int}/sign")]
-    [Authorize(Roles = "Analyst,QA")]
+    [Authorize(Roles = "Admin,QA,Analyst")]
     public async Task<IActionResult> SignProcessLogRow(int id, int rowId, [FromBody] ApproveRequest request)
     {
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");

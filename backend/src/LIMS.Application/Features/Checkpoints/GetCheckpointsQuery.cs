@@ -35,6 +35,40 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
     }
 }
 
+// GET all process log rows across ALL checkpoints for a given date — for Digital Logbook tab
+public record GetAllProcessLogQuery(DateOnly? Date) : IRequest<List<AllProcessLogRowDto>>;
+
+public record AllProcessLogRowDto(
+    int RowId, int CheckpointId, string CheckpointCode, string TriggerMode,
+    DateTimeOffset SlotTime, string SlotLabel, string Status, bool IsSigned);
+
+public class GetAllProcessLogQueryHandler : IRequestHandler<GetAllProcessLogQuery, List<AllProcessLogRowDto>>
+{
+    private readonly ILimsDbContext _db;
+    public GetAllProcessLogQueryHandler(ILimsDbContext db) => _db = db;
+
+    public async Task<List<AllProcessLogRowDto>> Handle(GetAllProcessLogQuery request, CancellationToken ct)
+    {
+        var query = _db.ProcessLogRows.Include(r => r.Checkpoint).AsQueryable();
+        if (request.Date.HasValue)
+        {
+            var d = request.Date.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            query = query.Where(r => r.SlotTime >= d && r.SlotTime < d.AddDays(1));
+        }
+        else
+        {
+            // Default: today
+            var today = DateOnly.FromDateTime(DateTime.UtcNow).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            query = query.Where(r => r.SlotTime >= today && r.SlotTime < today.AddDays(1));
+        }
+        return await query.OrderBy(r => r.SlotTime)
+            .Select(r => new AllProcessLogRowDto(
+                r.RowId, r.CheckpointId, r.Checkpoint.CheckpointCode, r.Checkpoint.TriggerMode.ToString(),
+                r.SlotTime, r.SlotLabel, r.Status, r.SignatureId.HasValue))
+            .ToListAsync(ct);
+    }
+}
+
 public class GetProcessLogQueryHandler : IRequestHandler<GetProcessLogQuery, List<ProcessLogRowDto>>
 {
     private readonly ILimsDbContext _db;

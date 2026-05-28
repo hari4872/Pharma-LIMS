@@ -4,17 +4,18 @@ import CoaReviewPage from './CoaReviewPage'
 import DispatchQcPage from './DispatchQcPage'
 import ReportsPage from './ReportsPage'
 
-type TabId = 'batch-release' | 'coa-review' | 'dispatch-qc' | 'reports'
+type TabId = 'coa-review' | 'batch-release' | 'dispatch-qc' | 'reports'
 
+// Tabs ordered by process flow: CoA Review → Batch Release → Dispatch QC → Reports
 const TABS = [
-  { id: 'batch-release' as TabId, label: 'Batch Release', icon: '✅', component: BatchReleasePage },
-  { id: 'coa-review' as TabId, label: 'CoA Review', icon: '📄', component: CoaReviewPage },
-  { id: 'dispatch-qc' as TabId, label: 'Dispatch QC', icon: '🚚', component: DispatchQcPage },
-  { id: 'reports' as TabId, label: 'Reports & Exports', icon: '📥', component: ReportsPage },
+  { id: 'coa-review' as TabId,    label: 'CoA Review',       icon: '📄', component: CoaReviewPage },
+  { id: 'batch-release' as TabId, label: 'Batch Release',    icon: '✅', component: BatchReleasePage },
+  { id: 'dispatch-qc' as TabId,   label: 'Dispatch QC',      icon: '🚚', component: DispatchQcPage },
+  { id: 'reports' as TabId,       label: 'Reports & Exports', icon: '📥', component: ReportsPage },
 ]
 
 export default function ReleaseDispatchPage() {
-  const [active, setActive] = useState<TabId>('batch-release')
+  const [active, setActive] = useState<TabId>('coa-review')
   const tab = TABS.find(t => t.id === active)!
   const PageComp = tab.component
 
