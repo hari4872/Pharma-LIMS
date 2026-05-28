@@ -3,6 +3,7 @@ using LIMS.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.API.Controllers;
 
@@ -12,7 +13,9 @@ namespace LIMS.API.Controllers;
 public class TraceabilityController : ControllerBase
 {
     private readonly IMediator _mediator;
-    public TraceabilityController(IMediator mediator) { _mediator = mediator; }
+    private readonly ILimsDbContext _db;
+    public TraceabilityController(IMediator mediator, ILimsDbContext db)
+    { _mediator = mediator; _db = db; }
 
     // GET api/v1/traceability/samples/{sampleId}/graph
     // FR-01..FR-03, FR-08, FR-09: full bidirectional traceability graph
@@ -54,6 +57,24 @@ public class TraceabilityController : ControllerBase
             request.ContainerId, request.Notes));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetGraph), new { sampleId = request.SampleId }, new { samplingEventId = result.Value });
+    }
+
+    // GET api/v1/traceability/complaints-deviations?sampleId=5
+    [HttpGet("complaints-deviations")]
+    public async Task<IActionResult> ListComplaintsDeviations([FromQuery] int? sampleId)
+    {
+        var q = _db.ComplaintsDeviations.AsQueryable();
+        if (sampleId.HasValue) q = q.Where(x => x.SampleId == sampleId.Value);
+        var list = await q.OrderByDescending(x => x.OpenedAt)
+            .Select(x => new {
+                x.CdId, x.SampleId,
+                CdType    = x.CdType.ToString(),
+                x.CdReference, x.Description,
+                x.LinkedOosId, x.Status,
+                CreatedAt = x.OpenedAt
+            })
+            .ToListAsync();
+        return Ok(list);
     }
 
     // POST api/v1/traceability/complaints-deviations
