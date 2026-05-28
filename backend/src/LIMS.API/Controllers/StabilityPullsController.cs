@@ -89,7 +89,7 @@ public class RetainSamplesController : ControllerBase
     // POST api/v1/retain-samples/{id}/destroy
     // QA §11.50 e-sig required; INSERT-only record (21 CFR 211.170)
     [HttpPost("{id:int}/destroy")]
-    [Authorize(Roles = "QA")]
+    [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Destroy(int id, [FromBody] DestroyRetainRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";

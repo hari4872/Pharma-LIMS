@@ -23,9 +23,9 @@ export default function LoginPage() {
 
   useEffect(() => { if (token) navigate('/', { replace: true }) }, [token, navigate])
   useEffect(() => {
-    api.get('/auth/setup-required').then(r => {
-      if (r.data.setupRequired) navigate('/setup', { replace: true })
-    })
+    api.get('/auth/setup-required')
+      .then(r => { if (r.data.setupRequired) navigate('/setup', { replace: true }) })
+      .catch(() => { /* setup check failed silently — proceed to normal login */ })
   }, [navigate])
 
   // ── Molecular network animation (bigger dots) ────────────────────────────

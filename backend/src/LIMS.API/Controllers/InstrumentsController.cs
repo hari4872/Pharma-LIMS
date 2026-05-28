@@ -61,7 +61,7 @@ public class InstrumentsController : ControllerBase
 
     // POST api/v1/instruments/{id}/calibrations/{calId}/approve — QA §11.50 e-sig
     [HttpPost("{id}/calibrations/{calId:int}/approve")]
-    [Authorize(Roles = "QA")]
+    [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> ApproveCalibration(int id, int calId, [FromBody] ApproveRequest request)
     {
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
@@ -112,7 +112,7 @@ public class InstrumentsController : ControllerBase
 
     // POST api/v1/instruments/breakdowns/{breakdownId}/return-to-service — QA §11.50 e-sig
     [HttpPost("breakdowns/{breakdownId:int}/return-to-service")]
-    [Authorize(Roles = "QA")]
+    [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> ReturnToService(int breakdownId, [FromBody] ApproveRequest request)
     {
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
