@@ -1,5 +1,6 @@
 ﻿# PHARMA LIMS — Dashboards & Lab KPIs (Phase 11)
-### Technical Design Document · v1.0 · CONFIDENTIAL
+### Technical Design Document · v1.1 · CONFIDENTIAL
+> **v1.1 Changes:** SPC I-Chart panel on Quality KPIs tab — parameter selector, UCL/LCL/Mean/USL/LSL reference lines, custom dot colours (OOS=red/OOT=amber/normal=green), Cp/Cpk stats panel, Nelson rule violation badges. CoA History chart on Compliance tab — status distribution BarChart + recent-10 table, lazy-loaded. Aria AI chatbot (ChatbotWidget FAB) — Quick tab + Chat tab using Groq LLM.
 > **v1.0 — New Module:** WIP · TAT · Quality KPIs · Instrument Status Board · Automated Alerts · Compliance & Audit Readiness Panel
 
 ---
@@ -10,7 +11,7 @@
 |---|---|
 | Module | Dashboards & Lab KPIs (Phase 11) |
 | Depends On | All phases |
-| Version | v1.0 |
+| Version | v1.1 |
 | Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced in every section |
@@ -104,6 +105,7 @@ The Dashboards module provides **real-time, role-filtered visibility** across th
 | Retest rate | How often results are superseded — trend over time. | `vw_quality_kpis` via `digital_logbook_entries.status = Superseded` |
 | CAPA open count | Number of open CAPAs and average resolution time. | `oos_investigations.capa_ref` where `status = Open` |
 | First-pass yield | Per product type — trend view. QA dashboard metric. | `vw_quality_kpis` grouped by `materials.product_type` |
+| **SPC I-Chart (New v1.1)** | **Statistical Process Control I-Chart with UCL/LCL (Mean ±3σ), optional USL/LSL overlay, custom dot colours (OOS=red/OOT=amber/normal=green). Cp/Cpk capability indices with colour coding (green ≥1.33 Capable, amber 1.0–1.33 Marginal, red <1.0 Incapable). Nelson rule violation badges (Rules 1/2/3). Parameter selector + points selector (50/100/200). Lazy-loaded when Quality KPIs tab opened.** | **`GET /api/v1/spc/{parameterId}?points=N` → `SpcResult` (mean, stddev, ucl, lcl, cp, cpk, rules[], points[])** |
 
 ---
 
@@ -147,7 +149,7 @@ All alerts pushed server-side via SignalR (Contract 2 — no polling, no `setInt
 | Feature | Description |
 |---|---|
 | Audit trail search | Who / when / what across any date range. Filter by entity type, user, action type. INSERT-only source — no data can be altered before export. |
-| CoA history | All issued CoAs by product, lot, analyst, or date range. One-click PDF download. |
+| CoA history (Enhanced v1.1) | All issued CoAs by product, lot, analyst, or date range. One-click PDF download. **New v1.1: Status distribution BarChart (Draft/Issued/Released/Superseded counts) + recent-10 CoA table (CoA No., Sample No., Material, Status badge, QA Decision, Signed By, Created At). Lazy-loads from `GET /api/v1/dashboard/coa-history` when Compliance tab opened.** |
 | OOS investigation log | All investigations with flag type (OOS/OOT), status, analyst, open date, close date, outcome. Open/closed counts. |
 | Electronic signature log | Every signature: user, `full_name`, `signed_at UTC`, meaning, action type. Filterable by role, date, action. §11.10(e) evidence. |
 | Training status | All analysts: training records, valid-until dates, expired status. |
@@ -187,6 +189,9 @@ All alerts pushed server-side via SignalR (Contract 2 — no polling, no `setInt
 | FR-10 | No dashboard computes data in React — all from `DashboardAggregationService` (Contract 2) | System | Must Have | Contract 2 |
 | FR-11 | All alert thresholds from DB config (Contract 2 — no hardcoded values) | System | Must Have | Contract 2 |
 | FR-12 | All SignalR pushes identified by channel (`OOS`, `CalDue`, `TAT`, `Breakdown`, `Pull`, `Destruction`, `Training`, `Inventory`) | System | Must Have | Contract 2 |
+| FR-13 | SPC I-Chart panel on Quality KPIs tab: parameter + points selectors; `GET /spc/{id}?points=N` → recharts ComposedChart with UCL/LCL/Mean ReferenceLine + custom dot renderer (OOS/OOT/normal) + Cp/Cpk stats + Nelson rule badges (Contract 2 — all SPC compute server-side) | QA, QC Lead | Must Have | GMP / ICH Q10 |
+| FR-14 | CoA History chart on Compliance tab: lazy-load `GET /dashboard/coa-history` → status distribution BarChart + recent-10 table. Lazy triggered on tab open — no extra load on dashboard boot (Contract 2) | QA, Admin | Must Have | 21 CFR §11.10(e) |
+| FR-15 | Aria AI chatbot (ChatbotWidget): floating FAB throughout all pages. Quick tab: 6 pre-defined actions → `POST /chatbot/quick` → lab snapshot summary. Chat tab: free-text → `POST /chatbot/message` → Groq LLM (llama-3.3-70b-versatile) reply with module navigation chips. Token passed server-side — no client credential exposure (Contract 4) | All | Should Have | GMP / Inspection readiness |
 
 ---
 

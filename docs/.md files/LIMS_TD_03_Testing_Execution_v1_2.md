@@ -1,5 +1,6 @@
 ﻿# PHARMA LIMS — Testing Execution (Phase 3)
-### Technical Design Document · v1.3 · CONFIDENTIAL
+### Technical Design Document · v1.4 · CONFIDENTIAL
+> **v1.4 Changes:** AI Queue Intelligence panel on Work Queue page — QueueIntelligence stats, Analyst Loads table, Priority Bands, Suggested Analyst card via IWorkflowIntelligenceService.
 > **v1.3 Changes:** Per-execution Re-assign (`AssignTestMethodCommand`) — override analyst/instrument on a specific execution with full training + calibration enforcement
 > **v1.2 Changes:** WAP (Lab Manager assigns via `WAPAssignmentService`) · Barcode scan to start · File import (`FileImportService`) · Auto-correction (`AutoCorrectionService`) · OOT detection · Process Log screen
 
@@ -11,7 +12,7 @@
 |---|---|
 | Module | Testing Execution (Phase 3) |
 | Depends On | Sample Registration v1.2, Parameters v1.1, Digital Logbook v1.1 |
-| Version | v1.3 |
+| Version | v1.4 |
 | Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
@@ -74,6 +75,7 @@ Testing Execution covers the full analyst workflow from Work Queue to signed res
 | Training validation | System confirms analyst trained on required method | Training match validated on task start — hard block if not current |
 | Instrument certification | Check instrument availability and cal status | Only calibrated, available instruments assigned |
 | Urgency sort | Prioritise TAT-critical and overdue tasks | Urgent tasks appear at top of analyst's queue |
+| AI Queue Intelligence | 🧠 panel shows real-time queue stats (total open, overdue, OOS open, avg TAT), per-analyst load breakdown, priority band distribution, and AI-suggested analyst for next assignment. Powered by `IWorkflowIntelligenceService` server-side (Contract 1). | Analysts see pre-assigned tasks; Lab Manager uses intelligence panel for optimisation. |
 
 ---
 
@@ -116,6 +118,8 @@ Testing Execution covers the full analyst workflow from Work Queue to signed res
 | **FR-22** | **Work Queue start time: server-side UTC on task open click (ALCOA+ Contemporaneous — Contract 2).** | System | Must Have | ALCOA+ |
 | **FR-23** | **Per-execution Re-assign: `POST /test-executions/{executionId}/assign`. Overrides analyst and instrument for one specific execution. `AssignTestMethodCommand` enforces training check (§11.10(i)) and calibration check (211.68) — same gates as initial assignment. Error codes: `TRAINING_EXPIRED`, `INSTRUMENT_OOC`.** | Lab Manager | Must Have | 21 CFR §11.10(i) / 21 CFR 211.68 |
 | **FR-24** | **Re-assign allowed only while execution status is `Assigned`. Cannot re-assign an `InProgress` or `Completed` task.** | System | Must Have | GMP / Data Integrity |
+| **FR-25** | **AI Queue Intelligence panel (New v1.4):** Teal "🧠 AI Intelligence" toggle on Work Queue page header. On open: `GET /api/v1/test-executions/queue-intelligence` → `QueueIntelligence { labId, totalOpen, overdue, oosOpen, avgTatHours, analystLoads[], priorityBands[] }`. Renders: stats strip (Total Open / Overdue / OOS Open / Avg TAT), Analyst Loads table (Analyst / Assigned / InProgress / Overdue), Priority Bands pills (Critical=red / High=amber / Medium=blue / Low=grey). All compute server-side by `IWorkflowIntelligenceService` (Contract 1). Panel cached per page load; Refresh button clears and re-fetches. | Lab Manager, QA, Admin | Should Have | GMP / Inspection readiness |
+| **FR-26** | **Suggested Analyst card (New v1.4):** `GET /api/v1/test-executions/suggest-analyst` → `WorkloadSuggestion { userId, fullName, activeCount, reason }`. Displayed below Analyst Loads as "💡 Suggested: {fullName} (Active: {activeCount}) — {reason}". Suggestion computed server-side by `IWorkflowIntelligenceService` (Contract 1) based on current workload balance. | Lab Manager | Should Have | GMP |
 
 ---
 

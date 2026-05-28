@@ -1,7 +1,8 @@
 ﻿# PHARMA LIMS — Form Template (Phase 1c)
-### Technical Design Document · v1.1 · CONFIDENTIAL
+### Technical Design Document · v1.2 · CONFIDENTIAL
 > **v1.0 — New Module:** Digital form layout engine · 4 trigger types · Grouped locations · 8-step approval lifecycle · `FormTemplateRenderService`
 > **v1.1 Changes:** Field Designer — custom field layout (`field_definitions_json`) · 8 field types + Parameter linking · `PUT /api/v1/form-templates/{id}/fields`
+> **v1.2 Changes:** Parameters & Locations management endpoints wired in UI — ⚙ Manage modal per template row for linking/unlinking parameters and locations.
 
 ---
 
@@ -11,7 +12,7 @@
 |---|---|
 | Module | Form Template (Phase 1c — New) |
 | Depends On | Master Data v1.2, Parameters v1.1, Checkpoints v1.1 |
-| Version | v1.1 |
+| Version | v1.2 |
 | Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
@@ -108,6 +109,7 @@ A **Form Template** is the digital equivalent of a paper lab form. It defines: w
 | FR-11 | SignalR push on approval status change (Contract 2 — no polling) | System | Must Have | Contract 2 |
 | FR-12 | Form Template auto-selected for new sample by `IFormTemplateSelectorService` (Contract 1) — no UI dropdown | System | Must Have | Contract 1 |
 | FR-13 | Field Designer: Admin/QA can design a custom field layout for any template. Supports 8 field types + linked Parameters. Layout stored as `field_definitions_json` JSON in the template record. | Admin/QA | Must Have | Contract 1 |
+| FR-14 | Parameters & Locations management: Admin/QA can link/unlink parameters (`POST/DELETE /form-templates/{id}/parameters/{pid}`) and storage locations (`POST/DELETE /form-templates/{id}/locations/{lid}`) to a template via the ⚙ Manage modal. Changes reflected immediately. All actions audit-logged INSERT-only (Contract 1). | Admin/QA | Must Have | Contract 1 |
 
 ---
 
@@ -180,6 +182,20 @@ The Field Designer allows Admin/QA users to define a custom field layout for any
 | Storage | `field_definitions_json` TEXT column on `form_templates` — JSON array of `FieldDef` objects |
 | API | `PUT /api/v1/form-templates/{id}/fields` — saves JSON layout; returns field count |
 | Compliance | Layout changes are soft — editing a template resets status to Draft (existing v+1 rule applies) |
+
+---
+
+## 9. Parameters & Locations Management (New v1.2)
+
+The **⚙ Manage** button on every Form Template row opens a management modal for linking master-data Parameters and Storage Locations to the template.
+
+| Feature | Detail |
+|---|---|
+| Access | "⚙ Manage" button on every Form Template row in the master data table |
+| Parameters tab | Lists all currently linked parameters (Code / Name / UOM / Remove). Dropdown of unlinked parameters with Add button. Each Add/Remove calls `POST/DELETE /api/v1/form-templates/{id}/parameters/{parameterId}` immediately — no batch save needed. |
+| Locations tab | Lists all currently linked storage locations (Code / Name / Remove). Dropdown of unlinked storage locations with Add button. Each Add/Remove calls `POST/DELETE /api/v1/form-templates/{id}/locations/{locationId}` immediately. |
+| Compliance | All link/unlink actions audit-logged INSERT-only per Contract 1. `locationCount` and `parameterCount` on the template record updated server-side on each change. |
+| API | `GET /api/v1/form-templates/{id}/parameters` → linked params list<br/>`POST /api/v1/form-templates/{id}/parameters/{parameterId}` → link<br/>`DELETE /api/v1/form-templates/{id}/parameters/{parameterId}` → unlink<br/>`GET /api/v1/form-templates/{id}/locations` → linked locations list<br/>`POST /api/v1/form-templates/{id}/locations/{locationId}` → link<br/>`DELETE /api/v1/form-templates/{id}/locations/{locationId}` → unlink |
 
 ---
 

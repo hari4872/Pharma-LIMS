@@ -1,5 +1,6 @@
 ﻿# PHARMA LIMS — Traceability (Phase 6)
-### Technical Design Document · v1.2 · CONFIDENTIAL
+### Technical Design Document · v1.3 · CONFIDENTIAL
+> **v1.3 Changes:** Complaints/Deviations CRUD form on TraceabilityPage — log complaint/deviation linked to a sample; close workflow; real-time success state.
 > **v1.2 Changes:** Complaint/deviation downstream node · Sampling event upstream node · Graph view UI · Filter by Batch/Lot/Date/Analyst/Instrument · Recall scope query
 
 ---
@@ -10,7 +11,7 @@
 |---|---|
 | Module | Traceability (Phase 6) |
 | Depends On | All phases |
-| Version | v1.2 |
+| Version | v1.3 |
 | Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
@@ -69,6 +70,7 @@ Traceability provides **bidirectional linkage** from any result to its origin (u
 - **Filter by:** Batch, Lot, Date Range, Analyst, Instrument — filter predicates applied to `vw_sample_traceability` server-side (Contract 2).
 - **Recall scope query:** Single query from lot node determines all batches affected downstream — result in seconds for regulatory inspection.
 - **Export:** Full chain as PDF for regulatory audit. QA and Admin only (Contract 4).
+- **Log Complaint/Deviation:** Below the Recall Scope section, a dedicated form allows Admin/QA to create a `complaints_deviations` record linked to a sample. Newly created records appear as `ComplaintsDeviation` downstream nodes in the traceability graph.
 
 ---
 
@@ -88,6 +90,7 @@ Traceability provides **bidirectional linkage** from any result to its origin (u
 | **FR-10** | **Graph view UI: node-based relationship map with drill-down from any node to full detail. NEW v1.2** | All | Must Have | GMP / Inspection readiness |
 | **FR-11** | **Filter by Batch, Lot, Date, Analyst, Instrument: predicates on `vw_sample_traceability` server-side (Contract 2). NEW v1.2** | All | Must Have | GMP / FDA PAI |
 | **FR-12** | **Recall scope: single query from lot node determines all affected downstream batches. Result in seconds. NEW v1.2** | QA, Admin | Must Have | GMP recall |
+| **FR-13** | **Complaints/Deviations CRUD form on TraceabilityPage: Admin/QA can log a Complaint or Deviation linked to a sample directly from the Traceability page. Form fields: SampleId (required), CdType (Complaint/Deviation), CdReference (required), Description (optional), LinkedOosId (optional). On submit — `POST /traceability/complaints-deviations` creates record; success card shows CdId/Type/Reference/Status. Close workflow: `PUT /traceability/complaints-deviations/{id}/close` — status → Closed. All actions audit-logged INSERT-only (FR-07). NEW v1.3** | Admin/QA | Must Have | 21 CFR §11.10(e) |
 
 ---
 

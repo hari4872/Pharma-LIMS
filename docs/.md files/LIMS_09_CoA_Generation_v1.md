@@ -1,5 +1,6 @@
 ﻿# PHARMA LIMS — CoA Generation (Phase 9)
-### Technical Design Document · v1.0 · CONFIDENTIAL
+### Technical Design Document · v1.1 · CONFIDENTIAL
+> **v1.1 Changes:** Generate CoA button on CoaReviewPage — Admin/QA can trigger CoA generation from a completed test execution via a modal dropdown. Reissue button on Released CoAs — enters reason, calls reissue endpoint, supersedes original.
 > **v1.0 — New Module:** Template-driven auto-population · DO header fields · 3 e-signatures embedded in PDF · PDF lock server-side · ERP archive
 
 ---
@@ -10,7 +11,7 @@
 |---|---|
 | Module | CoA Generation (Phase 9) |
 | Depends On | Results Management v1.2, QA Review v1.2, Dispatch QC v1.0 |
-| Version | v1.0 |
+| Version | v1.1 |
 | Status | Implemented · Live · May 2026 |
 | Compliance | 21 CFR Part 11 · EU GMP Annex 11 · GMP · ALCOA+ · GAMP 5 |
 | Governance | Contracts 1, 2, 4 — all clauses enforced |
@@ -98,6 +99,8 @@ All three: `full_name + signed_at UTC + meaning` embedded in locked PDF body (§
 | 2 | QA reviews CoA draft | Read-only via `vw_coa_preview` (Contract 2 normalizer — same data as PDF generation). |
 | 3 | QA §11.50 e-sig approval | CoA PDF generated + locked server-side atomically. Status → RELEASED. `CoADistributionService` triggered (Contract 1). |
 | 4 | Distribution | `CoADistributionService`: ERP update + archive. INSERT-only distribution log. |
+| 5 | Admin/QA triggers manual generate | `POST /api/v1/coas/generate` with execution ID. `CoAGenerationService` (Contract 1) creates Draft CoA from completed execution. Available when auto-generation hasn't fired. |
+| 6 | Admin/QA reissues a Released CoA | `POST /api/v1/coas/{id}/reissue` with reason. New CoA created; original `status → Superseded`; `superseded_by` FK set. New QA e-sig required on new CoA (FR-11). |
 
 ---
 
@@ -117,6 +120,8 @@ All three: `full_name + signed_at UTC + meaning` embedded in locked PDF body (§
 | FR-10 | Retention: CoA archived >= shelf life + 1 year from DB config (Contract 2) | System | Must Have | EU Annex 11 §7.1 |
 | FR-11 | Re-issue: new QA §11.50 e-sig required. New CoA with `superseded_by` FK — original retained. | QA | Must Have | ALCOA+ Enduring |
 | FR-12 | `vw_coa_preview` normalizer (Contract 2): same data in QA review panel and PDF — no per-screen recalculation | System | Must Have | Contract 2 |
+| FR-13 | **Generate CoA UI (New v1.1):** Purple "Generate CoA" button on CoaReviewPage header. Opens modal showing dropdown of Completed test executions (`GET /test-executions?status=Completed`) with sample number / material / lot for identification. On submit: `POST /api/v1/coas/generate` with `{ sampleId, executionId }`. New CoA appears in table. Button visible to Admin and QA only (Contract 4). | Admin/QA | Must Have | 21 CFR 211.194 |
+| FR-14 | **Reissue CoA UI (New v1.1):** Amber "Reissue" button on Released rows in CoaReviewPage table, and "🔄 Reissue CoA" button inside the CoA detail modal for Released status. Opens reason textarea + warning banner ("supersedes current CoA, original preserved"). On submit: `POST /api/v1/coas/{id}/reissue` with `{ reason }`. New CoA created with `superseded_by` FK; original status → Superseded (Contract 1 — `CoAGenerationService` owns re-issue logic). New e-sig required (FR-11). | Admin/QA | Must Have | ALCOA+ Enduring |
 
 ---
 
