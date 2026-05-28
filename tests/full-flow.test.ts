@@ -10,7 +10,7 @@
 
 import { test, expect, Page } from '@playwright/test'
 
-const URL      = 'http://localhost:5173'
+const URL      = process.env.BASE_URL ?? 'http://localhost:5173'
 const USERNAME = 'admin'
 const PASSWORD = 'Admin@123'
 
@@ -336,7 +336,8 @@ test('Compliance: Sign SRF button visible on Registered samples', async ({ page 
 test('Compliance: Dashboard page loads', async ({ page }) => {
   await login(page)
   await goTo(page, '/dashboard')
-  await expect(page.locator('h2, h1').first()).toBeVisible()
+  // Dashboard uses styled divs + tab buttons, not h1/h2
+  await expect(page.locator('button:has-text("Overview"), button:has-text("Quality"), button:has-text("Instruments")').first()).toBeVisible()
   console.log('  ✓ Dashboard loaded')
 })
 
