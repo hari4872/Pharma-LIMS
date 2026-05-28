@@ -50,7 +50,7 @@ public class TestMethodsController : ControllerBase
 
     // POST api/v1/test-methods/{id}/approve — §11.50 QA e-sig
     [HttpPost("{id}/approve")]
-    [Authorize(Roles = "QA")]
+    [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Approve(int id, [FromBody] ApproveRequest request)
     {
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
