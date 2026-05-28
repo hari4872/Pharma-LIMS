@@ -8,6 +8,7 @@ import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
+  ComposedChart, ReferenceLine, Scatter, ZAxis,
 } from 'recharts'
 
 // FR-10 / FR-11: All metrics server-side from IDashboardAggregationService (Contract 2)
@@ -41,6 +42,16 @@ interface RecentTask {
 interface SamplePipelineItem { status: string; count: number; color: string }
 interface SampleTrendPoint   { date: string; count: number }
 interface OosTrendPoint      { date: string; oosCount: number; totalCount: number; rate: number }
+
+// SPC interfaces
+interface ParameterDto { parameterId: number; parameterCode: string; parameterName: string; unit?: string }
+interface SpcDataPoint { executionId: number; sampleNumber: string; measuredAt: string; value: number; isOos: boolean; isOot: boolean }
+interface SpcResult {
+  parameterId: number; parameterName: string; unit?: string
+  n: number; mean: number; stddev: number; ucl: number; lcl: number
+  usl?: number; lsl?: number; cp?: number; cpk?: number
+  outOfControl: boolean; rules: string[]; points: SpcDataPoint[]
+}
 
 type Tab = 'overview' | 'quality' | 'instruments' | 'compliance'
 
@@ -196,6 +207,12 @@ export default function DashboardPage() {
   const [oosTrend,      setOosTrend]      = useState<OosTrendPoint[]>([])
   const [loading,       setLoading]       = useState(true)
   const [tab,           setTab]           = useState<Tab>('overview')
+  // SPC state
+  const [spcParams,   setSpcParams]   = useState<ParameterDto[]>([])
+  const [spcParamId,  setSpcParamId]  = useState<number | null>(null)
+  const [spcPoints,   setSpcPoints]   = useState<50 | 100 | 200>(50)
+  const [spcData,     setSpcData]     = useState<SpcResult | null>(null)
+  const [spcLoading,  setSpcLoading]  = useState(false)
   const navigate = useNavigate()
 
   const firstName = fullName?.split(' ')[0] ?? 'there'
@@ -237,6 +254,27 @@ export default function DashboardPage() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Load SPC parameter list once on quality tab open
+  useEffect(() => {
+    if (tab !== 'quality') return
+    if (spcParams.length > 0) return
+    api.get('/parameters').then(r => {
+      const list: ParameterDto[] = Array.isArray(r.data) ? r.data : []
+      setSpcParams(list)
+      if (list.length > 0 && spcParamId == null) setSpcParamId(list[0].parameterId)
+    }).catch(() => {})
+  }, [tab])
+
+  // Fetch SPC data when param or points changes
+  useEffect(() => {
+    if (spcParamId == null) return
+    setSpcLoading(true)
+    setSpcData(null)
+    api.get(`/spc/${spcParamId}?points=${spcPoints}`).then(r => {
+      setSpcData(r.data ?? null)
+    }).catch(() => { setSpcData(null) }).finally(() => setSpcLoading(false))
+  }, [spcParamId, spcPoints])
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'overview',    label: 'Overview',     icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -497,6 +535,273 @@ export default function DashboardPage() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
+          </div>
+
+          {/* ── SPC Chart ─────────────────────────────────────────────────────── */}
+          <div style={{ marginTop: 16, background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12, padding: '18px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 3, height: 18, background: '#8b5cf6', borderRadius: 4, display: 'inline-block' }} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>Statistical Process Control — I-Chart</div>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>UCL/LCL = Mean ± 3σ &nbsp;|&nbsp; Nelson Rules 1/2/3 &nbsp;|&nbsp; Cp/Cpk capability indices</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {/* Parameter selector */}
+                <select
+                  value={spcParamId ?? ''}
+                  onChange={e => setSpcParamId(Number(e.target.value))}
+                  style={{ fontSize: 12, padding: '5px 10px', border: '1px solid #d1d5db', borderRadius: 6, background: '#f9fafb', color: '#111', fontFamily: 'inherit', cursor: 'pointer' }}
+                >
+                  {spcParams.length === 0 && <option value="">No parameters</option>}
+                  {spcParams.map(p => (
+                    <option key={p.parameterId} value={p.parameterId}>{p.parameterName}{p.unit ? ` (${p.unit})` : ''}</option>
+                  ))}
+                </select>
+                {/* Points selector */}
+                <select
+                  value={spcPoints}
+                  onChange={e => setSpcPoints(Number(e.target.value) as 50 | 100 | 200)}
+                  style={{ fontSize: 12, padding: '5px 10px', border: '1px solid #d1d5db', borderRadius: 6, background: '#f9fafb', color: '#111', fontFamily: 'inherit', cursor: 'pointer' }}
+                >
+                  <option value={50}>Last 50 pts</option>
+                  <option value={100}>Last 100 pts</option>
+                  <option value={200}>Last 200 pts</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Loading / no-data states */}
+            {spcLoading && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 260, color: '#6b7280', fontSize: 13 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite', marginRight: 8 }}>
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                </svg>
+                Loading SPC data…
+              </div>
+            )}
+
+            {!spcLoading && spcData === null && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: '#9ca3af', fontSize: 13, gap: 8 }}>
+                <svg viewBox="0 0 24 24" fill="none" width="36" height="36"><path d="M3 3v18h18M7 16l4-4 4 4 4-7" stroke="#d1d5db" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                No data available for this parameter
+              </div>
+            )}
+
+            {!spcLoading && spcData && spcData.n < 5 && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: '#9ca3af', fontSize: 13, gap: 8 }}>
+                <svg viewBox="0 0 24 24" fill="none" width="36" height="36"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#f59e0b" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <span>Insufficient data — n = {spcData.n} (minimum 5 required for control limits)</span>
+              </div>
+            )}
+
+            {!spcLoading && spcData && spcData.n >= 5 && (() => {
+              // Map data points for recharts — add sequential index for x-axis
+              const chartData = spcData.points.map((p, i) => ({
+                idx: i + 1,
+                value: p.value,
+                label: p.sampleNumber,
+                date: new Date(p.measuredAt).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' }),
+                isOos: p.isOos,
+                isOot: p.isOot,
+                // All reference values repeated for recharts tooltip
+                ucl: spcData.ucl,
+                lcl: spcData.lcl,
+                mean: spcData.mean,
+              }))
+
+              const cpkColor = (v?: number) => {
+                if (v == null) return '#6b7280'
+                if (v >= 1.33) return '#16a34a'
+                if (v >= 1.0)  return '#d97706'
+                return '#dc2626'
+              }
+              const cpkBg = (v?: number) => {
+                if (v == null) return '#f1f5f9'
+                if (v >= 1.33) return '#dcfce7'
+                if (v >= 1.0)  return '#fef9c3'
+                return '#fee2e2'
+              }
+
+              // Y-axis domain — pad 10% beyond UCL/LCL
+              const yPad = (spcData.ucl - spcData.lcl) * 0.15
+              const yMin = Math.min(spcData.lcl - yPad, ...spcData.points.map(p => p.value))
+              const yMax = Math.max(spcData.ucl + yPad, ...spcData.points.map(p => p.value))
+
+              return (
+                <div>
+                  {/* Nelson rule violations */}
+                  {spcData.rules.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', background: '#fee2e2', padding: '3px 8px', borderRadius: 4, border: '1px solid #fca5a5', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        Process Out of Control
+                      </span>
+                      {spcData.rules.map((r, i) => (
+                        <span key={i} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 4, background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', fontWeight: 600 }}>{r}</span>
+                      ))}
+                    </div>
+                  )}
+                  {!spcData.outOfControl && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 12, fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 4, background: '#dcfce7', color: '#16a34a', border: '1px solid #86efac' }}>
+                      <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      Process In Control — No Nelson Rule violations
+                    </div>
+                  )}
+
+                  {/* Chart */}
+                  <ResponsiveContainer width="100%" height={280}>
+                    <ComposedChart data={chartData} margin={{ left: 0, right: 20, top: 4, bottom: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                      <XAxis
+                        dataKey="idx"
+                        type="number"
+                        domain={[1, chartData.length]}
+                        tick={{ fontSize: 10, fill: '#6b7280' }}
+                        label={{ value: 'Sample sequence', position: 'insideBottom', offset: -12, fontSize: 10, fill: '#9ca3af' }}
+                        allowDecimals={false}
+                      />
+                      <YAxis
+                        domain={[yMin, yMax]}
+                        tick={{ fontSize: 11, fill: '#6b7280' }}
+                        tickFormatter={(v: number) => v.toFixed(2)}
+                        width={54}
+                        label={{ value: spcData.unit ?? '', angle: -90, position: 'insideLeft', offset: 12, fontSize: 10, fill: '#9ca3af' }}
+                      />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null
+                          const d = payload[0].payload as typeof chartData[0]
+                          return (
+                            <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 8, padding: '10px 14px', fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', minWidth: 160 }}>
+                              <div style={{ fontWeight: 700, marginBottom: 6, color: '#111' }}>#{d.idx} — {d.label}</div>
+                              <div style={{ color: '#6b7280', marginBottom: 2 }}>{d.date}</div>
+                              <div style={{ fontWeight: 700, color: d.isOos ? '#dc2626' : d.isOot ? '#d97706' : '#16a34a', fontSize: 14, marginBottom: 4 }}>
+                                {d.value.toFixed(4)} {spcData.unit}
+                                {d.isOos && <span style={{ marginLeft: 6, fontSize: 10, padding: '1px 6px', borderRadius: 3, background: '#fee2e2', color: '#dc2626' }}>OOS</span>}
+                                {d.isOot && !d.isOos && <span style={{ marginLeft: 6, fontSize: 10, padding: '1px 6px', borderRadius: 3, background: '#fef9c3', color: '#d97706' }}>OOT</span>}
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 10px', fontSize: 11, color: '#6b7280' }}>
+                                <span>UCL: {spcData.ucl.toFixed(4)}</span>
+                                <span>LCL: {spcData.lcl.toFixed(4)}</span>
+                                <span>Mean: {spcData.mean.toFixed(4)}</span>
+                              </div>
+                            </div>
+                          )
+                        }}
+                      />
+                      {/* Control limit reference lines */}
+                      <ReferenceLine y={spcData.ucl} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5}
+                        label={{ value: `UCL ${spcData.ucl.toFixed(3)}`, position: 'right', fontSize: 10, fill: '#ef4444', fontWeight: 600 }} />
+                      <ReferenceLine y={spcData.mean} stroke="#22c55e" strokeDasharray="6 3" strokeWidth={1.5}
+                        label={{ value: `μ ${spcData.mean.toFixed(3)}`, position: 'right', fontSize: 10, fill: '#22c55e', fontWeight: 600 }} />
+                      <ReferenceLine y={spcData.lcl} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={1.5}
+                        label={{ value: `LCL ${spcData.lcl.toFixed(3)}`, position: 'right', fontSize: 10, fill: '#ef4444', fontWeight: 600 }} />
+                      {/* Spec limit lines (if defined) */}
+                      {spcData.usl != null && (
+                        <ReferenceLine y={spcData.usl} stroke="#f59e0b" strokeDasharray="3 4" strokeWidth={1.5}
+                          label={{ value: `USL ${spcData.usl.toFixed(3)}`, position: 'right', fontSize: 10, fill: '#f59e0b', fontWeight: 600 }} />
+                      )}
+                      {spcData.lsl != null && (
+                        <ReferenceLine y={spcData.lsl} stroke="#f59e0b" strokeDasharray="3 4" strokeWidth={1.5}
+                          label={{ value: `LSL ${spcData.lsl.toFixed(3)}`, position: 'right', fontSize: 10, fill: '#f59e0b', fontWeight: 600 }} />
+                      )}
+                      {/* Connecting line (no dots — we use Scatter for colored dots) */}
+                      <Line
+                        dataKey="value"
+                        stroke="#94a3b8"
+                        strokeWidth={1.5}
+                        dot={false}
+                        activeDot={false}
+                        isAnimationActive={false}
+                      />
+                      {/* Colored dots via custom Line dot renderer */}
+                      <Line
+                        dataKey="value"
+                        stroke="transparent"
+                        strokeWidth={0}
+                        isAnimationActive={false}
+                        dot={(props: any) => {
+                          const { cx, cy, payload } = props
+                          const fill = payload.isOos ? '#ef4444' : payload.isOot ? '#f59e0b' : '#22c55e'
+                          const r = payload.isOos ? 6 : 4
+                          return (
+                            <circle
+                              key={`spc-dot-${props.index}`}
+                              cx={cx} cy={cy} r={r}
+                              fill={fill}
+                              stroke="#fff"
+                              strokeWidth={1.5}
+                            />
+                          )
+                        }}
+                        activeDot={false}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+
+                  {/* Stats panel */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14, paddingTop: 14, borderTop: '1px solid #f1f5f9' }}>
+                    {[
+                      { label: 'n', value: String(spcData.n), bg: '#f8fafc', color: '#374151', title: 'Sample count' },
+                      { label: 'Mean (μ)', value: spcData.mean.toFixed(4), bg: '#f0fdf4', color: '#15803d', title: 'Process mean' },
+                      { label: 'Std Dev (σ)', value: spcData.stddev.toFixed(4), bg: '#eff6ff', color: '#1d4ed8', title: 'Sample standard deviation (Bessel-corrected)' },
+                      { label: 'UCL', value: spcData.ucl.toFixed(4), bg: '#fef2f2', color: '#dc2626', title: 'Upper Control Limit (Mean + 3σ)' },
+                      { label: 'LCL', value: spcData.lcl.toFixed(4), bg: '#fef2f2', color: '#dc2626', title: 'Lower Control Limit (Mean − 3σ)' },
+                    ].map(s => (
+                      <div key={s.label} title={s.title} style={{ background: s.bg, border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 14px', minWidth: 90 }}>
+                        <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{s.label}</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: s.color, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums' }}>{s.value}</div>
+                      </div>
+                    ))}
+                    {/* Cp */}
+                    {spcData.cp != null && (
+                      <div title="Process capability Cp = (USL−LSL) / 6σ" style={{ background: '#f5f3ff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 14px', minWidth: 90 }}>
+                        <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Cp</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: '#7c3aed', letterSpacing: '-0.01em' }}>{spcData.cp.toFixed(3)}</div>
+                      </div>
+                    )}
+                    {/* Cpk */}
+                    {spcData.cpk != null && (
+                      <div title="Process capability index Cpk = min((USL−μ)/3σ, (μ−LSL)/3σ)" style={{ background: cpkBg(spcData.cpk), border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 14px', minWidth: 90 }}>
+                        <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Cpk</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: cpkColor(spcData.cpk), letterSpacing: '-0.01em' }}>{spcData.cpk.toFixed(3)}</div>
+                        <div style={{ fontSize: 9, color: cpkColor(spcData.cpk), marginTop: 2, fontWeight: 600 }}>
+                          {spcData.cpk >= 1.33 ? 'Capable' : spcData.cpk >= 1.0 ? 'Marginal' : 'Incapable'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Legend */}
+                  <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 11, color: '#6b7280', flexWrap: 'wrap' }}>
+                    {[
+                      { color: '#22c55e', label: 'In Control' },
+                      { color: '#f59e0b', label: 'OOT (Out of Trend)' },
+                      { color: '#ef4444', label: 'OOS / Out of Control' },
+                      { color: '#ef4444', label: '── UCL / LCL', dashed: true },
+                      { color: '#22c55e', label: '── Mean (μ)', dashed: true },
+                    ].map((l, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        {l.dashed
+                          ? <span style={{ display: 'inline-block', width: 20, height: 0, borderTop: `2px dashed ${l.color}` }} />
+                          : <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: l.color }} />
+                        }
+                        {l.label}
+                      </div>
+                    ))}
+                    {spcData.usl != null && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ display: 'inline-block', width: 20, height: 0, borderTop: '2px dashed #f59e0b' }} />
+                        USL / LSL (Spec limits)
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         </>
       )}
