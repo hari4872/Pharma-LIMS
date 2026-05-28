@@ -220,10 +220,6 @@ public class CalibrationCertPdfDocument : IDocument
                             h.Cell().Element(c2 => TH(c2, "QA Approved By"));
                         });
 
-                        static IContainer TD(IContainer c2) =>
-                            c2.BorderBottom(0.5f).BorderColor("#bae6fd")
-                              .PaddingVertical(5).PaddingHorizontal(6);
-
                         var isFirst = true;
                         foreach (var h in _d.History)
                         {
