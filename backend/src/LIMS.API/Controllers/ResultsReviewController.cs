@@ -22,7 +22,7 @@ public class ResultsReviewController : ControllerBase
 
     // POST api/v1/results-review/{executionId}/peer-review — 2nd analyst §11.50 e-sig (FR-02, FR-03)
     [HttpPost("{executionId}/peer-review")]
-    [Authorize(Roles = "Analyst,QCLead,QA")]
+    [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
     public async Task<IActionResult> PeerReview(int executionId, [FromBody] ReviewRequest request)
     {
         var reviewerId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
@@ -110,7 +110,7 @@ public class ResultsReviewController : ControllerBase
 
     // POST api/v1/results-review/evidence — FR-14: attach evidence file reference (audit-logged)
     [HttpPost("evidence")]
-    [Authorize(Roles = "Analyst,QCLead,QA")]
+    [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
     public async Task<IActionResult> AttachEvidence([FromBody] AttachEvidenceRequest request)
     {
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");

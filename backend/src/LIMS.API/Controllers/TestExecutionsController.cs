@@ -60,7 +60,7 @@ public class TestExecutionsController : ControllerBase
 
     // POST api/v1/test-executions/{id}/results — Step 4-5: submit raw values + OOS/OOT detection
     [HttpPost("{id}/results")]
-    [Authorize(Roles = "Analyst,QCLead")]
+    [Authorize(Roles = "Admin,Analyst,QCLead")]
     public async Task<IActionResult> SubmitResults(int id, [FromBody] SubmitResultsRequest request)
     {
         var analystId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
@@ -118,7 +118,7 @@ public class TestExecutionsController : ControllerBase
 
     // POST api/v1/test-executions/{id}/sign-off — Step 7: §11.50 e-sig, logbook rows finalized
     [HttpPost("{id}/sign-off")]
-    [Authorize(Roles = "Analyst,QCLead")]
+    [Authorize(Roles = "Admin,Analyst,QCLead")]
     public async Task<IActionResult> SignOff(int id, [FromBody] ApproveRequest request)
     {
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");

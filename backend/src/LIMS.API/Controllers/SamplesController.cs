@@ -52,7 +52,7 @@ public class SamplesController : ControllerBase
 
     // POST api/v1/samples/{id}/sign-srf — Step 7: SRF §11.50 e-sig → PendingTesting (FR-09)
     [HttpPost("{id}/sign-srf")]
-    [Authorize(Roles = "Analyst,QA")]
+    [Authorize(Roles = "Admin,Analyst,QA")]
     public async Task<IActionResult> SignSRF(int id, [FromBody] ApproveRequest request)
     {
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");

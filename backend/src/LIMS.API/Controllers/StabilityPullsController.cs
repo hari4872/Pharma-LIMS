@@ -34,7 +34,7 @@ public class StabilityPullsController : ControllerBase
     // POST api/v1/stability-pulls/{id}/execute
     // FR-05: pull §11.50 e-sig; FR-15: short pull deviation auto-logged
     [HttpPost("{id:int}/execute")]
-    [Authorize(Roles = "Analyst,QCLead")]
+    [Authorize(Roles = "Admin,Analyst,QCLead")]
     public async Task<IActionResult> Execute(int id, [FromBody] ExecutePullRequest request)
     {
         var analystId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
