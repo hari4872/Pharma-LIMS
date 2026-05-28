@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store'
 import api from '@/api/client'
 import {
   ReactFlow, Background, Controls, MiniMap,
@@ -288,6 +290,11 @@ function TraceGraphPanel({ graph }: { graph: TraceGraph }) {
 
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function TraceabilityPage() {
+  const role = useSelector((s: RootState) => s.auth.role) ?? ''
+  const canRecall  = ['Admin', 'QA'].includes(role)
+  const canLogCd   = ['Admin', 'QA', 'QCLead'].includes(role)
+  const canCloseCd = ['Admin', 'QA'].includes(role)
+
   const [tab, setTab] = useState<'graph' | 'recall' | 'cd'>('graph')
 
   // Graph tab
@@ -477,7 +484,21 @@ export default function TraceabilityPage() {
       )}
 
       {/* ── TAB: Recall Scope ─────────────────────────────────────────────── */}
-      {tab === 'recall' && (
+      {tab === 'recall' && !canRecall && (
+        <div style={{ textAlign: 'center', padding: '48px 24px', background: '#fff',
+          border: '1px solid #fca5a5', borderRadius: 10 }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#991b1b', marginBottom: 6 }}>
+            Access Restricted
+          </div>
+          <div style={{ fontSize: 13, color: '#6b7280' }}>
+            Recall scope queries are restricted to <strong>Admin</strong> and <strong>QA</strong> roles.
+            Contact your QA administrator if access is required.
+          </div>
+        </div>
+      )}
+
+      {tab === 'recall' && canRecall && (
         <Card title="Recall Scope Query"
           subtitle="From a lot number, instantly determine all affected downstream sample IDs — results in seconds for regulatory inspection (FR-12)."
           accent="#dc2626">
@@ -554,10 +575,16 @@ export default function TraceabilityPage() {
             <div style={{ fontSize: 13, color: '#6b7280' }}>
               INSERT-only audit records (21 CFR Part 11) — records cannot be edited or deleted.
             </div>
-            <Btn onClick={() => { setShowForm(v => !v); setCdError('') }}
-              color={showForm ? '#6b7280' : '#2563eb'}>
-              {showForm ? '✕ Cancel' : '+ Log New Record'}
-            </Btn>
+            {canLogCd ? (
+              <Btn onClick={() => { setShowForm(v => !v); setCdError('') }}
+                color={showForm ? '#6b7280' : '#2563eb'}>
+                {showForm ? '✕ Cancel' : '+ Log New Record'}
+              </Btn>
+            ) : (
+              <span style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>
+                🔒 Admin / QA / QCLead only
+              </span>
+            )}
           </div>
 
           {showForm && (
@@ -662,7 +689,7 @@ export default function TraceabilityPage() {
                           {new Date(cd.createdAt).toLocaleDateString()}
                         </td>
                         <td style={{ padding: '9px 14px' }}>
-                          {cd.status === 'Open' ? (
+                          {cd.status === 'Open' && canCloseCd ? (
                             <button onClick={() => closeCd(cd.cdId)} disabled={closingId === cd.cdId}
                               style={{ padding: '5px 12px',
                                 background: closingId === cd.cdId ? '#9ca3af' : '#16a34a',
@@ -672,7 +699,9 @@ export default function TraceabilityPage() {
                               {closingId === cd.cdId ? 'Closing…' : 'Close'}
                             </button>
                           ) : (
-                            <span style={{ fontSize: 12, color: '#9ca3af' }}>—</span>
+                            <span style={{ fontSize: 12, color: '#9ca3af' }}>
+                              {cd.status === 'Open' ? '🔒' : '—'}
+                            </span>
                           )}
                         </td>
                       </tr>
