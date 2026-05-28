@@ -16,6 +16,8 @@ interface Template {
 interface Lab        { labId: number; labName: string }
 interface SampleType { sampleTypeId: number; typeName: string; typeCode: string }
 interface Param      { parameterId: number; parameterName: string; parameterCode: string; uom: string; dataType: string }
+interface LinkedParam    { parameterId: number; parameterName: string; parameterCode: string; uom: string }
+interface LinkedLocation { locationId: number; locationName: string; locationCode: string }
 
 export type FieldType = 'Text' | 'Number' | 'Decimal' | 'Dropdown' | 'Date' | 'DateTime' | 'Checkbox' | 'Textarea' | 'Parameter'
 
@@ -61,6 +63,14 @@ export default function FormTemplatesPage() {
   const [showForm, setShowForm]       = useState(false)
   const [showApprove, setShowApprove] = useState<number | null>(null)
   const [designRow, setDesignRow]     = useState<Template | null>(null)
+  const [allLocations, setAllLocations] = useState<{ locationId: number; locationName: string; locationCode: string }[]>([])
+  const [manageRow, setManageRow]         = useState<Template | null>(null)
+  const [manageTab, setManageTab]         = useState<'params' | 'locs'>('params')
+  const [linkedParams, setLinkedParams]   = useState<LinkedParam[]>([])
+  const [linkedLocs, setLinkedLocs]       = useState<LinkedLocation[]>([])
+  const [manageLoading, setManageLoading] = useState(false)
+  const [addParamId, setAddParamId]       = useState('')
+  const [addLocId, setAddLocId]           = useState('')
 
   const [form, setForm] = useState({
     formCode: '', formName: '', labId: '', formType: 'Single',
@@ -75,12 +85,46 @@ export default function FormTemplatesPage() {
 
   async function load() {
     setLoading(true)
-    const [r, lr, str, pr] = await Promise.all([
+    const [r, lr, str, pr, slr] = await Promise.all([
       api.get('/form-templates'), api.get('/laboratories'),
-      api.get('/sample-types'),  api.get('/parameters')
+      api.get('/sample-types'),  api.get('/parameters'),
+      api.get('/storage-locations').catch(() => ({ data: [] })),
     ])
     setData(r.data); setLabs(lr.data); setSampleTypes(str.data); setParams(pr.data)
+    setAllLocations(slr.data)
     setLoading(false)
+  }
+
+  async function openManage(row: Template) {
+    setManageRow(row)
+    setManageTab('params')
+    setManageLoading(true)
+    try {
+      const [pr, lr] = await Promise.all([
+        api.get(`/form-templates/${row.formTemplateId}/parameters`).catch(() => ({ data: [] })),
+        api.get(`/form-templates/${row.formTemplateId}/locations`).catch(() => ({ data: [] })),
+      ])
+      setLinkedParams(pr.data); setLinkedLocs(lr.data)
+    } finally { setManageLoading(false) }
+  }
+
+  async function linkParam(parameterId: number) {
+    await api.post(`/form-templates/${manageRow!.formTemplateId}/parameters/${parameterId}`)
+    setAddParamId('')
+    openManage(manageRow!)
+  }
+  async function unlinkParam(parameterId: number) {
+    await api.delete(`/form-templates/${manageRow!.formTemplateId}/parameters/${parameterId}`)
+    openManage(manageRow!)
+  }
+  async function linkLoc(locationId: number) {
+    await api.post(`/form-templates/${manageRow!.formTemplateId}/locations/${locationId}`)
+    setAddLocId('')
+    openManage(manageRow!)
+  }
+  async function unlinkLoc(locationId: number) {
+    await api.delete(`/form-templates/${manageRow!.formTemplateId}/locations/${locationId}`)
+    openManage(manageRow!)
   }
   useEffect(() => { load() }, [])
 
@@ -140,6 +184,8 @@ export default function FormTemplatesPage() {
               </svg>
               Design Fields
             </button>
+            <button onClick={() => openManage(r)}
+              style={{ padding: '4px 10px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>⚙ Manage</button>
             {r.status === 'Draft' && (
               <button onClick={() => setShowApprove(r.formTemplateId)}
                 style={{ padding: '4px 10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>Approve</button>
@@ -215,6 +261,126 @@ export default function FormTemplatesPage() {
             <ModalFooter saving={saving} onCancel={() => setShowApprove(null)} />
           </form>
         </Modal>
+      )}
+
+      {/* ── Manage Parameters & Locations modal ── */}
+      {manageRow && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 150 }}>
+          <div style={{ background: '#fff', borderRadius: 12, width: 640, maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 16px 48px rgba(0,0,0,.2)' }}>
+            {/* Header */}
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111111' }}>Manage: {manageRow.formName}</h3>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: '#5f6368' }}>{manageRow.formCode}</p>
+              </div>
+              <button onClick={() => setManageRow(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#5f6368', lineHeight: 1 }}>×</button>
+            </div>
+            {/* Tabs */}
+            <div style={{ display: 'flex', borderBottom: '1px solid #e0e0e0', flexShrink: 0 }}>
+              {(['params', 'locs'] as const).map(tab => (
+                <button key={tab} onClick={() => setManageTab(tab)}
+                  style={{ padding: '10px 20px', border: 'none', borderBottom: manageTab === tab ? '2px solid #6d28d9' : '2px solid transparent', background: 'none', cursor: 'pointer', fontSize: 13, fontWeight: manageTab === tab ? 700 : 400, color: manageTab === tab ? '#6d28d9' : '#5f6368', fontFamily: 'inherit' }}>
+                  {tab === 'params' ? 'Parameters' : 'Locations'}
+                </button>
+              ))}
+            </div>
+            {/* Body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+              {manageLoading ? (
+                <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af', fontSize: 13 }}>Loading…</div>
+              ) : manageTab === 'params' ? (
+                <>
+                  {/* Add parameter */}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                    <select value={addParamId} onChange={e => setAddParamId(e.target.value)}
+                      style={{ flex: 1, padding: '7px 10px', border: '1px solid #dadce0', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', color: '#111111' }}>
+                      <option value="">Select parameter to add…</option>
+                      {params.filter(p => !linkedParams.some(lp => lp.parameterId === p.parameterId)).map(p => (
+                        <option key={p.parameterId} value={p.parameterId}>{p.parameterName} ({p.parameterCode})</option>
+                      ))}
+                    </select>
+                    <button onClick={() => addParamId && linkParam(Number(addParamId))} disabled={!addParamId}
+                      style={{ padding: '7px 16px', background: '#6d28d9', color: '#fff', border: 'none', borderRadius: 6, cursor: addParamId ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 600, opacity: addParamId ? 1 : 0.5, fontFamily: 'inherit' }}>Add</button>
+                  </div>
+                  {/* Linked params table */}
+                  {linkedParams.length === 0 ? (
+                    <p style={{ color: '#9ca3af', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>No parameters linked yet.</p>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc' }}>
+                          <th style={{ padding: '8px 10px', border: '1px solid #e0e0e0', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Code</th>
+                          <th style={{ padding: '8px 10px', border: '1px solid #e0e0e0', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Name</th>
+                          <th style={{ padding: '8px 10px', border: '1px solid #e0e0e0', textAlign: 'left', fontWeight: 600, color: '#374151' }}>UOM</th>
+                          <th style={{ padding: '8px 10px', border: '1px solid #e0e0e0', textAlign: 'center', fontWeight: 600, color: '#374151' }}>Remove</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {linkedParams.map(lp => (
+                          <tr key={lp.parameterId}>
+                            <td style={{ padding: '7px 10px', border: '1px solid #e0e0e0', color: '#0d6e6e', fontWeight: 600 }}>{lp.parameterCode}</td>
+                            <td style={{ padding: '7px 10px', border: '1px solid #e0e0e0', color: '#111111' }}>{lp.parameterName}</td>
+                            <td style={{ padding: '7px 10px', border: '1px solid #e0e0e0', color: '#5f6368' }}>{lp.uom || '—'}</td>
+                            <td style={{ padding: '7px 10px', border: '1px solid #e0e0e0', textAlign: 'center' }}>
+                              <button onClick={() => unlinkParam(lp.parameterId)}
+                                style={{ padding: '3px 10px', background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Remove</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Add location */}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                    <select value={addLocId} onChange={e => setAddLocId(e.target.value)}
+                      style={{ flex: 1, padding: '7px 10px', border: '1px solid #dadce0', borderRadius: 6, fontSize: 13, fontFamily: 'inherit', color: '#111111' }}>
+                      <option value="">Select location to add…</option>
+                      {allLocations.filter(l => !linkedLocs.some(ll => ll.locationId === l.locationId)).map(l => (
+                        <option key={l.locationId} value={l.locationId}>{l.locationName} ({l.locationCode})</option>
+                      ))}
+                    </select>
+                    <button onClick={() => addLocId && linkLoc(Number(addLocId))} disabled={!addLocId}
+                      style={{ padding: '7px 16px', background: '#6d28d9', color: '#fff', border: 'none', borderRadius: 6, cursor: addLocId ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 600, opacity: addLocId ? 1 : 0.5, fontFamily: 'inherit' }}>Add</button>
+                  </div>
+                  {/* Linked locs table */}
+                  {linkedLocs.length === 0 ? (
+                    <p style={{ color: '#9ca3af', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>No locations linked yet.</p>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc' }}>
+                          <th style={{ padding: '8px 10px', border: '1px solid #e0e0e0', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Code</th>
+                          <th style={{ padding: '8px 10px', border: '1px solid #e0e0e0', textAlign: 'left', fontWeight: 600, color: '#374151' }}>Name</th>
+                          <th style={{ padding: '8px 10px', border: '1px solid #e0e0e0', textAlign: 'center', fontWeight: 600, color: '#374151' }}>Remove</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {linkedLocs.map(ll => (
+                          <tr key={ll.locationId}>
+                            <td style={{ padding: '7px 10px', border: '1px solid #e0e0e0', color: '#6d28d9', fontWeight: 600 }}>{ll.locationCode}</td>
+                            <td style={{ padding: '7px 10px', border: '1px solid #e0e0e0', color: '#111111' }}>{ll.locationName}</td>
+                            <td style={{ padding: '7px 10px', border: '1px solid #e0e0e0', textAlign: 'center' }}>
+                              <button onClick={() => unlinkLoc(ll.locationId)}
+                                style={{ padding: '3px 10px', background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>Remove</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </>
+              )}
+            </div>
+            {/* Footer */}
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #e0e0e0', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+              <button onClick={() => setManageRow(null)}
+                style={{ padding: '8px 20px', border: '1px solid #dadce0', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 13, color: '#111111', fontFamily: 'inherit' }}>Close</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Field Designer (full-page overlay) ── */}

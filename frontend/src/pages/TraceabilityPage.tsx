@@ -45,6 +45,14 @@ export default function TraceabilityPage() {
   const [recallResult, setRecallResult] = useState<{ lotNumber: string; affectedSampleIds: number[]; count: number } | null>(null)
   const [recallLoading, setRecallLoading] = useState(false)
 
+  // Complaints & Deviations state
+  const [cdForm, setCdForm] = useState({ sampleId: '', cdType: '', cdReference: '', description: '', linkedOosId: '' })
+  const [cdSaving, setCdSaving] = useState(false)
+  const [cdError, setCdError] = useState('')
+  const [cdSuccess, setCdSuccess] = useState<{ cdId: number; cdType: string; cdReference: string; status: string } | null>(null)
+  const [closingId, setClosingId] = useState<number | null>(null)
+  const [cdCloseToast, setCdCloseToast] = useState(false)
+
   async function loadGraph() {
     if (!sampleId) return
     setLoading(true); setError(''); setGraph(null)
@@ -63,6 +71,44 @@ export default function TraceabilityPage() {
       setRecallResult(r.data)
     } catch { }
     finally { setRecallLoading(false) }
+  }
+
+  async function submitCd() {
+    if (!cdForm.sampleId || !cdForm.cdType || !cdForm.cdReference) {
+      setCdError('Sample ID, CD Type and Reference are required.')
+      return
+    }
+    setCdSaving(true); setCdError(''); setCdSuccess(null)
+    try {
+      const body: Record<string, unknown> = {
+        sampleId: Number(cdForm.sampleId),
+        cdType: cdForm.cdType,
+        cdReference: cdForm.cdReference,
+      }
+      if (cdForm.description.trim()) body.description = cdForm.description.trim()
+      if (cdForm.linkedOosId.trim()) body.linkedOosId = Number(cdForm.linkedOosId)
+      const r = await api.post('/traceability/complaints-deviations', body)
+      setCdSuccess(r.data)
+      setCdForm({ sampleId: '', cdType: '', cdReference: '', description: '', linkedOosId: '' })
+    } catch (err: any) {
+      setCdError(err.response?.data?.message ?? 'Failed to log complaint / deviation.')
+    } finally {
+      setCdSaving(false)
+    }
+  }
+
+  async function closeCd(id: number) {
+    setClosingId(id)
+    try {
+      await api.put(`/traceability/complaints-deviations/${id}/close`)
+      setCdSuccess(null)
+      setCdCloseToast(true)
+      setTimeout(() => setCdCloseToast(false), 3000)
+    } catch (err: any) {
+      setCdError(err.response?.data?.message ?? 'Failed to close record.')
+    } finally {
+      setClosingId(null)
+    }
   }
 
   return (
@@ -133,7 +179,7 @@ export default function TraceabilityPage() {
       )}
 
       {/* Recall Scope Query */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 20 }}>
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 20, marginBottom: 24 }}>
         <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Recall Scope Query (QA / Admin)</h2>
         <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
           From a lot number, determine all affected downstream sample IDs — result in seconds for regulatory inspection (FR-12).
@@ -159,6 +205,105 @@ export default function TraceabilityPage() {
                 Sample IDs: {recallResult.affectedSampleIds.join(', ')}
               </p>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Complaints & Deviations */}
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: 20 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Complaints &amp; Deviations (21 CFR Part 11)</h2>
+        <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>
+          Log complaints or deviations linked to a sample for full traceability. All entries are INSERT-only audit records in compliance with 21 CFR Part 11.
+        </p>
+
+        {/* Close toast */}
+        {cdCloseToast && (
+          <div style={{ marginBottom: 12, background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#166534', fontWeight: 600 }}>
+            Record closed successfully.
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>Sample ID <span style={{ color: '#ef4444' }}>*</span></label>
+            <input
+              style={{ ...inp, width: '100%' }}
+              type="number"
+              placeholder="Enter sample ID"
+              value={cdForm.sampleId}
+              onChange={e => setCdForm(f => ({ ...f, sampleId: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>CD Type <span style={{ color: '#ef4444' }}>*</span></label>
+            <select
+              style={{ ...inp, width: '100%' }}
+              value={cdForm.cdType}
+              onChange={e => setCdForm(f => ({ ...f, cdType: e.target.value }))}
+            >
+              <option value="">— Select type —</option>
+              <option value="Complaint">Complaint</option>
+              <option value="Deviation">Deviation</option>
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>Reference <span style={{ color: '#ef4444' }}>*</span></label>
+            <input
+              style={{ ...inp, width: '100%' }}
+              type="text"
+              placeholder="e.g. CD-2026-001"
+              value={cdForm.cdReference}
+              onChange={e => setCdForm(f => ({ ...f, cdReference: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>Linked OOS ID <span style={{ fontSize: 11, color: '#9ca3af' }}>(optional)</span></label>
+            <input
+              style={{ ...inp, width: '100%' }}
+              type="number"
+              placeholder="Enter OOS ID"
+              value={cdForm.linkedOosId}
+              onChange={e => setCdForm(f => ({ ...f, linkedOosId: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>Description <span style={{ fontSize: 11, color: '#9ca3af' }}>(optional)</span></label>
+          <textarea
+            style={{ ...inp, width: '100%', minHeight: 72, resize: 'vertical' }}
+            placeholder="Describe the complaint or deviation…"
+            value={cdForm.description}
+            onChange={e => setCdForm(f => ({ ...f, description: e.target.value }))}
+          />
+        </div>
+
+        {cdError && <p style={{ color: '#ef4444', fontSize: 13, marginBottom: 10 }}>{cdError}</p>}
+
+        <button
+          onClick={submitCd}
+          disabled={cdSaving}
+          style={{ padding: '9px 20px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, cursor: cdSaving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}
+        >
+          {cdSaving ? 'Saving…' : 'Log Complaint / Deviation'}
+        </button>
+
+        {cdSuccess && (
+          <div style={{ marginTop: 16, background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: 14 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#166534', marginBottom: 8 }}>Record created successfully</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 16px', fontSize: 13, color: '#166534' }}>
+              <span style={{ fontWeight: 600 }}>CD ID:</span><span>{cdSuccess.cdId}</span>
+              <span style={{ fontWeight: 600 }}>Type:</span><span>{cdSuccess.cdType}</span>
+              <span style={{ fontWeight: 600 }}>Reference:</span><span>{cdSuccess.cdReference}</span>
+              <span style={{ fontWeight: 600 }}>Status:</span><span>{cdSuccess.status}</span>
+            </div>
+            <button
+              onClick={() => closeCd(cdSuccess.cdId)}
+              disabled={closingId === cdSuccess.cdId}
+              style={{ marginTop: 12, padding: '7px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: closingId === cdSuccess.cdId ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}
+            >
+              {closingId === cdSuccess.cdId ? 'Closing…' : `Close Record #${cdSuccess.cdId}`}
+            </button>
           </div>
         )}
       </div>

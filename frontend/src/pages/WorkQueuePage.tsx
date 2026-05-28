@@ -25,11 +25,24 @@ interface SuggestedInstrument {
   labName:        string
 }
 
+// AI Intelligence interfaces
+interface AnalystLoad { userId: number; fullName: string; assigned: number; inProgress: number; overdue: number }
+interface PriorityBand { band: string; count: number }
+interface QueueIntelligence { labId: number; totalOpen: number; overdue: number; oosOpen: number; avgTatHours: number | null; analystLoads: AnalystLoad[]; priorityBands: PriorityBand[] }
+interface WorkloadSuggestion { userId: number; fullName: string; activeCount: number; reason: string }
+
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Assigned:   { bg: '#dbeafe', color: '#1e40af' },
   InProgress: { bg: '#fef9c3', color: '#854d0e' },
   Completed:  { bg: '#d1fae5', color: '#065f46' },
   OOSOpen:    { bg: '#fee2e2', color: '#991b1b' },
+}
+
+const BAND_COLORS: Record<string, { bg: string; color: string }> = {
+  Critical: { bg: '#fee2e2', color: '#991b1b' },
+  High:     { bg: '#fef3c7', color: '#92400e' },
+  Medium:   { bg: '#dbeafe', color: '#1e40af' },
+  Low:      { bg: '#f3f4f6', color: '#374151' },
 }
 
 export default function WorkQueuePage() {
@@ -51,6 +64,11 @@ export default function WorkQueuePage() {
   // Phase D — auto-suggest
   const [suggestions, setSuggestions]       = useState<SuggestedInstrument[]>([])
   const [suggestLoading, setSuggestLoading] = useState(false)
+  // AI Intelligence
+  const [showAi, setShowAi]           = useState(false)
+  const [aiData, setAiData]           = useState<QueueIntelligence | null>(null)
+  const [aiSuggestion, setAiSuggestion] = useState<WorkloadSuggestion | null>(null)
+  const [aiLoading, setAiLoading]     = useState(false)
 
   async function load() {
     setLoading(true)
@@ -59,6 +77,23 @@ export default function WorkQueuePage() {
     setData(r.data); setLoading(false)
   }
   useEffect(() => { load() }, [statusFilter])
+
+  async function toggleAi() {
+    if (showAi) { setShowAi(false); return }
+    setShowAi(true)
+    if (aiData) return // already loaded
+    setAiLoading(true)
+    try {
+      const [qr, sr] = await Promise.all([
+        api.get('/test-executions/queue-intelligence'),
+        api.get('/test-executions/suggest-analyst'),
+      ])
+      setAiData(qr.data)
+      setAiSuggestion(sr.data)
+    } catch {
+      toast('Failed to load AI intelligence', 'error')
+    } finally { setAiLoading(false) }
+  }
 
   async function openAssign() {
     const [sr, ur, ir] = await Promise.all([
@@ -147,7 +182,150 @@ export default function WorkQueuePage() {
           <option value="">All Statuses</option>
           {['Assigned', 'InProgress', 'Completed', 'OOSOpen'].map(s => <option key={s}>{s}</option>)}
         </select>
+        <button
+          onClick={toggleAi}
+          style={{
+            padding: '6px 14px', borderRadius: 8, border: `1.5px solid ${showAi ? '#14b8a6' : '#99f6e4'}`,
+            background: showAi ? '#14b8a6' : '#f0fdfa', color: showAi ? '#fff' : '#0f766e',
+            fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+            transition: 'all 0.15s',
+          }}
+        >
+          🧠 AI Intelligence
+        </button>
       </div>
+
+      {/* ── AI Intelligence Panel ───────────────────────────────────────── */}
+      {showAi && (
+        <div style={{
+          background: '#f0fdfa', border: '1.5px solid #99f6e4', borderRadius: 12,
+          padding: '18px 20px', marginBottom: 18, position: 'relative',
+        }}>
+          {/* Close button */}
+          <button
+            onClick={() => setShowAi(false)}
+            style={{
+              position: 'absolute', top: 10, right: 12, background: 'none', border: 'none',
+              fontSize: 18, color: '#0f766e', cursor: 'pointer', lineHeight: 1,
+            }}
+            title="Close"
+          >×</button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#0f766e' }}>🧠 AI Queue Intelligence</span>
+            {aiLoading && <span style={{ fontSize: 12, color: '#0d9488' }}>Loading…</span>}
+            {!aiLoading && aiData && (
+              <button
+                onClick={() => { setAiData(null); setAiSuggestion(null); toggleAi() }}
+                style={{ marginLeft: 'auto', marginRight: 28, fontSize: 11, color: '#0d9488', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+              >Refresh</button>
+            )}
+          </div>
+
+          {aiLoading && (
+            <div style={{ color: '#0d9488', fontSize: 13, padding: '8px 0' }}>Fetching queue intelligence…</div>
+          )}
+
+          {!aiLoading && aiData && (
+            <>
+              {/* Top Stats Row */}
+              <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                {[
+                  { label: 'Total Open', value: String(aiData.totalOpen), alert: false },
+                  { label: 'Overdue', value: String(aiData.overdue), alert: aiData.overdue > 0 },
+                  { label: 'OOS Open', value: String(aiData.oosOpen), alert: aiData.oosOpen > 0 },
+                  { label: 'Avg TAT (hrs)', value: aiData.avgTatHours != null ? aiData.avgTatHours.toFixed(1) : '—', alert: false },
+                ].map(stat => (
+                  <div key={stat.label} style={{
+                    background: '#fff', border: `1.5px solid ${stat.alert ? '#fca5a5' : '#ccfbf1'}`,
+                    borderRadius: 10, padding: '10px 18px', minWidth: 110, textAlign: 'center',
+                  }}>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: stat.alert ? '#dc2626' : '#0f766e' }}>{stat.value}</div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                {/* Analyst Loads Table */}
+                {aiData.analystLoads.length > 0 && (
+                  <div style={{ flex: '1 1 320px' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                      Analyst Loads
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ background: '#ccfbf1' }}>
+                          {['Analyst', 'Assigned', 'In Progress', 'Overdue'].map(h => (
+                            <th key={h} style={{ padding: '5px 10px', textAlign: 'left', color: '#0f766e', fontWeight: 600, borderBottom: '1px solid #99f6e4' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {aiData.analystLoads.map(al => (
+                          <tr key={al.userId} style={{ borderBottom: '1px solid #e6fffa' }}>
+                            <td style={{ padding: '5px 10px', color: '#111', fontWeight: 500 }}>{al.fullName}</td>
+                            <td style={{ padding: '5px 10px', color: '#374151', textAlign: 'center' }}>{al.assigned}</td>
+                            <td style={{ padding: '5px 10px', color: '#92400e', textAlign: 'center' }}>{al.inProgress}</td>
+                            <td style={{ padding: '5px 10px', textAlign: 'center' }}>
+                              {al.overdue > 0
+                                ? <span style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 8, padding: '1px 7px', fontWeight: 700 }}>{al.overdue}</span>
+                                : <span style={{ color: '#6b7280' }}>0</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Priority Bands */}
+                {aiData.priorityBands.length > 0 && (
+                  <div style={{ flex: '0 0 auto' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                      Priority Bands
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {aiData.priorityBands.map(pb => {
+                        const c = BAND_COLORS[pb.band] ?? { bg: '#f3f4f6', color: '#374151' }
+                        return (
+                          <span key={pb.band} style={{
+                            background: c.bg, color: c.color,
+                            borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 600,
+                            display: 'flex', alignItems: 'center', gap: 6,
+                          }}>
+                            {pb.band}
+                            <span style={{
+                              background: c.color, color: '#fff', borderRadius: '50%',
+                              width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 11, fontWeight: 700,
+                            }}>{pb.count}</span>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Suggested Analyst */}
+              {aiSuggestion && (
+                <div style={{
+                  marginTop: 14, background: '#fff', border: '1.5px solid #a7f3d0',
+                  borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <span style={{ fontSize: 18 }}>💡</span>
+                  <div>
+                    <span style={{ fontWeight: 700, color: '#065f46' }}>Suggested: {aiSuggestion.fullName}</span>
+                    <span style={{ color: '#6b7280', fontSize: 12, marginLeft: 8 }}>(Active: {aiSuggestion.activeCount})</span>
+                    <span style={{ color: '#374151', fontSize: 13, marginLeft: 8 }}>— {aiSuggestion.reason}</span>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       <DataTable loading={loading} data={data} columns={[
         { header: 'Sample No.', accessor: r => (

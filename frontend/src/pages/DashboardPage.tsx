@@ -42,6 +42,11 @@ interface RecentTask {
 interface SamplePipelineItem { status: string; count: number; color: string }
 interface SampleTrendPoint   { date: string; count: number }
 interface OosTrendPoint      { date: string; oosCount: number; totalCount: number; rate: number }
+interface CoaHistoryItem {
+  coaId: number; coaNumber: string; sampleNumber: string; materialName: string
+  status: string; qaDecision: string | null; qaSignedBy: string | null
+  qaSignedAt: string | null; createdAt: string
+}
 
 // SPC interfaces
 interface ParameterDto { parameterId: number; parameterCode: string; parameterName: string; unit?: string }
@@ -213,6 +218,9 @@ export default function DashboardPage() {
   const [spcPoints,   setSpcPoints]   = useState<50 | 100 | 200>(50)
   const [spcData,     setSpcData]     = useState<SpcResult | null>(null)
   const [spcLoading,  setSpcLoading]  = useState(false)
+  // CoA History state
+  const [coaHistory,    setCoaHistory]    = useState<CoaHistoryItem[]>([])
+  const [coaHistLoading, setCoaHistLoading] = useState(false)
   const navigate = useNavigate()
 
   const firstName = fullName?.split(' ')[0] ?? 'there'
@@ -275,6 +283,16 @@ export default function DashboardPage() {
       setSpcData(r.data ?? null)
     }).catch(() => { setSpcData(null) }).finally(() => setSpcLoading(false))
   }, [spcParamId, spcPoints])
+
+  // Lazy-load CoA history when compliance tab opens
+  useEffect(() => {
+    if (tab !== 'compliance') return
+    if (coaHistory.length > 0) return
+    setCoaHistLoading(true)
+    api.get('/dashboard/coa-history').then(r => {
+      setCoaHistory(Array.isArray(r.data) ? r.data : [])
+    }).catch(() => {}).finally(() => setCoaHistLoading(false))
+  }, [tab])
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'overview',    label: 'Overview',     icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -905,6 +923,79 @@ export default function DashboardPage() {
                 {s}
               </div>
             ))}
+          </div>
+
+          {/* ── CoA History ── */}
+          <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12, padding: 20, marginTop: 20 }}>
+            <SectionHead title="CoA History" />
+            {coaHistLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#80868b', fontSize: 13, padding: '20px 0' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 0.8s linear infinite' }}>
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                </svg>
+                Loading CoA history…
+              </div>
+            ) : coaHistory.length === 0 ? (
+              <div style={{ color: '#80868b', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>No CoA records yet</div>
+            ) : (
+              <>
+                {/* Status distribution bar chart */}
+                <div style={{ marginBottom: 24 }}>
+                  <p style={{ margin: '0 0 10px', fontSize: 12, fontWeight: 700, color: '#5f6368', textTransform: 'uppercase', letterSpacing: '0.06em' }}>CoA Status Distribution</p>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={Object.entries(
+                      coaHistory.reduce<Record<string, number>>((acc, item) => {
+                        acc[item.status] = (acc[item.status] ?? 0) + 1
+                        return acc
+                      }, {})
+                    ).map(([status, count]) => ({ status, count }))}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f3f4" />
+                      <XAxis dataKey="status" tick={{ fontSize: 12 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="#0d6e6e" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Recent CoA table */}
+                <p style={{ margin: '0 0 10px', fontSize: 12, fontWeight: 700, color: '#5f6368', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Recent CoAs (last 10)</p>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr>
+                        <th style={th}>CoA No.</th>
+                        <th style={th}>Sample No.</th>
+                        <th style={th}>Material</th>
+                        <th style={th}>Status</th>
+                        <th style={th}>QA Decision</th>
+                        <th style={th}>QA Signed By</th>
+                        <th style={th}>Created At</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {coaHistory.slice(0, 10).map((item, i) => (
+                        <tr key={item.coaId} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                          <td style={td}>{item.coaNumber}</td>
+                          <td style={td}>{item.sampleNumber}</td>
+                          <td style={td}>{item.materialName}</td>
+                          <td style={td}>
+                            <span style={{
+                              fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 20,
+                              background: item.status === 'Released' ? '#d1fae5' : item.status === 'Rejected' ? '#fee2e2' : '#f1f5f9',
+                              color:      item.status === 'Released' ? '#065f46' : item.status === 'Rejected' ? '#991b1b' : '#374151',
+                            }}>{item.status}</span>
+                          </td>
+                          <td style={td}>{item.qaDecision ?? '—'}</td>
+                          <td style={td}>{item.qaSignedBy ?? '—'}</td>
+                          <td style={td}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         </>
       )}
