@@ -115,7 +115,7 @@ export default function TestMethodsPage() {
         </Modal>
       )}
       {showApprove && (
-        <Modal title="E-Signature Approval (§11.50)" onClose={() => setShowApprove(null)}>
+        <Modal title="E-Signature Approval" onClose={() => setShowApprove(null)}>
           <form onSubmit={submitApprove}>
             <Field label="Password (re-enter)"><input style={inp} type="password" value={approveForm.password} onChange={e => setApproveForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={approveForm.meaning} onChange={e => setApproveForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>

@@ -200,7 +200,7 @@ export default function FormTemplatesPage() {
 
       {/* ── E-Signature Approval modal ── */}
       {showApprove && (
-        <Modal title="E-Signature Approval (§11.50)" onClose={() => setShowApprove(null)}>
+        <Modal title="E-Signature Approval" onClose={() => setShowApprove(null)}>
           <form onSubmit={submitApprove}>
             <Field label="Password (re-enter)">
               <input style={inp} type="password" value={approveForm.password} onChange={e => setApproveForm(f => ({ ...f, password: e.target.value }))} required />
