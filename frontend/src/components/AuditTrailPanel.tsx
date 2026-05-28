@@ -84,7 +84,7 @@ export default function AuditTrailPanel({ entity, entityId, entityLabel, onClose
             <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
               <span style={{ fontWeight: 600, color: '#374151' }}>{entity}</span> · {entityLabel}
             </p>
-            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>21 CFR Part 11 §11.10(e) — immutable record</p>
+            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#94a3b8' }}>21 CFR Part 11 — immutable record</p>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af', padding: '2px 6px', lineHeight: 1 }}>×</button>
         </div>

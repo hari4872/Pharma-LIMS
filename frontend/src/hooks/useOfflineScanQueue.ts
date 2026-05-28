@@ -81,7 +81,7 @@ export function useOfflineScanQueue() {
       queue.push({ checkpointId, queuedAt: new Date().toISOString() })
       writeQueue(queue)
       setPendingCount(queue.length)
-      alert('You are offline — scan queued. It will sync automatically when you reconnect (Annex 11 §4.3).')
+      alert('You are offline — scan queued. It will sync automatically when you reconnect.')
       return
     }
 

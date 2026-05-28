@@ -84,7 +84,7 @@ export default function ResultsReviewPage() {
             </div>
           )}
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            21 CFR §11.50 — {showReview.type === 'peer' ? 'You must not be the original analyst.' : 'You must be different from both the analyst and peer reviewer.'}
+            21 CFR Part 11 — {showReview.type === 'peer' ? 'You must not be the original analyst.' : 'You must be different from both the analyst and peer reviewer.'}
             Your full name, timestamp UTC, meaning, and reason will be immutably recorded.
           </p>
           <form onSubmit={submitReview}>

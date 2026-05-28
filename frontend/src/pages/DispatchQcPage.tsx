@@ -111,7 +111,7 @@ export default function DispatchQcPage() {
         </button>
       </div>
       <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-        GMP — Dispatch QC triggered by Delivery Order. BLOCKED = OOS open. CLEARED = QA §11.50 approved. Full traceability: DO → Sample → Test → CoA.
+        GMP — Dispatch QC triggered by Delivery Order. BLOCKED = OOS open. CLEARED = QA e-signature approved. Full traceability: DO → Sample → Test → CoA.
       </p>
 
       {view === 'tasks' && (
@@ -177,7 +177,7 @@ export default function DispatchQcPage() {
       {showApprove && (
         <Modal title={`QA Approve Dispatch QC — ${showApprove.doNumber}`} onClose={() => setShowApprove(null)}>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            21 CFR §11.50 — QA e-signature required. CLEARED status set server-side by DispatchStatusService (Contract 1).
+            QA e-signature required (21 CFR Part 11). CLEARED status set server-side by DispatchStatusService (Contract 1).
             No role can set CLEARED manually.
           </p>
           <form onSubmit={submitApprove}>

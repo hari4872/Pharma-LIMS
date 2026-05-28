@@ -339,7 +339,7 @@ export default function DigitalLogbookPage() {
       {amendEntry && (
         <Modal title="Amend Entry" onClose={() => setAmendEntry(null)}>
           <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
-            21 CFR §11.10(e) — Original preserved as Superseded. New entry created as Pending.
+            21 CFR Part 11 — Original preserved as Superseded. New entry created as Pending.
             E-signature re-authentication required.
           </p>
           <div style={{ padding: '8px 12px', background: '#f9fafb', borderRadius: 6, marginBottom: 14, fontSize: 12, color: '#374151' }}>

@@ -159,7 +159,7 @@ export default function TestExecutionPage() {
       {showSignOff && (
         <Modal title="Analyst Sign-Off — Step 7" onClose={() => setShowSignOff(false)}>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            21 CFR §11.50 — Your full name, timestamp UTC, meaning, and reason will be captured and immutably recorded.
+            Your full name, timestamp UTC, meaning, and reason will be captured and immutably recorded (21 CFR Part 11).
             Logbook rows created atomically. {hasOos && <strong style={{ color: '#dc2626' }}>OOS investigations will be auto-raised.</strong>}
           </p>
           <form onSubmit={submitSignOff}>

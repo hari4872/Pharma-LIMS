@@ -296,7 +296,7 @@ export default function CompliancePanelPage() {
             </table>
           </div>
           {showReviewForm && (
-            <Modal title="Record Validation Review (EU Annex 11 §12.4)" onClose={() => setShowReviewForm(false)}>
+            <Modal title="Record Validation Review" onClose={() => setShowReviewForm(false)}>
               <form onSubmit={submitReview}>
                 <Field label="Review Type">
                   <select style={inp} value={reviewForm.reviewType} onChange={e => setReviewForm(f => ({ ...f, reviewType: e.target.value }))}>
@@ -311,7 +311,7 @@ export default function CompliancePanelPage() {
                 <Field label="Notes (optional)">
                   <textarea style={{ ...inp, height: 72, resize: 'vertical' }} value={reviewForm.notes} onChange={e => setReviewForm(f => ({ ...f, notes: e.target.value }))} />
                 </Field>
-                <p style={{ fontSize: 12, color: '#6b7280', margin: '12px 0 0', fontWeight: 500 }}>21 CFR §11.50 Electronic Signature</p>
+                <p style={{ fontSize: 12, color: '#6b7280', margin: '12px 0 0', fontWeight: 500 }}>Electronic Signature (21 CFR Part 11)</p>
                 <Field label="Password (re-enter)"><input style={inp} type="password" value={reviewForm.password} onChange={e => setReviewForm(f => ({ ...f, password: e.target.value }))} required /></Field>
                 <Field label="Meaning"><input style={inp} value={reviewForm.meaning} onChange={e => setReviewForm(f => ({ ...f, meaning: e.target.value }))} required placeholder="e.g. Periodic re-validation approval" /></Field>
                 <Field label="Reason"><input style={inp} value={reviewForm.reason} onChange={e => setReviewForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Annual review cycle completed" /></Field>
@@ -328,7 +328,7 @@ export default function CompliancePanelPage() {
         <>
           {ftPending.length > 0 && (
             <div style={{ padding: '10px 14px', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 6, marginBottom: 16, fontSize: 13, color: '#92400e' }}>
-              ⚠️ {ftPending.length} form template(s) have been in Draft/UnderReview status — QA review required (EU Annex 11 §10)
+              ⚠️ {ftPending.length} form template(s) have been in Draft/UnderReview status — QA review required
             </div>
           )}
           <div style={{ overflowX: 'auto' }}>

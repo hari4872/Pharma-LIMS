@@ -326,7 +326,7 @@ export default function InstrumentsPage() {
       {showRtsForm && selectedBreakdownId && (
         <Modal title={`Return to Service — Breakdown #${selectedBreakdownId}`} onClose={() => setShowRtsForm(false)}>
           <p style={{ color: '#6b7280', fontSize: 13, margin: '0 0 16px' }}>
-            ⚠️ This action marks the instrument as Available and triggers OOC impact assessment on all logbook entries during the breakdown window. 21 CFR §11.50 e-signature required.
+            ⚠️ This action marks the instrument as Available and triggers OOC impact assessment on all logbook entries during the breakdown window. E-signature required (21 CFR Part 11).
           </p>
           <form onSubmit={submitRts}>
             <Field label="Password (re-enter)"><input style={inp} type="password" value={rtsForm.password} onChange={e => setRtsForm(f => ({ ...f, password: e.target.value }))} required /></Field>

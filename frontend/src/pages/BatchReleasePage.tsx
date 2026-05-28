@@ -110,7 +110,7 @@ export default function BatchReleasePage() {
       <div style={{ marginBottom: 16 }}>
         <PageHeader title="Batch Release (21 CFR 211.192)" onAdd={openInitiate} addLabel="Initiate Review" />
         <p style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 0' }}>
-          QA reviews each batch before release — automated checklist + §11.50 e-signature required
+          QA reviews each batch before release — automated checklist + e-signature required
         </p>
       </div>
 
@@ -226,7 +226,7 @@ export default function BatchReleasePage() {
           <form onSubmit={submitDecide}>
             <div style={{ padding: '10px 14px', background: '#fef3c7', borderRadius: 8, marginBottom: 14, border: '1px solid #fde68a' }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>⚖ 21 CFR 211.192 Compliance</div>
-              <div style={{ fontSize: 11, color: '#78350f', marginTop: 3 }}>This decision is final and §11.50 e-signature verified. The action will be permanently audit-logged.</div>
+              <div style={{ fontSize: 11, color: '#78350f', marginTop: 3 }}>This decision is final and e-signature verified. The action will be permanently audit-logged.</div>
             </div>
             <Field label="Decision *">
               <select style={{ ...inp, fontWeight: 700 }} value={decideForm.decision} onChange={e => setDecideForm(f => ({ ...f, decision: e.target.value }))}>
@@ -243,7 +243,7 @@ export default function BatchReleasePage() {
                 required />
             </Field>
             <div style={{ marginTop: 14, padding: '12px 14px', background: '#f0fdfa', borderRadius: 8, border: '1px solid #99f6e4' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#0d6e6e', marginBottom: 8 }}>🔐 Electronic Signature (§11.50)</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#0d6e6e', marginBottom: 8 }}>🔐 Electronic Signature</div>
               <Field label="Your Password *">
                 <input type="password" style={inp} value={decideForm.password} onChange={e => setDecideForm(f => ({ ...f, password: e.target.value }))} required />
               </Field>

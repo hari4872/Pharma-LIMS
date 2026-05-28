@@ -70,7 +70,7 @@ export default function TraceabilityPage() {
       <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Traceability</h1>
       <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>
         Bidirectional graph: upstream (lot, sampling event, analyst, instrument) ↔ central sample ↔ downstream (CoA, complaints/deviations).
-        Every query logged INSERT-only (21 CFR §11.10(e)).
+        Every query logged INSERT-only (21 CFR Part 11).
       </p>
 
       {/* Sample Graph Search */}

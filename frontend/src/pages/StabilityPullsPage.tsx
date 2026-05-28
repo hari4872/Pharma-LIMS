@@ -133,7 +133,7 @@ export default function StabilityPullsPage() {
                 </p>
               </Field>
             )}
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginTop: 16, marginBottom: 4 }}>E-Signature (§11.50)</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginTop: 16, marginBottom: 4 }}>E-Signature</p>
             <Field label="Password (re-enter)">
               <input style={inp} type="password" value={execForm.password} onChange={e => setExecForm(f => ({ ...f, password: e.target.value }))} required />
             </Field>

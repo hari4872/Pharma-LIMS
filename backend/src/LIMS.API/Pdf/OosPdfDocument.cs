@@ -42,7 +42,7 @@ public class OosPdfDocument : IDocument
     {
         Title   = $"OOS Investigation Report — {_d.SampleNumber} / {_d.ParameterName}",
         Author  = _d.ClosedByName ?? _d.CreatedBy,
-        Subject = $"21 CFR §211.192 OOS Investigation — {_d.FlagType}",
+        Subject = $"21 CFR 211.192 OOS Investigation — {_d.FlagType}",
         Keywords = "OOS, Investigation, 21 CFR Part 11, Pharma LIMS",
     };
 
@@ -75,7 +75,7 @@ public class OosPdfDocument : IDocument
                     inner.Item().Text($"{_d.FlagType} INVESTIGATION REPORT")
                         .FontSize(18).Bold().FontColor("#0f172a");
                     inner.Item().PaddingTop(2)
-                        .Text("Pharma LIMS — FDA OOS Guidance (2006) · 21 CFR §211.192")
+                        .Text("Pharma LIMS — FDA OOS Guidance (2006) · 21 CFR 211.192")
                         .FontSize(9).FontColor("#6b7280");
                 });
                 row.ConstantItem(130).AlignRight().Column(inner =>
@@ -193,7 +193,7 @@ public class OosPdfDocument : IDocument
             // ── Section 4: E-Signature ────────────────────────────────────
             if (_d.Status == "Closed" && _d.ClosedByName != null)
             {
-                col.SectionBox("4. ELECTRONIC SIGNATURE (21 CFR §11.50)", "#0369a1", col2 =>
+                col.SectionBox("4. ELECTRONIC SIGNATURE (21 CFR Part 11)", "#0369a1", col2 =>
                 {
                     col2.Item().Table(t =>
                     {
@@ -231,10 +231,10 @@ public class OosPdfDocument : IDocument
             {
                 note.Item().Text("REGULATORY BASIS").FontSize(8).Bold().FontColor("#854d0e");
                 note.Item().PaddingTop(4).Text(
-                    "This investigation follows FDA OOS Guidance (2006), 21 CFR §211.192 " +
+                    "This investigation follows FDA OOS Guidance (2006), 21 CFR 211.192 " +
                     "(Laboratory Controls — Investigation of Discrepancies), and 21 CFR Part 11. " +
                     "Phase 1: laboratory investigation. Phase 2: full manufacturing review. " +
-                    "All records are INSERT-only with immutable audit trail (§11.10(e)).")
+                    "All records are INSERT-only with immutable audit trail (21 CFR 11.10(e)).")
                     .FontSize(8).FontColor("#854d0e");
             });
         });

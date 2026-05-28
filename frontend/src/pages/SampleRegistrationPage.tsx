@@ -159,7 +159,7 @@ export default function SampleRegistrationPage() {
       loadContainers(containerSample!.sampleId)
     } catch (err: any) {
       const msg = err.response?.data?.message ?? 'Destroy failed'
-      if (err.response?.data?.error === 'ESIGN_AUTH_FAILED') setDestroyError('Password incorrect (21 CFR §11.300)')
+      if (err.response?.data?.error === 'ESIGN_AUTH_FAILED') setDestroyError('Password incorrect (21 CFR Part 11)')
       else setDestroyError(msg)
     }
   }
@@ -808,7 +808,7 @@ export default function SampleRegistrationPage() {
       {showSRF && (
         <Modal title="Sign Sample Registration Form" onClose={() => setShowSRF(null)}>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            21 CFR §11.50 — Your full name, timestamp, meaning, and reason will be captured and immutably recorded.
+            Your full name, timestamp, meaning, and reason will be captured and immutably recorded (21 CFR Part 11).
           </p>
           <form onSubmit={submitSRF}>
             <Field label="Password (re-enter)">

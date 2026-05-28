@@ -122,7 +122,7 @@ export default function OosInvestigationsPage() {
             <Field label="CAPA Reference">
               <input style={inp} value={closeForm.capaRef} onChange={e => setCloseForm(f => ({ ...f, capaRef: e.target.value }))} placeholder="e.g. CAPA-2026-005" />
             </Field>
-            <Field label="Password (re-enter §11.50)"><input style={inp} type="password" value={closeForm.password} onChange={e => setCloseForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+            <Field label="Password (re-enter)"><input style={inp} type="password" value={closeForm.password} onChange={e => setCloseForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={closeForm.meaning} onChange={e => setCloseForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={closeForm.reason} onChange={e => setCloseForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Phase 1 investigation complete, root cause identified" /></Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}

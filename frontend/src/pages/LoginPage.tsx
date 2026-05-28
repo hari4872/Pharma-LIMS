@@ -306,7 +306,7 @@ export default function LoginPage() {
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20 }}>
               <div>
                 <h3 style={{ margin:'0 0 4px', fontSize:17, fontWeight:700, color:'#0a2e2b' }}>Password Reset</h3>
-                <p style={{ margin:0, fontSize:12.5, color:'#64748b' }}>Administrator-authorised — 21 CFR §11.300</p>
+                <p style={{ margin:0, fontSize:12.5, color:'#64748b' }}>Administrator-authorised — 21 CFR Part 11</p>
               </div>
               <button onClick={() => setShowForgot(false)}
                 style={{ background:'#f1f5f9', border:'none', width:30, height:30, borderRadius:7, fontSize:17, cursor:'pointer', color:'#64748b', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Plus Jakarta Sans, sans-serif' }}>×</button>

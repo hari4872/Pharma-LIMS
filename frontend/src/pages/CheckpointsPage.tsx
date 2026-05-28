@@ -231,7 +231,7 @@ export default function CheckpointsPage() {
             </strong>
             {pendingCount > 0 && (
               <span style={{ fontSize: 12, color: '#374151', marginLeft: 8 }}>
-                {pendingCount} scan{pendingCount > 1 ? 's' : ''} pending sync (Annex 11 §4.3)
+                {pendingCount} scan{pendingCount > 1 ? 's' : ''} pending sync
               </span>
             )}
           </div>

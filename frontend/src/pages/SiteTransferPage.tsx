@@ -125,7 +125,7 @@ export default function SiteTransferPage() {
             🔄 Inter-site Sample Transfers
           </h2>
           <p style={{ margin: '2px 0 0', fontSize: 13, color: '#6b7280' }}>
-            Chain-of-custody tracked · 21 CFR §211.186 compliant
+            Chain-of-custody tracked · 21 CFR 211.186 compliant
           </p>
         </div>
         <button onClick={() => { setInitForm({ sampleId: '', toLabId: '', transferReason: '', chainOfCustodyNote: '' }); setInitError(''); setShowInitiate(true) }}

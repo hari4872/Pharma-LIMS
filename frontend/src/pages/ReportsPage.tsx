@@ -26,7 +26,7 @@ const REPORTS = [
   {
     id: 'audit-trail' as ReportType,
     title: 'Audit Trail',
-    desc: '21 CFR §11.10(e) compliant audit log — all create/update/approve/retire events',
+    desc: '21 CFR Part 11 compliant audit log — all create/update/approve/retire events',
     icon: '🔍',
     color: '#b45309',
     bg: '#fef3c7',
@@ -101,7 +101,7 @@ export default function ReportsPage() {
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: 0 }}>Reports & Exports</h2>
         <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>
-          Download Excel reports for samples, results, and audit trail (21 CFR §11.10(e) compliant)
+          Download Excel reports for samples, results, and audit trail (21 CFR Part 11 compliant)
         </p>
       </div>
 

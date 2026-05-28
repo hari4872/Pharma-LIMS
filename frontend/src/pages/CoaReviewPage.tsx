@@ -162,7 +162,7 @@ export default function CoaReviewPage() {
     </table>
     <div class="footer">
       <span>Pharma-LIMS — ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-      <span>21 CFR Part 11 §11.50 Electronic Signature</span>
+      <span>21 CFR Part 11 Electronic Signature</span>
     </div>
     </body></html>`)
     win.document.close()
@@ -184,7 +184,7 @@ export default function CoaReviewPage() {
         </select>
       </div>
       <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-        21 CFR 211.194 — QA 10-item checklist must pass before approval. PDF locked server-side atomically on QA §11.50 e-sig.
+        21 CFR 211.194 — QA 10-item checklist must pass before approval. PDF locked server-side atomically on QA e-signature.
       </p>
 
       <DataTable loading={loading} data={data} exportFilename="CoA_Review" columns={[
@@ -308,7 +308,7 @@ export default function CoaReviewPage() {
       {showApprove && selected && (
         <Modal title="Approve CoA — E-Signature" onClose={() => setShowApprove(false)}>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            This will lock the CoA PDF atomically and release the sample. All 3 e-signatures embedded in locked PDF (21 CFR §11.50).
+            This will lock the CoA PDF atomically and release the sample. All 3 e-signatures embedded in locked PDF (21 CFR Part 11).
           </p>
           <form onSubmit={submitApprove}>
             <Field label="Password (re-enter)"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
@@ -324,7 +324,7 @@ export default function CoaReviewPage() {
       {showReject && selected && (
         <Modal title="Reject CoA — E-Signature" onClose={() => setShowReject(false)}>
           <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', borderRadius: 6, fontSize: 13, color: '#991b1b' }}>
-            ⚠ Rejection is permanent and immutable (EU Annex 11 §13). Justification is mandatory.
+            ⚠ Rejection is permanent and immutable. Justification is mandatory.
           </div>
           <form onSubmit={submitReject}>
             <Field label="Justification (mandatory)">

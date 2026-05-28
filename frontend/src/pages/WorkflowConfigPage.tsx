@@ -441,7 +441,7 @@ export default function WorkflowConfigPage() {
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#374151' }}>
                 <input type="checkbox" checked={stepForm.requiresESignature}
                   onChange={e => setStepForm(f => ({ ...f, requiresESignature: e.target.checked }))} style={{ accentColor: '#0d6e6e' }} />
-                Requires E-Signature (§11.50)
+                Requires E-Signature
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#374151' }}>
                 <input type="checkbox" checked={stepForm.isOptional}
