@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Pharma LIMS — Manual Validation Guide v2 (2026-05-28)</title>
+<title>Pharma LIMS — Manual Validation Guide v3 (2026-05-28)</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f8;color:#0f172a;padding:28px}
@@ -111,7 +111,7 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
 <body>
 
 <h1>🧪 Pharma LIMS — Manual Validation Guide</h1>
-<p class="subtitle">v2 · Updated 2026-05-28 · Step-by-step validation for all features. Check each step as you complete it.</p>
+<p class="subtitle">v3 · Updated 2026-05-28 · Step-by-step validation for all features. Check each step as you complete it.</p>
 
 <!-- Credentials -->
 <div class="creds">
@@ -178,7 +178,7 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
   <div class="section-header" onclick="toggle('sec-2')">
     <div class="sec-num" style="background:#d97706">2</div>
     <div class="sec-title">⚙️ Settings Page (Master Data)</div>
-    <div class="sec-meta"><span id="cnt-sec-2">0/5</span> steps</div>
+    <div class="sec-meta"><span id="cnt-sec-2">0/6</span> steps</div>
     <div class="sec-arrow" id="arr-sec-2">▼</div>
   </div>
   <div class="steps" id="body-sec-2" style="display:none">
@@ -228,6 +228,19 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
         <div class="step-title">Add a new user (Users &amp; Training tab)</div>
         <div class="step-desc">Click <strong>👥 Users &amp; Training</strong> → <strong>Users</strong> sub-tab. Click <strong>Add User</strong>. Fill: Full Name = <code>Test Analyst</code>, Username = <code>analyst1</code>, Password = <code>Analyst@123</code>, Role = <code>Analyst</code>. Save.</div>
         <div class="step-expect">✅ Expect: New user appears in the table. No page navigation — stays on Settings page.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Form Templates — Manage Parameters &amp; Locations <span class="badge" style="background:#ede9fe;color:#5b21b6">New — v3</span></div>
+        <div class="step-desc">Go to <strong>Settings → Methods &amp; Specs → Form Templates</strong>. Find any template row. Click the purple <strong>⚙ Manage</strong> button.</div>
+        <div class="step-expect">✅ Expect: "Manage" modal opens with two tabs: <strong>Parameters</strong> and <strong>Locations</strong>.<br/>
+          • Parameters tab: dropdown lists all unlinked parameters — select one, click Add — it appears in the linked table with Code / Name / UOM / Remove button.<br/>
+          • Locations tab: dropdown lists unlinked storage locations — select one, click Add — appears in table with Code / Name / Remove button.<br/>
+          • Each Add/Remove is immediate (no save button). Linked counts in the main template table update after closing the modal.</div>
+        <div class="step-warn">⚠ If the Parameters or Locations dropdown is empty, no unlinked records exist — all have already been assigned to this template.</div>
       </div>
     </div>
 
@@ -323,7 +336,7 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
   <div class="section-header" onclick="toggle('sec-4')">
     <div class="sec-num" style="background:#64748b">4</div>
     <div class="sec-title">Work Queue &amp; Test Execution</div>
-    <div class="sec-meta"><span id="cnt-sec-4">0/5</span> steps</div>
+    <div class="sec-meta"><span id="cnt-sec-4">0/6</span> steps</div>
     <div class="sec-arrow" id="arr-sec-4">▼</div>
   </div>
   <div class="steps" id="body-sec-4" style="display:none">
@@ -334,6 +347,21 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
         <div class="step-title">Open Work Queue</div>
         <div class="step-desc">Click <strong>Work Queue</strong> in the sidebar.</div>
         <div class="step-expect">✅ Expect: List of test executions. Status filter (Assigned, InProgress, Completed, OnHold). Priority score column visible. AI-suggested instrument column.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">AI Queue Intelligence panel <span class="badge" style="background:#f0fdfa;color:#0d6e6e">New — v3</span></div>
+        <div class="step-desc">On the Work Queue page, click the teal <strong>🧠 AI Intelligence</strong> toggle button (right of the status filter dropdown).</div>
+        <div class="step-expect">✅ Expect: Teal panel expands below the header row showing:<br/>
+          • Stats row — Total Open, Overdue (red badge if &gt;0), OOS Open (red badge if &gt;0), Avg TAT hrs<br/>
+          • Analyst Loads table — columns: Analyst | Assigned | In Progress | Overdue<br/>
+          • Priority Bands — pill badges: Critical (red), High (amber), Medium (blue), Low (grey)<br/>
+          • 💡 Suggested Analyst card — name, active count, reason<br/>
+          Click panel again or × to dismiss. <strong>Refresh</strong> link re-fetches live data.</div>
+        <div class="step-warn">⚠ If panel shows empty data: no test executions exist yet — complete Section 3 (register samples) and assign tasks first.</div>
       </div>
     </div>
 
@@ -812,7 +840,9 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
       <div class="step-body">
         <div class="step-title">Dashboard — Compliance tab</div>
         <div class="step-desc">Click the <strong>Compliance</strong> tab on the dashboard.</div>
-        <div class="step-expect">✅ Expect: Compliance KPI cards (Total Audit Events, Open OOS, Closed OOS, E-Signatures, System Status). Compliance badges row showing: 21 CFR Part 11, EU GMP Annex 11, ISO 17025, ALCOA+, GAMP 5, ICH Q1A.</div>
+        <div class="step-expect">✅ Expect: Compliance KPI cards (Total Audit Events, Open OOS, Closed OOS, E-Signatures, System Status). Compliance badges row showing: 21 CFR Part 11, EU GMP Annex 11, ISO 17025, ALCOA+, GAMP 5, ICH Q1A.<br/><br/>
+          <strong>CoA History chart (New — v3):</strong> Below the compliance badges, a <strong>CoA History</strong> section loads (lazy — appears a moment after the tab opens). Shows a bar chart of CoA status distribution (Draft / Issued / Released / Superseded counts) and a table of the 10 most recent CoAs with columns: CoA No. | Sample No. | Material | Status | QA Decision | Signed By | Created At.<br/>
+          If no CoAs exist yet — shows "No CoA records yet" placeholder.</div>
       </div>
     </div>
 
@@ -834,7 +864,7 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
   <div class="section-header" onclick="toggle('sec-14')">
     <div class="sec-num" style="background:#0284c7">14</div>
     <div class="sec-title">Inventory &amp; Traceability</div>
-    <div class="sec-meta"><span id="cnt-sec-14">0/4</span> steps</div>
+    <div class="sec-meta"><span id="cnt-sec-14">0/5</span> steps</div>
     <div class="sec-arrow" id="arr-sec-14">▼</div>
   </div>
   <div class="steps" id="body-sec-14" style="display:none">
@@ -845,6 +875,27 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
         <div class="step-title">Traceability search</div>
         <div class="step-desc">Click <strong>Traceability</strong>. Search by sample number (e.g. SAMP-2026-001) or lot number (e.g. LOT-TEST-VALID-001).</div>
         <div class="step-expect">✅ Expect: Full trace tree — sample → test executions → logbook entries → CoA → batch release. All linked records visible. Recall scope query also works (search by lot for mock recall).</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Log a Complaint or Deviation (Traceability page) <span class="badge" style="background:#fff1f2;color:#9f1239">New — v3</span></div>
+        <div class="step-desc">Scroll to the bottom of the Traceability page. Find the <strong>Complaints &amp; Deviations (21 CFR Part 11)</strong> section. Fill in:<br/>
+          • Sample ID = <code>1</code> (or any valid sample ID from the table above)<br/>
+          • CD Type = <strong>Complaint</strong><br/>
+          • Reference = <code>CD-2026-001</code><br/>
+          • Description = <code>Customer reported tablet discolouration</code> (optional)<br/>
+          Click <strong>Log Complaint / Deviation</strong>.
+        </div>
+        <div class="step-expect">✅ Expect: Green success card appears showing:<br/>
+          • CD ID (auto-generated number)<br/>
+          • Type: Complaint<br/>
+          • Reference: CD-2026-001<br/>
+          • Status: Open<br/>
+          A <strong>Close Record #N</strong> button also appears. Click it — status changes to Closed and the card clears. The complaint/deviation is now linked to the sample in the traceability graph (ComplaintsDeviation node in downstream).</div>
+        <div class="step-warn">⚠ If "Sample ID not found" error: use an integer ID visible in the Sample Graph Search above (e.g. enter a sample ID from the URL of a sample). Requestor fields and Reference are required.</div>
       </div>
     </div>
 
@@ -863,7 +914,7 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
         <div class="step-title">Stability Study page</div>
         <div class="step-desc">Navigate to <code>/stability-study</code>. Select a stability protocol and parameter.</div>
         <div class="step-expect">✅ Expect: Stability trend chart renders. ICH compliance indicators visible.</div>
-        <div class="step-err">⚠ Known API path issue: the Stability Study page may show "No data" for trend/ICH compliance queries — the frontend calls <code>/stability-trends/{id}</code> but the correct backend path is <code>/stability-protocols/{id}</code> (tracked in Audit Gaps panel below). This is a known bug to be fixed.</div>
+        <div class="step-expect">✅ Fixed in v3: API route corrected from <code>/stability-trends/{id}</code> to <code>/stability-protocols/{id}/trend</code> and ICH compliance from <code>/stability-trends/{id}/ich-compliance</code> to <code>/stability-protocols/{id}/ich-compliance</code>. Trend chart and ICH compliance indicators should now render correctly.</div>
       </div>
     </div>
 
@@ -884,7 +935,7 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
   <div class="section-header" onclick="toggle('sec-15')">
     <div class="sec-num" style="background:#475569">15</div>
     <div class="sec-title">Sidebar UX &amp; Global Features</div>
-    <div class="sec-meta"><span id="cnt-sec-15">0/4</span> steps</div>
+    <div class="sec-meta"><span id="cnt-sec-15">0/5</span> steps</div>
     <div class="sec-arrow" id="arr-sec-15">▼</div>
   </div>
   <div class="steps" id="body-sec-15" style="display:none">
@@ -904,6 +955,19 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
         <div class="step-title">Command palette</div>
         <div class="step-desc">Press <code>Ctrl+K</code> (or click the Search button in the header).</div>
         <div class="step-expect">✅ Expect: Command palette modal opens. Type "batch" — Batch Release option appears. Press Enter or click to navigate. Esc closes it.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-cb" onclick="tick(this)"></div>
+      <div class="step-body">
+        <div class="step-title">Aria AI Lab Assistant (chatbot) <span class="badge" style="background:#f0fdfa;color:#0d6e6e">New — v3</span></div>
+        <div class="step-desc">Look for the teal star ✦ floating action button (FAB) in the bottom-right corner of any page.</div>
+        <div class="step-expect">✅ Expect: Click the FAB — "Aria" panel opens. Two tabs:<br/>
+          <strong>⚡ Quick tab:</strong> 6 quick-action chips — "What needs my attention?", "Pending approvals", "Sample status", "Equipment availability", "Overdue tasks", "Out-of-spec results". Click one — AI returns a live snapshot of the lab state. Relevant module links (e.g. "→ OOS Investigations") appear below the result.<br/>
+          <strong>💬 Chat tab:</strong> Free-text chat. Type "How many open OOS investigations do we have?" — Aria responds using Groq LLM with real lab data context. Module navigation chips appear in replies when modules are mentioned.<br/>
+          Panel is dismissible with ×. Ctrl+K shortcut badge visible in the header.</div>
+        <div class="step-warn">⚠ If chat returns "AI service unavailable": the Groq API key may have expired or have no credits — check server environment variables.</div>
       </div>
     </div>
 
@@ -966,59 +1030,59 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
     </tr>
 
     <tr>
-      <td><span class="tag-missing">MISSING</span></td>
+      <td><span class="tag-new">DONE</span></td>
       <td>Digital Logbook export endpoint exists on backend but no frontend button</td>
       <td>No button on DigitalLogbookPage</td>
       <td><code>GET /digital-logbook/export</code></td>
-      <td style="color:#d97706;font-weight:700">Medium</td>
+      <td><span style="color:#16a34a;font-weight:700">✓ Done</span></td>
     </tr>
 
     <tr>
-      <td><span class="tag-missing">MISSING</span></td>
+      <td><span class="tag-new">DONE</span></td>
       <td>CoA Generate and CoA Reissue endpoints have no frontend trigger</td>
       <td>CoaReviewPage (no generate/reissue buttons)</td>
       <td><code>POST /coas/generate</code><br/><code>POST /coas/{id}/reissue</code></td>
-      <td style="color:#d97706;font-weight:700">Medium</td>
+      <td><span style="color:#16a34a;font-weight:700">✓ Done</span></td>
     </tr>
 
     <tr>
-      <td><span class="tag-missing">MISSING</span></td>
+      <td><span class="tag-new">DONE</span></td>
       <td>Chatbot endpoints built but no frontend page/button</td>
       <td>No ChatbotPage in App.tsx routes</td>
       <td><code>POST /chatbot/quick</code><br/><code>POST /chatbot/message</code></td>
-      <td style="color:#9ca3af;font-weight:700">Low</td>
+      <td><span style="color:#16a34a;font-weight:700">✓ Done</span></td>
     </tr>
 
     <tr>
-      <td><span class="tag-missing">MISSING</span></td>
+      <td><span class="tag-new">DONE</span></td>
       <td>AI queue intelligence / analyst suggestion endpoints not wired in Work Queue UI</td>
       <td>WorkQueuePage (no AI suggest button shown)</td>
       <td><code>GET /test-executions/queue-intelligence</code><br/><code>GET /test-executions/suggest-analyst</code></td>
-      <td style="color:#9ca3af;font-weight:700">Low</td>
+      <td><span style="color:#16a34a;font-weight:700">✓ Done</span></td>
     </tr>
 
     <tr>
-      <td><span class="tag-missing">MISSING</span></td>
+      <td><span class="tag-new">DONE</span></td>
       <td>Form Template parameter/location management endpoints not called from FormTemplatesPage</td>
       <td>FormTemplatesPage uses <code>PUT {id}/fields</code> only</td>
       <td><code>POST {id}/parameters</code><br/><code>DELETE {id}/parameters/{pid}</code><br/><code>POST {id}/locations</code></td>
-      <td style="color:#9ca3af;font-weight:700">Low</td>
+      <td><span style="color:#16a34a;font-weight:700">✓ Done</span></td>
     </tr>
 
     <tr>
-      <td><span class="tag-missing">MISSING</span></td>
+      <td><span class="tag-new">DONE</span></td>
       <td>Dashboard CoA history endpoint exists but not displayed on any dashboard tab</td>
       <td>DashboardPage (no CoA history chart)</td>
       <td><code>GET /dashboard/coa-history</code></td>
-      <td style="color:#9ca3af;font-weight:700">Low</td>
+      <td><span style="color:#16a34a;font-weight:700">✓ Done</span></td>
     </tr>
 
     <tr>
-      <td><span class="tag-missing">MISSING</span></td>
+      <td><span class="tag-new">DONE</span></td>
       <td>Traceability complaint/deviation creation has no frontend form</td>
       <td>TraceabilityPage (read-only graph + recall search only)</td>
       <td><code>POST /traceability/complaints-deviations</code><br/><code>PUT /traceability/complaints-deviations/{id}/close</code></td>
-      <td style="color:#9ca3af;font-weight:700">Low</td>
+      <td><span style="color:#16a34a;font-weight:700">✓ Done</span></td>
     </tr>
 
     <tr>
@@ -1053,13 +1117,42 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
       <td style="color:#16a34a;font-weight:700">Done</td>
     </tr>
 
+    <tr>
+      <td><span class="tag-new">NEW</span></td>
+      <td>AI Queue Intelligence panel — analyst loads, priority bands, suggested analyst</td>
+      <td>WorkQueuePage — 🧠 AI Intelligence toggle button</td>
+      <td><code>GET /test-executions/queue-intelligence</code><br/><code>GET /test-executions/suggest-analyst</code></td>
+      <td style="color:#16a34a;font-weight:700">v3 Done</td>
+    </tr>
+    <tr>
+      <td><span class="tag-new">NEW</span></td>
+      <td>Form Template Parameters &amp; Locations management modal</td>
+      <td>FormTemplatesPage — ⚙ Manage button per row</td>
+      <td><code>POST/DELETE {id}/parameters/{pid}</code><br/><code>POST/DELETE {id}/locations/{lid}</code></td>
+      <td style="color:#16a34a;font-weight:700">v3 Done</td>
+    </tr>
+    <tr>
+      <td><span class="tag-new">NEW</span></td>
+      <td>CoA History chart on Dashboard Compliance tab (bar chart + recent-10 table)</td>
+      <td>DashboardPage Compliance tab — lazy-loaded section</td>
+      <td><code>GET /dashboard/coa-history</code></td>
+      <td style="color:#16a34a;font-weight:700">v3 Done</td>
+    </tr>
+    <tr>
+      <td><span class="tag-new">NEW</span></td>
+      <td>Traceability Complaints/Deviations form with close workflow</td>
+      <td>TraceabilityPage — bottom section</td>
+      <td><code>POST /traceability/complaints-deviations</code><br/><code>PUT /traceability/complaints-deviations/{id}/close</code></td>
+      <td style="color:#16a34a;font-weight:700">v3 Done</td>
+    </tr>
+
   </table>
 
-  <div style="margin-top:16px;padding:12px 14px;background:#fffbeb;border-radius:8px;font-size:12px;color:#78350f;line-height:1.7">
-    <strong>Action items:</strong><br/>
-    🔴 <strong>High</strong>: Fix StabilityStudyPage route from <code>/stability-trends/{id}</code> → <code>/stability-protocols/{id}</code> (2 lines in StabilityStudyPage.tsx)<br/>
-    🟡 <strong>Medium</strong>: Add Export button to Digital Logbook page; add CoA Generate/Reissue flow<br/>
-    ⚪ <strong>Low</strong>: Wire AI queue intelligence buttons; chatbot page; CoA history chart on dashboard
+  <div style="margin-top:16px;padding:12px 14px;background:#dcfce7;border-radius:8px;font-size:12px;color:#065f46;line-height:1.7;border:1px solid #86efac">
+    <strong>✅ v3 Status — All audit gaps resolved (2026-05-28):</strong><br/>
+    ✅ <strong>HIGH fixed</strong> (commit 9665dea): StabilityStudyPage routes corrected → <code>/stability-protocols/{id}/trend</code> &amp; <code>/stability-protocols/{id}/ich-compliance</code><br/>
+    ✅ <strong>MEDIUM fixed</strong> (commit f7f16d7): CoA Generate button + Reissue button added to CoaReviewPage. Digital Logbook export was already implemented.<br/>
+    ✅ <strong>LOW done</strong> (commit f415008): Aria chatbot FAB (ChatbotWidget), AI Queue Intelligence panel, Form Template Params/Locs Manage modal, CoA History chart on Dashboard Compliance tab, Traceability Complaints/Deviations form.
   </div>
 </div>
 
@@ -1067,9 +1160,9 @@ code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5
 // ── State ──────────────────────────────────────────────────────────────────
 const sections = [
   { id:'sec-1',  label:'Start Services & Login',          total:3 },
-  { id:'sec-2',  label:'Settings Page (Master Data)',      total:5 },
+  { id:'sec-2',  label:'Settings Page (Master Data)',      total:6 },
   { id:'sec-3',  label:'Sample Registration',             total:6 },
-  { id:'sec-4',  label:'Work Queue & Test Execution',     total:5 },
+  { id:'sec-4',  label:'Work Queue & Test Execution',     total:6 },
   { id:'sec-5',  label:'OOS Investigations',              total:4 },
   { id:'sec-6',  label:'CAPA / Quality Events',           total:4 },
   { id:'sec-7',  label:'PDF Reports',                     total:3 },
@@ -1079,8 +1172,8 @@ const sections = [
   { id:'sec-11', label:'CoA Review & Dispatch QC',        total:3 },
   { id:'sec-12', label:'Reports & Exports',               total:3 },
   { id:'sec-13', label:'Dashboard & Compliance Panel',    total:5 },
-  { id:'sec-14', label:'Inventory & Traceability',        total:4 },
-  { id:'sec-15', label:'Sidebar UX & Global Features',   total:4 },
+  { id:'sec-14', label:'Inventory & Traceability',        total:5 },
+  { id:'sec-15', label:'Sidebar UX & Global Features',   total:5 },
 ]
 
 // Build quick nav
