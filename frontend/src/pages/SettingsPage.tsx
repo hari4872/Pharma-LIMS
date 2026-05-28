@@ -16,6 +16,7 @@ import StabilityProtocolsPage from './master-data/StabilityProtocolsPage'
 import UsersPage              from './master-data/UsersPage'
 import UserTrainingRecordsPage from './UserTrainingRecordsPage'
 import WorkflowConfigPage     from './WorkflowConfigPage'
+import CheckpointsPage        from './CheckpointsPage'
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 type TabId = 'lab-setup' | 'materials' | 'methods-specs' | 'users-training' | 'workflow'
@@ -59,6 +60,7 @@ const TAB_GROUPS: TabGroup[] = [
     subtabs: [
       { id: 'test-methods',           label: 'Test Methods',      icon: '📋', component: TestMethodsPage },
       { id: 'parameters',             label: 'Parameters',        icon: '⚙',  component: ParametersPage },
+      { id: 'checkpoints',            label: 'Checkpoints',       icon: '🔔', component: CheckpointsPage },
       { id: 'spec-limits',            label: 'Spec Limits',       icon: '📊', component: SpecLimitsPage },
       { id: 'form-templates',         label: 'Form Templates',    icon: '📄', component: FormTemplatesPage },
       { id: 'spec-templates',         label: 'Spec Templates',    icon: '📝', component: SpecificationTemplatesPage },
