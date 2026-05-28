@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { toast } from '@/components/Toast'
 
 interface Execution {
   executionId: number; sampleId: number; sampleNumber: string; materialName: string
@@ -34,6 +35,21 @@ export default function ResultsReviewPage() {
     setError('')
   }
 
+  async function downloadPdf(item: Execution) {
+    try {
+      const r = await api.get(`/results-review/${item.executionId}/pdf`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `BatchAnalysis_${String(item.executionId).padStart(5, '0')}_${item.sampleNumber}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast(`Batch Analysis report downloaded — ${item.sampleNumber}`, 'success')
+    } catch {
+      toast('Failed to download PDF', 'error')
+    }
+  }
+
   async function submitReview(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
     try {
@@ -60,7 +76,7 @@ export default function ResultsReviewPage() {
           <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12, background: '#d1fae5', color: '#065f46', fontWeight: 500 }}>{r.status}</span>
         )},
         { header: 'Review Actions', accessor: r => (
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <button onClick={() => openReview(r.executionId, 'peer')}
               style={{ padding: '3px 10px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
               Peer Review (Step 2)
@@ -68,6 +84,12 @@ export default function ResultsReviewPage() {
             <button onClick={() => openReview(r.executionId, 'qclead')}
               style={{ padding: '3px 10px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
               QC Lead Verify (Step 4)
+            </button>
+            <button
+              onClick={() => downloadPdf(r)}
+              title="Download Batch Analysis Summary PDF"
+              style={{ padding: '3px 10px', background: '#0369a1', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+              📄 PDF
             </button>
           </div>
         )},

@@ -115,6 +115,21 @@ export default function InstrumentsPage() {
     finally { setSaving(false) }
   }
 
+  async function downloadCalibCert(r: Instrument) {
+    try {
+      const res = await api.get(`/instruments/${r.instrumentId}/calibration-certificate`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `CalibCert_${r.instrumentCode}_${new Date().toISOString().slice(0, 10)}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast(`Calibration certificate downloaded — ${r.instrumentCode}`, 'success')
+    } catch {
+      toast('Failed to download calibration certificate', 'error')
+    }
+  }
+
   async function loadUtilisation(instrumentId: number) {
     setUtilisationInstrumentId(instrumentId)
     setTab('utilisation')
@@ -186,6 +201,12 @@ export default function InstrumentsPage() {
                     style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e5e7eb', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#374151', fontFamily:'inherit' }}>
                     <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     Edit
+                  </button>
+                  <button
+                    onClick={() => downloadCalibCert(r)}
+                    title="Download Calibration Certificate PDF"
+                    style={{ fontSize: 12, padding: '2px 8px', background: '#0d9488', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>
+                    📄 Cert
                   </button>
                 </div>
               )

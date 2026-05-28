@@ -263,22 +263,4 @@ public class OosPdfDocument : IDocument
     }
 }
 
-// ── Extension to reduce repetition ────────────────────────────────────────────
-internal static class OosPdfExtensions
-{
-    public static void SectionBox(this ColumnDescriptor col, string title, string color,
-        Action<ColumnDescriptor> content)
-    {
-        col.Item().Column(c =>
-        {
-            c.Item().Row(row =>
-            {
-                row.ConstantItem(3).Background(color);
-                row.RelativeItem().Background("#f8fafc").Padding(6)
-                    .Text(title).Bold().FontSize(9).FontColor(color);
-            });
-            c.Item().Border(0.5f).BorderColor("#e2e8f0").BorderTop(0).Padding(10)
-                .Column(content);
-        });
-    }
-}
+// SectionBox extension lives in PdfExtensions.cs (shared)

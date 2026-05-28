@@ -1,8 +1,13 @@
+using LIMS.API.Pdf;
 using LIMS.Application.Features.InstrumentManagement;
 using LIMS.Application.Features.MasterData.Instruments;
+using LIMS.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using QuestPDF.Fluent;
+using QuestPDF.Infrastructure;
 
 namespace LIMS.API.Controllers;
 
@@ -12,7 +17,8 @@ namespace LIMS.API.Controllers;
 public class InstrumentsController : ControllerBase
 {
     private readonly IMediator _mediator;
-    public InstrumentsController(IMediator mediator) => _mediator = mediator;
+    private readonly ILimsDbContext _db;
+    public InstrumentsController(IMediator mediator, ILimsDbContext db) { _mediator = mediator; _db = db; }
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] int? labId, [FromQuery] string? status, [FromQuery] bool includeInactive = false)
@@ -130,6 +136,46 @@ public class InstrumentsController : ControllerBase
             oocImpactTriggered   = rts.OocImpactTriggered,
             affectedLogbookCount = rts.AffectedLogbookCount
         });
+    }
+
+    // GET api/v1/instruments/{id}/calibration-certificate — Calibration Certificate PDF (21 CFR 211.68)
+    [HttpGet("{id:int}/calibration-certificate")]
+    public async Task<IActionResult> GetCalibrationCertificate(int id)
+    {
+        var inst = await _db.Instruments
+            .Include(i => i.Lab)
+            .Include(i => i.CalibrationRecords).ThenInclude(c => c.Signature)
+            .FirstOrDefaultAsync(i => i.InstrumentId == id);
+
+        if (inst is null) return NotFound();
+
+        var data = new CalibrationCertPdfDocument.CalibrationCertData(
+            InstrumentId:   inst.InstrumentId,
+            InstrumentCode: inst.InstrumentCode,
+            InstrumentType: inst.InstrumentType,
+            Model:          inst.Model,
+            SerialNumber:   inst.SerialNumber,
+            LabName:        inst.Lab.LabName,
+            Status:         inst.Status.ToString(),
+            CalibrationDue: inst.CalibrationDue,
+            GeneratedAt:    DateTimeOffset.UtcNow,
+            History: inst.CalibrationRecords
+                .OrderByDescending(c => c.CalibrationDate)
+                .Select(c => new CalibrationCertPdfDocument.CalibrationHistoryRow(
+                    c.CalibrationDate,
+                    c.NextCalibrationDue,
+                    c.CertificateRef,
+                    c.PerformedBy,
+                    c.Signature != null ? c.Signature.FullName : null,
+                    c.CreatedAt
+                )).ToList()
+        );
+
+        QuestPDF.Settings.License = LicenseType.Community;
+        var doc   = new CalibrationCertPdfDocument(data);
+        var bytes = doc.GeneratePdf();
+        var fname = $"CalibCert_{inst.InstrumentCode}_{DateTime.UtcNow:yyyy-MM-dd}.pdf";
+        return File(bytes, "application/pdf", fname);
     }
 }
 
