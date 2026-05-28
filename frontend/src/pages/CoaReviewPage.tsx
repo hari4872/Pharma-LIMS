@@ -27,6 +27,7 @@ interface CoaItem {
 }
 
 interface ChecklistItem { label: string; pass: boolean }
+interface ExecOption { executionId: number; sampleId: number; sampleNumber: string; materialName: string; lotNumber: string }
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Draft:      { bg: '#fef9c3', color: '#854d0e' },
@@ -46,6 +47,65 @@ export default function CoaReviewPage() {
   const [form, setForm] = useState({ password: '', meaning: '', reason: '', justification: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Generate CoA state
+  const [showGenerate,    setShowGenerate]    = useState(false)
+  const [generateExecs,   setGenerateExecs]   = useState<ExecOption[]>([])
+  const [generateExecId,  setGenerateExecId]  = useState<number | null>(null)
+  const [generateSaving,  setGenerateSaving]  = useState(false)
+  const [generateError,   setGenerateError]   = useState('')
+
+  // Reissue CoA state
+  const [showReissue,    setShowReissue]    = useState(false)
+  const [reissueTarget,  setReissueTarget]  = useState<CoaItem | null>(null)
+  const [reissueReason,  setReissueReason]  = useState('')
+  const [reissueSaving,  setReissueSaving]  = useState(false)
+  const [reissueError,   setReissueError]   = useState('')
+
+  // ── Generate CoA ──────────────────────────────────────────────────────────
+  async function openGenerate() {
+    setShowGenerate(true); setGenerateExecId(null); setGenerateError('')
+    try {
+      const r = await api.get('/test-executions?status=Completed')
+      const list: ExecOption[] = (Array.isArray(r.data) ? r.data : []).map((e: any) => ({
+        executionId: e.executionId,
+        sampleId:    e.sampleId ?? e.sample?.sampleId ?? 0,
+        sampleNumber: e.sampleNumber ?? e.sample?.sampleNumber ?? '',
+        materialName: e.materialName ?? e.sample?.materialName ?? '',
+        lotNumber:   e.lotNumber    ?? e.sample?.lotNumber    ?? '',
+      }))
+      setGenerateExecs(list)
+      if (list.length > 0) setGenerateExecId(list[0].executionId)
+    } catch { setGenerateExecs([]) }
+  }
+
+  async function submitGenerate(ev: React.FormEvent) {
+    ev.preventDefault()
+    const exec = generateExecs.find(e => e.executionId === generateExecId)
+    if (!exec) return
+    setGenerateSaving(true); setGenerateError('')
+    try {
+      const r = await api.post('/coas/generate', { sampleId: exec.sampleId, executionId: exec.executionId })
+      toast(`CoA generated successfully — CoA #${r.data?.coaId ?? ''}`, 'success')
+      setShowGenerate(false); load()
+    } catch (err: any) {
+      setGenerateError(err.response?.data?.message ?? 'CoA generation failed')
+    } finally { setGenerateSaving(false) }
+  }
+
+  // ── Reissue CoA ───────────────────────────────────────────────────────────
+  async function submitReissue(ev: React.FormEvent) {
+    ev.preventDefault()
+    if (!reissueTarget) return
+    setReissueSaving(true); setReissueError('')
+    try {
+      const r = await api.post(`/coas/${reissueTarget.coaId}/reissue`, { reason: reissueReason })
+      toast(`CoA reissued — new CoA #${r.data?.newCoaId ?? ''} created, original superseded`, 'success')
+      setShowReissue(false); setReissueTarget(null); load()
+    } catch (err: any) {
+      setReissueError(err.response?.data?.message ?? 'Reissue failed')
+    } finally { setReissueSaving(false) }
+  }
 
   async function load() {
     setLoading(true)
@@ -174,14 +234,22 @@ export default function CoaReviewPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#111827' }}>CoA Review & QA Release</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#111827' }}>CoA Review &amp; QA Release</h1>
         <select style={{ ...inp, width: 160, marginTop: 0 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">All</option>
           <option value="Draft">Draft</option>
           <option value="Released">Released</option>
           <option value="Superseded">Superseded</option>
         </select>
+        <button onClick={openGenerate} style={{
+          marginLeft: 'auto', padding: '7px 16px', background: '#7c3aed', color: '#fff',
+          border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13,
+          fontWeight: 700, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+          Generate CoA
+        </button>
       </div>
       <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
         21 CFR 211.194 — QA 10-item checklist must pass before approval. PDF locked server-side atomically on QA e-signature.
@@ -201,14 +269,22 @@ export default function CoaReviewPage() {
           ? <span style={{ fontSize: 12 }}>{r.qaSignedBy}<br /><span style={{ color: '#6b7280' }}>{new Date(r.qaSignedAt!).toLocaleString()}</span></span>
           : '—' },
         { header: 'Actions', accessor: r => (
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button onClick={() => openDetail(r)} style={{ padding: '3px 10px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
               Review
             </button>
             {r.status === 'Released' && (
-              <button onClick={() => downloadPdf(r)} style={{ padding: '3px 10px', background: '#065f46', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-                📄 PDF
-              </button>
+              <>
+                <button onClick={() => downloadPdf(r)} style={{ padding: '3px 10px', background: '#065f46', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  📄 PDF
+                </button>
+                <button
+                  onClick={() => { setReissueTarget(r); setReissueReason(''); setReissueError(''); setShowReissue(true) }}
+                  title="Issue a replacement CoA — supersedes this one"
+                  style={{ padding: '3px 10px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                  Reissue
+                </button>
+              </>
             )}
           </div>
         )},
@@ -301,6 +377,17 @@ export default function CoaReviewPage() {
               </button>
             </div>
           )}
+
+          {/* Reissue button — for Released CoAs only */}
+          {selected.status === 'Released' && (
+            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setReissueTarget(selected); setReissueReason(''); setReissueError(''); setSelected(null); setShowReissue(true) }}
+                style={{ padding: '7px 16px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>
+                🔄 Reissue CoA
+              </button>
+            </div>
+          )}
         </Modal>
       )}
 
@@ -335,6 +422,59 @@ export default function CoaReviewPage() {
             <Field label="Reason"><input style={inp} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required /></Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowReject(false)} label="Sign & Reject CoA" />
+          </form>
+        </Modal>
+      )}
+
+      {/* ── Generate CoA Modal ────────────────────────────────────────────── */}
+      {showGenerate && (
+        <Modal title="Generate Certificate of Analysis" onClose={() => setShowGenerate(false)}>
+          <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 14, lineHeight: 1.6 }}>
+            Generates a new CoA in <strong>Draft</strong> status from a completed test execution.
+            Select the execution below — the CoA will pull all test results and can then be reviewed and approved.
+          </p>
+          <form onSubmit={submitGenerate}>
+            <Field label="Select Completed Execution *">
+              {generateExecs.length === 0 ? (
+                <div style={{ padding: '10px 12px', background: '#fef9c3', borderRadius: 6, fontSize: 12, color: '#92400e' }}>
+                  No completed executions found. Complete a test execution first (Work Queue → Start → Submit Results).
+                </div>
+              ) : (
+                <select style={inp} value={generateExecId ?? ''} onChange={e => setGenerateExecId(Number(e.target.value))} required>
+                  {generateExecs.map(ex => (
+                    <option key={ex.executionId} value={ex.executionId}>
+                      #{ex.executionId} — {ex.sampleNumber} · {ex.materialName}{ex.lotNumber ? ` / ${ex.lotNumber}` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            {generateError && <p style={{ color: '#ef4444', fontSize: 13, margin: '6px 0 0' }}>{generateError}</p>}
+            <ModalFooter saving={generateSaving} onCancel={() => setShowGenerate(false)} label="Generate CoA" />
+          </form>
+        </Modal>
+      )}
+
+      {/* ── Reissue CoA Modal ─────────────────────────────────────────────── */}
+      {showReissue && reissueTarget && (
+        <Modal title={`Reissue CoA — ${reissueTarget.coaNumber}`} onClose={() => { setShowReissue(false); setReissueTarget(null) }}>
+          <div style={{ marginBottom: 14, padding: '10px 14px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fde68a', fontSize: 13, color: '#92400e', lineHeight: 1.6 }}>
+            <strong>Reissue creates a new replacement CoA</strong> in Draft status.<br />
+            The current CoA <code>{reissueTarget.coaNumber}</code> will be marked <strong>Superseded</strong>.<br />
+            This action is recorded in the audit trail (21 CFR Part 11).
+          </div>
+          <form onSubmit={submitReissue}>
+            <Field label="Reason for Reissue *">
+              <textarea
+                style={{ ...inp, height: 80, resize: 'vertical' as const }}
+                value={reissueReason}
+                onChange={e => setReissueReason(e.target.value)}
+                required
+                placeholder="e.g. Customer name correction / Updated spec version applied / Transcription error in lot number"
+              />
+            </Field>
+            {reissueError && <p style={{ color: '#ef4444', fontSize: 13, margin: '6px 0 0' }}>{reissueError}</p>}
+            <ModalFooter saving={reissueSaving} onCancel={() => { setShowReissue(false); setReissueTarget(null) }} label="🔄 Reissue CoA" />
           </form>
         </Modal>
       )}
