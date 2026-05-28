@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import PipelineBar from '@/components/PipelineBar'
 
 interface RetainSample {
   retainId: number; sampleId: number; sampleNumber: string; materialName: string
@@ -13,22 +14,11 @@ interface RetainSample {
 
 interface StorageLocation { locationId: number; locationCode: string; locationName: string }
 
-const CHIPS = [
-  { label: 'All',         value: '',            color: '#374151' },
-  { label: 'Active',      value: 'Active',      color: '#16a34a' },
-  { label: 'Destroyed',   value: 'Destroyed',   color: '#dc2626' },
-  { label: 'Transferred', value: 'Transferred', color: '#6b7280' },
+const STAGES = [
+  { key: 'Active',      label: 'Active',      color: '#065f46', bg: '#d1fae5' },
+  { key: 'Destroyed',   label: 'Destroyed',   color: '#991b1b', bg: '#fee2e2' },
+  { key: 'Transferred', label: 'Transferred', color: '#374151', bg: '#f3f4f6' },
 ]
-
-function chipStyle(active: boolean, color: string): React.CSSProperties {
-  return {
-    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-    border: `1.5px solid ${active ? color : '#e5e7eb'}`,
-    background: active ? color : '#fff',
-    color: active ? '#fff' : '#374151',
-    cursor: 'pointer', whiteSpace: 'nowrap',
-  }
-}
 
 export default function RetainSamplesPage() {
   const [data, setData]       = useState<RetainSample[]>([])
@@ -88,11 +78,7 @@ export default function RetainSamplesPage() {
       {/* ── Toolbar ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a', marginRight: 4 }}>Retain Samples</h2>
-        {CHIPS.map(c => (
-          <button key={c.value} onClick={() => setFilter(c.value)} style={chipStyle(filterStatus === c.value, c.color)}>
-            {c.label}
-          </button>
-        ))}
+        <PipelineBar stages={STAGES} data={data} statusField="status" active={filterStatus} onChange={setFilter} />
 
         <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4 }}>From</span>
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}

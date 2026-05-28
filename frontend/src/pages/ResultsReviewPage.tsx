@@ -55,19 +55,36 @@ function ReviewSteps({ status }: { status: string }) {
   )
 }
 
-// ── Filter chip ────────────────────────────────────────────────────────────
-function Chip({ label, color, active, onClick }:
-  { label: string; color: string; active: boolean; onClick: () => void }) {
+// ── Filter chip (SampleRegistration style with count badge + arrow) ────────
+function Chip({ label, count, color, bg, active, onClick, showArrow }:
+  { label: string; count: number; color: string; bg: string; active: boolean; onClick: () => void; showArrow?: boolean }) {
   return (
-    <button onClick={onClick} style={{
-      padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-      border: `1.5px solid ${active ? color : '#e5e7eb'}`,
-      background: active ? color : '#fff',
-      color: active ? '#fff' : '#374151',
-      cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
-    }}>
-      {label}
-    </button>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <button onClick={onClick} style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
+        border: `1.5px solid ${active ? color : '#e5e7eb'}`,
+        background: active ? bg : '#fff',
+        transition: 'all 0.12s',
+      }}>
+        <span style={{
+          minWidth: 22, height: 22, borderRadius: 6,
+          background: bg, color: color,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 12, fontWeight: 700,
+        }}>{count}</span>
+        <span style={{
+          fontSize: 12, whiteSpace: 'nowrap',
+          fontWeight: active ? 700 : 500,
+          color: active ? color : '#374151',
+        }}>{label}</span>
+      </button>
+      {showArrow && (
+        <svg viewBox="0 0 16 16" fill="none" width="10" height="10">
+          <path d="M4 8h8M9 5l3 3-3 3" stroke="#d1d5db" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )}
+    </div>
   )
 }
 
@@ -106,9 +123,9 @@ export default function ResultsReviewPage() {
   const pendingQC    = all.filter(r => r.status === 'PeerReviewed').length
 
   const CHIPS = [
-    { key: 'All',            label: `All`,                  color: '#374151' },
-    { key: 'PendingPeer',    label: `Pending Peer Review`,  color: '#2563eb' },
-    { key: 'PendingQC',      label: `Pending QC Verify`,    color: '#d97706' },
+    { key: 'All',         label: 'All',                 color: '#374151', bg: '#f1f5f9', count: all.length },
+    { key: 'PendingPeer', label: 'Pending Peer Review', color: '#1e40af', bg: '#dbeafe', count: pendingPeer },
+    { key: 'PendingQC',   label: 'Pending QC Verify',   color: '#b45309', bg: '#fef9c3', count: pendingQC },
   ]
 
   // ── Filtered rows ────────────────────────────────────────────────────────
@@ -175,10 +192,11 @@ export default function ResultsReviewPage() {
   return (
     <div style={{ padding: '4px 0' }}>
       {/* Toolbar: chips + date range + search + count */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-        {CHIPS.map(c => (
-          <Chip key={c.key} label={c.label} color={c.color}
-            active={statusFilter === c.key} onClick={() => setStatusFilter(c.key)} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 20 }}>
+        {CHIPS.map((c, i) => (
+          <Chip key={c.key} label={c.label} count={c.count} color={c.color} bg={c.bg}
+            active={statusFilter === c.key} onClick={() => setStatusFilter(c.key)}
+            showArrow={i < CHIPS.length - 1} />
         ))}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 8 }}>

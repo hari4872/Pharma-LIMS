@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import PipelineBar from '@/components/PipelineBar'
 
 interface DeliveryOrder {
   doId: number; doNumber: string; customerName: string | null
@@ -31,32 +32,20 @@ const TASK_STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   QAApproved:  { bg: '#ede9fe', color: '#6d28d9' },
 }
 
-const TASK_CHIPS = [
-  { label: 'All',        value: '',           color: '#374151' },
-  { label: 'Open',       value: 'Open',       color: '#d97706' },
-  { label: 'InProgress', value: 'InProgress', color: '#2563eb' },
-  { label: 'Passed',     value: 'Passed',     color: '#16a34a' },
-  { label: 'Failed',     value: 'Failed',     color: '#dc2626' },
-  { label: 'QAApproved', value: 'QAApproved', color: '#7c3aed' },
+const TASK_STAGES = [
+  { key: 'Open',       label: 'Open',        color: '#b45309', bg: '#fef9c3' },
+  { key: 'InProgress', label: 'In Progress', color: '#1e40af', bg: '#dbeafe' },
+  { key: 'Passed',     label: 'Passed',      color: '#065f46', bg: '#d1fae5' },
+  { key: 'Failed',     label: 'Failed',      color: '#991b1b', bg: '#fee2e2' },
+  { key: 'QAApproved', label: 'QA Approved', color: '#6d28d9', bg: '#ede9fe' },
 ]
 
-const ORDER_CHIPS = [
-  { label: 'All',          value: '',             color: '#374151' },
-  { label: 'Pending',      value: 'Pending',      color: '#6b7280' },
-  { label: 'InDispatchQC', value: 'InDispatchQC', color: '#2563eb' },
-  { label: 'CLEARED',      value: 'CLEARED',      color: '#16a34a' },
-  { label: 'BLOCKED',      value: 'BLOCKED',      color: '#dc2626' },
+const ORDER_STAGES = [
+  { key: 'Pending',      label: 'Pending',        color: '#374151', bg: '#f3f4f6' },
+  { key: 'InDispatchQC', label: 'In Dispatch QC', color: '#1e40af', bg: '#dbeafe' },
+  { key: 'CLEARED',      label: 'Cleared',        color: '#065f46', bg: '#d1fae5' },
+  { key: 'BLOCKED',      label: 'Blocked',        color: '#991b1b', bg: '#fee2e2' },
 ]
-
-function chipStyle(active: boolean, color: string): React.CSSProperties {
-  return {
-    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-    border: `1.5px solid ${active ? color : '#e5e7eb'}`,
-    background: active ? color : '#fff',
-    color: active ? '#fff' : '#374151',
-    cursor: 'pointer', whiteSpace: 'nowrap',
-  }
-}
 
 export default function DispatchQcPage() {
   const [orders, setOrders] = useState<DeliveryOrder[]>([])
@@ -139,7 +128,6 @@ export default function DispatchQcPage() {
     finally { setSaving(false) }
   }
 
-  const chips = view === 'tasks' ? TASK_CHIPS : ORDER_CHIPS
   const displayCount = view === 'tasks' ? filteredTasks.length : filteredOrders.length
 
   return (
@@ -165,14 +153,14 @@ export default function DispatchQcPage() {
         ))}
       </div>
 
-      {/* ── Toolbar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-        {chips.map(c => (
-          <button key={c.value} onClick={() => setStatusFilter(c.value)} style={chipStyle(statusFilter === c.value, c.color)}>
-            {c.label}
-          </button>
-        ))}
+      {/* ── Pipeline bar ── */}
+      {view === 'tasks'
+        ? <PipelineBar stages={TASK_STAGES} data={tasks} statusField="status" active={statusFilter} onChange={setStatusFilter} />
+        : <PipelineBar stages={ORDER_STAGES} data={orders} statusField="status" active={statusFilter} onChange={setStatusFilter} />
+      }
 
+      {/* ── Toolbar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16, marginTop: 12 }}>
         <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4 }}>From</span>
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
           style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, outline: 'none' }} />

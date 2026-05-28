@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import PipelineBar from '@/components/PipelineBar'
 
 interface StabilityPull {
   pullId: number; sampleId: number; sampleNumber: string; materialName: string
@@ -17,23 +18,12 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Escalated: { bg: '#fce7f3', color: '#9d174d' },
 }
 
-const CHIPS = [
-  { label: 'All',       value: '',          color: '#374151' },
-  { label: 'Pending',   value: 'Pending',   color: '#d97706' },
-  { label: 'Pulled',    value: 'Pulled',    color: '#16a34a' },
-  { label: 'Missed',    value: 'Missed',    color: '#dc2626' },
-  { label: 'Escalated', value: 'Escalated', color: '#9d174d' },
+const STAGES = [
+  { key: 'Pending',   label: 'Pending',   color: '#b45309', bg: '#fef9c3' },
+  { key: 'Pulled',    label: 'Pulled',    color: '#065f46', bg: '#d1fae5' },
+  { key: 'Missed',    label: 'Missed',    color: '#991b1b', bg: '#fee2e2' },
+  { key: 'Escalated', label: 'Escalated', color: '#9d174d', bg: '#fce7f3' },
 ]
-
-function chipStyle(active: boolean, color: string): React.CSSProperties {
-  return {
-    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-    border: `1.5px solid ${active ? color : '#e5e7eb'}`,
-    background: active ? color : '#fff',
-    color: active ? '#fff' : '#374151',
-    cursor: 'pointer', whiteSpace: 'nowrap',
-  }
-}
 
 export default function StabilityPullsPage() {
   const [data, setData]           = useState<StabilityPull[]>([])
@@ -90,11 +80,7 @@ export default function StabilityPullsPage() {
       {/* ── Toolbar ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a', marginRight: 4 }}>Stability Pulls</h2>
-        {CHIPS.map(c => (
-          <button key={c.value} onClick={() => setFilter(c.value)} style={chipStyle(filterStatus === c.value, c.color)}>
-            {c.label}
-          </button>
-        ))}
+        <PipelineBar stages={STAGES} data={data} statusField="status" active={filterStatus} onChange={setFilter} />
 
         <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4 }}>From</span>
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}

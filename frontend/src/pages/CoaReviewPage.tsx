@@ -3,6 +3,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import PipelineBar from '@/components/PipelineBar'
 
 interface CoaLine {
   coaLineId: number; parameterId: number; parameterName: string; methodCode: string
@@ -35,22 +36,11 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Superseded: { bg: '#f3f4f6', color: '#6b7280' },
 }
 
-const CHIPS = [
-  { label: 'All',        value: '',           color: '#374151' },
-  { label: 'Draft',      value: 'Draft',      color: '#d97706' },
-  { label: 'Released',   value: 'Released',   color: '#16a34a' },
-  { label: 'Superseded', value: 'Superseded', color: '#6b7280' },
+const STAGES = [
+  { key: 'Draft',      label: 'Draft',      color: '#b45309', bg: '#fef9c3' },
+  { key: 'Released',   label: 'Released',   color: '#065f46', bg: '#d1fae5' },
+  { key: 'Superseded', label: 'Superseded', color: '#374151', bg: '#f3f4f6' },
 ]
-
-function chipStyle(active: boolean, color: string): React.CSSProperties {
-  return {
-    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-    border: `1.5px solid ${active ? color : '#e5e7eb'}`,
-    background: active ? color : '#fff',
-    color: active ? '#fff' : '#374151',
-    cursor: 'pointer', whiteSpace: 'nowrap',
-  }
-}
 
 export default function CoaReviewPage() {
   const [data, setData] = useState<CoaItem[]>([])
@@ -270,11 +260,7 @@ export default function CoaReviewPage() {
         21 CFR 211.194 — QA 10-item checklist must pass before approval. PDF locked server-side atomically on QA e-signature.
       </p>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-        {CHIPS.map(c => (
-          <button key={c.value} onClick={() => setStatusFilter(c.value)} style={chipStyle(statusFilter === c.value, c.color)}>
-            {c.label}
-          </button>
-        ))}
+        <PipelineBar stages={STAGES} data={data} statusField="status" active={statusFilter} onChange={setStatusFilter} />
 
         <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4 }}>From</span>
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}

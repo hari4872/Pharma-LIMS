@@ -3,6 +3,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import PipelineBar from '@/components/PipelineBar'
 
 interface OosItem {
   investigationId: number; executionId: number; sampleId: number; sampleNumber: string
@@ -17,21 +18,10 @@ const FLAG_COLORS: Record<string, { bg: string; color: string }> = {
   OOT: { bg: '#fef9c3', color: '#854d0e' },
 }
 
-const CHIPS = [
-  { label: 'All',    value: '',       color: '#374151' },
-  { label: 'Open',   value: 'Open',   color: '#dc2626' },
-  { label: 'Closed', value: 'Closed', color: '#16a34a' },
+const STAGES = [
+  { key: 'Open',   label: 'Open',   color: '#991b1b', bg: '#fee2e2' },
+  { key: 'Closed', label: 'Closed', color: '#065f46', bg: '#d1fae5' },
 ]
-
-function chipStyle(active: boolean, color: string): React.CSSProperties {
-  return {
-    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-    border: `1.5px solid ${active ? color : '#e5e7eb'}`,
-    background: active ? color : '#fff',
-    color: active ? '#fff' : '#374151',
-    cursor: 'pointer', whiteSpace: 'nowrap',
-  }
-}
 
 export default function OosInvestigationsPage() {
   const [data, setData] = useState<OosItem[]>([])
@@ -89,11 +79,7 @@ export default function OosInvestigationsPage() {
       {/* ── Toolbar ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a', marginRight: 4 }}>OOS / OOT Investigations</h2>
-        {CHIPS.map(c => (
-          <button key={c.value} onClick={() => setStatusFilter(c.value)} style={chipStyle(statusFilter === c.value, c.color)}>
-            {c.label}
-          </button>
-        ))}
+        <PipelineBar stages={STAGES} data={data} statusField="status" active={statusFilter} onChange={setStatusFilter} />
 
         <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4 }}>From</span>
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}

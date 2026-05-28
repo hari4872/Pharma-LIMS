@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import PipelineBar from '@/components/PipelineBar'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface BatchRelease {
@@ -39,24 +40,13 @@ const CHECK_LABELS: Record<string, string> = {
   LogbookSigned:    'All Logbook Entries Signed',
 }
 
-const CHIPS = [
-  { label: 'All',           value: '',              color: '#374151' },
-  { label: 'PendingReview', value: 'PendingReview', color: '#6b7280' },
-  { label: 'InReview',      value: 'InReview',      color: '#d97706' },
-  { label: 'Released',      value: 'Released',      color: '#16a34a' },
-  { label: 'Rejected',      value: 'Rejected',      color: '#dc2626' },
-  { label: 'OnHold',        value: 'OnHold',        color: '#f97316' },
+const STAGES = [
+  { key: 'PendingReview', label: 'Pending Review', color: '#1e40af', bg: '#dbeafe' },
+  { key: 'InReview',      label: 'In Review',      color: '#b45309', bg: '#fef9c3' },
+  { key: 'Released',      label: 'Released',       color: '#065f46', bg: '#d1fae5' },
+  { key: 'Rejected',      label: 'Rejected',       color: '#991b1b', bg: '#fee2e2' },
+  { key: 'OnHold',        label: 'On Hold',        color: '#9a3412', bg: '#fff7ed' },
 ]
-
-function chipStyle(active: boolean, color: string): React.CSSProperties {
-  return {
-    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-    border: `1.5px solid ${active ? color : '#e5e7eb'}`,
-    background: active ? color : '#fff',
-    color: active ? '#fff' : '#374151',
-    cursor: 'pointer', whiteSpace: 'nowrap',
-  }
-}
 
 export default function BatchReleasePage() {
   const [data,       setData]       = useState<BatchRelease[]>([])
@@ -145,11 +135,7 @@ export default function BatchReleasePage() {
 
       {/* ── Toolbar ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 16, marginTop: 14 }}>
-        {CHIPS.map(c => (
-          <button key={c.value} onClick={() => setStatusFilter(c.value)} style={chipStyle(statusFilter === c.value, c.color)}>
-            {c.label}
-          </button>
-        ))}
+        <PipelineBar stages={STAGES} data={data} statusField="status" active={statusFilter} onChange={setStatusFilter} />
 
         <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 4 }}>From</span>
         <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
