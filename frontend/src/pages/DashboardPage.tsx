@@ -8,7 +8,7 @@ import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
-  ComposedChart, ReferenceLine, Scatter, ZAxis,
+  ComposedChart, ReferenceLine,
 } from 'recharts'
 
 // FR-10 / FR-11: All metrics server-side from IDashboardAggregationService (Contract 2)
