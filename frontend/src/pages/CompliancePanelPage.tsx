@@ -18,6 +18,38 @@ interface SigPage    { items: SigItem[];    totalCount: number; page: number; pa
 
 const outcomeColour = (o: string) => o === 'Passed' ? '#d1fae5' : o === 'FailedWithActions' ? '#fee2e2' : '#fef3c7'
 
+// ── Before / After diff viewer ────────────────────────────────────────────────
+function DiffCell({ label, json }: { label: string; json: string | null }) {
+  const [open, setOpen] = useState(false)
+  if (!json) return <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>
+  let parsed: Record<string, unknown> = {}
+  try { parsed = JSON.parse(json) } catch { return <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{json}</span> }
+  const keys = Object.keys(parsed)
+  const bg = label === 'Before' ? '#fff7ed' : '#f0fdf4'
+  const border = label === 'Before' ? '#fed7aa' : '#bbf7d0'
+  const color = label === 'Before' ? '#9a3412' : '#166534'
+  return (
+    <div>
+      <button onClick={() => setOpen(o => !o)} style={{
+        padding: '2px 8px', fontSize: 11, fontWeight: 600, borderRadius: 4, cursor: 'pointer',
+        background: bg, border: `1px solid ${border}`, color, fontFamily: 'inherit'
+      }}>
+        {open ? '▲' : '▼'} {label} ({keys.length} field{keys.length !== 1 ? 's' : ''})
+      </button>
+      {open && (
+        <div style={{ marginTop: 4, padding: '6px 10px', background: bg, border: `1px solid ${border}`, borderRadius: 4, fontSize: 11, fontFamily: 'monospace', maxWidth: 280, overflowX: 'auto' }}>
+          {keys.map(k => (
+            <div key={k} style={{ marginBottom: 2 }}>
+              <span style={{ color: '#6b7280' }}>{k}: </span>
+              <span style={{ color: '#111827', fontWeight: 600 }}>{String(parsed[k] ?? '—')}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function CompliancePanelPage() {
   const [tab, setTab] = useState<Tab>('audit')
 
@@ -25,6 +57,8 @@ export default function CompliancePanelPage() {
   const [audit, setAudit]           = useState<AuditPage | null>(null)
   const [auditPage, setAuditPage]   = useState(1)
   const [auditType, setAuditType]   = useState('')
+  const [auditFrom, setAuditFrom]   = useState('')
+  const [auditTo,   setAuditTo]     = useState('')
 
   // Signatures
   const [sigs, setSigs]             = useState<SigPage | null>(null)
@@ -51,7 +85,11 @@ export default function CompliancePanelPage() {
 
   async function loadAudit(page = auditPage) {
     setLoading(true)
-    const r = await api.get('/compliance/audit-trail', { params: { page, pageSize: 50, entityType: auditType || undefined } })
+    const params: Record<string, string | number> = { page, pageSize: 50 }
+    if (auditType) params.entityType = auditType
+    if (auditFrom) params.from = new Date(auditFrom).toISOString()
+    if (auditTo)   params.to   = new Date(auditTo + 'T23:59:59').toISOString()
+    const r = await api.get('/compliance/audit-trail', { params })
     setAudit(r.data)
     setLoading(false)
   }
@@ -132,31 +170,53 @@ export default function CompliancePanelPage() {
       {/* ── Audit Trail ── */}
       {tab === 'audit' && (
         <>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-            <input placeholder="Filter entity type…" style={{ ...inp, width: 200 }} value={auditType} onChange={e => setAuditType(e.target.value)} />
-            <button onClick={() => loadAudit(1)} style={{ padding: '8px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>Filter</button>
-            <span style={{ marginLeft: 'auto', fontSize: 13, color: '#5f6368' }}>{audit ? `${audit.totalCount.toLocaleString()} entries` : ''}</span>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select style={{ ...inp, width: 200, margin: 0 }} value={auditType} onChange={e => setAuditType(e.target.value)}>
+              <option value="">All Entity Types</option>
+              {['Laboratory','Instrument','Material','SampleType','Reagent','TestMethod','Parameter','SpecLimit','FormTemplate','SpecificationTemplate','SamplingPlan','StabilityProtocol','UserTrainingRecord','User','Checkpoint','WorkflowTemplate'].map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <input type="date" style={{ ...inp, width: 160, margin: 0 }} value={auditFrom} onChange={e => setAuditFrom(e.target.value)} title="From date" />
+            <input type="date" style={{ ...inp, width: 160, margin: 0 }} value={auditTo} onChange={e => setAuditTo(e.target.value)} title="To date" />
+            <button onClick={() => loadAudit(1)} style={{ padding: '8px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
+              🔍 Filter
+            </button>
+            {(auditType || auditFrom || auditTo) && (
+              <button onClick={() => { setAuditType(''); setAuditFrom(''); setAuditTo(''); setTimeout(() => loadAudit(1), 50) }}
+                style={{ padding: '8px 12px', background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
+                ✕ Clear
+              </button>
+            )}
+            <span style={{ marginLeft: 'auto', fontSize: 13, color: '#5f6368' }}>{audit ? `${audit.totalCount.toLocaleString()} total entries` : ''}</span>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
                 <tr style={{ background: '#f8f9fa' }}>
-                  {['ID', 'Entity Type', 'Entity ID', 'Action', 'Changed By', 'Changed At'].map(h => <th key={h} style={th}>{h}</th>)}
+                  {['ID', 'Entity Type', 'Entity ID', 'Action', 'Changed By', 'Changed At', 'Before', 'After'].map(h => <th key={h} style={th}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
-                {loading && <tr><td colSpan={6} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>Loading…</td></tr>}
+                {loading && <tr><td colSpan={8} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>Loading…</td></tr>}
                 {!loading && audit?.items.map(a => (
                   <tr key={a.logId} style={{ borderBottom: '1px solid #f1f3f4' }}>
                     <td style={td}>{a.logId}</td>
                     <td style={td}><span style={{ padding: '2px 6px', background: '#eff6ff', borderRadius: 4, fontSize: 11, color: '#1d4ed8' }}>{a.entityType}</span></td>
                     <td style={td}>{a.entityId}</td>
-                    <td style={td}><span style={{ padding: '2px 6px', background: a.action === 'Create' ? '#d1fae5' : a.action === 'Delete' ? '#fee2e2' : '#fef3c7', borderRadius: 4, fontSize: 11 }}>{a.action}</span></td>
+                    <td style={td}>
+                      <span style={{
+                        padding: '2px 6px', borderRadius: 4, fontSize: 11,
+                        background: a.action === 'Created' ? '#d1fae5' : a.action === 'Retired' || a.action === 'Deactivated' ? '#fee2e2' : a.action === 'Approved' ? '#dbeafe' : '#fef3c7'
+                      }}>{a.action}</span>
+                    </td>
                     <td style={td}>{a.changedBy}</td>
-                    <td style={td}>{a.changedAt?.replace('T', ' ').slice(0, 19)} UTC</td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{a.changedAt?.replace('T', ' ').slice(0, 19)} UTC</td>
+                    <td style={{ ...td, minWidth: 120 }}><DiffCell label="Before" json={a.before} /></td>
+                    <td style={{ ...td, minWidth: 120 }}><DiffCell label="After" json={a.after} /></td>
                   </tr>
                 ))}
-                {!loading && (audit?.items.length ?? 0) === 0 && <tr><td colSpan={6} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>No audit records</td></tr>}
+                {!loading && (audit?.items.length ?? 0) === 0 && <tr><td colSpan={8} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>No audit records</td></tr>}
               </tbody>
             </table>
           </div>
