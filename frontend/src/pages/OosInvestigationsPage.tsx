@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { toast } from '@/components/Toast'
 
 interface OosItem {
   investigationId: number; executionId: number; sampleId: number; sampleNumber: string
@@ -32,6 +33,21 @@ export default function OosInvestigationsPage() {
     setData(r.data); setLoading(false)
   }
   useEffect(() => { load() }, [statusFilter])
+
+  async function downloadPdf(item: OosItem) {
+    try {
+      const r = await api.get(`/oos-investigations/${item.investigationId}/pdf`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `OOS_${String(item.investigationId).padStart(5,'0')}_${item.sampleNumber}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast(`OOS-${String(item.investigationId).padStart(5,'0')} report downloaded`, 'success')
+    } catch {
+      toast('Failed to download PDF', 'error')
+    }
+  }
 
   async function submitClose(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
@@ -70,12 +86,28 @@ export default function OosInvestigationsPage() {
         { header: 'CAPA Ref', accessor: r => r.capaRef || '—' },
         { header: 'Opened', accessor: r => new Date(r.openedAt).toLocaleDateString() },
         { header: 'Closed', accessor: r => r.closedAt ? new Date(r.closedAt).toLocaleDateString() : '—' },
-        { header: 'Actions', accessor: r => r.status === 'Open' ? (
-          <button onClick={() => { setShowClose(r); setCloseForm(f => ({ ...f, rootCause: '', capaRef: '' })); setError('') }}
-            style={{ padding: '3px 8px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-            Close Investigation
-          </button>
-        ) : null },
+        { header: 'Actions', accessor: r => (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {r.status === 'Open' && (
+              <button
+                onClick={() => { setShowClose(r); setCloseForm(f => ({ ...f, rootCause: '', capaRef: '' })); setError('') }}
+                style={{ padding: '3px 8px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                Close Investigation
+              </button>
+            )}
+            <button
+              onClick={() => downloadPdf(r)}
+              title="Download OOS Investigation Report PDF"
+              style={{
+                padding: '3px 10px', border: 'none', borderRadius: 4,
+                cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                background: r.status === 'Closed' ? '#7c3aed' : '#e9d5ff',
+                color: r.status === 'Closed' ? '#fff' : '#7c3aed',
+              }}>
+              📄 PDF
+            </button>
+          </div>
+        )},
       ]} />
 
       {showClose && (
