@@ -61,7 +61,7 @@ export default function UserTrainingRecordsPage() {
       setShowForm(false)
       setForm({ userId: '', methodId: '', trainingDate: '', validUntil: '' })
       load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
     finally { setSaving(false) }
   }
 

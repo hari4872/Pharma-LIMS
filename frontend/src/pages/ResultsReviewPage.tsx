@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import api from '@/api/client'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import SampleDetailSheet from '@/components/SampleDetailSheet'
 
 interface Execution {
   executionId: number; sampleId: number; sampleNumber: string; materialName: string
@@ -100,8 +101,9 @@ export default function ResultsReviewPage() {
   // Modal
   const [showReview, setShowReview] = useState<{ executionId: number; type: 'peer' | 'qclead' } | null>(null)
   const [reviewForm, setReviewForm] = useState({ password: '', meaning: '', reason: '', notes: '' })
-  const [saving, setSaving]   = useState(false)
-  const [error, setError]     = useState('')
+  const [saving, setSaving]         = useState(false)
+  const [error, setError]           = useState('')
+  const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
 
   async function load() {
     setLoading(true)
@@ -179,11 +181,15 @@ export default function ResultsReviewPage() {
   async function submitReview(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
     try {
-      const endpoint = showReview!.type === 'peer' ? 'peer-review' : 'qc-lead-verify'
+      const type     = showReview!.type
+      const endpoint = type === 'peer' ? 'peer-review' : 'qc-lead-verify'
       await api.post(`/results-review/${showReview!.executionId}/${endpoint}`, reviewForm)
-      setShowReview(null); load()
+      setShowReview(null)
+      await load()
+      // Navigate to next stage bucket so user sees where the item went
+      setStatusFilter(type === 'peer' ? 'PendingQC' : 'All')
       toast('Review recorded successfully', 'success')
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Review failed') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Review failed') }
     finally { setSaving(false) }
   }
 
@@ -263,10 +269,13 @@ export default function ResultsReviewPage() {
                     onMouseEnter={e => (e.currentTarget.style.background = '#eff6ff')}
                     onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#fafafa')}
                   >
-                    {/* Sample Number — hyperlink style + execution ID sub-text */}
+                    {/* Sample Number — click to open detail sheet */}
                     <td style={{ padding: '10px 16px' }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#2563eb',
-                        cursor: 'pointer', fontFamily: 'monospace' }}>
+                      <div
+                        onClick={() => setDetailSampleId(r.sampleId)}
+                        style={{ fontSize: 13, fontWeight: 700, color: '#2563eb',
+                          cursor: 'pointer', fontFamily: 'monospace',
+                          textDecoration: 'underline dotted' }}>
                         {r.sampleNumber}
                       </div>
                       <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
@@ -342,7 +351,7 @@ export default function ResultsReviewPage() {
       {/* E-Signature Modal */}
       {showReview && (
         <Modal
-          title={showReview.type === 'peer' ? 'Peer Review — E-Signature (§11.50)' : 'QC Lead Verification — E-Signature (§11.50)'}
+          title={showReview.type === 'peer' ? 'Peer Review — E-Signature' : 'QC Lead Verification — E-Signature'}
           onClose={() => setShowReview(null)}
         >
           {showReview.type === 'qclead' && (
@@ -387,6 +396,13 @@ export default function ResultsReviewPage() {
               label={showReview.type === 'peer' ? 'Sign Peer Review' : 'Sign QC Lead Verification'} />
           </form>
         </Modal>
+      )}
+
+      {detailSampleId !== null && (
+        <SampleDetailSheet
+          sampleId={detailSampleId}
+          onClose={() => setDetailSampleId(null)}
+        />
       )}
     </div>
   )

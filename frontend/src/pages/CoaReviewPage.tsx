@@ -4,6 +4,7 @@ import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import PipelineBar from '@/components/PipelineBar'
+import SampleDetailSheet from '@/components/SampleDetailSheet'
 
 interface CoaLine {
   coaLineId: number; parameterId: number; parameterName: string; methodCode: string
@@ -33,12 +34,14 @@ interface ExecOption { executionId: number; sampleId: number; sampleNumber: stri
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Draft:      { bg: '#fef9c3', color: '#854d0e' },
   Released:   { bg: '#d1fae5', color: '#065f46' },
+  Rejected:   { bg: '#fee2e2', color: '#991b1b' },
   Superseded: { bg: '#f3f4f6', color: '#6b7280' },
 }
 
 const STAGES = [
   { key: 'Draft',      label: 'Draft',      color: '#b45309', bg: '#fef9c3' },
   { key: 'Released',   label: 'Released',   color: '#065f46', bg: '#d1fae5' },
+  { key: 'Rejected',   label: 'Rejected',   color: '#991b1b', bg: '#fee2e2' },
   { key: 'Superseded', label: 'Superseded', color: '#374151', bg: '#f3f4f6' },
 ]
 
@@ -56,6 +59,9 @@ export default function CoaReviewPage() {
   const [form, setForm] = useState({ password: '', meaning: '', reason: '', justification: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Sample detail sheet
+  const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
 
   // Generate CoA state
   const [showGenerate,    setShowGenerate]    = useState(false)
@@ -98,7 +104,7 @@ export default function CoaReviewPage() {
       toast(`CoA generated successfully — CoA #${r.data?.coaId ?? ''}`, 'success')
       setShowGenerate(false); load()
     } catch (err: any) {
-      setGenerateError(err.response?.data?.message ?? 'CoA generation failed')
+      setGenerateError(err.friendlyMessage ?? err.response?.data?.message ?? 'CoA generation failed')
     } finally { setGenerateSaving(false) }
   }
 
@@ -112,14 +118,16 @@ export default function CoaReviewPage() {
       toast(`CoA reissued — new CoA #${r.data?.newCoaId ?? ''} created, original superseded`, 'success')
       setShowReissue(false); setReissueTarget(null); load()
     } catch (err: any) {
-      setReissueError(err.response?.data?.message ?? 'Reissue failed')
+      setReissueError(err.friendlyMessage ?? err.response?.data?.message ?? 'Reissue failed')
     } finally { setReissueSaving(false) }
   }
 
   async function load() {
     setLoading(true)
-    const r = await api.get('/coas')
-    setData(r.data); setLoading(false)
+    try {
+      const r = await api.get('/coas')
+      setData(r.data)
+    } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
@@ -161,9 +169,10 @@ export default function CoaReviewPage() {
         password: form.password, meaning: form.meaning, reason: form.reason
       })
       toast(`CoA ${selected!.coaNumber} approved and locked successfully`, 'success')
-      setShowApprove(false); setSelected(null); load()
+      setShowApprove(false); setSelected(null); await load()
+      setStatusFilter('Released')
     } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Approval failed'
+      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Approval failed'
       setError(msg); toast(msg, 'error')
     }
     finally { setSaving(false) }
@@ -177,9 +186,10 @@ export default function CoaReviewPage() {
         password: form.password, meaning: form.meaning, reason: form.reason
       })
       toast(`CoA ${selected!.coaNumber} rejected`, 'warning')
-      setShowReject(false); setSelected(null); load()
+      setShowReject(false); setSelected(null); await load()
+      setStatusFilter('Rejected')
     } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Rejection failed'
+      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Rejection failed'
       setError(msg); toast(msg, 'error')
     }
     finally { setSaving(false) }
@@ -284,7 +294,13 @@ export default function CoaReviewPage() {
 
       <DataTable loading={loading} data={filtered} exportFilename="CoA_Review" columns={[
         { header: 'CoA No.', accessor: r => <strong style={{ fontFamily: 'monospace' }}>{r.coaNumber}</strong> },
-        { header: 'Sample', accessor: 'sampleNumber' },
+        { header: 'Sample', accessor: r => (
+          <button
+            onClick={() => setDetailSampleId(r.sampleId)}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#2563eb', fontFamily: 'monospace', fontSize: 13, fontWeight: 700, textDecoration: 'underline dotted' }}>
+            {r.sampleNumber}
+          </button>
+        )},
         { header: 'Material', accessor: 'materialName' },
         { header: 'Lot', accessor: 'lotNumber' },
         { header: 'Customer / DO', accessor: r => r.customerName ? `${r.customerName} / ${r.doNumber ?? '—'}` : '—' },
@@ -480,6 +496,11 @@ export default function CoaReviewPage() {
             <ModalFooter saving={generateSaving} onCancel={() => setShowGenerate(false)} label="Generate CoA" />
           </form>
         </Modal>
+      )}
+
+      {/* ── Sample Detail Sheet ──────────────────────────────────────────── */}
+      {detailSampleId && (
+        <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
       )}
 
       {/* ── Reissue CoA Modal ─────────────────────────────────────────────── */}

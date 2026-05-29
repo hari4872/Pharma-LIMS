@@ -3,6 +3,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import PipelineBar from '@/components/PipelineBar'
+import SampleDetailSheet from '@/components/SampleDetailSheet'
 
 interface StabilityPull {
   pullId: number; sampleId: number; sampleNumber: string; materialName: string
@@ -37,6 +38,7 @@ export default function StabilityPullsPage() {
   const [execForm, setExecForm]   = useState({ actualQty: '', shortReason: '', password: '', meaning: 'I confirm this stability pull was performed correctly' })
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
+  const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
 
   async function load() {
     setLoading(true)
@@ -59,7 +61,7 @@ export default function StabilityPullsPage() {
     try {
       await api.post('/stability-pulls', { ...schedForm, sampleId: Number(schedForm.sampleId), requiredQty: Number(schedForm.requiredQty) })
       setShowSchedule(false); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
     finally { setSaving(false) }
   }
 
@@ -69,7 +71,7 @@ export default function StabilityPullsPage() {
       const body = { actualQty: Number(execForm.actualQty), shortReason: execForm.shortReason || null, password: execForm.password, meaning: execForm.meaning }
       await api.post(`/stability-pulls/${showExecute!.pullId}/execute`, body)
       setShowExecute(null); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
     finally { setSaving(false) }
   }
 
@@ -101,7 +103,12 @@ export default function StabilityPullsPage() {
       </div>
 
       <DataTable loading={loading} data={filtered} columns={[
-        { header: 'Sample',     accessor: 'sampleNumber' },
+        { header: 'Sample', accessor: r => (
+          <button onClick={() => setDetailSampleId(r.sampleId)}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: '#2563eb', textDecoration: 'underline' }}>
+            {r.sampleNumber}
+          </button>
+        )},
         { header: 'Material',   accessor: 'materialName' },
         { header: 'Time-Point', accessor: 'timePoint' },
         { header: 'Due Date',   accessor: 'dueDate' },
@@ -123,6 +130,8 @@ export default function StabilityPullsPage() {
           : null
         },
       ]} />
+
+      <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
 
       {showSchedule && (
         <Modal title="Schedule Stability Pull" onClose={() => setShowSchedule(false)}>

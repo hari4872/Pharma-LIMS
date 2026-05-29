@@ -142,7 +142,7 @@ export default function SamplingPlansPage() {
       toast('Sampling plan created', 'success')
       setShowCreate(false); resetForm(); load()
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'Create failed')
+      setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Create failed')
     } finally { setSaving(false) }
   }
 
@@ -164,7 +164,7 @@ export default function SamplingPlansPage() {
       toast('Sampling plan updated', 'success')
       setEditing(null); resetForm(); load()
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'Update failed')
+      setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Update failed')
     } finally { setSaving(false) }
   }
 
@@ -178,7 +178,7 @@ export default function SamplingPlansPage() {
       toast(p.isActive ? 'Plan deactivated' : 'Plan activated', 'success')
       load()
     } catch (err: any) {
-      toast(err.response?.data?.error ?? 'Update failed', 'error')
+      toast(err.friendlyMessage ?? err.response?.data?.error ?? 'Update failed', 'error')
     }
   }
 
@@ -190,7 +190,7 @@ export default function SamplingPlansPage() {
       toast('Sampling plan deleted', 'success')
       load()
     } catch (err: any) {
-      toast(err.response?.data?.error ?? 'Delete failed', 'error')
+      toast(err.friendlyMessage ?? err.response?.data?.error ?? 'Delete failed', 'error')
     }
   }
 

@@ -29,7 +29,7 @@ export default function LaboratoriesPage() {
       await api.put(`/laboratories/${editRow!.labId}`, editForm)
       setEditRow(null); load()
       toast(`Laboratory "${editForm.labName}" updated successfully`, 'success')
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -61,7 +61,7 @@ export default function LaboratoriesPage() {
       setShowForm(false); setForm({ labName: '', site: '', location: '', labType: 'QC' }); setTouched({}); load()
       toast(`Laboratory "${form.labName}" added successfully`, 'success')
     } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Failed'
+      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'
       setError(msg)
       toast(msg, 'error')
     }

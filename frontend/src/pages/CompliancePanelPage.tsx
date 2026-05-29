@@ -142,7 +142,7 @@ export default function CompliancePanelPage() {
       setShowReviewForm(false)
       setReviewForm({ reviewType: 'Annual', outcome: 'Passed', notes: '', password: '', meaning: '', reason: '' })
       loadReviews()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
     finally { setSaving(false) }
   }
 

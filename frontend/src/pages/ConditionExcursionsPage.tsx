@@ -47,7 +47,7 @@ export default function ConditionExcursionsPage() {
         excursionEnd: logForm.excursionEnd || null
       })
       setShowLog(false); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
     finally { setSaving(false) }
   }
 
@@ -56,7 +56,7 @@ export default function ConditionExcursionsPage() {
     try {
       await api.put(`/storage-locations/${showImpact!.locationId}/excursions/${showImpact!.excursionId}/impact`, { impactOutcome })
       setShowImpact(null); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
     finally { setSaving(false) }
   }
 

@@ -38,7 +38,7 @@ export default function ParametersPage() {
       })
       setEditRow(null); load()
       toast(`Parameter "${editForm.parameterName}" updated successfully`, 'success')
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -62,7 +62,7 @@ export default function ParametersPage() {
       setShowForm(false)
       toast(`Parameter "${form.parameterName}" added successfully`, 'success')
       load()
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 

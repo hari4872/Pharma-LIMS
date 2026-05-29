@@ -3,6 +3,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import PipelineBar from '@/components/PipelineBar'
+import SampleDetailSheet from '@/components/SampleDetailSheet'
 
 interface DeliveryOrder {
   doId: number; doNumber: string; customerName: string | null
@@ -61,6 +62,8 @@ export default function DispatchQcPage() {
   const [approveForm, setApproveForm] = useState({ password: '', meaning: 'I approve this Dispatch QC — product cleared for dispatch.', reason: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
+  const [successBanner, setSuccessBanner] = useState('')
   const [products, setProducts] = useState<{ materialId: number; materialName: string; materialType: string }[]>([])
 
   async function load() {
@@ -115,8 +118,14 @@ export default function DispatchQcPage() {
         packingType:  doForm.packingType || null,
         productId:    parseInt(doForm.productId) || 0
       })
-      setShowCreateDO(false); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Create failed') }
+      setShowCreateDO(false)
+      await load()
+      // Switch to QC Tasks tab so the user sees the auto-created Dispatch QC task
+      setView('tasks')
+      setStatusFilter('Open')
+      setSuccessBanner(`Delivery Order ${doForm.doNumber} created — Dispatch QC task is now open below.`)
+      setTimeout(() => setSuccessBanner(''), 6000)
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Create failed') }
     finally { setSaving(false) }
   }
 
@@ -125,7 +134,7 @@ export default function DispatchQcPage() {
     try {
       await api.post(`/dispatch-qc/${showApprove!.taskId}/approve`, approveForm)
       setShowApprove(null); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Approval failed') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Approval failed') }
     finally { setSaving(false) }
   }
 
@@ -133,6 +142,13 @@ export default function DispatchQcPage() {
 
   return (
     <div>
+      {successBanner && (
+        <div style={{ marginBottom: 12, background: '#f0fdf4', border: '1px solid #86efac',
+          borderRadius: 8, padding: '10px 16px', fontSize: 13, color: '#166534', fontWeight: 600,
+          display: 'flex', alignItems: 'center', gap: 8 }}>
+          ✓ {successBanner}
+        </div>
+      )}
       <div style={{ marginBottom: 4 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#111827' }}>Dispatch QC</h2>
       </div>
@@ -182,7 +198,12 @@ export default function DispatchQcPage() {
         <DataTable loading={loading} data={filteredTasks} columns={[
           { header: 'DO No.', accessor: r => <strong style={{ fontFamily: 'monospace' }}>{r.doNumber}</strong> },
           { header: 'Customer', accessor: r => r.customerName ?? '—' },
-          { header: 'Sample', accessor: 'sampleNumber' },
+          { header: 'Sample', accessor: r => (
+            <button onClick={() => setDetailSampleId(r.sampleId)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: '#2563eb', textDecoration: 'underline' }}>
+              {r.sampleNumber}
+            </button>
+          )},
           { header: 'Material / Lot', accessor: r => `${r.materialName} / ${r.lotNumber}` },
           { header: 'Form Template', accessor: 'formTemplateName' },
           { header: 'Status', accessor: r => {
@@ -213,6 +234,8 @@ export default function DispatchQcPage() {
           { header: 'Created', accessor: r => new Date(r.createdAt).toLocaleDateString() },
         ]} />
       )}
+
+      <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
 
       {/* Create Delivery Order Modal */}
       {showCreateDO && (

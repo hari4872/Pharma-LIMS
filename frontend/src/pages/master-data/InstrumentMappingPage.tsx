@@ -154,7 +154,7 @@ export default function InstrumentMappingPage() {
       resetAddForm()
       loadMappings(selectedId)
     } catch (err: any) {
-      setAddError(err.response?.data?.error ?? 'Add failed')
+      setAddError(err.friendlyMessage ?? err.response?.data?.error ?? 'Add failed')
     } finally { setSaving(false) }
   }
 

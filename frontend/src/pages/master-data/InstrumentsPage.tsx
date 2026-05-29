@@ -55,7 +55,7 @@ export default function InstrumentsPage() {
       await api.put(`/instruments/${editRow!.instrumentId}`, editForm)
       setEditRow(null); load()
       toast(`Instrument "${editRow!.instrumentCode}" updated successfully`, 'success')
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -78,7 +78,7 @@ export default function InstrumentsPage() {
       setShowForm(false)
       toast(`Instrument "${form.instrumentCode}" added successfully`, 'success')
       load()
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -89,7 +89,7 @@ export default function InstrumentsPage() {
       setShowBreakdownForm(false); setBdForm({ instrumentId: '', issueDescription: '' })
       toast(`Breakdown raised for instrument #${bdForm.instrumentId}`, 'success')
       load()
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -100,7 +100,7 @@ export default function InstrumentsPage() {
       setShowRepairForm(false); setRepairForm({ technician: '', repairDate: '', repairDescription: '', partsUsed: '' })
       toast(`Repair recorded for breakdown #${selectedBreakdownId}`, 'success')
       load()
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -111,7 +111,7 @@ export default function InstrumentsPage() {
       setShowRtsForm(false); setRtsForm({ password: '', meaning: '', reason: '' })
       toast(`Instrument returned to service`, 'success')
       load()
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 

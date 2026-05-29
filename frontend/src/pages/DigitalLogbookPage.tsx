@@ -3,6 +3,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import SampleDetailSheet from '@/components/SampleDetailSheet'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface LogbookEntry {
@@ -68,6 +69,7 @@ export default function DigitalLogbookPage() {
   const [signError, setSignError]     = useState('')
   const [signReadings, setSignReadings] = useState<Record<number, string>>({})
   const [cpParams, setCpParams]       = useState<CheckpointParam[]>([])
+  const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
 
   // ── Logbook load ───────────────────────────────────────────────────────────
   async function loadLogbook() {
@@ -104,7 +106,7 @@ export default function DigitalLogbookPage() {
     } catch (err: any) {
       const code = err.response?.data?.error
       if (code === 'ESIGN_AUTH_FAILED') setAmendError('Password incorrect')
-      else setAmendError(err.response?.data?.message ?? 'Amendment failed')
+      else setAmendError(err.friendlyMessage ?? err.response?.data?.message ?? 'Amendment failed')
     } finally { setAmendSaving(false) }
   }
 
@@ -124,7 +126,7 @@ export default function DigitalLogbookPage() {
     } catch (err: any) {
       const code = err.response?.data?.error
       if (code === 'ESIGN_AUTH_FAILED') setSignError('Password incorrect')
-      else setSignError(err.response?.data?.message ?? 'Sign failed')
+      else setSignError(err.friendlyMessage ?? err.response?.data?.message ?? 'Sign failed')
     } finally { setSignSaving(false) }
   }
 
@@ -201,7 +203,12 @@ export default function DigitalLogbookPage() {
           </div>
 
           <DataTable loading={loading} data={data} columns={[
-            { header: 'Sample', accessor: r => <strong style={{ fontFamily: 'monospace' }}>{r.sampleNumber}</strong> },
+            { header: 'Sample', accessor: r => (
+              <button onClick={() => setDetailSampleId(r.sampleId)}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: '#2563eb', textDecoration: 'underline' }}>
+                {r.sampleNumber}
+              </button>
+            )},
             { header: 'Parameter', accessor: r => (
               <div>
                 {r.parameterName}
@@ -347,6 +354,8 @@ export default function DigitalLogbookPage() {
           )}
         </>
       )}
+
+      <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
 
       {/* ── Amendment Modal ───────────────────────────────────────────────── */}
       {amendEntry && (

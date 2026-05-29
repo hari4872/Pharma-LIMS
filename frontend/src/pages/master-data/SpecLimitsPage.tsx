@@ -63,7 +63,7 @@ export default function SpecLimitsPage() {
       })
       setEditRow(null); load()
       toast(`Spec Limit updated successfully`, 'success')
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -93,7 +93,7 @@ export default function SpecLimitsPage() {
       setShowForm(false)
       toast(`Spec Limit added successfully`, 'success')
       load()
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -105,7 +105,7 @@ export default function SpecLimitsPage() {
       toast(`Spec Limit approved successfully`, 'success')
       load()
     }
-    catch (err: any) { const msg = err.response?.data?.message ?? 'E-signature failed'; setError(msg); toast(msg, 'error') }
+    catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'E-signature failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 

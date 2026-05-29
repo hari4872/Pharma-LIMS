@@ -29,7 +29,7 @@ export default function TestMethodsPage() {
       await api.put(`/test-methods/${editRow!.methodId}`, editForm)
       setEditRow(null); load()
       toast(`Test Method "${editForm.methodName}" updated successfully`, 'success')
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -44,7 +44,7 @@ export default function TestMethodsPage() {
       toast(`Test Method "${form.methodName}" added successfully`, 'success')
       load()
     }
-    catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -56,7 +56,7 @@ export default function TestMethodsPage() {
       toast(`Test Method approved successfully`, 'success')
       load()
     }
-    catch (err: any) { const msg = err.response?.data?.message ?? 'E-signature failed'; setError(msg); toast(msg, 'error') }
+    catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'E-signature failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 

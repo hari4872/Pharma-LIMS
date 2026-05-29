@@ -62,7 +62,7 @@ export default function SpcPage() {
       const r = await api.get(`/spc/${selectedId}?points=${points}`)
       setResult(r.data)
     } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Failed to calculate SPC')
+      setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed to calculate SPC')
     } finally { setLoading(false) }
   }
 

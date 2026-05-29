@@ -3,6 +3,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import PipelineBar from '@/components/PipelineBar'
+import SampleDetailSheet from '@/components/SampleDetailSheet'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface BatchRelease {
@@ -64,11 +65,14 @@ export default function BatchReleasePage() {
   const [decideForm, setDecideForm] = useState({ decision: 'Released', decisionReason: '', password: '', meaning: 'QA Batch Release Decision', reason: '' })
   const [saving,     setSaving]     = useState(false)
   const [error,      setError]      = useState('')
+  const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
 
   async function load() {
     setLoading(true)
-    const r = await api.get('/batch-releases')
-    setData(r.data); setLoading(false)
+    try {
+      const r = await api.get('/batch-releases')
+      setData(r.data)
+    } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
@@ -95,8 +99,9 @@ export default function BatchReleasePage() {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post('/batch-releases', { sampleId: Number(form.sampleId) })
-      setShowInitiate(false); load()
-    } catch (err: any) { setError(err.response?.data?.error ?? 'Failed to initiate review') }
+      setShowInitiate(false); await load()
+      setStatusFilter('PendingReview')
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Failed to initiate review') }
     finally { setSaving(false) }
   }
 
@@ -116,8 +121,11 @@ export default function BatchReleasePage() {
         meaning:        decideForm.meaning,
         reason:         decideForm.reason,
       })
-      setShowDecide(false); setShowDetail(false); load()
-    } catch (err: any) { setError(err.response?.data?.error ?? err.response?.data?.message ?? 'Failed') }
+      setShowDecide(false); setShowDetail(false)
+      await load()
+      // Navigate to the filter matching the decision so user sees the result immediately
+      setStatusFilter(decideForm.decision)   // 'Released' | 'Rejected' | 'OnHold'
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.error ?? err.response?.data?.message ?? 'Failed') }
     finally { setSaving(false) }
   }
 
@@ -156,7 +164,12 @@ export default function BatchReleasePage() {
 
       {/* ── Table ── */}
       <DataTable loading={loading} data={filtered} columns={[
-        { header: 'Sample', accessor: r => <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12 }}>{r.sampleNumber}</span> },
+        { header: 'Sample', accessor: r => (
+          <button onClick={() => setDetailSampleId(r.sampleId)}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, fontSize: 12, color: '#2563eb', textDecoration: 'underline' }}>
+            {r.sampleNumber}
+          </button>
+        )},
         { header: 'Material / Lot', accessor: r => <span>{r.materialName}<br /><span style={{ fontSize: 11, color: '#6b7280' }}>{r.lotNumber}</span></span> },
         { header: 'Status', accessor: r => {
           const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
@@ -252,6 +265,8 @@ export default function BatchReleasePage() {
           )}
         </Modal>
       )}
+
+      <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
 
       {/* ── Decision Modal ── */}
       {showDecide && (

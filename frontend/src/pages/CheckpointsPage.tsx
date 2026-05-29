@@ -162,7 +162,7 @@ export default function CheckpointsPage() {
       toast(`Checkpoint "${cpName}" added successfully`, 'success')
       load()
     } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Failed to create checkpoint'
+      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed to create checkpoint'
       setError(msg)
       toast(msg, 'error')
     }
@@ -184,7 +184,7 @@ export default function CheckpointsPage() {
       toast('Process log row signed and locked ✓', 'success')
       loadProcessLog(showSignRow.checkpointId)
     } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'E-signature failed'
+      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'E-signature failed'
       setError(msg)
       toast(msg, 'error')
     }

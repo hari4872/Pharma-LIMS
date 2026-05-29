@@ -136,7 +136,7 @@ export default function WorkflowConfigPage() {
         toast('Workflow template created', 'success')
       }
       setShowTplModal(false); load()
-    } catch (err: any) { setTplError(err.response?.data?.message ?? 'Save failed') }
+    } catch (err: any) { setTplError(err.friendlyMessage ?? err.response?.data?.message ?? 'Save failed') }
     finally { setTplSaving(false) }
   }
 
@@ -193,7 +193,7 @@ export default function WorkflowConfigPage() {
       // Refresh selected
       const r = await api.get(`/workflow-templates/${selected.workflowTemplateId}`)
       setSelected(r.data)
-    } catch (err: any) { setStepError(err.response?.data?.message ?? 'Save failed') }
+    } catch (err: any) { setStepError(err.friendlyMessage ?? err.response?.data?.message ?? 'Save failed') }
     finally { setStepSaving(false) }
   }
 

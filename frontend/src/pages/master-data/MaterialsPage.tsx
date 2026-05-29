@@ -30,7 +30,7 @@ export default function MaterialsPage() {
       await api.put(`/materials/${editRow!.materialId}`, { ...editForm, shelfLifeDays: Number(editForm.shelfLifeDays) })
       setEditRow(null); load()
       toast(`Material "${editForm.materialName}" updated successfully`, 'success')
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -44,7 +44,7 @@ export default function MaterialsPage() {
       setShowForm(false)
       toast(`Material "${form.materialName}" added successfully`, 'success')
       load()
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 

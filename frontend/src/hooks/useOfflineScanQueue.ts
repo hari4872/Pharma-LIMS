@@ -88,7 +88,7 @@ export function useOfflineScanQueue() {
 
     api.post(`/checkpoints/${checkpointId}/trigger`, {})
       .then(() => toast('✅ Checkpoint triggered — entry logged in process log', 'success'))
-      .catch((err: any) => toast(err.response?.data?.message ?? 'Trigger failed', 'error'))
+      .catch((err: any) => toast(err.friendlyMessage ?? err.response?.data?.message ?? 'Trigger failed', 'error'))
   }
 
   return { triggerCheckpoint, pendingCount, isOnline }

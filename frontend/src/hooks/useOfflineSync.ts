@@ -83,7 +83,7 @@ export function useOfflineSync(): OfflineSyncState {
         result.success++
         result.items.push({ queueId: item.queueId, description: item.description, ok: true })
       } catch (err: any) {
-        const msg = err.response?.data?.message ?? err.message ?? 'Network error'
+        const msg = err.friendlyMessage ?? err.response?.data?.message ?? err.message ?? 'Network error'
         await queue.markFailed(item.queueId, msg)
         result.failed++
         result.items.push({ queueId: item.queueId, description: item.description, ok: false, error: msg })

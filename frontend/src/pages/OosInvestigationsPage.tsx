@@ -4,6 +4,7 @@ import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import PipelineBar from '@/components/PipelineBar'
+import SampleDetailSheet from '@/components/SampleDetailSheet'
 
 interface OosItem {
   investigationId: number; executionId: number; sampleId: number; sampleNumber: string
@@ -33,11 +34,14 @@ export default function OosInvestigationsPage() {
   const [closeForm, setCloseForm] = useState({ rootCause: '', capaRef: '', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
 
   async function load() {
     setLoading(true)
-    const r = await api.get('/oos-investigations')
-    setData(r.data); setLoading(false)
+    try {
+      const r = await api.get('/oos-investigations')
+      setData(r.data)
+    } finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
@@ -69,8 +73,9 @@ export default function OosInvestigationsPage() {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post(`/oos-investigations/${showClose!.investigationId}/close`, closeForm)
-      setShowClose(null); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Close failed') }
+      setShowClose(null); await load()
+      setStatusFilter('Closed')
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Close failed') }
     finally { setSaving(false) }
   }
 
@@ -94,7 +99,12 @@ export default function OosInvestigationsPage() {
       </div>
 
       <DataTable loading={loading} data={filtered} columns={[
-        { header: 'Sample', accessor: r => <strong style={{ fontFamily: 'monospace' }}>{r.sampleNumber}</strong> },
+        { header: 'Sample', accessor: r => (
+          <button onClick={() => setDetailSampleId(r.sampleId)}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: '#2563eb', textDecoration: 'underline' }}>
+            {r.sampleNumber}
+          </button>
+        )},
         { header: 'Parameter', accessor: 'parameterName' },
         { header: 'Type', accessor: r => {
           const c = FLAG_COLORS[r.flagType] ?? { bg: '#f3f4f6', color: '#374151' }
@@ -128,6 +138,8 @@ export default function OosInvestigationsPage() {
           </div>
         )},
       ]} />
+
+      <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
 
       {showClose && (
         <Modal title={`Close ${showClose.flagType} Investigation — ${showClose.sampleNumber}`} onClose={() => setShowClose(null)}>

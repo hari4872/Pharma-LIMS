@@ -1,10 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import Barcode from 'react-barcode'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import SampleDetailSheet from '@/components/SampleDetailSheet'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Sample {
@@ -43,6 +45,15 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   PendingQAReview: { bg: '#ede9fe', color: '#6d28d9' },
   Released:        { bg: '#d1fae5', color: '#065f46' },
   Rejected:        { bg: '#fee2e2', color: '#991b1b' },
+}
+
+interface PrintSample {
+  sampleNumber: string
+  materialName: string
+  lotNumber: string
+  sampleTypeName: string
+  registeredAt: string   // YYYY-MM-DD
+  testsCreated: number
 }
 
 const TRIGGER_LABEL: Record<string, string> = {
@@ -117,6 +128,9 @@ export default function SampleRegistrationPage() {
   const [overrideSpecId, setOverrideSpecId] = useState<number | null>(null)
   const [, setLastSpecResult] = useState<{ outcome: string; message: string; testsCreated: number } | null>(null)
 
+  // Checkpoint section expand/collapse
+  const [cpExpanded, setCpExpanded] = useState(false)
+
   // Container management state
   const [containerSample, setContainerSample] = useState<Sample | null>(null)
   const [containers, setContainers]           = useState<SampleContainer[]>([])
@@ -126,6 +140,9 @@ export default function SampleRegistrationPage() {
   const [destroyingId, setDestroyingId]       = useState<number | null>(null)
   const [destroyForm, setDestroyForm]         = useState({ password: '', reason: '' })
   const [destroyError, setDestroyError]       = useState('')
+  const [printSample, setPrintSample]         = useState<PrintSample | null>(null)
+  const labelRef = useRef<HTMLDivElement>(null)
+  const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
 
   async function loadContainers(sampleId: number) {
     setContainersLoading(true)
@@ -146,7 +163,7 @@ export default function SampleRegistrationPage() {
       toast(`${r.data.count} containers created`, 'success')
       setSplitForm({ count: '3', containerType: 'Aliquot', volumePerContainer: '', volumeUom: '' })
       loadContainers(containerSample!.sampleId)
-    } catch (err: any) { toast(err.response?.data?.message ?? 'Split failed', 'error') }
+    } catch (err: any) { toast(err.friendlyMessage ?? err.response?.data?.message ?? 'Split failed', 'error') }
     finally { setSplitSaving(false) }
   }
 
@@ -158,7 +175,7 @@ export default function SampleRegistrationPage() {
       setDestroyingId(null); setDestroyForm({ password: '', reason: '' })
       loadContainers(containerSample!.sampleId)
     } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Destroy failed'
+      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Destroy failed'
       if (err.response?.data?.error === 'ESIGN_AUTH_FAILED') setDestroyError('Password incorrect (21 CFR Part 11)')
       else setDestroyError(msg)
     }
@@ -203,7 +220,7 @@ export default function SampleRegistrationPage() {
       const r = await api.post(`/samples/${showAssignSpec}/apply-spec`, { specTemplateId: selectedNewSpecId })
       toast(`✓ Spec assigned — ${r.data.testsCreated} test(s) created`, 'success')
       setShowAssignSpec(null); load()
-    } catch (err: any) { setAssignError(err.response?.data?.message ?? 'Assignment failed') }
+    } catch (err: any) { setAssignError(err.friendlyMessage ?? err.response?.data?.message ?? 'Assignment failed') }
     finally { setAssignSaving(false) }
   }
 
@@ -284,7 +301,7 @@ export default function SampleRegistrationPage() {
     // Phase A
     setReceivedTemp(''); setSampleCondition('OK'); setIsRush(false)
     setExternalBatchId(''); setSpecPreview(null); setOverrideSpecId(null)
-    setLastSpecResult(null)
+    setLastSpecResult(null); setCpExpanded(false)
   }
 
   // ── Submit registration ─────────────────────────────────────────────────────
@@ -318,9 +335,22 @@ export default function SampleRegistrationPage() {
       })
       const result = res.data
       setLastSpecResult({ outcome: result.specOutcome, message: result.specMessage, testsCreated: result.testsAutoCreated })
+      // Capture form data BEFORE resetForm() clears it
+      const mat  = materials.find(m => m.materialId === Number(materialId))
+      const st   = sampleTypes.find(t => t.sampleTypeId === Number(sampleTypeId))
+      const lot  = lotNumber
       setShowForm(false)
       resetForm()
-      load()
+      setStatusFilter('Registered')   // switch filter so new sample is immediately visible
+      // Show barcode label modal
+      setPrintSample({
+        sampleNumber:  result.sampleNumber,
+        materialName:  mat?.materialName ?? '',
+        lotNumber:     lot,
+        sampleTypeName: st?.typeName ?? '',
+        registeredAt:  new Date().toISOString().slice(0, 10),
+        testsCreated:  result.testsAutoCreated,
+      })
       // Show outcome toast
       if (result.specOutcome === 'AutoMatch') {
         toast(`✓ ${result.sampleNumber} registered — ${result.testsAutoCreated} test(s) auto-assigned from spec template`, 'success')
@@ -339,7 +369,7 @@ export default function SampleRegistrationPage() {
     try {
       await api.post(`/samples/${showSRF}/sign-srf`, srfForm)
       setShowSRF(null); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'E-signature failed') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'E-signature failed') }
     finally { setSaving(false) }
   }
 
@@ -347,9 +377,52 @@ export default function SampleRegistrationPage() {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post(`/samples/${showReprint}/barcode-reprint`, { reason: reprintReason })
+      // Find the sample row to populate the label
+      const row = data.find(s => s.sampleId === showReprint)
       setShowReprint(null); setReprintReason(''); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Reprint failed') }
+      if (row) {
+        setPrintSample({
+          sampleNumber:   row.sampleNumber,
+          materialName:   row.materialName,
+          lotNumber:      row.lotNumber,
+          sampleTypeName: row.sampleType,
+          registeredAt:   row.createdAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+          testsCreated:   0,
+        })
+      }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Reprint failed') }
     finally { setSaving(false) }
+  }
+
+  function openPrintLabel(row: Sample) {
+    setPrintSample({
+      sampleNumber:   row.sampleNumber,
+      materialName:   row.materialName,
+      lotNumber:      row.lotNumber,
+      sampleTypeName: row.sampleType,
+      registeredAt:   row.createdAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+      testsCreated:   0,
+    })
+  }
+
+  function doPrint() {
+    const el = labelRef.current
+    if (!el) return
+    const style = document.createElement('style')
+    style.id = 'lims-print-only'
+    style.textContent = `
+      @media print {
+        body > * { visibility: hidden !important; }
+        #lims-barcode-label, #lims-barcode-label * { visibility: visible !important; }
+        #lims-barcode-label {
+          position: fixed !important; top: 10mm; left: 10mm;
+          width: 80mm; background: white;
+        }
+      }
+    `
+    document.head.appendChild(style)
+    window.print()
+    document.head.removeChild(style)
   }
 
   const freqText = frequencySummary()
@@ -427,19 +500,12 @@ export default function SampleRegistrationPage() {
       {/* ── Sample list table ─────────────────────────────────────────────── */}
       <DataTable loading={loading} data={data} columns={[
         { header: 'Sample No.', accessor: r => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <strong style={{ fontFamily: 'monospace', fontSize: 12 }}>{r.sampleNumber}</strong>
-            {r.isRush && (
-              <span style={{ padding: '1px 7px', background: '#fee2e2', color: '#dc2626', borderRadius: 10, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em' }}>
-                RUSH
-              </span>
-            )}
-            {r.sampleCondition && r.sampleCondition !== 'OK' && (
-              <span style={{ padding: '1px 7px', background: '#fef3c7', color: '#92400e', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>
-                {r.sampleCondition.toUpperCase()}
-              </span>
-            )}
-          </div>
+          <button onClick={() => setDetailSampleId(r.sampleId)}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f', fontSize: 13, textDecoration: 'underline dotted' }}
+            title="Click to view sample details">
+            {r.sampleNumber}
+            {r.isRush && <span style={{ marginLeft: 6, fontSize: 10, background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4 }}>RUSH</span>}
+          </button>
         ) },
         { header: 'Material', accessor: 'materialName' },
         { header: 'Lot / Batch', accessor: 'lotNumber' },
@@ -450,7 +516,19 @@ export default function SampleRegistrationPage() {
             return <span style={{ padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: c.bg, color: c.color }}>{r.status}</span>
           }
         },
-        { header: 'Label', accessor: r => <span style={{ fontSize: 12, color: r.barcodePrinted ? '#16a34a' : '#dc2626' }}>{r.barcodePrinted ? '✓ Printed' : '✗ Pending'}</span> },
+        { header: 'Label', accessor: r => (
+          <button onClick={() => openPrintLabel(r)}
+            title="View / Print barcode label"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '3px 9px', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+              background: r.barcodePrinted ? '#f0fdf4' : '#fef2f2',
+              color: r.barcodePrinted ? '#16a34a' : '#dc2626',
+              border: `1px solid ${r.barcodePrinted ? '#bbf7d0' : '#fecaca'}`,
+            }}>
+            🖨 {r.barcodePrinted ? 'Print' : 'Pending'}
+          </button>
+        )},
         {
           header: 'Spec Template', accessor: r => r.specTemplateName
             ? <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#f0fdfa', color: '#0d6e6e', fontWeight: 600, border: '1px solid #99f6e4', whiteSpace: 'nowrap' }}>
@@ -603,63 +681,100 @@ export default function SampleRegistrationPage() {
               </Section>
 
               {/* ── Section 2: Checkpoints ──────────────────────────────── */}
-              <Section num={2} title="Checkpoints" subtitle="All active checkpoints are pre-selected. Uncheck any that do not apply to this sample.">
+              <Section num={2} title="Checkpoints" subtitle="">
                 {checkpoints.length === 0 ? (
                   <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>No active checkpoints configured. Please add checkpoints in master data first.</p>
-                ) : (
-                  <>
-                    {/* Select / deselect all controls */}
-                    <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
-                      <button type="button"
-                        onClick={() => setSelectedCps(checkpoints.map(c => c.checkpointId))}
-                        style={{ fontSize: 12, color: '#1e3a5f', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>
-                        ✓ Select All
-                      </button>
-                      <span style={{ color: '#d1d5db' }}>|</span>
-                      <button type="button"
-                        onClick={() => setSelectedCps([])}
-                        style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                        ✗ Clear All
-                      </button>
-                      <span style={{ fontSize: 12, color: '#9ca3af', marginLeft: 'auto' }}>
-                        {selectedCps.length} / {checkpoints.length} selected
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {checkpoints.map(cp => {
-                        const checked = selectedCps.includes(cp.checkpointId)
-                        return (
-                          <label key={cp.checkpointId}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 12,
-                              padding: '10px 14px', borderRadius: 7, cursor: 'pointer',
-                              background: checked ? '#eff6ff' : '#f9fafb',
-                              border: `1px solid ${checked ? '#bfdbfe' : '#e5e7eb'}`,
-                              transition: 'all 0.15s'
-                            }}>
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleCheckpoint(cp.checkpointId)}
-                              style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#1e3a5f' }}
-                            />
-                            <div style={{ flex: 1 }}>
-                              <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{cp.checkpointCode}</span>
-                              <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 10 }}>{cp.checkpointType}</span>
-                            </div>
-                            <span style={{
-                              fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10,
-                              background: checked ? '#dbeafe' : '#f3f4f6',
-                              color: checked ? '#1e40af' : '#9ca3af'
-                            }}>
-                              {TRIGGER_LABEL[cp.triggerMode] ?? cp.triggerMode}
+                ) : (() => {
+                  const allSelected  = selectedCps.length === checkpoints.length
+                  const noneSelected = selectedCps.length === 0
+                  const summaryBg    = noneSelected ? '#fef2f2' : allSelected ? '#f0fdf4' : '#fffbeb'
+                  const summaryBorder = noneSelected ? '#fca5a5' : allSelected ? '#86efac' : '#fcd34d'
+                  const summaryColor  = noneSelected ? '#991b1b' : allSelected ? '#166534' : '#92400e'
+                  const summaryIcon   = noneSelected ? '✗' : allSelected ? '✓' : '⚠'
+                  const summaryText   = noneSelected
+                    ? 'No checkpoints selected — sample will not be tested'
+                    : allSelected
+                    ? `All ${checkpoints.length} checkpoint${checkpoints.length > 1 ? 's' : ''} will be applied`
+                    : `${selectedCps.length} of ${checkpoints.length} checkpoints selected`
+
+                  return (
+                    <>
+                      {/* Collapsed summary bar */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '10px 14px', borderRadius: 8,
+                        background: summaryBg, border: `1px solid ${summaryBorder}`,
+                        marginBottom: cpExpanded ? 14 : 0
+                      }}>
+                        <span style={{ fontSize: 16, color: summaryColor, fontWeight: 700, lineHeight: 1 }}>{summaryIcon}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: summaryColor, flex: 1 }}>{summaryText}</span>
+                        <button type="button" onClick={() => setCpExpanded(v => !v)}
+                          style={{
+                            fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 6,
+                            border: `1px solid ${summaryBorder}`, background: '#fff',
+                            color: summaryColor, cursor: 'pointer', whiteSpace: 'nowrap'
+                          }}>
+                          {cpExpanded ? '▲ Collapse' : '▼ Customize'}
+                        </button>
+                      </div>
+
+                      {/* Expanded full list */}
+                      {cpExpanded && (
+                        <>
+                          <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
+                            <button type="button"
+                              onClick={() => setSelectedCps(checkpoints.map(c => c.checkpointId))}
+                              style={{ fontSize: 12, color: '#1e3a5f', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>
+                              ✓ Select All
+                            </button>
+                            <span style={{ color: '#d1d5db' }}>|</span>
+                            <button type="button"
+                              onClick={() => setSelectedCps([])}
+                              style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                              ✗ Clear All
+                            </button>
+                            <span style={{ fontSize: 12, color: '#9ca3af', marginLeft: 'auto' }}>
+                              {selectedCps.length} / {checkpoints.length} selected
                             </span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </>
-                )}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto', paddingRight: 4 }}>
+                            {checkpoints.map(cp => {
+                              const checked = selectedCps.includes(cp.checkpointId)
+                              return (
+                                <label key={cp.checkpointId}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: 12,
+                                    padding: '8px 12px', borderRadius: 7, cursor: 'pointer',
+                                    background: checked ? '#eff6ff' : '#f9fafb',
+                                    border: `1px solid ${checked ? '#bfdbfe' : '#e5e7eb'}`,
+                                    transition: 'all 0.15s'
+                                  }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => toggleCheckpoint(cp.checkpointId)}
+                                    style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#1e3a5f' }}
+                                  />
+                                  <div style={{ flex: 1 }}>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{cp.checkpointCode}</span>
+                                    <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 8 }}>{cp.checkpointType}</span>
+                                  </div>
+                                  <span style={{
+                                    fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10,
+                                    background: checked ? '#dbeafe' : '#f3f4f6',
+                                    color: checked ? '#1e40af' : '#9ca3af'
+                                  }}>
+                                    {TRIGGER_LABEL[cp.triggerMode] ?? cp.triggerMode}
+                                  </span>
+                                </label>
+                              )
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )
+                })()}
               </Section>
 
               {/* ── Section 3: Frequency ────────────────────────────────── */}
@@ -847,6 +962,88 @@ export default function SampleRegistrationPage() {
         </Modal>
       )}
 
+      {/* ── Barcode Label Modal ─────────────────────────────────────────────── */}
+      {printSample && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div style={{ background: '#fff', borderRadius: 12, width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            {/* Header */}
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#111827' }}>🖨 Barcode Label</h3>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: '#6b7280' }}>Ready to print · 21 CFR 211.170</p>
+              </div>
+              <button onClick={() => setPrintSample(null)}
+                style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af', lineHeight: 1, padding: 4 }}>×</button>
+            </div>
+
+            {/* Label preview */}
+            <div style={{ padding: '20px 24px' }}>
+              <div id="lims-barcode-label" ref={labelRef} style={{
+                border: '1.5px solid #d1d5db', borderRadius: 8, padding: '16px 20px',
+                background: '#fff', textAlign: 'center', fontFamily: 'monospace'
+              }}>
+                {/* Branding line */}
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#6b7280', marginBottom: 10, textTransform: 'uppercase' }}>
+                  Pharma LIMS · Sample Label
+                </div>
+                {/* Barcode */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                  <Barcode
+                    value={printSample.sampleNumber}
+                    format="CODE128"
+                    width={1.6}
+                    height={56}
+                    fontSize={11}
+                    margin={0}
+                    background="#ffffff"
+                    lineColor="#111827"
+                  />
+                </div>
+                {/* Divider */}
+                <div style={{ borderTop: '1px dashed #d1d5db', margin: '10px 0' }} />
+                {/* Sample details */}
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 11 }}>
+                  <tbody>
+                    {[
+                      ['Sample No.', printSample.sampleNumber],
+                      ['Material',   printSample.materialName],
+                      ['Lot / Batch',printSample.lotNumber || '—'],
+                      ['Type',       printSample.sampleTypeName],
+                      ['Date',       printSample.registeredAt],
+                      ...(printSample.testsCreated > 0 ? [['Tests', `${printSample.testsCreated} auto-assigned`]] : []),
+                    ].map(([k, v]) => (
+                      <tr key={k}>
+                        <td style={{ color: '#6b7280', paddingRight: 8, paddingBottom: 3, whiteSpace: 'nowrap', width: '38%' }}>{k}</td>
+                        <td style={{ color: '#111827', fontWeight: 600, paddingBottom: 3 }}>{v}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {/* Footer */}
+                <div style={{ marginTop: 10, fontSize: 9, color: '#9ca3af', borderTop: '1px solid #f3f4f6', paddingTop: 6 }}>
+                  Printed by system · ALCOA+ compliant · Do not alter label
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ padding: '12px 24px 20px', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setPrintSample(null)}
+                style={{ padding: '8px 18px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, color: '#374151', cursor: 'pointer' }}>
+                Close
+              </button>
+              <button onClick={doPrint}
+                style={{ padding: '8px 22px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                🖨 Print Label
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Container Management Modal ───────────────────────────────────── */}
       {containerSample && (
         <Modal title={`Containers — ${containerSample.sampleNumber}`} onClose={() => setContainerSample(null)}>
@@ -960,6 +1157,13 @@ export default function SampleRegistrationPage() {
             </table>
           )}
         </Modal>
+      )}
+
+      {detailSampleId !== null && (
+        <SampleDetailSheet
+          sampleId={detailSampleId}
+          onClose={() => setDetailSampleId(null)}
+        />
       )}
 
       {/* ── Assign Spec Modal ─────────────────────────────────────────────── */}

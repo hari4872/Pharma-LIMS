@@ -17,7 +17,7 @@ export default function SetupPage() {
       await api.post('/auth/setup', form)
       navigate('/login', { replace: true })
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'Setup failed')
+      setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Setup failed')
     } finally { setLoading(false) }
   }
 

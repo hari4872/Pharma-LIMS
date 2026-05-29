@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import SampleDetailSheet from '@/components/SampleDetailSheet'
 
 interface WorkItem {
   executionId: number; sampleId: number; sampleNumber: string; materialName: string
-  lotNumber: string; analystName: string; instrumentCode: string
+  materialId: number; lotNumber: string; analystName: string; instrumentCode: string
   status: string; priorityScore: number | null
   startedAt: string | null; completedAt: string | null
   dueDate: string | null; createdAt: string
@@ -45,7 +47,16 @@ const BAND_COLORS: Record<string, { bg: string; color: string }> = {
   Low:      { bg: '#f3f4f6', color: '#374151' },
 }
 
+function priorityBadge(score: number | null): { label: string; bg: string; color: string; border: string } {
+  if (score === null)  return { label: '⚪ Unset',   bg: '#f9fafb', color: '#6b7280', border: '#e5e7eb' }
+  if (score === 1)     return { label: '🔴 URGENT',  bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' }
+  if (score <= 10)     return { label: '🟠 HIGH',    bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' }
+  if (score <= 50)     return { label: '🟡 MEDIUM',  bg: '#fefce8', color: '#854d0e', border: '#fde68a' }
+  return                      { label: '🟢 NORMAL',  bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' }
+}
+
 export default function WorkQueuePage() {
+  const navigate = useNavigate()
   const [data, setData] = useState<WorkItem[]>([])
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState('')
@@ -70,6 +81,14 @@ export default function WorkQueuePage() {
   const [aiSuggestion, setAiSuggestion] = useState<WorkloadSuggestion | null>(null)
   const [aiLoading, setAiLoading]     = useState(false)
 
+  // Barcode scan
+  const [scanQuery, setScanQuery]       = useState('')
+  const [scanResults, setScanResults]   = useState<WorkItem[] | null>(null)
+  const scanInputRef                    = useRef<HTMLInputElement>(null)
+  const scanBuffer                      = useRef('')
+  const scanLastKey                     = useRef(0)
+  const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
+
   async function load() {
     setLoading(true)
     const params = statusFilter ? `?status=${statusFilter}` : ''
@@ -77,6 +96,56 @@ export default function WorkQueuePage() {
     setData(r.data); setLoading(false)
   }
   useEffect(() => { load() }, [statusFilter])
+
+  // ── Barcode scan / search ────────────────────────────────────────────────
+  const runScan = useCallback((value: string) => {
+    const q = value.trim().toUpperCase()
+    if (!q) { setScanResults(null); return }
+    const matches = data
+      .filter(w => w.sampleNumber.toUpperCase().includes(q))
+      .sort((a, b) => {
+        // Sort: active statuses first, then by priority (lower = more urgent)
+        const activeA = a.status === 'Assigned' || a.status === 'InProgress' ? 0 : 1
+        const activeB = b.status === 'Assigned' || b.status === 'InProgress' ? 0 : 1
+        if (activeA !== activeB) return activeA - activeB
+        const pa = a.priorityScore ?? 999
+        const pb = b.priorityScore ?? 999
+        return pa - pb
+      })
+    setScanResults(matches)
+    if (matches.length === 0) toast(`No work items found for "${value.trim()}"`, 'error')
+  }, [data])
+
+  // Global keyboard listener — captures scanner rapid-fire input from anywhere on the page
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement
+      const inOtherInput = ['INPUT','SELECT','TEXTAREA'].includes(target.tagName) &&
+                           target.id !== 'wq-scan-input'
+      if (inOtherInput) return   // don't interfere with forms / modals
+
+      const now = Date.now()
+      // Gap > 80ms between keys = human typing; reset buffer
+      if (now - scanLastKey.current > 80) scanBuffer.current = ''
+      scanLastKey.current = now
+
+      if (e.key === 'Enter') {
+        if (scanBuffer.current.length >= 3) {
+          const val = scanBuffer.current
+          setScanQuery(val)
+          scanBuffer.current = ''
+          // Also populate the visible input
+          if (scanInputRef.current) scanInputRef.current.value = val
+          runScan(val)
+          e.preventDefault()
+        }
+      } else if (e.key.length === 1) {
+        scanBuffer.current += e.key
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [runScan])
 
   async function toggleAi() {
     if (showAi) { setShowAi(false); return }
@@ -130,7 +199,7 @@ export default function WorkQueuePage() {
         priorityScore: form.priorityScore ? Number(form.priorityScore) : null,
       })
       setShowAssign(false); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Assignment failed') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Assignment failed') }
     finally { setSaving(false) }
   }
 
@@ -158,17 +227,17 @@ export default function WorkQueuePage() {
       const code = err.response?.data?.error
       if (code === 'TRAINING_EXPIRED') setReassignError('Analyst training expired — cannot assign (21 CFR Part 11)')
       else if (code === 'INSTRUMENT_OOC') setReassignError('Instrument out of calibration (21 CFR 211.68)')
-      else setReassignError(err.response?.data?.message ?? 'Re-assign failed')
+      else setReassignError(err.friendlyMessage ?? err.response?.data?.message ?? 'Re-assign failed')
     } finally { setReassignSaving(false) }
   }
 
   async function startTask(executionId: number) {
     try {
       await api.post(`/test-executions/${executionId}/start`, {})
-      load()
+      navigate(`/test-execution/${executionId}`)
     } catch (err: any) {
       const status = err.response?.status
-      const msg = err.response?.data?.message ?? err.response?.data?.error
+      const msg = err.friendlyMessage ?? err.response?.data?.message ?? err.response?.data?.error
       if (status === 403) toast('Permission denied — only Analyst, QC Lead or Admin can start tasks', 'error')
       else toast(msg ?? 'Start failed — please try again', 'error')
     }
@@ -181,6 +250,122 @@ export default function WorkQueuePage() {
 
   return (
     <div>
+      {/* ── Barcode Scan Bar ───────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+        background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 10, padding: '10px 14px',
+      }}>
+        <span style={{ fontSize: 18 }}>📷</span>
+        <input
+          id="wq-scan-input"
+          ref={scanInputRef}
+          type="text"
+          placeholder="Scan barcode or type sample number and press Enter…"
+          value={scanQuery}
+          onChange={e => setScanQuery(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { runScan(scanQuery); e.preventDefault() } }}
+          style={{
+            flex: 1, border: '1px solid #cbd5e1', borderRadius: 7, padding: '7px 12px',
+            fontSize: 13, fontFamily: 'monospace', outline: 'none', background: '#fff',
+          }}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <button
+          onClick={() => runScan(scanQuery)}
+          style={{ padding: '7px 16px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+          Search
+        </button>
+        {scanResults !== null && (
+          <button
+            onClick={() => { setScanResults(null); setScanQuery(''); if (scanInputRef.current) scanInputRef.current.value = '' }}
+            style={{ padding: '7px 12px', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+            ✕ Clear
+          </button>
+        )}
+        <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+          Click field · scan label · Enter
+        </span>
+      </div>
+
+      {/* ── Scan Results ───────────────────────────────────────────────────── */}
+      {scanResults !== null && scanResults.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+            {scanResults.length === 1 ? '1 work item found' : `${scanResults.length} work items found — sorted by priority`}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {scanResults.map(r => {
+              const pb      = priorityBadge(r.priorityScore)
+              const overdue = r.dueDate && new Date(r.dueDate) < new Date() && (r.status === 'Assigned' || r.status === 'InProgress')
+              const sc      = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
+              return (
+                <div key={r.executionId} style={{
+                  border: `2px solid ${pb.border}`, borderRadius: 10,
+                  background: pb.bg, padding: '14px 18px',
+                  display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+                }}>
+                  {/* Priority badge */}
+                  <div style={{
+                    minWidth: 96, padding: '4px 12px', borderRadius: 20, textAlign: 'center',
+                    background: '#fff', border: `1.5px solid ${pb.border}`,
+                    fontSize: 12, fontWeight: 700, color: pb.color, whiteSpace: 'nowrap',
+                  }}>
+                    {pb.label}
+                    {r.priorityScore !== null && <span style={{ marginLeft: 4, opacity: 0.7 }}>#{r.priorityScore}</span>}
+                  </div>
+
+                  {/* Sample info */}
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                      <span style={{ fontSize: 15, fontWeight: 700, fontFamily: 'monospace', color: '#111827' }}>{r.sampleNumber}</span>
+                      {overdue && <span style={{ fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b', padding: '1px 7px', borderRadius: 8 }}>⚠ OVERDUE</span>}
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 8px', borderRadius: 8, background: sc.bg, color: sc.color }}>{r.status}</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: '#374151' }}>
+                      <strong>{r.materialName}</strong>
+                      {r.lotNumber && <span style={{ color: '#6b7280', marginLeft: 8 }}>Lot: {r.lotNumber}</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                      <span>👤 {r.analystName || '—'}</span>
+                      <span>🔬 {r.instrumentCode || '—'}</span>
+                      {r.dueDate && <span style={{ color: overdue ? '#dc2626' : '#6b7280' }}>📅 Due: {new Date(r.dueDate).toLocaleDateString()}</span>}
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {r.status === 'Assigned' && (
+                      <button onClick={() => startTask(r.executionId)}
+                        style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                        ▶ Start Task
+                      </button>
+                    )}
+                    {r.status === 'InProgress' && (
+                      <a href={`/test-execution/${r.executionId}`}
+                        style={{ padding: '7px 16px', background: '#7c3aed', color: '#fff', borderRadius: 7, textDecoration: 'none', fontWeight: 700, fontSize: 13 }}>
+                        📋 Enter Results
+                      </a>
+                    )}
+                    {(r.status === 'Assigned' || r.status === 'InProgress') && (
+                      <button onClick={() => openReassign(r)}
+                        style={{ padding: '7px 14px', background: '#fff', color: '#6d28d9', border: '1.5px solid #ddd6fe', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                        ↩ Re-assign
+                      </button>
+                    )}
+                    {(r.status === 'Completed' || r.status === 'OOSOpen') && (
+                      <span style={{ fontSize: 12, color: '#6b7280', fontStyle: 'italic', padding: '7px 0' }}>
+                        {r.status === 'Completed' ? '✓ Task completed' : '⚠ OOS under investigation'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <PageHeader title="Work Queue (WAP)" onAdd={openAssign} addLabel="Assign Task" />
         <select style={{ ...inp, width: 180, marginTop: 0 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
@@ -332,11 +517,26 @@ export default function WorkQueuePage() {
         </div>
       )}
 
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={data}
+        rowStyle={r => {
+          if (!scanResults || scanResults.length === 0) return {}
+          const isMatch = scanResults.some(s => s.executionId === r.executionId)
+          return isMatch
+            ? { background: '#fffbeb', outline: '2px solid #fcd34d', outlineOffset: '-2px' }
+            : { opacity: 0.4 }
+        }}
+        columns={[
         { header: 'Sample No.', accessor: r => (
           <div>
-            <strong style={{ fontFamily: 'monospace' }}>{r.sampleNumber}</strong>
+            <button onClick={() => setDetailSampleId(r.sampleId)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f', fontSize: 'inherit', textDecoration: 'underline dotted' }}
+              title="Click to view sample details">
+              {r.sampleNumber}
+            </button>
             {isOverdue(r) && <span style={{ marginLeft: 6, fontSize: 11, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8 }}>OVERDUE</span>}
+            {scanResults?.some(s => s.executionId === r.executionId) && (
+              <span style={{ marginLeft: 6, fontSize: 11, background: '#fef9c3', color: '#854d0e', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>● MATCHED</span>
+            )}
           </div>
         )},
         { header: 'Material / Lot', accessor: r => <span>{r.materialName}<br /><span style={{ fontSize: 12, color: '#6b7280' }}>{r.lotNumber}</span></span> },
@@ -480,6 +680,13 @@ export default function WorkQueuePage() {
             <ModalFooter saving={saving} onCancel={() => setShowAssign(false)} label="Assign" />
           </form>
         </Modal>
+      )}
+      {detailSampleId !== null && (
+        <SampleDetailSheet
+          sampleId={detailSampleId}
+          onClose={() => setDetailSampleId(null)}
+          onStartTask={startTask}
+        />
       )}
     </div>
   )

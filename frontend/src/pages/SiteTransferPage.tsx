@@ -95,7 +95,7 @@ export default function SiteTransferPage() {
       setShowInitiate(false)
       setInitForm({ sampleId: '', toLabId: '', transferReason: '', chainOfCustodyNote: '' })
       load()
-    } catch (err: any) { setInitError(err.response?.data?.message ?? 'Failed') }
+    } catch (err: any) { setInitError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
     finally { setInitSaving(false) }
   }
 
@@ -109,7 +109,7 @@ export default function SiteTransferPage() {
       await api.post(endpoint, { note: respondNote || null })
       toast(`Transfer ${action.toLowerCase()}d`, 'success')
       setShowRespond(null); setRespondNote(''); load()
-    } catch (err: any) { setRespondError(err.response?.data?.message ?? 'Action failed') }
+    } catch (err: any) { setRespondError(err.friendlyMessage ?? err.response?.data?.message ?? 'Action failed') }
     finally { setRespondSaving(false) }
   }
 

@@ -116,7 +116,7 @@ export default function QualityEventsPage() {
         dueDate:           form.dueDate || null,
       })
       setShowCreate(false); load()
-    } catch (err: any) { setError(err.response?.data?.error ?? 'Failed to create') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Failed to create') }
     finally { setSaving(false) }
   }
 
@@ -134,7 +134,7 @@ export default function QualityEventsPage() {
         dueDate:           form.dueDate || null,
       })
       setShowEdit(false); load()
-    } catch (err: any) { setError(err.response?.data?.error ?? 'Failed to update') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Failed to update') }
     finally { setSaving(false) }
   }
 
@@ -143,7 +143,7 @@ export default function QualityEventsPage() {
     try {
       await api.put(`/quality-events/${ev.cdId}`, { status: 'Closed' })
       load()
-    } catch (err: any) { alert(err.response?.data?.error ?? 'Failed to close') }
+    } catch (err: any) { alert(err.friendlyMessage ?? err.response?.data?.error ?? 'Failed to close') }
   }
 
   const currentType = TYPE_OPTIONS.find(t => t.value === typeFilter) ?? TYPE_OPTIONS[0]

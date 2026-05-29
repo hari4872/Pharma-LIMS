@@ -179,7 +179,7 @@ export default function StabilityProtocolsPage() {
       toast('Stability protocol created', 'success')
       setShowCreate(false); resetForm(); load()
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'Create failed')
+      setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Create failed')
     } finally { setSaving(false) }
   }
 
@@ -202,7 +202,7 @@ export default function StabilityProtocolsPage() {
       toast('Protocol updated', 'success')
       setEditing(null); resetForm(); load()
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'Update failed')
+      setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Update failed')
     } finally { setSaving(false) }
   }
 
@@ -229,7 +229,7 @@ export default function StabilityProtocolsPage() {
       toast(`${validRows.length} intervals saved`, 'success')
       setIntervalsFor(null); load()
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'Save intervals failed')
+      setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Save intervals failed')
     } finally { setSaving(false) }
   }
 
@@ -268,7 +268,7 @@ export default function StabilityProtocolsPage() {
       toast(p.isActive ? 'Protocol deactivated' : 'Protocol activated', 'success')
       load()
     } catch (err: any) {
-      toast(err.response?.data?.error ?? 'Update failed', 'error')
+      toast(err.friendlyMessage ?? err.response?.data?.error ?? 'Update failed', 'error')
     }
   }
 

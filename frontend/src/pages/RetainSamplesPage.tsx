@@ -3,6 +3,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import PipelineBar from '@/components/PipelineBar'
+import SampleDetailSheet from '@/components/SampleDetailSheet'
 
 interface RetainSample {
   retainId: number; sampleId: number; sampleNumber: string; materialName: string
@@ -33,6 +34,7 @@ export default function RetainSamplesPage() {
   const [destroyForm, setDestroyForm] = useState({ password: '', meaning: 'I authorize destruction of this retain sample', reason: '' })
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
+  const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
 
   async function load() {
     setLoading(true)
@@ -55,7 +57,7 @@ export default function RetainSamplesPage() {
     try {
       await api.post('/retain-samples', { sampleId: Number(addForm.sampleId), locationId: Number(addForm.locationId), quantity: Number(addForm.quantity), quantityUom: addForm.quantityUom, retainedOn: addForm.retainedOn })
       setShowAdd(false); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
     finally { setSaving(false) }
   }
 
@@ -64,7 +66,7 @@ export default function RetainSamplesPage() {
     try {
       await api.post(`/retain-samples/${showDestroy!.retainId}/destroy`, destroyForm)
       setShowDestroy(null); load()
-    } catch (err: any) { setError(err.response?.data?.message ?? 'Failed') }
+    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
     finally { setSaving(false) }
   }
 
@@ -100,7 +102,10 @@ export default function RetainSamplesPage() {
 
       <DataTable loading={loading} data={filtered} columns={[
         { header: 'Sample', accessor: r => (
-          <span style={{ fontFamily: 'monospace', color: '#2563eb', fontWeight: 600, fontSize: 12 }}>{r.sampleNumber}</span>
+          <button onClick={() => setDetailSampleId(r.sampleId)}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: '#2563eb', textDecoration: 'underline', fontSize: 12 }}>
+            {r.sampleNumber}
+          </button>
         )},
         { header: 'Material',   accessor: 'materialName' },
         { header: 'Lot',        accessor: 'lotNumber' },
@@ -127,6 +132,8 @@ export default function RetainSamplesPage() {
           : null
         },
       ]} />
+
+      <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
 
       {showAdd && (
         <Modal title="Register Retain Sample" onClose={() => setShowAdd(false)}>

@@ -143,7 +143,7 @@ export default function FormTemplatesPage() {
       setShowForm(false)
       toast(`Form Template "${form.formName}" added successfully`, 'success')
       load()
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -154,7 +154,7 @@ export default function FormTemplatesPage() {
       setShowApprove(null)
       toast(`Form Template approved successfully`, 'success')
       load()
-    } catch (err: any) { const msg = err.response?.data?.message ?? 'E-signature failed'; setError(msg); toast(msg, 'error') }
+    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'E-signature failed'; setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -465,7 +465,7 @@ function FieldDesigner({
       toast(`Field layout saved — ${fields.length} field${fields.length !== 1 ? 's' : ''}`, 'success')
       onSaved()
     } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Save failed'
+      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Save failed'
       toast(msg, 'error')
     } finally { setSaving(false) }
   }
