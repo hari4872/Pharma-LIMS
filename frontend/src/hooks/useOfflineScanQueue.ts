@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import api from '@/api/client'
+import { toast } from '@/components/Toast'
 
 const QUEUE_KEY = 'lims_offline_scan_queue'
 
@@ -53,7 +54,7 @@ export function useOfflineScanQueue() {
 
     const synced = queue.length - remaining.length
     if (synced > 0) {
-      alert(`Offline sync complete — ${synced} queued scan${synced > 1 ? 's' : ''} sent to server.`)
+      toast(`✅ Offline sync complete — ${synced} queued scan${synced > 1 ? 's' : ''} sent to server.`, 'success')
     }
   }, [])
 
@@ -86,8 +87,8 @@ export function useOfflineScanQueue() {
     }
 
     api.post(`/checkpoints/${checkpointId}/trigger`, {})
-      .then(() => alert('Checkpoint triggered — task added to Work Queue'))
-      .catch((err: any) => alert(err.response?.data?.message ?? 'Trigger failed'))
+      .then(() => toast('✅ Checkpoint triggered — entry logged in process log', 'success'))
+      .catch((err: any) => toast(err.response?.data?.message ?? 'Trigger failed', 'error'))
   }
 
   return { triggerCheckpoint, pendingCount, isOnline }
