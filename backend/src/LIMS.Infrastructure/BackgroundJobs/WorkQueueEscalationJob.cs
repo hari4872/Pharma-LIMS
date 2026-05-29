@@ -50,7 +50,7 @@ public class WorkQueueEscalationJob : BackgroundService
                             executionId = execution.ExecutionId,
                             sampleId = execution.SampleId,
                             sampleNumber = execution.Sample.SampleNumber,
-                            analystName = execution.Analyst.FullName,
+                            analystName = execution.Analyst?.FullName ?? "Unassigned",
                             dueDate = execution.Sample.DueDate
                         }, stoppingToken);
                 }

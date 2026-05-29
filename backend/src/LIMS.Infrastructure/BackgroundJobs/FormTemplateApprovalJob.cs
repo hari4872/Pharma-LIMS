@@ -1,4 +1,4 @@
-using LIMS.Application.Interfaces;
+﻿using LIMS.Application.Interfaces;
 using LIMS.Domain.Enums;
 using LIMS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -8,9 +8,9 @@ using Microsoft.Extensions.Logging;
 
 namespace LIMS.Infrastructure.BackgroundJobs;
 
-// FR-17: FormTemplateApprovalJob — alerts QA when form templates remain in Draft/UnderReview
-// EU Annex 11 §10: form templates must be reviewed and approved before use
-// Interval from DB config (Contract 2 — not hardcoded)
+// FR-17: FormTemplateApprovalJob â€” alerts QA when form templates remain in Draft/UnderReview
+// EU Annex 11 Â§10: form templates must be reviewed and approved before use
+// Interval from DB config (Contract 2 â€” not hardcoded)
 public class FormTemplateApprovalJob : BackgroundService
 {
     private readonly IServiceProvider _services;
@@ -23,7 +23,9 @@ public class FormTemplateApprovalJob : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await RunAsync(stoppingToken);
+            try { await RunAsync(stoppingToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            { _logger.LogError(ex, "[FormTemplateApprovalJob] Unhandled error — job continues next interval"); }
             var intervalHours = await GetIntervalHoursAsync(stoppingToken);
             await Task.Delay(TimeSpan.FromHours(intervalHours), stoppingToken);
         }
@@ -61,7 +63,7 @@ public class FormTemplateApprovalJob : BackgroundService
     {
         var config = await db.LabConfigs.FirstOrDefaultAsync(c => c.ConfigKey == "form_template_stale_days", ct);
         if (config != null && int.TryParse(config.ConfigValue, out var d)) return d;
-        return 7; // default: alert after 7 days pending — admin sets form_template_stale_days in LabConfig
+        return 7; // default: alert after 7 days pending â€” admin sets form_template_stale_days in LabConfig
     }
 
     private async Task<double> GetIntervalHoursAsync(CancellationToken ct)
@@ -77,3 +79,4 @@ public class FormTemplateApprovalJob : BackgroundService
         return 24;
     }
 }
+

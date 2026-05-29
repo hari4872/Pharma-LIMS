@@ -11,7 +11,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/samples")]
 [Authorize]
-public class SamplesController : ControllerBase
+public class SamplesController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILimsDbContext _db;
@@ -30,7 +30,7 @@ public class SamplesController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterSampleRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
-        var userId   = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result   = await _mediator.Send(new RegisterSampleCommand(
             request.LabId, request.MaterialId, request.LotNumber,
             request.MfgDate, request.ExpDate, request.SampleTypeId,

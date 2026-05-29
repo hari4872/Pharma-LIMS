@@ -1,4 +1,4 @@
-using LIMS.Application.Features.MasterData.FormTemplates;
+﻿using LIMS.Application.Features.MasterData.FormTemplates;
 using LIMS.Application.Interfaces;
 using LIMS.Domain.Entities;
 using LIMS.Domain.Enums;
@@ -12,7 +12,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/form-templates")]
 [Authorize]
-public class FormTemplatesController : ControllerBase
+public class FormTemplatesController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILimsDbContext _db;
@@ -46,11 +46,11 @@ public class FormTemplatesController : ControllerBase
         var template = new FormTemplate
         {
             FormCode = request.FormCode, FormName = request.FormName, LabId = request.LabId,
-            FormType = Enum.Parse<FormType>(request.FormType),
-            TriggerType = Enum.Parse<TriggerType>(request.TriggerType),
+            FormType = Enum.Parse<FormType>(request.FormType, true),
+            TriggerType = Enum.Parse<TriggerType>(request.TriggerType, true),
             TimeSlots = request.TimeSlots, ShiftIntervalHrs = request.ShiftIntervalHrs,
             RegulatoryTier = request.RegulatoryTier, EvidenceMandatory = request.EvidenceMandatory,
-            SampleTypeId = request.SampleTypeId,   // configured by user — no hardcoding
+            SampleTypeId = request.SampleTypeId,   // configured by user â€” no hardcoding
             CreatedBy = username, CreatedAt = DateTimeOffset.UtcNow
         };
         _db.FormTemplates.Add(template);
@@ -82,7 +82,7 @@ public class FormTemplatesController : ControllerBase
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Approve(int id, [FromBody] ApproveRequest request)
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new ApproveFormTemplateCommand(id, userId, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {
@@ -92,7 +92,7 @@ public class FormTemplatesController : ControllerBase
         return Ok(new { formTemplateId = result.Value, status = "Active" });
     }
 
-    // PUT api/v1/form-templates/{id}/fields  — save custom field designer layout as JSON
+    // PUT api/v1/form-templates/{id}/fields  â€” save custom field designer layout as JSON
     [HttpPut("{id}/fields")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> SaveFields(int id, [FromBody] SaveFieldsRequest request)
@@ -150,3 +150,5 @@ public record UpdateFormTemplateRequest(string FormName, string TriggerType, boo
 public record SaveFieldsRequest(string? FieldDefinitionsJson);
 public record AddTemplateParameterRequest(int ParameterId, int DisplayOrder, string? ColumnFrequency);
 public record AddTemplateLocationRequest(string LocationName, int ColumnOrder, int? SpecLimitId);
+
+

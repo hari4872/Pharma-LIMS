@@ -70,7 +70,7 @@ export function useNotifications() {
     if (!token) return
 
     const apiBase = (import.meta.env.VITE_API_URL as string | undefined)
-      ?? import.meta.env.DEV ? 'http://localhost:5204' : window.location.origin
+      ?? (import.meta.env.DEV ? 'http://localhost:5204' : window.location.origin)
     const hubUrl = String(apiBase).replace(/\/api\/v1\/?$/, '') + '/hubs/lims'
 
     const conn = new signalR.HubConnectionBuilder()

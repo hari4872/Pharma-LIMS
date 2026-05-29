@@ -183,7 +183,7 @@ public class AuthController : ControllerBase
             new Claim(ClaimTypes.Role, role),
             new Claim("userType", userType),
             // MS-1: lab identity baked into token — backend validates from here, not request body
-            new Claim("labId",   labId?.ToString() ?? "0"),
+            new Claim("labId",   labId?.ToString() ?? ""),   // empty string = no lab; never "0" (avoids silent filter-to-zero)
             new Claim("labName", labName),
         };
 

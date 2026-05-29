@@ -1,4 +1,4 @@
-using LIMS.Application.Interfaces;
+﻿using LIMS.Application.Interfaces;
 using LIMS.Domain.Entities;
 using LIMS.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -7,12 +7,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.API.Controllers;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SamplingPlansController — Phase B
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// SamplingPlansController â€” Phase B
 //
 // CRUD for SamplingPlan master data.
 // QA/Admin manages plans; all authenticated users can read.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 [ApiController]
 [Route("api/v1/sampling-plans")]
@@ -23,7 +23,7 @@ public class SamplingPlansController : ControllerBase
 
     public SamplingPlansController(ILimsDbContext db) => _db = db;
 
-    // ── GET /sampling-plans ───────────────────────────────────────────────────
+    // â”€â”€ GET /sampling-plans â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int? materialId,
@@ -39,7 +39,7 @@ public class SamplingPlansController : ControllerBase
 
         if (materialId.HasValue)   q = q.Where(p => p.MaterialId == materialId);
         if (sampleTypeId.HasValue) q = q.Where(p => p.SampleTypeId == sampleTypeId);
-        if (!string.IsNullOrEmpty(stage) && Enum.TryParse<SpecStage>(stage, out var st))
+        if (!string.IsNullOrEmpty(stage) && Enum.TryParse<SpecStage>(stage, true, out var st))
             q = q.Where(p => p.Stage == st);
         if (isActive.HasValue) q = q.Where(p => p.IsActive == isActive);
 
@@ -56,7 +56,7 @@ public class SamplingPlansController : ControllerBase
         return Ok(list);
     }
 
-    // ── GET /sampling-plans/:id ───────────────────────────────────────────────
+    // â”€â”€ GET /sampling-plans/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
@@ -69,7 +69,7 @@ public class SamplingPlansController : ControllerBase
         return Ok(p);
     }
 
-    // ── POST /sampling-plans ──────────────────────────────────────────────────
+    // â”€â”€ POST /sampling-plans â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpPost]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Create([FromBody] CreateSamplingPlanRequest req)
@@ -96,7 +96,7 @@ public class SamplingPlansController : ControllerBase
             new { plan.SamplingPlanId, plan.PlanName });
     }
 
-    // ── PUT /sampling-plans/:id ───────────────────────────────────────────────
+    // â”€â”€ PUT /sampling-plans/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateSamplingPlanRequest req)
@@ -118,7 +118,7 @@ public class SamplingPlansController : ControllerBase
         return Ok(new { plan.SamplingPlanId, plan.PlanName, plan.IsActive });
     }
 
-    // ── DELETE /sampling-plans/:id ────────────────────────────────────────────
+    // â”€â”€ DELETE /sampling-plans/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Delete(int id)
@@ -131,7 +131,7 @@ public class SamplingPlansController : ControllerBase
     }
 }
 
-// ── Request DTOs ──────────────────────────────────────────────────────────────
+// â”€â”€ Request DTOs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 public record CreateSamplingPlanRequest(
     string       PlanName,
@@ -152,3 +152,4 @@ public record UpdateSamplingPlanRequest(
     int?           SpecTemplateId,
     string?        Notes,
     bool?          IsActive);
+

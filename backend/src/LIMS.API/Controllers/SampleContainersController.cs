@@ -1,4 +1,4 @@
-using LIMS.Application.Features.Samples;
+﻿using LIMS.Application.Features.Samples;
 using LIMS.Application.Interfaces;
 using LIMS.Domain.Enums;
 using MediatR;
@@ -16,7 +16,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/samples/{sampleId:int}/containers")]
 [Authorize]
-public class SampleContainersController : ControllerBase
+public class SampleContainersController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILimsDbContext _db;
@@ -46,7 +46,7 @@ public class SampleContainersController : ControllerBase
         return Ok(containers);
     }
 
-    // POST api/v1/samples/{sampleId}/containers — split into aliquots
+    // POST api/v1/samples/{sampleId}/containers â€” split into aliquots
     [HttpPost]
     [Authorize(Roles = "Admin,QA,LabManager,Analyst")]
     public async Task<IActionResult> Split(int sampleId, [FromBody] SplitContainersRequest request)
@@ -66,7 +66,7 @@ public class SampleContainersController : ControllerBase
         return Ok(new { containerIds = result.Value, count = result.Value!.Count });
     }
 
-    // POST api/v1/samples/{sampleId}/containers/{id}/destroy — e-sig required
+    // POST api/v1/samples/{sampleId}/containers/{id}/destroy â€” e-sig required
     [HttpPost("{id:int}/destroy")]
     [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Destroy(int sampleId, int id, [FromBody] DestroyContainerRequest request)
@@ -78,10 +78,10 @@ public class SampleContainersController : ControllerBase
             return BadRequest(new { error = "ALREADY_DESTROYED" });
 
         // Minimal e-sig via BCrypt re-auth (same pattern as other destruction endpoints)
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var user   = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            return Unauthorized(new { error = "ESIGN_AUTH_FAILED", message = "Password incorrect. (21 CFR §11.300)" });
+            return Unauthorized(new { error = "ESIGN_AUTH_FAILED", message = "Password incorrect. (21 CFR Â§11.300)" });
 
         container.Status      = ContainerStatus.Destroyed;
         container.DestroyedAt = DateTimeOffset.UtcNow;
@@ -108,3 +108,4 @@ public record SplitContainersRequest(
     int? StorageLocationId);
 
 public record DestroyContainerRequest(string Password, string Reason);
+

@@ -1,4 +1,4 @@
-using LIMS.Application.Interfaces;
+﻿using LIMS.Application.Interfaces;
 using LIMS.Domain.Entities;
 using LIMS.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LIMS.API.Controllers;
 
 /// <summary>
-/// Sprint 7 — Batch Release Workflow
+/// Sprint 7 â€” Batch Release Workflow
 /// 21 CFR 211.192: QA reviews each batch before release.
 /// Auto-evaluates release checklist, then QA makes final decision with e-signature.
 /// Route: api/v1/batch-releases
@@ -16,7 +16,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/batch-releases")]
 [Authorize]
-public class BatchReleaseController : ControllerBase
+public class BatchReleaseController : LimsControllerBase
 {
     private readonly ILimsDbContext _db;
     private readonly ILabContext _lab;
@@ -100,7 +100,7 @@ public class BatchReleaseController : ControllerBase
         });
     }
 
-    // POST api/v1/batch-releases — initiate review for a sample
+    // POST api/v1/batch-releases â€” initiate review for a sample
     [HttpPost]
     [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Initiate([FromBody] InitiateBatchReleaseRequest req)
@@ -119,7 +119,7 @@ public class BatchReleaseController : ControllerBase
             (r.Status == BatchReleaseStatus.PendingReview || r.Status == BatchReleaseStatus.InReview));
         if (existing) return Conflict(new { error = "An active batch release review already exists for this sample." });
 
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
 
         // Auto-evaluate checklist
         var checkItems = await EvaluateChecklistAsync(req.SampleId);
@@ -158,7 +158,7 @@ public class BatchReleaseController : ControllerBase
         return Ok(new { release.BatchReleaseId, status = "InReview", checkItems });
     }
 
-    // POST api/v1/batch-releases/{id}/decide — QA final release/reject/hold with §11.50 e-sig
+    // POST api/v1/batch-releases/{id}/decide â€” QA final release/reject/hold with Â§11.50 e-sig
     [HttpPost("{id}/decide")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Decide(int id, [FromBody] BatchReleaseDecisionRequest req)
@@ -178,17 +178,17 @@ public class BatchReleaseController : ControllerBase
         if (string.IsNullOrWhiteSpace(req.DecisionReason))
             return BadRequest(new { error = "DecisionReason is required." });
 
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
 
-        // §11.50 e-signature required for batch release decision (21 CFR 211.192)
+        // Â§11.50 e-signature required for batch release decision (21 CFR 211.192)
         var sig = await _esig.CreateSignatureAsync(
             userId, req.Password, req.Meaning, req.Reason,
             "BatchRelease.Decision", default);
         if (sig is null)
-            return Unauthorized(new { error = "ESIGN_AUTH_FAILED", message = "Password incorrect — e-signature rejected. (21 CFR §11.300)" });
+            return Unauthorized(new { error = "ESIGN_AUTH_FAILED", message = "Password incorrect â€” e-signature rejected. (21 CFR Â§11.300)" });
 
         // Update release
-        release.Status         = Enum.Parse<BatchReleaseStatus>(req.Decision);
+        release.Status         = Enum.Parse<BatchReleaseStatus>(req.Decision, true);
         release.Decision       = req.Decision;
         release.DecisionReason = req.DecisionReason;
         release.SignatureId    = sig.SignatureId;
@@ -212,7 +212,7 @@ public class BatchReleaseController : ControllerBase
         return Ok(new { release.BatchReleaseId, decision = req.Decision, sampleStatus = release.Sample.Status.ToString() });
     }
 
-    // ── Private Helpers ────────────────────────────────────────────────────
+    // â”€â”€ Private Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private async Task<List<ChecklistItem>> EvaluateChecklistAsync(int sampleId)
     {
@@ -259,3 +259,5 @@ internal record ChecklistItem(string CheckType, bool Passed, string Detail);
 
 public record InitiateBatchReleaseRequest(int SampleId);
 public record BatchReleaseDecisionRequest(string Decision, string DecisionReason, string Password, string Meaning, string Reason);
+
+

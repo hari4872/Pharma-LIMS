@@ -1,4 +1,4 @@
-using LIMS.API.Pdf;
+﻿using LIMS.API.Pdf;
 using LIMS.Application.Features.OosInvestigations;
 using LIMS.Application.Interfaces;
 using MediatR;
@@ -13,7 +13,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/oos-investigations")]
 [Authorize]
-public class OosInvestigationsController : ControllerBase
+public class OosInvestigationsController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILimsDbContext _db;
@@ -26,12 +26,12 @@ public class OosInvestigationsController : ControllerBase
         [FromQuery] string? status, [FromQuery] int? labId, [FromQuery] int? executionId)
         => Ok(await _mediator.Send(new GetOosInvestigationsQuery(status, labId, executionId)));
 
-    // POST api/v1/oos-investigations/{id}/close — QA closes investigation §11.50 e-sig (FDA OOS Guidance)
+    // POST api/v1/oos-investigations/{id}/close â€” QA closes investigation Â§11.50 e-sig (FDA OOS Guidance)
     [HttpPost("{id}/close")]
     [Authorize(Roles = "Admin,QA,QCLead")]
     public async Task<IActionResult> Close(int id, [FromBody] CloseOosRequest request)
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new CloseOosInvestigationCommand(
             id, userId, request.RootCause, request.CapaRef, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
@@ -43,12 +43,12 @@ public class OosInvestigationsController : ControllerBase
         return Ok(new { investigationId = result.Value, status = "Closed" });
     }
 
-    // POST api/v1/oos-investigations/{id}/escalate-phase2 — Sprint 1: FDA OOS Phase 2 escalation
+    // POST api/v1/oos-investigations/{id}/escalate-phase2 â€” Sprint 1: FDA OOS Phase 2 escalation
     [HttpPost("{id}/escalate-phase2")]
     [Authorize(Roles = "Admin,QA,QCLead")]
     public async Task<IActionResult> EscalateToPhase2(int id, [FromBody] EscalatePhase2Request request)
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new EscalateToPhase2Command(
             id, userId, request.EscalationReason, request.CapaRef,
             request.Password, request.Meaning, request.Reason));
@@ -61,7 +61,7 @@ public class OosInvestigationsController : ControllerBase
         return Ok(new { investigationId = result.Value, phase = "Phase2" });
     }
 
-    // GET api/v1/oos-investigations/{id}/pdf — OOS Investigation Report PDF (FDA OOS Guidance + 21 CFR §211.192)
+    // GET api/v1/oos-investigations/{id}/pdf â€” OOS Investigation Report PDF (FDA OOS Guidance + 21 CFR Â§211.192)
     [HttpGet("{id}/pdf")]
     public async Task<IActionResult> GetPdf(int id)
     {
@@ -80,7 +80,7 @@ public class OosInvestigationsController : ControllerBase
             MaterialName:    inv.Execution.Sample.Material.MaterialName,
             LotNumber:       inv.Execution.Sample.LotNumber,
             ParameterName:   inv.Parameter.ParameterName,
-            Uom:             inv.Parameter.Uom ?? "—",
+            Uom:             inv.Parameter.Uom ?? "â€”",
             FlagType:        inv.FlagType.ToString(),
             Phase:           inv.Phase.ToString(),
             Status:          inv.Status.ToString(),
@@ -108,3 +108,4 @@ public class OosInvestigationsController : ControllerBase
 
 public record CloseOosRequest(string RootCause, string? CapaRef, string Password, string Meaning, string Reason);
 public record EscalatePhase2Request(string EscalationReason, string? CapaRef, string Password, string Meaning, string Reason);
+

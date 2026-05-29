@@ -1,4 +1,4 @@
-using LIMS.Domain.Entities;
+﻿using LIMS.Domain.Entities;
 using LIMS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,8 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace LIMS.Infrastructure.BackgroundJobs;
 
-// FR-15: UtilisationSummaryJob — compute instrument utilisation (7/30/90 days)
-// Window from DB config (Contract 2 — not hardcoded)
+// FR-15: UtilisationSummaryJob â€” compute instrument utilisation (7/30/90 days)
+// Window from DB config (Contract 2 â€” not hardcoded)
 public class UtilisationSummaryJob : BackgroundService
 {
     private readonly IServiceProvider _services;
@@ -21,7 +21,9 @@ public class UtilisationSummaryJob : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await RunAsync(stoppingToken);
+            try { await RunAsync(stoppingToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            { _logger.LogError(ex, "[UtilisationSummaryJob] Unhandled error — job continues next interval"); }
             var intervalHours = await GetIntervalHoursAsync(stoppingToken);
             await Task.Delay(TimeSpan.FromHours(intervalHours), stoppingToken);
         }
@@ -52,6 +54,14 @@ public class UtilisationSummaryJob : BackgroundService
                 var totalTests = executions.Count;
                 var totalHours = executions.Sum(e => (decimal)(e.CompletedAt!.Value - e.StartedAt!.Value).TotalHours);
                 var utilisationPct = days > 0 ? Math.Round(totalHours / (days * 24) * 100, 2) : 0;
+
+                // Upsert: remove existing summary for same instrument+window before recalculating (prevents duplicates)
+                var existing = await db.InstrumentUtilisationSummaries
+                    .Where(s => s.InstrumentId == instrument.InstrumentId
+                             && s.WindowDays == days
+                             && s.WindowStart.Date == windowStart.Date)
+                    .ToListAsync(ct);
+                if (existing.Any()) db.InstrumentUtilisationSummaries.RemoveRange(existing);
 
                 db.InstrumentUtilisationSummaries.Add(new InstrumentUtilisationSummary
                 {
@@ -84,7 +94,7 @@ public class UtilisationSummaryJob : BackgroundService
                 .Where(d => d.HasValue).Select(d => d!.Value).ToArray();
             if (parsed.Length > 0) return parsed;
         }
-        return new[] { 7, 30, 90 };   // fallback — admin should set utilisation_window_days in LabConfig
+        return new[] { 7, 30, 90 };   // fallback â€” admin should set utilisation_window_days in LabConfig
     }
 
     private async Task<double> GetIntervalHoursAsync(CancellationToken ct)
@@ -100,3 +110,4 @@ public class UtilisationSummaryJob : BackgroundService
         return 24;
     }
 }
+

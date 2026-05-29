@@ -35,11 +35,12 @@ export default function TestExecutionPage() {
 
   useEffect(() => {
     if (!id) return
-    api.get(`/test-executions?status=InProgress`).then(r => {
-      const ex = r.data.find((e: Execution) => e.executionId === Number(id))
-      setExecution(ex ?? null)
-    })
-    api.get(`/test-executions/${id}/parameters`).then(r => setParameters(r.data))
+    api.get(`/test-executions?status=InProgress`)
+      .then(r => { const ex = r.data.find((e: Execution) => e.executionId === Number(id)); setExecution(ex ?? null) })
+      .catch(() => setError('Failed to load execution details. Please refresh.'))
+    api.get(`/test-executions/${id}/parameters`)
+      .then(r => setParameters(r.data))
+      .catch(() => setError('Failed to load test parameters. Please refresh.'))
   }, [id])
 
   async function submitResults(e: React.FormEvent) {

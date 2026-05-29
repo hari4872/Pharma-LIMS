@@ -1,4 +1,4 @@
-using LIMS.Application.Features.MasterData.TestMethods;
+﻿using LIMS.Application.Features.MasterData.TestMethods;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +8,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/test-methods")]
 [Authorize]
-public class TestMethodsController : ControllerBase
+public class TestMethodsController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     public TestMethodsController(IMediator mediator) => _mediator = mediator;
@@ -48,12 +48,12 @@ public class TestMethodsController : ControllerBase
         return Ok(new { methodId = result.Value, status = "Retired" });
     }
 
-    // POST api/v1/test-methods/{id}/approve — §11.50 QA e-sig
+    // POST api/v1/test-methods/{id}/approve â€” Â§11.50 QA e-sig
     [HttpPost("{id}/approve")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Approve(int id, [FromBody] ApproveRequest request)
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new ApproveTestMethodCommand(id, userId, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {
@@ -67,3 +67,4 @@ public class TestMethodsController : ControllerBase
 public record CreateTestMethodRequest(string MethodCode, string MethodName, string? SopReference, string? MethodType);
 public record UpdateTestMethodRequest(string MethodName, string? SopReference, string? MethodType);
 public record ApproveRequest(string Password, string Meaning, string Reason);
+

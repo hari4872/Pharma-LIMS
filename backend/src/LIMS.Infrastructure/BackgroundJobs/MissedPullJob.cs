@@ -1,4 +1,4 @@
-using LIMS.Application.Interfaces;
+﻿using LIMS.Application.Interfaces;
 using LIMS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,8 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace LIMS.Infrastructure.BackgroundJobs;
 
-// FR-04: MissedPullJob — escalates missed stability pulls server-side (Contract 2)
-// Missed = DueDate < today AND Status = Pending → escalate to QA
+// FR-04: MissedPullJob â€” escalates missed stability pulls server-side (Contract 2)
+// Missed = DueDate < today AND Status = Pending â†’ escalate to QA
 public class MissedPullJob : BackgroundService
 {
     private readonly IServiceProvider _services;
@@ -21,7 +21,9 @@ public class MissedPullJob : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await RunAsync(stoppingToken);
+            try { await RunAsync(stoppingToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            { _logger.LogError(ex, "[MissedPullJob] Unhandled error — job continues next interval"); }
             var intervalHours = await GetIntervalHoursAsync(stoppingToken);
             await Task.Delay(TimeSpan.FromHours(intervalHours), stoppingToken);
         }
@@ -77,3 +79,4 @@ public class MissedPullJob : BackgroundService
         return 24;
     }
 }
+

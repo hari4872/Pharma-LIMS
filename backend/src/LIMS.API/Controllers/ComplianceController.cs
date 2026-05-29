@@ -1,15 +1,15 @@
-using LIMS.Application.Features.Compliance;
+﻿using LIMS.Application.Features.Compliance;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LIMS.API.Controllers;
 
-// FR-18/FR-20: Compliance & Governance — audit trail, signature log, periodic reviews
+// FR-18/FR-20: Compliance & Governance â€” audit trail, signature log, periodic reviews
 [ApiController]
 [Route("api/v1/compliance")]
 [Authorize(Roles = "QA,Admin")]
-public class ComplianceController : ControllerBase
+public class ComplianceController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     public ComplianceController(IMediator mediator) => _mediator = mediator;
@@ -46,11 +46,11 @@ public class ComplianceController : ControllerBase
         CancellationToken ct = default)
         => Ok(await _mediator.Send(new GetValidationReviewsQuery(reviewType, limitDays), ct));
 
-    // POST api/v1/compliance/validation-reviews — §11.50 e-sig
+    // POST api/v1/compliance/validation-reviews â€” Â§11.50 e-sig
     [HttpPost("validation-reviews")]
     public async Task<IActionResult> RecordValidationReview([FromBody] RecordReviewRequest request, CancellationToken ct)
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new RecordValidationReviewCommand(
             request.ReviewType, request.Outcome, request.Notes,
             userId, request.Password, request.Meaning, request.Reason), ct);
@@ -64,3 +64,4 @@ public class ComplianceController : ControllerBase
 }
 
 public record RecordReviewRequest(string ReviewType, string Outcome, string? Notes, string Password, string Meaning, string Reason);
+

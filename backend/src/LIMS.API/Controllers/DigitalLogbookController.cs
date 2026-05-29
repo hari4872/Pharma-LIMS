@@ -1,4 +1,4 @@
-using LIMS.Application.Features.DigitalLogbook;
+﻿using LIMS.Application.Features.DigitalLogbook;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +9,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/digital-logbook")]
 [Authorize]
-public class DigitalLogbookController : ControllerBase
+public class DigitalLogbookController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     public DigitalLogbookController(IMediator mediator) => _mediator = mediator;
@@ -22,13 +22,13 @@ public class DigitalLogbookController : ControllerBase
         [FromQuery] DateTimeOffset? dateFrom, [FromQuery] DateTimeOffset? dateTo)
         => Ok(await _mediator.Send(new GetLogbookEntriesQuery(sampleId, executionId, labId, status, dateFrom, dateTo)));
 
-    // POST api/v1/digital-logbook/{id}/amend — post-sign amendment; original preserved as Superseded
-    // 21 CFR §11.10(e): original never deleted; amendment reason + e-sig mandatory
+    // POST api/v1/digital-logbook/{id}/amend â€” post-sign amendment; original preserved as Superseded
+    // 21 CFR Â§11.10(e): original never deleted; amendment reason + e-sig mandatory
     [HttpPost("{id}/amend")]
     [Authorize(Roles = "Analyst,QCLead,QA,Admin")]
     public async Task<IActionResult> Amend(int id, [FromBody] AmendEntryRequest request)
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new AmendLogbookEntryCommand(
             id, userId, request.NewRawValue, request.AmendmentReason,
             request.Password, request.Meaning, request.Reason));
@@ -41,7 +41,7 @@ public class DigitalLogbookController : ControllerBase
         return Ok(new { newEntryId = result.Value, originalEntryId = id, status = "AmendmentCreated" });
     }
 
-    // GET api/v1/digital-logbook/export?format=csv — FR-09: export with all §11.50 manifestations
+    // GET api/v1/digital-logbook/export?format=csv â€” FR-09: export with all Â§11.50 manifestations
     [HttpGet("export")]
     [Authorize(Roles = "QA,QCLead,Admin")]
     public async Task<IActionResult> Export(
@@ -52,7 +52,7 @@ public class DigitalLogbookController : ControllerBase
     {
         var entries = await _mediator.Send(new GetLogbookEntriesQuery(sampleId, executionId, labId, status, dateFrom, dateTo));
 
-        // Build CSV with all §11.50 audit columns
+        // Build CSV with all Â§11.50 audit columns
         var lines = new System.Text.StringBuilder();
         lines.AppendLine("EntryId,SampleNumber,ParameterName,RawValue,CalculatedResult,PassFail,IsOos,IsOot,SpecMin,SpecMax,AnalystName,SignedBy,SignedAt,TriggerSource,Status,InstrumentName,EvidenceFileRef");
         foreach (var e in entries)
@@ -70,3 +70,4 @@ public class DigitalLogbookController : ControllerBase
 }
 
 public record AmendEntryRequest(string NewRawValue, string AmendmentReason, string Password, string Meaning, string Reason);
+

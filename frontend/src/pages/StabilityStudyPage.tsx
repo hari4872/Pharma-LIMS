@@ -246,7 +246,7 @@ export default function StabilityStudyPage() {
       api.get<IchComplianceResult>(`/stability-protocols/${id}/ich-compliance`),
     ])
       .then(([t, i]) => { setTrendResult(t.data); setIchResult(i.data) })
-      .catch(() => {})
+      .catch(() => setErr('Failed to load stability trend data. Please try again.'))
       .finally(() => setLoadingDetail(false))
   }, [])
 

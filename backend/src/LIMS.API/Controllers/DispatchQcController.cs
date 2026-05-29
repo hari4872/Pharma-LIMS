@@ -1,4 +1,4 @@
-using LIMS.Application.Features.DispatchQc;
+﻿using LIMS.Application.Features.DispatchQc;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +8,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/dispatch-qc")]
 [Authorize]
-public class DispatchQcController : ControllerBase
+public class DispatchQcController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     public DispatchQcController(IMediator mediator) => _mediator = mediator;
@@ -21,7 +21,7 @@ public class DispatchQcController : ControllerBase
         return Ok(result);
     }
 
-    // POST api/v1/dispatch-qc/delivery-orders/{doId}/block — QA hold, sets BLOCKED
+    // POST api/v1/dispatch-qc/delivery-orders/{doId}/block â€” QA hold, sets BLOCKED
     [HttpPost("delivery-orders/{doId}/block")]
     [Authorize(Roles = "QA,Admin")]
     public async Task<IActionResult> Block(int doId, [FromBody] BlockRequest request)
@@ -32,7 +32,7 @@ public class DispatchQcController : ControllerBase
         return Ok(new { doId = result.Value, status = "Blocked" });
     }
 
-    // POST api/v1/dispatch-qc/delivery-orders/{doId}/unblock — re-enter QC flow after CAPA
+    // POST api/v1/dispatch-qc/delivery-orders/{doId}/unblock â€” re-enter QC flow after CAPA
     [HttpPost("delivery-orders/{doId}/unblock")]
     [Authorize(Roles = "QA,Admin")]
     public async Task<IActionResult> Unblock(int doId, [FromBody] BlockRequest request)
@@ -43,12 +43,12 @@ public class DispatchQcController : ControllerBase
         return Ok(new { doId = result.Value, status = "InDispatchQC" });
     }
 
-    // POST api/v1/dispatch-qc/{taskId}/approve — QA §11.50 e-sig, sets CLEARED
+    // POST api/v1/dispatch-qc/{taskId}/approve â€” QA Â§11.50 e-sig, sets CLEARED
     [HttpPost("{taskId}/approve")]
     [Authorize(Roles = "QA,Admin")]
     public async Task<IActionResult> Approve(int taskId, [FromBody] DispatchQcApproveRequest request)
     {
-        var qaUserId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var qaUserId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new ApproveDispatchQcCommand(
             taskId, qaUserId, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
@@ -62,3 +62,4 @@ public class DispatchQcController : ControllerBase
 
 public record DispatchQcApproveRequest(string Password, string Meaning, string Reason);
 public record BlockRequest(string Reason);
+

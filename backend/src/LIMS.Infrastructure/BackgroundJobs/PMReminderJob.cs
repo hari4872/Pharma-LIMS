@@ -1,4 +1,4 @@
-using LIMS.Application.Interfaces;
+﻿using LIMS.Application.Interfaces;
 using LIMS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,8 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace LIMS.Infrastructure.BackgroundJobs;
 
-// FR-14: PMReminderJob — T-7 and T-1 preventive maintenance due date alerts
-// PM interval from DB config (Contract 2 — no hardcoding)
+// FR-14: PMReminderJob â€” T-7 and T-1 preventive maintenance due date alerts
+// PM interval from DB config (Contract 2 â€” no hardcoding)
 public class PMReminderJob : BackgroundService
 {
     private readonly IServiceProvider _services;
@@ -21,7 +21,9 @@ public class PMReminderJob : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await RunAsync(stoppingToken);
+            try { await RunAsync(stoppingToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            { _logger.LogError(ex, "[PMReminderJob] Unhandled error — job continues next interval"); }
             var intervalHours = await GetIntervalHoursAsync(stoppingToken);
             await Task.Delay(TimeSpan.FromHours(intervalHours), stoppingToken);
         }
@@ -68,3 +70,4 @@ public class PMReminderJob : BackgroundService
         return 24;
     }
 }
+

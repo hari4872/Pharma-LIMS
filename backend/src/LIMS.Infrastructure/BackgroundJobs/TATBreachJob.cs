@@ -1,4 +1,4 @@
-using LIMS.Application.Interfaces;
+﻿using LIMS.Application.Interfaces;
 using LIMS.Domain.Entities;
 using LIMS.Domain.Enums;
 using LIMS.Infrastructure.Persistence;
@@ -9,9 +9,9 @@ using Microsoft.Extensions.Logging;
 
 namespace LIMS.Infrastructure.BackgroundJobs;
 
-// FR-07: TATBreachJob — detect TAT target breaches server-side (Contract 2)
-// TAT target from DB config — no hardcoding (Contract 2)
-// Runs hourly (Contract 2 — interval from DB config)
+// FR-07: TATBreachJob â€” detect TAT target breaches server-side (Contract 2)
+// TAT target from DB config â€” no hardcoding (Contract 2)
+// Runs hourly (Contract 2 â€” interval from DB config)
 public class TATBreachJob : BackgroundService
 {
     private readonly IServiceProvider _services;
@@ -24,7 +24,9 @@ public class TATBreachJob : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await RunAsync(stoppingToken);
+            try { await RunAsync(stoppingToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            { _logger.LogError(ex, "[TATBreachJob] Unhandled error — job continues next interval"); }
             var intervalHours = await GetIntervalHoursAsync(stoppingToken);
             await Task.Delay(TimeSpan.FromHours(intervalHours), stoppingToken);
         }
@@ -36,7 +38,7 @@ public class TATBreachJob : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<LimsDbContext>();
         var notifications = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
-        // TAT target from DB config (Contract 2 — not hardcoded)
+        // TAT target from DB config (Contract 2 â€” not hardcoded)
         var targetConfig = await db.LabConfigs.FirstOrDefaultAsync(c => c.ConfigKey == "tat_target_hrs", ct);
         var targetHours  = targetConfig != null && decimal.TryParse(targetConfig.ConfigValue, out var t) ? t : 48m;
 
@@ -76,7 +78,7 @@ public class TATBreachJob : BackgroundService
             {
                 Count = breachingSamples.Count,
                 TargetHours = targetHours,
-                Samples = breachingSamples.Select(s => new { s.SampleId, s.SampleNumber, s.DueDate, MaterialName = s.Material.MaterialName })
+                Samples = breachingSamples.Select(s => new { s.SampleId, s.SampleNumber, s.DueDate, MaterialName = s.Material?.MaterialName ?? "Unknown" })
             }, ct);
         }
     }
@@ -91,6 +93,7 @@ public class TATBreachJob : BackgroundService
             if (config != null && double.TryParse(config.ConfigValue, out var h)) return h;
         }
         catch { }
-        return 1;  // hourly by default (Contract 2 — configurable via DB)
+        return 1;  // hourly by default (Contract 2 â€” configurable via DB)
     }
 }
+

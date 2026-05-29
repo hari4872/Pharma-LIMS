@@ -1,4 +1,4 @@
-using LIMS.Application.Features.Traceability;
+﻿using LIMS.Application.Features.Traceability;
 using LIMS.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -10,7 +10,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/traceability")]
 [Authorize]
-public class TraceabilityController : ControllerBase
+public class TraceabilityController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILimsDbContext _db;
@@ -22,14 +22,14 @@ public class TraceabilityController : ControllerBase
     [HttpGet("samples/{sampleId:int}/graph")]
     public async Task<IActionResult> GetGraph(int sampleId)
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new GetTraceabilityGraphQuery(sampleId, userId));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(result.Value);
     }
 
     // GET api/v1/traceability/recall?lotNumber=LOT001
-    // FR-12: recall scope query — all affected downstream batches from lot node
+    // FR-12: recall scope query â€” all affected downstream batches from lot node
     [HttpGet("recall")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> GetRecallScope(
@@ -40,7 +40,7 @@ public class TraceabilityController : ControllerBase
         [FromQuery] int? analystId,
         [FromQuery] int? instrumentId)
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new GetRecallScopeQuery(lotNumber, userId, batch, dateFrom, dateTo, analystId, instrumentId));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { lotNumber, affectedSampleIds = result.Value, count = result.Value?.Count });
@@ -111,3 +111,4 @@ public record LogSamplingEventRequest(
 public record CreateCdRequest(
     int SampleId, string CdType, string CdReference,
     string? Description, int? LinkedOosId);
+

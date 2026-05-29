@@ -1,4 +1,4 @@
-using LIMS.API.Pdf;
+﻿using LIMS.API.Pdf;
 using LIMS.Application.Features.InstrumentManagement;
 using LIMS.Application.Features.MasterData.Instruments;
 using LIMS.Application.Interfaces;
@@ -14,7 +14,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/instruments")]
 [Authorize]
-public class InstrumentsController : ControllerBase
+public class InstrumentsController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILimsDbContext _db;
@@ -54,7 +54,7 @@ public class InstrumentsController : ControllerBase
         return Ok(new { instrumentId = result.Value, status = "Inactive" });
     }
 
-    // POST api/v1/instruments/{id}/calibrations — create calibration record
+    // POST api/v1/instruments/{id}/calibrations â€” create calibration record
     [HttpPost("{id}/calibrations")]
     [Authorize(Roles = "Admin,Analyst")]
     public async Task<IActionResult> CreateCalibration(int id, [FromBody] CreateCalibrationRequest request)
@@ -65,12 +65,12 @@ public class InstrumentsController : ControllerBase
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { calibrationId = result.Value });
     }
 
-    // POST api/v1/instruments/{id}/calibrations/{calId}/approve — QA §11.50 e-sig
+    // POST api/v1/instruments/{id}/calibrations/{calId}/approve â€” QA Â§11.50 e-sig
     [HttpPost("{id}/calibrations/{calId:int}/approve")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> ApproveCalibration(int id, int calId, [FromBody] ApproveRequest request)
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new ApproveCalibrationCommand(calId, userId, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {
@@ -80,32 +80,32 @@ public class InstrumentsController : ControllerBase
         return Ok(new { calibrationId = result.Value, status = "Approved" });
     }
 
-    // ── FR-15: Instrument Utilisation Summary ────────────────────────────
+    // â”€â”€ FR-15: Instrument Utilisation Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    // GET api/v1/instruments/{id}/utilisation — returns 7/30/90-day windows
+    // GET api/v1/instruments/{id}/utilisation â€” returns 7/30/90-day windows
     [HttpGet("{id:int}/utilisation")]
     public async Task<IActionResult> GetUtilisation(int id)
         => Ok(await _mediator.Send(new GetInstrumentUtilisationQuery(id)));
 
-    // ── FR-13: Breakdown / Repair Lifecycle ──────────────────────────────
+    // â”€â”€ FR-13: Breakdown / Repair Lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    // GET api/v1/instruments/breakdowns — list all (filter by status)
+    // GET api/v1/instruments/breakdowns â€” list all (filter by status)
     [HttpGet("breakdowns")]
     public async Task<IActionResult> GetBreakdowns([FromQuery] int? instrumentId, [FromQuery] string? status)
         => Ok(await _mediator.Send(new GetBreakdownsQuery(instrumentId, status)));
 
-    // POST api/v1/instruments/{id}/breakdowns — raise breakdown (any role)
+    // POST api/v1/instruments/{id}/breakdowns â€” raise breakdown (any role)
     [HttpPost("{id}/breakdowns")]
     public async Task<IActionResult> RaiseBreakdown(int id, [FromBody] RaiseBreakdownRequest request)
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new RaiseBreakdownCommand(id, userId, request.IssueDescription));
         var bd = result.Value!;
         return CreatedAtAction(nameof(GetBreakdowns), new { instrumentId = id },
             new { breakdownId = bd.BreakdownId, instrumentStatus = bd.InstrumentStatus });
     }
 
-    // POST api/v1/instruments/breakdowns/{breakdownId}/repairs — record repair
+    // POST api/v1/instruments/breakdowns/{breakdownId}/repairs â€” record repair
     [HttpPost("breakdowns/{breakdownId:int}/repairs")]
     [Authorize(Roles = "Admin,Analyst")]
     public async Task<IActionResult> RecordRepair(int breakdownId, [FromBody] RecordRepairRequest request)
@@ -116,12 +116,12 @@ public class InstrumentsController : ControllerBase
         return Ok(new { repairId });
     }
 
-    // POST api/v1/instruments/breakdowns/{breakdownId}/return-to-service — QA §11.50 e-sig
+    // POST api/v1/instruments/breakdowns/{breakdownId}/return-to-service â€” QA Â§11.50 e-sig
     [HttpPost("breakdowns/{breakdownId:int}/return-to-service")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> ReturnToService(int breakdownId, [FromBody] ApproveRequest request)
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new ReturnToServiceCommand(breakdownId, userId, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {
@@ -138,7 +138,7 @@ public class InstrumentsController : ControllerBase
         });
     }
 
-    // GET api/v1/instruments/{id}/calibration-certificate — Calibration Certificate PDF (21 CFR 211.68)
+    // GET api/v1/instruments/{id}/calibration-certificate â€” Calibration Certificate PDF (21 CFR 211.68)
     [HttpGet("{id:int}/calibration-certificate")]
     public async Task<IActionResult> GetCalibrationCertificate(int id)
     {
@@ -184,3 +184,4 @@ public record UpdateInstrumentRequest(string InstrumentType, string? Model, stri
 public record CreateCalibrationRequest(DateOnly CalibrationDate, DateOnly NextCalibrationDue, string CertificateRef);
 public record RaiseBreakdownRequest(string IssueDescription);
 public record RecordRepairRequest(string Technician, DateOnly RepairDate, string RepairDescription, string? PartsUsed);
+

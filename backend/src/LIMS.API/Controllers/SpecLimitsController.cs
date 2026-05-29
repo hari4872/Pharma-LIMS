@@ -1,4 +1,4 @@
-using LIMS.Application.Features.MasterData.SpecLimits;
+﻿using LIMS.Application.Features.MasterData.SpecLimits;
 using LIMS.Application.Interfaces;
 using LIMS.Domain.Entities;
 using LIMS.Domain.Enums;
@@ -12,7 +12,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/spec-limits")]
 [Authorize]
-public class SpecLimitsController : ControllerBase
+public class SpecLimitsController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILimsDbContext _db;
@@ -25,7 +25,7 @@ public class SpecLimitsController : ControllerBase
         var query = _db.SpecLimits.Include(s => s.Parameter).Include(s => s.Material).AsQueryable();
         if (materialId.HasValue) query = query.Where(s => s.MaterialId == materialId);
         if (parameterId.HasValue) query = query.Where(s => s.ParameterId == parameterId);
-        if (!string.IsNullOrEmpty(status) && Enum.TryParse<ApprovalStatus>(status, out var st)) query = query.Where(s => s.Status == st);
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<ApprovalStatus>(status, true, out var st)) query = query.Where(s => s.Status == st);
         query = query.Where(s => s.IsActive);
 
         var results = await query.Select(s => new
@@ -47,9 +47,9 @@ public class SpecLimitsController : ControllerBase
         var spec = new SpecLimit
         {
             ParameterId = request.ParameterId, MaterialId = request.MaterialId,
-            Stage = Enum.Parse<SpecStage>(request.Stage),
+            Stage = Enum.Parse<SpecStage>(request.Stage, true),
             MinValue = request.MinValue, MaxValue = request.MaxValue,
-            RegulatoryTier = request.RegulatoryTier is not null ? Enum.Parse<RegulatoryTier>(request.RegulatoryTier) : null,
+            RegulatoryTier = request.RegulatoryTier is not null ? Enum.Parse<RegulatoryTier>(request.RegulatoryTier, true) : null,
             RegulatoryMin = request.RegulatoryMin, RegulatoryMax = request.RegulatoryMax,
             OotMinValue = request.OotMinValue, OotMaxValue = request.OotMaxValue,
             CreatedBy = username, CreatedAt = DateTimeOffset.UtcNow
@@ -83,7 +83,7 @@ public class SpecLimitsController : ControllerBase
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Approve(int id, [FromBody] ApproveRequest request)
     {
-        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new ApproveSpecLimitCommand(id, userId, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {
@@ -96,3 +96,6 @@ public class SpecLimitsController : ControllerBase
 
 public record CreateSpecLimitRequest(int ParameterId, int MaterialId, string Stage, decimal? MinValue, decimal? MaxValue, string? RegulatoryTier, decimal? RegulatoryMin, decimal? RegulatoryMax, decimal? OotMinValue, decimal? OotMaxValue); // Gap 3 fix: MaterialId required
 public record UpdateSpecLimitRequest(decimal? MinValue, decimal? MaxValue, string? RegulatoryTier, decimal? RegulatoryMin, decimal? RegulatoryMax, decimal? OotMinValue, decimal? OotMaxValue);
+
+
+

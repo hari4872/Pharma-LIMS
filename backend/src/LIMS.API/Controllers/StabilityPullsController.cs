@@ -1,4 +1,4 @@
-using LIMS.Application.Features.SampleInventory;
+﻿using LIMS.Application.Features.SampleInventory;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +8,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/stability-pulls")]
 [Authorize]
-public class StabilityPullsController : ControllerBase
+public class StabilityPullsController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     public StabilityPullsController(IMediator mediator) { _mediator = mediator; }
@@ -32,7 +32,7 @@ public class StabilityPullsController : ControllerBase
     }
 
     // POST api/v1/stability-pulls/{id}/execute
-    // FR-05: pull §11.50 e-sig; FR-15: short pull deviation auto-logged
+    // FR-05: pull Â§11.50 e-sig; FR-15: short pull deviation auto-logged
     [HttpPost("{id:int}/execute")]
     [Authorize(Roles = "Admin,Analyst,QCLead")]
     public async Task<IActionResult> Execute(int id, [FromBody] ExecutePullRequest request)
@@ -59,3 +59,4 @@ public class StabilityPullsController : ControllerBase
 
 public record SchedulePullRequest(int SampleId, string TimePoint, DateOnly DueDate, decimal RequiredQty, string RequiredQtyUom);
 public record ExecutePullRequest(decimal ActualQty, string? ShortReason, string Password, string Meaning);
+
