@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMBIENTE 2 — LIMS Gap Analysis</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f1f5f9; color: #1e293b; font-size: 14px; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); color: #fff; padding: 32px 40px; }
+  .header h1 { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
+  .header .sub { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
+  .header .meta { display: flex; gap: 24px; flex-wrap: wrap; }
+  .meta-item { background: rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 18px; }
+  .meta-item .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .meta-item .value { font-size: 20px; font-weight: 800; }
+  .meta-item.green .value { color: #4ade80; }
+  .meta-item.yellow .value { color: #fbbf24; }
+  .meta-item.red .value { color: #f87171; }
+
+  /* Progress bar */
+  .progress-section { background: #fff; padding: 20px 40px; border-bottom: 1px solid #e2e8f0; }
+  .progress-label { font-size: 12px; color: #64748b; margin-bottom: 8px; font-weight: 600; }
+  .progress-bar { height: 14px; background: #e2e8f0; border-radius: 99px; overflow: hidden; display: flex; }
+  .bar-green  { background: #22c55e; transition: width 0.5s; }
+  .bar-yellow { background: #f59e0b; transition: width 0.5s; }
+  .bar-red    { background: #ef4444; transition: width 0.5s; }
+  .legend { display: flex; gap: 20px; margin-top: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* Body layout */
+  .body { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+  /* Article section */
+  .article { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+  .article-header { padding: 14px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+  .article-header:hover { background: #f8fafc; }
+  .article-num { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; min-width: 50px; }
+  .article-title { flex: 1; font-size: 14px; font-weight: 700; color: #0f172a; }
+  .article-score { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+  .score-high   { background: #dcfce7; color: #15803d; }
+  .score-mid    { background: #fef3c7; color: #92400e; }
+  .score-low    { background: #fee2e2; color: #991b1b; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: #f8fafc; }
+  th { padding: 9px 14px; text-align: left; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0; }
+  td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafbff; }
+
+  .req-text { color: #374151; line-height: 1.5; }
+  .req-text em { color: #6b7280; font-style: normal; font-size: 12px; }
+
+  /* Status badges */
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .b-done    { background: #dcfce7; color: #15803d; }
+  .b-partial { background: #fef3c7; color: #92400e; }
+  .b-gap     { background: #fee2e2; color: #991b1b; }
+  .b-na      { background: #f1f5f9; color: #64748b; }
+
+  /* Our coverage note */
+  .our-note { font-size: 12px; color: #374151; line-height: 1.5; }
+  .our-note .page-ref { display: inline-block; background: #eff6ff; color: #2563eb; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin-left: 4px; }
+  .our-note .gap-note { color: #dc2626; }
+  .our-note .ok-note  { color: #15803d; }
+
+  /* Priority chip */
+  .priority { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+  .p-critical { background: #fecaca; color: #7f1d1d; }
+  .p-high     { background: #fed7aa; color: #7c2d12; }
+  .p-medium   { background: #fef9c3; color: #713f12; }
+  .p-low      { background: #dcfce7; color: #14532d; }
+
+  /* Summary callout */
+  .callout { border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; display: flex; gap: 14px; }
+  .callout.green { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .callout.yellow { background: #fefce8; border: 1px solid #fde68a; }
+  .callout.blue  { background: #eff6ff; border: 1px solid #bfdbfe; }
+  .callout-icon { font-size: 24px; }
+  .callout-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .callout-body  { font-size: 12px; color: #4b5563; line-height: 1.6; }
+
+  /* Section divider */
+  .section-divider { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin: 28px 0 12px; display: flex; align-items: center; gap: 10px; }
+  .section-divider::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
+
+  footer { text-align: center; padding: 24px; font-size: 12px; color: #94a3b8; }
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
+<div class="header">
+  <h1>AMBIENTE 2 — Tender Requirements vs. Pharma LIMS Coverage</h1>
+  <div class="sub">ANNEX II · Descriptive Memory · Environmental Laboratory LIMS · Ministry of the Environment</div>
+  <div class="meta">
+    <div class="meta-item green">
+      <div class="label">Fully Covered</div>
+      <div class="value">28</div>
+    </div>
+    <div class="meta-item yellow">
+      <div class="label">Partially Covered</div>
+      <div class="value">18</div>
+    </div>
+    <div class="meta-item red">
+      <div class="label">Gap / Missing</div>
+      <div class="value">20</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Overall Readiness</div>
+      <div class="value" style="color:#60a5fa;">53%</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PROGRESS BAR ══════════════════════════════════════════════════════════ -->
+<div class="progress-section">
+  <div class="progress-label">Requirement coverage across all articles</div>
+  <div class="progress-bar">
+    <div class="bar-green"  style="width:42%"></div>
+    <div class="bar-yellow" style="width:27%"></div>
+    <div class="bar-red"    style="width:31%"></div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="dot" style="background:#22c55e"></div> Implemented (42%)</div>
+    <div class="legend-item"><div class="dot" style="background:#f59e0b"></div> Partial / Needs Work (27%)</div>
+    <div class="legend-item"><div class="dot" style="background:#ef4444"></div> Not Yet Built (31%)</div>
+  </div>
+</div>
+
+<!-- ══ BODY ════════════════════════════════════════════════════════════════ -->
+<div class="body">
+
+  <div class="callout blue">
+    <div class="callout-icon">ℹ️</div>
+    <div>
+      <div class="callout-title">About this document</div>
+      <div class="callout-body">
+        This report maps every requirement from <strong>AMBIENTE 2 – Memoria descriptiva (EN)</strong> — a Uruguayan Ministry of Environment tender for an Environmental LIMS — against the current state of the <strong>Pharma LIMS</strong> codebase at <code>D:\Pharma-LIMS</code>. The core workflow engine is solid (sample registration, test execution, QA review, traceability) but environmental-lab specifics (field sampling, GPS, client portal, SILAD migration, offline mobile) represent the main gaps. Generated: <strong>2026-05-28</strong>.
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TECHNICAL REQUIREMENTS ──────────────────────────────────────── -->
+  <div class="section-divider">Art 3 — Technical Requirements (Exclusive)</div>
+
+  <!-- 3.1 Architecture -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 3.1</div>
+      <div class="article-title">Architecture &amp; Platform</div>
+      <div class="article-score score-mid">6 / 9 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">100% web system, cloud-native architecture</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">ASP.NET Core + React — fully browser-based, no desktop install required.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Access via Chrome, Firefox, Edge, Safari — no extra software</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">React SPA served via Vite/nginx. Standard HTML5, no plugins.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Compatible with mobile devices (responsive or app)</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">Responsive CSS exists but not mobile-first tested. No dedicated native app. Needs viewport audit + touch targets.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">SaaS provision model — provider manages infra, maintenance, security, availability</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">Currently self-hosted. Need cloud deployment (Azure/AWS) + managed ops model + SLA commitments before this claim can be made.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Data hosted in national territory (Uruguay Law 18,331) or approved region</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="our-note"><span class="gap-note">No data residency controls implemented. Hosting location not configurable. Legal/compliance gap — requires contractual SLA + server region selection during deployment.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">If hosted outside national territory — specify geo-location, security standards, DR, international data transfer conditions</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">No documentation or controls for this. Needs a deployment policy document.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Offline availability / mobile app / Excel import for field sampling</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">useOfflineSync hook + offline queue exist <span class="page-ref">useOfflineSync.ts</span> but field sampling form, GPS capture, and Excel import for samples are not built. Needs dedicated offline sampling module.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Backend in scalable technology (CodeIgniter 4, Node, or .NET)</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">ASP.NET Core 8 (.NET) — explicitly listed as preferred. ✓</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Frontend in modern framework (Angular, React, Blazor)</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">React 18 — explicitly listed as preferred. ✓</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 3.3 Security -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 3.3</div>
+      <div class="article-title">Security</div>
+      <div class="article-score score-mid">3 / 5 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">Strong authentication — LDAP, SSO, OAuth2, 2FA</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">JWT-based auth implemented. No LDAP, SSO, OAuth2, or 2FA. Need to add at least one strong auth method (OAuth2/SSO recommended via ASP.NET Identity).</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Role-based access control (RBAC)</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Full RBAC: Admin, QA, QCLead, Analyst, LabManager, ReadOnly roles across all controllers and frontend routes. Just fixed and pushed. ✓</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Audit log and action log</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Comprehensive audit trail — Before/After columns, Login Audit, 21 CFR Part 11 e-signature logs. <span class="page-ref">CompliancePanelPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Encryption of data in transit and at rest</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">Passwords BCrypt-hashed. HTTPS enforced when deployed. DB encryption at rest not explicitly configured — depends on hosting environment. Need to document and verify.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Compliance with Law No. 18,331 on Protection of Personal Data (Uruguay)</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="our-note"><span class="gap-note">No explicit Law 18,331 compliance features. Needs DPA assessment, data subject rights implementation, and privacy policy for this tender.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 3.4 Infrastructure -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 3.4</div>
+      <div class="article-title">Infrastructure &amp; SLA</div>
+      <div class="article-score score-low">0 / 3 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">SaaS model or national cloud installation. Guaranteed 99.5% monthly uptime</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="our-note"><span class="gap-note">No uptime SLA in place. Requires cloud deployment with availability monitoring (Azure SLA, health checks, alerting).</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Automatic backups and disaster recovery</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="our-note"><span class="gap-note">No backup/DR automation in the codebase. Must be configured at infrastructure level (Azure SQL geo-redundancy / automated backups).</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Functional and security updates at no additional cost</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">Contractual commitment required, not a technical feature. Must be specified in the proposal.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 3.5 Interoperability -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 3.5</div>
+      <div class="article-title">Interoperability</div>
+      <div class="article-score score-low">1 / 3 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">Data migration from SILAD (current legacy system)</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="our-note"><span class="gap-note">No SILAD migration utilities exist. Need ETL pipeline to map SILAD entities → LIMS schema. Also requires post-migration validation per Art 10.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Integration with lab instruments via RS232, TCP/IP, HL7, ASTM or native formats</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">Instrument records exist <span class="page-ref">InstrumentsPage</span> but no instrument interface / driver layer built. Would need middleware (e.g. LabVantage LIIS pattern) or third-party connector.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Data export in open formats — CSV, XML, JSON, PDF</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">CSV export on all DataTable pages. PDF generation for CoA, Batch Analysis, OOS reports. JSON via REST API. XML not explicit but API is JSON-based. ✓</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ─── FUNCTIONAL REQUIREMENTS ─────────────────────────────────────── -->
+  <div class="section-divider">Art 4 — Functional Requirements (Exclusive)</div>
+
+  <!-- 4.1 Sample Management -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 4.1</div>
+      <div class="article-title">Sample Management</div>
+      <div class="article-score score-mid">7 / 13 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">Full sample lifecycle: registered → received → in analysis → reviewed → completed → reported</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Full status pipeline: Registered → Assigned → InProgress → Completed → PeerReviewed → QCVerified → Approved. <span class="page-ref">SampleRegistrationPage</span> <span class="page-ref">WorkQueuePage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Management of different sample matrices</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">SampleTypes page exists <span class="page-ref">SampleTypesPage</span> but no specific matrix classification (water, soil, air, biological). Needs matrix field on sample registration.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Scheduled sampling campaigns with predefined routes and georeferencing</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">Not built. SamplingPlansPage exists <span class="page-ref">SamplingPlansPage</span> but no campaign scheduling, route management, or map/GPS integration.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Control of traceability and history of sample situations. Chain of custody</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Full bidirectional traceability graph (React Flow). Sampling events, logbook entries, analyst/instrument nodes. <span class="page-ref">TraceabilityPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Add/remove parameters until the informed stage; automatic conditional rules</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">Parameters assignable during registration. Checkpoint triggers exist <span class="page-ref">CheckpointsPage</span> but automatic conditional parameter add/remove rules not implemented.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Integration with messaging/email — attach, send, receive messages linked to sample</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">In-app notification hub exists but no email integration or sample-linked messaging thread. Would need SMTP service + sample comments module.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Reference specifications from client with effective/valid dates for result interpretation</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">Spec limits exist <span class="page-ref">SpecLimitsPage</span> but no client-linked specifications with effective date ranges. OOS detection is present. Client portal not built.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Registration of sample containers and preservatives per analysis method</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">Not built. Container/preservative fields not on sample registration form. Environmental lab specific requirement.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Auto-generate sample taking procedure — container type, volume, conservation; barcode labels</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">No label/barcode generation. No auto-generated sampling instruction sheet. Would need label template engine + barcode library (e.g. QR/Code128).</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Barcode label generation for samples/packaging</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">Referenced in Work Queue scanning but no barcode generation/printing module built.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Mobile data collection — photos, GPS coordinates, Google Maps view</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">Not built. No GPS/photo capture in any form. Would need PWA or React Native companion app with Geolocation API.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Sample outsourcing to external labs with traceability maintained</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">Not built. Multi-site transfers exist <span class="page-ref">SiteTransferPage</span> but no external lab outsourcing with chain-of-custody handoff.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Sample storage management (pre-analysis and post-analysis warehouses)</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Storage locations, retain samples, condition excursions modules. <span class="page-ref">RetainSamplesPage</span> <span class="page-ref">StorageLocationsPage</span></span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4.2 Test Management -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 4.2</div>
+      <div class="article-title">Test Management</div>
+      <div class="article-score score-high">4 / 4 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">Assignment of tests by matrix/parameter</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Test methods, parameters, spec limits all assignable per sample type. Analyst assignment with instrument suggestion. <span class="page-ref">WorkQueuePage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Record of methods and results</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Full result entry with OOS/OOT auto-detection. Manual + instrument import. Digital logbook. <span class="page-ref">TestExecutionPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Technical validation of results; double validation (technical + supervisor)</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">3-stage review: Analyst sign-off → Peer Review → QC Lead Verification. 21 CFR Part 11 e-signatures. <span class="page-ref">ResultsReviewPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Storage of analysis methodology documents accessible by analysts</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Test Methods page with method documentation. Form templates for standardised data entry. <span class="page-ref">TestMethodsPage</span></span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4.3 Quality Management -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 4.3</div>
+      <div class="article-title">Quality Management</div>
+      <div class="article-score score-high">6 / 8 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">Record of non-conformities</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">OOS Investigations module with full lifecycle. Complaints &amp; Deviations register. <span class="page-ref">OosInvestigationsPage</span> <span class="page-ref">TraceabilityPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Corrective/Preventive action module (CA/PA)</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Full CAPA module with lifecycle tracking. <span class="page-ref">QualityEventsPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Management of standards, duplicates, calibrations, interlaboratories</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">Instrument calibration scheduling done <span class="page-ref">InstrumentsPage</span>. Reagents/standards management <span class="page-ref">ReagentsPage</span>. Duplicates and interlaboratory comparison not built.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Control charts</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">SPC / Statistical Process Control with Levey-Jennings charts, rule violations. <span class="page-ref">SpcPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Compliance with ISO/IEC 17025</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">21 CFR Part 11 compliant (stricter than ISO 17025 in many areas). Audit trail, e-signatures, INSERT-only records, OOS gates.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Workflow creation — real-time performance indicators per activity</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Workflow engine with configurable templates. Dashboard with KPI widgets. <span class="page-ref">WorkflowConfigPage</span> <span class="page-ref">DashboardPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Document management — controlled documents, versioning, distribution</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">No document management module. Form templates exist but no controlled document register, versioning, or distribution workflow. Major gap for ISO 17025 §8.3.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Statistical operation indicators — analyses per period, workload, processing times</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">Dashboard has KPI widgets and charts. Specific indicators (analyses by technique, matrix breakdowns, analyst workload) need to be verified against the environmental lab's exact report needs.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4.4 Reports -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 4.4</div>
+      <div class="article-title">Reports &amp; Certificates</div>
+      <div class="article-score score-mid">4 / 6 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">Automatic generation of technical reports and certificates</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">CoA auto-generation, Batch Analysis PDF, OOS PDF. <span class="page-ref">CoaReviewPage</span> <span class="page-ref">ReportsPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Possibility of issuing partial reports</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">Reports module exists but partial/interim report issuance (before all tests complete) not explicitly supported. Needs a "Partial Release" flow.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Customization of formats — logos, captions, signatures</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">PDF templates customisable. CoA includes lab branding, analyst signature blocks.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Digital issuance and documentary traceability. Version control of issued reports</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">CoA reissue flow with version tracking. Audit trail on all report actions. INSERT-only records.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Possibility of digital signature on reports</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">E-signatures for internal review steps (21 CFR §11.50) are in place. PKI-based digital signatures on the PDF output document itself are not implemented.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Different report formats depending on the applicant / client</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">Single report template per type. Multi-format/client-branded report templates not yet supported. Needs template engine extension.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4.5 User Admin -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 4.5</div>
+      <div class="article-title">User Administration</div>
+      <div class="article-score score-high">3 / 3 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">Hierarchical access controls</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Full RBAC with 6 roles. Admin-only user management, route guards, sidebar visibility control. <span class="page-ref">UsersPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Action audit</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Full audit trail with Before/After columns, user, timestamp, action type. Login audit log. <span class="page-ref">CompliancePanelPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Automated alerts</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Real-time notification hub (SignalR). Alerts for OOS, calibration due, stability pull due. <span class="page-ref">useNotifications.ts</span></span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4.6 External Interface -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 4.6</div>
+      <div class="article-title">External Interface — Client Portal (Optional)</div>
+      <div class="article-score score-low">0 / 2 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">Portal for clients to request analysis, track progress, view results, print final report</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">No client-facing portal. All access is internal staff only. Would need a separate frontend module with limited read-only access by sample/client token.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Controlled access to historical and current information by clients</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">No client role. Marked optional in tender — lower priority but would differentiate the offering.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4.7 Inventory -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 4.7</div>
+      <div class="article-title">Inventory Management (Reagents / Consumables)</div>
+      <div class="article-score score-high">3 / 3 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">Register and manage lab consumables — standards, reagents, solutions, culture media</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Reagents &amp; Standards module with lot tracking, quantities, expiry dates. <span class="page-ref">ReagentsPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Batch control — stock quantities, expiry dates, minimum stock alerts, auto-deduct on use</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Lot/batch management with stock deduction on analysis use. Expiry alerts via notification hub. ✓</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Traceability of which reagent batches were used in each sample analysis</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Traceability graph includes MaterialLot nodes linked to test executions. <span class="page-ref">TraceabilityPage</span> ✓</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4.8 Equipment -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 4.8</div>
+      <div class="article-title">Equipment Management</div>
+      <div class="article-score score-mid">4 / 5 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">Record of equipment types and devices used in labs</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Instruments with type, model, status, lab assignment. <span class="page-ref">InstrumentsPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Record calibration, verification, and preventive maintenance dates and intervals</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">CalibrationDue field, instrument status (Available/UnderMaintenance/Retired), instrument mapping. Calibration certificate PDF generation. ✓</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Record results of calibration / verification / preventive maintenance interventions</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Calibration records with result storage. Certificate generation. ✓</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Traceability of equipment use in each sample and analysis</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Instrument nodes in traceability graph. InstrumentId recorded on every test execution. ✓</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Barcode labels for equipment</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="gap-note">No barcode/label printing for instruments. Low priority but listed as requirement.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4.9 Statistical Report -->
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 4.9</div>
+      <div class="article-title">Statistical Reports</div>
+      <div class="article-score score-mid">2 / 3 covered</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">Total samples received, analyses by technique, by matrix/lab, processing times, repetitions per technique</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note"><span class="gap-note">Dashboard has volume/throughput charts. Specific breakdowns by technique, matrix, and analyst repetition rate need to be verified/added in ReportsPage. <span class="page-ref">DashboardPage</span> <span class="page-ref">ReportsPage</span></span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Number of active workers, workload per department</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Queue intelligence, analyst workload, suggest-analyst endpoint. Dashboard lab activity widget. ✓</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Average processing times</td>
+          <td><span class="badge b-done">✓ Done</span></td>
+          <td><span class="priority p-low">Low</span></td>
+          <td class="our-note"><span class="ok-note">Started_at / Completed_at timestamps on all executions. TAT (turnaround time) calculable and visible on dashboard. ✓</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ─── LEGAL / ADMIN / SUPPORT ──────────────────────────────────────── -->
+  <div class="section-divider">Art 5–11 — Legal, Admin, Support &amp; Delivery</div>
+
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">Art 5–11</div>
+      <div class="article-title">Legal, Data Sovereignty, SLA, Training, Migration Validation</div>
+      <div class="article-score score-low">0 / 8 covered (non-technical)</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:38%">Requirement</th><th style="width:13%">Status</th><th style="width:13%">Priority</th><th>Our Coverage / Gap</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="req-text">10+ years verifiable LIMS experience. Project managers with 10+ years LIMS implementation experience (Art 5)</td>
+          <td><span class="badge b-na">N/A</span></td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="our-note">Business/proposal requirement — must be provided in tender response with documented references.</td>
+        </tr>
+        <tr>
+          <td class="req-text">All data is property of Ministry. Full export in open formats at any time (Art 5)</td>
+          <td><span class="badge b-partial">~ Partial</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">CSV/PDF export exists. No formal "full database export" utility. Need to add a bulk data export endpoint (JSON/XML dump of all entities).</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Service reversibility — complete data delivery, DB structures, technical docs, 90-day transition assistance (Art 5)</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">No off-boarding/data export tooling. Contractual and technical commitment needed.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">SaaS license model with implementation, support and updates (Art 6)</td>
+          <td><span class="badge b-na">N/A</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note">Commercial/contractual — not a code feature. Proposal must include pricing model.</td>
+        </tr>
+        <tr>
+          <td class="req-text">SLA tiers: S1 ≤1h response/≤8h resolution, S2 ≤4h/≤48h, S3 ≤1 day/≤5 days (Art 8)</td>
+          <td><span class="badge b-na">N/A</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note">Contractual SLA. Must be included in proposal with support model documentation.</td>
+        </tr>
+        <tr>
+          <td class="req-text">Delivery: 30 days diagnosis, 60 days implementation, 30 days testing = 120 days total (Art 9)</td>
+          <td><span class="badge b-na">N/A</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note">Implementation timeline — must be included in project plan in tender response.</td>
+        </tr>
+        <tr>
+          <td class="req-text">Post-migration SILAD validation: 100% structural integrity, 0% log loss, formal acceptance (Art 10)</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="our-note"><span class="gap-note">No SILAD migration tooling. Need to design ETL + validation protocol before bidding. This is an exclusionary requirement.</span></td>
+        </tr>
+        <tr>
+          <td class="req-text">Train end users, QA managers, admins. Manuals in Spanish. Virtual/in-person modes (Art 11)</td>
+          <td><span class="badge b-gap">✗ Gap</span></td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note"><span class="gap-note">No training materials or Spanish documentation. User manual, quick-start guides, and training plan needed for proposal.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ─── ACTION PLAN ─────────────────────────────────────────────────── -->
+  <div class="section-divider">Prioritised Action Plan — What to Build Next</div>
+
+  <div class="callout yellow">
+    <div class="callout-icon">⚠️</div>
+    <div>
+      <div class="callout-title">Exclusionary Requirements — Must have to pass to economic evaluation</div>
+      <div class="callout-body">
+        The tender has two hard exclusionary gates: <strong>(1) Functional + technical compliance</strong> and <strong>(2) Support/SLA capacity</strong>. Any gap in these automatically disqualifies the bid. SILAD migration and Law 18,331 data sovereignty are the highest-risk items.
+      </div>
+    </div>
+  </div>
+
+  <div class="article">
+    <div class="article-header">
+      <div class="article-num">PLAN</div>
+      <div class="article-title">Recommended Build Priorities</div>
+      <div class="article-score score-mid">Gap closure roadmap</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:5%">#</th><th style="width:30%">Action</th><th style="width:12%">Effort</th><th style="width:12%">Priority</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr>
+          <td style="font-weight:700; color:#dc2626;">1</td>
+          <td>SILAD data migration ETL + Art 10 validation protocol</td>
+          <td>High (4–6w)</td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="our-note">Exclusionary. Must understand SILAD schema. Build import scripts + validation reports before submitting bid.</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:#dc2626;">2</td>
+          <td>Law 18,331 compliance + data residency controls (Uruguay DPA)</td>
+          <td>Medium (2w)</td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="our-note">Exclusionary for public tender. Requires hosting agreement with Uruguayan data center or approved cloud region + privacy policy.</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:#dc2626;">3</td>
+          <td>Cloud deployment + 99.5% SLA + automated backups/DR</td>
+          <td>Medium (2w)</td>
+          <td><span class="priority p-critical">Critical</span></td>
+          <td class="our-note">Infrastructure work. Azure or AWS with geo-redundancy, health monitoring, and documented SLA.</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:#f97316;">4</td>
+          <td>Document management module — controlled docs, versioning, distribution</td>
+          <td>High (3–4w)</td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note">ISO 17025 §8.3 requirement. New page: DocManagementPage with version history, approval workflow, distribution list.</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:#f97316;">5</td>
+          <td>Barcode / label generation for samples and equipment</td>
+          <td>Medium (1–2w)</td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note">Add Code128/QR barcode rendering (e.g. <code>react-barcode</code>) + label PDF print template for sample and instrument labels.</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:#f97316;">6</td>
+          <td>Offline field sampling module + GPS/photo capture (PWA)</td>
+          <td>High (4–6w)</td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note">Progressive Web App with Geolocation API, camera capture, IndexedDB offline queue, Google Maps integration for sampling points.</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:#f97316;">7</td>
+          <td>Instrument interface / driver layer (RS232, TCP/IP, ASTM)</td>
+          <td>High (4–6w)</td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note">Middleware service to receive raw instrument data and push to LIMS via API. Can be positioned as a separate "instrument gateway" component.</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:#f97316;">8</td>
+          <td>OAuth2 / SSO authentication (strong auth)</td>
+          <td>Medium (1–2w)</td>
+          <td><span class="priority p-high">High</span></td>
+          <td class="our-note">Add OAuth2 provider (Azure AD / Google) using ASP.NET Identity external providers. Satisfies LDAP/SSO requirement.</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:#d97706;">9</td>
+          <td>Spanish language UI + manuals</td>
+          <td>Medium (2–3w)</td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note">i18n with react-i18next. Translate all UI labels + generate Spanish user manual PDF for training deliverable.</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:#d97706;">10</td>
+          <td>Client portal (optional but differentiating)</td>
+          <td>High (3–4w)</td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note">Separate route with client token login. Read-only view of their sample status, results, and report download. Marked optional in tender but scores extra points.</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:#d97706;">11</td>
+          <td>Scheduled sampling campaigns + georeferencing map</td>
+          <td>Medium (2–3w)</td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note">Extend SamplingPlansPage with campaign calendar, route definitions, and Leaflet/Google Maps integration for sampling station coordinates.</td>
+        </tr>
+        <tr>
+          <td style="font-weight:700; color:#16a34a;">12</td>
+          <td>Full database export utility (data reversibility Art 5)</td>
+          <td>Low (3–5 days)</td>
+          <td><span class="priority p-medium">Medium</span></td>
+          <td class="our-note">Add admin endpoint: <code>GET /admin/export?format=json|csv|xml</code> that dumps all tables. Include in ReportsPage as "Full Data Export".</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  Generated by Pharma LIMS Gap Analysis Tool · 2026-05-28 · Source: AMBIENTE 2 – Memoria descriptiva_EN.docx
+</footer>
+
+</body>
+</html>

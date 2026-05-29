@@ -26,7 +26,7 @@ public enum MaterialType { RawMaterial, IntermediateProduct, FinishedProduct, Re
 
 public enum SpecStage { Incoming, InProcess, Finished, Stability }
 
-public enum RegulatoryTier { USP, EP, ISO, MS, Internal }
+public enum RegulatoryTier { USP = 0, EP = 1, ISO = 2, MS = 3, Internal = 4, JP = 5, ICH = 6, FDA = 7, EMA = 8 }
 
 public enum SampleStatus
 {
