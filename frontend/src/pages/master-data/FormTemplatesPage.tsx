@@ -109,7 +109,12 @@ export default function FormTemplatesPage() {
   }
 
   async function linkParam(parameterId: number) {
-    await api.post(`/form-templates/${manageRow!.formTemplateId}/parameters/${parameterId}`)
+    // POST body — backend route is POST /form-templates/{id}/parameters with body { parameterId, displayOrder }
+    await api.post(`/form-templates/${manageRow!.formTemplateId}/parameters`, {
+      parameterId,
+      displayOrder: linkedParams.length + 1,
+      columnFrequency: null,
+    })
     setAddParamId('')
     openManage(manageRow!)
   }

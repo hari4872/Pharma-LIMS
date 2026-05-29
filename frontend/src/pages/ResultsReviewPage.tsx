@@ -11,7 +11,7 @@ interface Execution {
 // ── Status config ──────────────────────────────────────────────────────────
 const STATUS_CFG: Record<string, { bg: string; color: string; label: string }> = {
   Completed:    { bg: '#dbeafe', color: '#1d4ed8', label: 'Pending Peer Review' },
-  SignedOff:    { bg: '#fef9c3', color: '#a16207', label: 'Pending Peer Review' },
+  // SignedOff is a planned future status — not yet in TestExecutionStatus enum
   PeerReviewed: { bg: '#fef3c7', color: '#b45309', label: 'Pending QC Verify' },
   QCVerified:   { bg: '#dcfce7', color: '#166534', label: 'QC Verified' },
   Approved:     { bg: '#dcfce7', color: '#166534', label: 'Approved' },
@@ -106,12 +106,11 @@ export default function ResultsReviewPage() {
   async function load() {
     setLoading(true)
     try {
-      // Fetch all review-relevant statuses
-      const [c, p] = await Promise.all([
-        api.get('/test-executions?status=Completed'),
-        api.get('/test-executions?status=PeerReviewed'),
-      ])
-      setAll([...(c.data ?? []), ...(p.data ?? [])])
+      // Fetch review-relevant statuses
+      // PeerReviewed / QCVerified are planned future states — backend enum not yet extended;
+      // only Completed rows need peer review action right now.
+      const c = await api.get('/test-executions?status=Completed')
+      setAll(c.data ?? [])
     } catch { setAll([]) }
     finally { setLoading(false) }
   }
@@ -119,7 +118,7 @@ export default function ResultsReviewPage() {
   useEffect(() => { load() }, [])
 
   // ── Derived filter counts for chips ─────────────────────────────────────
-  const pendingPeer  = all.filter(r => r.status === 'Completed' || r.status === 'SignedOff').length
+  const pendingPeer  = all.filter(r => r.status === 'Completed').length
   const pendingQC    = all.filter(r => r.status === 'PeerReviewed').length
 
   const CHIPS = [
@@ -132,7 +131,7 @@ export default function ResultsReviewPage() {
   const filtered = useMemo(() => {
     let rows = all
     if (statusFilter === 'PendingPeer')
-      rows = rows.filter(r => r.status === 'Completed' || r.status === 'SignedOff')
+      rows = rows.filter(r => r.status === 'Completed')
     else if (statusFilter === 'PendingQC')
       rows = rows.filter(r => r.status === 'PeerReviewed')
 
@@ -254,7 +253,7 @@ export default function ResultsReviewPage() {
               </td></tr>
             ) : (
               filtered.map((r, i) => {
-                const canPeer = r.status === 'Completed' || r.status === 'SignedOff'
+                const canPeer = r.status === 'Completed'
                 const canQC   = r.status === 'PeerReviewed'
                 return (
                   <tr key={r.executionId}

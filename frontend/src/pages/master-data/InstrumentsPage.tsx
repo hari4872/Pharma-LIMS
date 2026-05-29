@@ -224,7 +224,7 @@ export default function InstrumentsPage() {
             { header: 'Raised By', accessor: 'raisedByName' },
             { header: 'Raised At', accessor: r => r.raisedAt?.replace('T', ' ').slice(0, 16) + ' UTC' },
             { header: 'Issue', accessor: 'issueDescription' },
-            { header: 'Status', accessor: r => <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: r.status === 'Resolved' ? '#d1fae5' : r.status === 'UnderRepair' ? '#fef3c7' : '#fee2e2', color: r.status === 'Resolved' ? '#065f46' : r.status === 'UnderRepair' ? '#92400e' : '#991b1b' }}>{r.status}</span> },
+            { header: 'Status', accessor: r => <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: r.status === 'Resolved' ? '#d1fae5' : r.status === 'InRepair' ? '#fef3c7' : '#fee2e2', color: r.status === 'Resolved' ? '#065f46' : r.status === 'InRepair' ? '#92400e' : '#991b1b' }}>{r.status}</span> },
             { header: 'Repairs', accessor: 'repairCount' },
             {
               header: 'Actions', accessor: r => r.status !== 'Resolved' ? (

@@ -6,7 +6,7 @@ using MediatR;
 
 namespace LIMS.Application.Features.MasterData.TestMethods;
 
-public record CreateTestMethodCommand(string MethodCode, string MethodName, string? SopReference, string? MethodType, string CreatedBy, string? Version = null) : IRequest<Result<int>>();
+public record CreateTestMethodCommand(string MethodCode, string MethodName, string? SopReference, string? MethodType, string CreatedBy, string? Version = null) : IRequest<Result<int>>;
 
 public class CreateTestMethodValidator : AbstractValidator<CreateTestMethodCommand>
 {

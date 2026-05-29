@@ -50,7 +50,7 @@ export default function AuditTrailPanel({ entity, entityId, entityLabel, onClose
 
   useEffect(() => {
     setLoading(true); setError('')
-    api.get(`/audit-events?entity=${entity}&entityId=${entityId}`)
+    api.get(`/audit/${entity}/${entityId}`)
       .then(r => setEvents(r.data))
       .catch(() => setError('Audit trail not available for this record.'))
       .finally(() => setLoading(false))

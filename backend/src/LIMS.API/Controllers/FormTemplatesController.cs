@@ -104,6 +104,52 @@ public class FormTemplatesController : LimsControllerBase
         return Ok(new { formTemplateId = id, fieldCount = string.IsNullOrEmpty(request.FieldDefinitionsJson) ? 0 : System.Text.Json.JsonDocument.Parse(request.FieldDefinitionsJson).RootElement.GetArrayLength() });
     }
 
+    // GET api/v1/form-templates/{id}/parameters — list linked parameters
+    [HttpGet("{id}/parameters")]
+    public async Task<IActionResult> GetParameters(int id)
+    {
+        var template = await _db.FormTemplates
+            .Include(f => f.TemplateParameters)
+            .ThenInclude(tp => tp.Parameter)
+            .FirstOrDefaultAsync(f => f.FormTemplateId == id);
+        if (template is null) return NotFound();
+
+        var result = template.TemplateParameters
+            .OrderBy(tp => tp.DisplayOrder)
+            .Select(tp => new
+            {
+                tp.Parameter.ParameterId,
+                tp.Parameter.ParameterName,
+                tp.Parameter.ParameterCode,
+                tp.Parameter.Uom,
+                tp.DisplayOrder,
+                ColumnFrequency = tp.ColumnFrequency?.ToString()
+            });
+        return Ok(result);
+    }
+
+    // GET api/v1/form-templates/{id}/locations — list linked locations
+    [HttpGet("{id}/locations")]
+    public async Task<IActionResult> GetLocations(int id)
+    {
+        var template = await _db.FormTemplates
+            .Include(f => f.Locations)
+            .FirstOrDefaultAsync(f => f.FormTemplateId == id);
+        if (template is null) return NotFound();
+
+        var result = template.Locations
+            .OrderBy(l => l.ColumnOrder)
+            .Select(l => new
+            {
+                l.LocationId,
+                l.LocationName,
+                LocationCode  = l.LocationName,   // no separate code field — use name
+                l.ColumnOrder,
+                l.SpecLimitId
+            });
+        return Ok(result);
+    }
+
     // POST api/v1/form-templates/{id}/parameters
     [HttpPost("{id}/parameters")]
     [Authorize(Roles = "Admin,QA")]
