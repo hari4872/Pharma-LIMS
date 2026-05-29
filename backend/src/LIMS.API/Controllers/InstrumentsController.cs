@@ -100,6 +100,7 @@ public class InstrumentsController : LimsControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new RaiseBreakdownCommand(id, userId, request.IssueDescription));
+        if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         var bd = result.Value!;
         return CreatedAtAction(nameof(GetBreakdowns), new { instrumentId = id },
             new { breakdownId = bd.BreakdownId, instrumentStatus = bd.InstrumentStatus });

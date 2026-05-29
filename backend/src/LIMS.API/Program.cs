@@ -6,6 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// SEC-2: Validate JWT key length at startup — prevents weak/missing key silently signing tokens
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
+    throw new InvalidOperationException("Jwt:Key must be at least 32 characters. Check appsettings or environment variables.");
+
+
 // Background jobs must NOT crash the host when DB is temporarily unreachable
 builder.Services.Configure<HostOptions>(opts =>
     opts.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
@@ -101,8 +107,26 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-app.UseSwagger();
-app.UseSwaggerUI();
+// SEC-3: Swagger only in Development — never expose full API schema in production
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+// ERR-2: Global exception handler — maps unhandled exceptions to RFC 7807 ProblemDetails
+//         Prevents EF Core stack traces / connection strings leaking to clients
+app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
+{
+    ctx.Response.StatusCode  = 500;
+    ctx.Response.ContentType = "application/json";
+    await ctx.Response.WriteAsJsonAsync(new
+    {
+        error   = "INTERNAL_ERROR",
+        message = "An unexpected error occurred. Please contact your system administrator."
+    });
+}));
+
 app.UseCors("LimsFrontend");
 app.UseAuthentication();
 app.UseAuthorization();

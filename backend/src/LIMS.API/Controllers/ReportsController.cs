@@ -1,4 +1,4 @@
-using LIMS.Application.Interfaces;
+﻿using LIMS.Application.Interfaces;
 using LIMS.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,9 +10,9 @@ using System.Drawing;
 namespace LIMS.API.Controllers;
 
 /// <summary>
-/// Sprint 9 — Reporting Engine
+/// Sprint 9 â€” Reporting Engine
 /// Generates Excel exports for Samples, Results, CoAs, and Audit Trail.
-/// Uses EPPlus 7 (non-commercial license for labs with &lt;5 users — verify commercial license if needed).
+/// Uses EPPlus 7 (non-commercial license for labs with &lt;5 users â€” verify commercial license if needed).
 /// Route: api/v1/reports
 /// </summary>
 [ApiController]
@@ -86,7 +86,7 @@ public class ReportsController : ControllerBase
         ws.Cells[1, 1, 1, headers.Length].AutoFitColumns();
 
         // Add title
-        ws.HeaderFooter.OddHeader.CenteredText = $"Pharma LIMS — Sample Register Export {DateTime.UtcNow:yyyy-MM-dd}";
+        ws.HeaderFooter.OddHeader.CenteredText = $"Pharma LIMS â€” Sample Register Export {DateTime.UtcNow:yyyy-MM-dd}";
 
         var bytes = await package.GetAsByteArrayAsync();
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -113,7 +113,7 @@ public class ReportsController : ControllerBase
         if (from.HasValue) q = q.Where(e => e.CreatedAt >= from.Value);
         if (to.HasValue)   q = q.Where(e => e.CreatedAt <= to.Value.AddDays(1));
 
-        var entries = await q.OrderByDescending(e => e.CreatedAt).Take(10000).ToListAsync();
+        var entries = await q.OrderByDescending(e => e.CreatedAt).Take(5000).ToListAsync();
 
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         using var package = new ExcelPackage();
@@ -151,7 +151,7 @@ public class ReportsController : ControllerBase
         }
 
         ws.Cells[ws.Dimension.Address].AutoFitColumns();
-        ws.HeaderFooter.OddHeader.CenteredText = $"Pharma LIMS — Results Export {DateTime.UtcNow:yyyy-MM-dd}";
+        ws.HeaderFooter.OddHeader.CenteredText = $"Pharma LIMS â€” Results Export {DateTime.UtcNow:yyyy-MM-dd}";
 
         var bytes = await package.GetAsByteArrayAsync();
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -170,7 +170,7 @@ public class ReportsController : ControllerBase
         if (to.HasValue)   q = q.Where(a => a.PerformedAt <= to.Value.AddDays(1));
         if (!string.IsNullOrWhiteSpace(entityType)) q = q.Where(a => a.EntityType == entityType);
 
-        var logs = await q.OrderByDescending(a => a.PerformedAt).Take(20000).ToListAsync();
+        var logs = await q.OrderByDescending(a => a.PerformedAt).Take(5000).ToListAsync();
 
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         using var package = new ExcelPackage();
@@ -200,7 +200,7 @@ public class ReportsController : ControllerBase
         }
 
         ws.Cells[ws.Dimension.Address].AutoFitColumns();
-        ws.HeaderFooter.OddHeader.CenteredText = $"Pharma LIMS — Audit Trail Export {DateTime.UtcNow:yyyy-MM-dd} (21 CFR §11.10(e))";
+        ws.HeaderFooter.OddHeader.CenteredText = $"Pharma LIMS â€” Audit Trail Export {DateTime.UtcNow:yyyy-MM-dd} (21 CFR Â§11.10(e))";
 
         var bytes = await package.GetAsByteArrayAsync();
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -208,7 +208,7 @@ public class ReportsController : ControllerBase
     }
 
     // GET api/v1/reports/multi-site-summary?periodDays=30
-    // MS-3: Consolidated cross-site Excel report — SuperAdmin / CorporateQA only
+    // MS-3: Consolidated cross-site Excel report â€” SuperAdmin / CorporateQA only
     [HttpGet("multi-site-summary")]
     [Authorize(Roles = "Admin,SuperAdmin,CorporateQA")]
     public async Task<IActionResult> ExportMultiSiteSummary([FromQuery] int? periodDays, CancellationToken ct)
@@ -219,7 +219,7 @@ public class ReportsController : ControllerBase
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         using var package = new ExcelPackage();
 
-        // ── Sheet 1: Site KPI Summary ──────────────────────────────────────
+        // â”€â”€ Sheet 1: Site KPI Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var ws1 = package.Workbook.Worksheets.Add("Site KPI Summary");
         var headers1 = new[] {
             "Lab", "Site", "Location", "Type",
@@ -261,9 +261,9 @@ public class ReportsController : ControllerBase
             if (k.OverdueSamples > 0) ws1.Cells[r, 15].Style.Font.Color.SetColor(Color.OrangeRed);
         }
         ws1.Cells[ws1.Dimension.Address].AutoFitColumns();
-        ws1.HeaderFooter.OddHeader.CenteredText = $"Pharma LIMS — Multi-Site Summary {DateTime.UtcNow:yyyy-MM-dd}";
+        ws1.HeaderFooter.OddHeader.CenteredText = $"Pharma LIMS â€” Multi-Site Summary {DateTime.UtcNow:yyyy-MM-dd}";
 
-        // ── Sheet 2: TAT Breakdown ──────────────────────────────────────────
+        // â”€â”€ Sheet 2: TAT Breakdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var ws2 = package.Workbook.Worksheets.Add("TAT Breakdown");
         var headers2 = new[] { "Lab", "Min TAT (days)", "Avg TAT (days)", "Max TAT (days)", "Released Samples" };
         for (int col = 1; col <= headers2.Length; col++)
@@ -290,3 +290,4 @@ public class ReportsController : ControllerBase
             $"LIMS_MultiSite_{DateTime.UtcNow:yyyyMMdd}.xlsx");
     }
 }
+

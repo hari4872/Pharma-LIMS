@@ -111,6 +111,10 @@ public class AuthController : ControllerBase
         var hasAdmin = await _db.Users.AnyAsync(u => u.IsTenantAdmin);
         if (hasAdmin) return Conflict(new { error = "Tenant Admin already configured." });
 
+        // SEC-5: enforce minimum password policy on initial setup
+        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
+            return BadRequest(new { error = "Password must be at least 8 characters." });
+
         var admin = new LIMS.Domain.Entities.User
         {
             Username = request.Username,

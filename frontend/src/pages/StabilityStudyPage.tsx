@@ -225,6 +225,7 @@ export default function StabilityStudyPage() {
   const [ichResult, setIchResult]         = useState<IchComplianceResult | null>(null)
   const [loadingList, setLoadingList]     = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [detailError, setDetailError]     = useState<string | null>(null)
   // ICH regression panel
   const [ichRegParam, setIchRegParam]     = useState<{ protocolId: number; parameterId: number; paramName: string } | null>(null)
 
@@ -240,13 +241,14 @@ export default function StabilityStudyPage() {
     setSelectedId(id)
     setTrendResult(null)
     setIchResult(null)
+    setDetailError(null)
     setLoadingDetail(true)
     Promise.all([
       api.get<StabilityTrendResult>(`/stability-protocols/${id}/trend`),
       api.get<IchComplianceResult>(`/stability-protocols/${id}/ich-compliance`),
     ])
       .then(([t, i]) => { setTrendResult(t.data); setIchResult(i.data) })
-      .catch(() => setErr('Failed to load stability trend data. Please try again.'))
+      .catch(() => setDetailError('Failed to load stability trend data. Please try again.'))
       .finally(() => setLoadingDetail(false))
   }, [])
 
@@ -318,6 +320,13 @@ export default function StabilityStudyPage() {
         {selectedId && loadingDetail && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, color: '#6b7280', fontSize: 13 }}>
             Loading stability data…
+          </div>
+        )}
+
+        {/* Detail error */}
+        {selectedId && !loadingDetail && detailError && (
+          <div style={{ margin: '24px 0', padding: '12px 16px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, color: '#dc2626', fontSize: 13 }}>
+            ⚠ {detailError}
           </div>
         )}
 
