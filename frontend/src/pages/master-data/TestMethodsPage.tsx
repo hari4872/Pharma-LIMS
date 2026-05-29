@@ -11,7 +11,7 @@ export default function TestMethodsPage() {
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [showApprove, setShowApprove] = useState<number | null>(null)
-  const [form, setForm] = useState({ methodCode: '', methodName: '', sopReference: '', methodType: 'Chemical' })
+  const [form, setForm] = useState({ methodCode: '', methodName: '', sopReference: '', methodType: 'Chemical', version: '1.0' })
   const [approveForm, setApproveForm] = useState({ password: '', meaning: 'I approve this test method', reason: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -39,7 +39,7 @@ export default function TestMethodsPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
     try {
-      await api.post('/test-methods', form)
+      await api.post('/test-methods', { ...form, version: form.version || '1.0' })
       setShowForm(false)
       toast(`Test Method "${form.methodName}" added successfully`, 'success')
       load()
@@ -93,6 +93,9 @@ export default function TestMethodsPage() {
               <select style={inp} value={form.methodType} onChange={e => setForm(f => ({ ...f, methodType: e.target.value }))}>
                 {['Chemical', 'Microbiological', 'Physical', 'Instrumental'].map(t => <option key={t}>{t}</option>)}
               </select>
+            </Field>
+            <Field label="Version">
+              <input style={inp} value={form.version} onChange={e => setForm(f => ({ ...f, version: e.target.value }))} placeholder="e.g. 1.0" />
             </Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />

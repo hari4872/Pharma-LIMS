@@ -61,7 +61,7 @@ export default function DispatchQcPage() {
   const [approveForm, setApproveForm] = useState({ password: '', meaning: 'I approve this Dispatch QC — product cleared for dispatch.', reason: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [products, setProducts] = useState<{ materialId: number; materialName: string }[]>([])
+  const [products, setProducts] = useState<{ materialId: number; materialName: string; materialType: string }[]>([])
 
   async function load() {
     setLoading(true)
@@ -74,7 +74,8 @@ export default function DispatchQcPage() {
 
   async function loadProducts() {
     const r = await api.get('/materials')
-    setProducts(r.data)
+    // Only Finished Products are dispatched — filter to avoid selecting raw materials / reagents
+    setProducts(r.data.filter((m: { materialType: string }) => m.materialType === 'FinishedProduct'))
   }
 
   useEffect(() => { load() }, [])

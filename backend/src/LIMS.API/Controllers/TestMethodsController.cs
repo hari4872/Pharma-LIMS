@@ -23,7 +23,7 @@ public class TestMethodsController : LimsControllerBase
     public async Task<IActionResult> Create([FromBody] CreateTestMethodRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
-        var result = await _mediator.Send(new CreateTestMethodCommand(request.MethodCode, request.MethodName, request.SopReference, request.MethodType, username));
+        var result = await _mediator.Send(new CreateTestMethodCommand(request.MethodCode, request.MethodName, request.SopReference, request.MethodType, username, request.Version));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { methodId = result.Value });
     }
@@ -64,7 +64,7 @@ public class TestMethodsController : LimsControllerBase
     }
 }
 
-public record CreateTestMethodRequest(string MethodCode, string MethodName, string? SopReference, string? MethodType);
+public record CreateTestMethodRequest(string MethodCode, string MethodName, string? SopReference, string? MethodType, string? Version);
 public record UpdateTestMethodRequest(string MethodName, string? SopReference, string? MethodType);
 public record ApproveRequest(string Password, string Meaning, string Reason);
 

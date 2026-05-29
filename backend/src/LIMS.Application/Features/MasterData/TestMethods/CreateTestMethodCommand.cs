@@ -6,7 +6,7 @@ using MediatR;
 
 namespace LIMS.Application.Features.MasterData.TestMethods;
 
-public record CreateTestMethodCommand(string MethodCode, string MethodName, string? SopReference, string? MethodType, string CreatedBy) : IRequest<Result<int>>;
+public record CreateTestMethodCommand(string MethodCode, string MethodName, string? SopReference, string? MethodType, string CreatedBy, string? Version = null) : IRequest<Result<int>>();
 
 public class CreateTestMethodValidator : AbstractValidator<CreateTestMethodCommand>
 {
@@ -33,12 +33,13 @@ public class CreateTestMethodHandler : IRequestHandler<CreateTestMethodCommand, 
 
         var method = new TestMethod
         {
-            MethodCode = request.MethodCode,
-            MethodName = request.MethodName,
+            MethodCode   = request.MethodCode,
+            MethodName   = request.MethodName,
             SopReference = request.SopReference,
-            MethodType = request.MethodType,
-            CreatedBy = request.CreatedBy,
-            CreatedAt = DateTimeOffset.UtcNow
+            MethodType   = request.MethodType,
+            Version      = string.IsNullOrWhiteSpace(request.Version) ? "1.0" : request.Version.Trim(),
+            CreatedBy    = request.CreatedBy,
+            CreatedAt    = DateTimeOffset.UtcNow
         };
 
         _db.TestMethods.Add(method);
