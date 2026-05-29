@@ -6,6 +6,9 @@ import { toast } from '@/components/Toast'
 
 interface Material { materialId: number; materialName: string; uom: string; materialType: string; productType: string; shelfLifeDays: number; isActive: boolean }
 
+// "RawMaterial" → "Raw Material",  "FinishedProduct" → "Finished Product"
+function typeLabel(t: string) { return t.replace(/([a-z])([A-Z])/g, '$1 $2') }
+
 export default function MaterialsPage() {
   const [data, setData] = useState<Material[]>([])
   const [loading, setLoading] = useState(false)
@@ -52,7 +55,7 @@ export default function MaterialsPage() {
         { header: 'ID', accessor: 'materialId' },
         { header: 'Name', accessor: 'materialName' },
         { header: 'UOM', accessor: 'uom' },
-        { header: 'Type', accessor: 'materialType' },
+        { header: 'Type', accessor: r => typeLabel(r.materialType) },
         { header: 'Product Type', accessor: 'productType' },
         { header: 'Shelf Life (days)', accessor: 'shelfLifeDays' },
         { header: 'Status', accessor: r => <StatusBadge active={r.isActive} /> },
@@ -71,7 +74,7 @@ export default function MaterialsPage() {
             <Field label="UOM"><input style={inp} value={editForm.uom} onChange={e => setEditForm(f => ({ ...f, uom: e.target.value }))} required /></Field>
             <Field label="Material Type">
               <select style={inp} value={editForm.materialType} onChange={e => setEditForm(f => ({ ...f, materialType: e.target.value }))}>
-                {['RawMaterial', 'Intermediate', 'FinishedProduct', 'Reagent', 'Standard', 'Solvent'].map(t => <option key={t}>{t}</option>)}
+                {['RawMaterial', 'Intermediate', 'FinishedProduct', 'Reagent', 'Standard', 'Solvent'].map(t => <option key={t} value={t}>{typeLabel(t)}</option>)}
               </select>
             </Field>
             <Field label="Product Type"><input style={inp} value={editForm.productType} onChange={e => setEditForm(f => ({ ...f, productType: e.target.value }))} /></Field>
@@ -89,7 +92,7 @@ export default function MaterialsPage() {
             <Field label="UOM"><input style={inp} value={form.uom} onChange={e => setForm(f => ({ ...f, uom: e.target.value }))} required /></Field>
             <Field label="Material Type">
               <select style={inp} value={form.materialType} onChange={e => setForm(f => ({ ...f, materialType: e.target.value }))}>
-                {['RawMaterial', 'Intermediate', 'FinishedProduct', 'Reagent', 'Standard', 'Solvent'].map(t => <option key={t}>{t}</option>)}
+                {['RawMaterial', 'Intermediate', 'FinishedProduct', 'Reagent', 'Standard', 'Solvent'].map(t => <option key={t} value={t}>{typeLabel(t)}</option>)}
               </select>
             </Field>
             <Field label="Product Type"><input style={inp} value={form.productType} onChange={e => setForm(f => ({ ...f, productType: e.target.value }))} /></Field>
