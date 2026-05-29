@@ -37,7 +37,7 @@ public class StabilityPullsController : LimsControllerBase
     [Authorize(Roles = "Admin,Analyst,QCLead")]
     public async Task<IActionResult> Execute(int id, [FromBody] ExecutePullRequest request)
     {
-        var analystId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });
         try
         {
             var result = await _mediator.Send(new ExecutePullCommand(
@@ -59,4 +59,5 @@ public class StabilityPullsController : LimsControllerBase
 
 public record SchedulePullRequest(int SampleId, string TimePoint, DateOnly DueDate, decimal RequiredQty, string RequiredQtyUom);
 public record ExecutePullRequest(decimal ActualQty, string? ShortReason, string Password, string Meaning);
+
 

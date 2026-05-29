@@ -25,7 +25,7 @@ public class ResultsReviewController : LimsControllerBase
     [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
     public async Task<IActionResult> PeerReview(int executionId, [FromBody] ReviewRequest request)
     {
-        var reviewerId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var reviewerId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new PeerReviewCommand(
             executionId, reviewerId, request.Password, request.Meaning, request.Reason, request.Notes));
         if (!result.IsSuccess)
@@ -41,7 +41,7 @@ public class ResultsReviewController : LimsControllerBase
     [Authorize(Roles = "QCLead,QA,Admin")]
     public async Task<IActionResult> QCLeadVerify(int executionId, [FromBody] ReviewRequest request)
     {
-        var qcLeadId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var qcLeadId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new QCLeadVerifyCommand(
             executionId, qcLeadId, request.Password, request.Meaning, request.Reason, request.Notes));
         if (!result.IsSuccess)
@@ -137,4 +137,5 @@ public class ResultsReviewController : LimsControllerBase
 
 public record ReviewRequest(string Password, string Meaning, string Reason, string? Notes = null);
 public record AttachEvidenceRequest(int EntryId, int SampleId, string FileRef, string? Description = null);
+
 

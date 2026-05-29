@@ -83,8 +83,8 @@ public class SamplingSchedulerJob : BackgroundService
             if (alreadyDone) continue;
 
             // Push sampling reminder to all analysts (AllUsers group)
-            var msg = $"Sampling due: {plan.PlanName} — {plan.Material.MaterialName} " +
-                      $"({plan.SampleType.TypeName}) × {plan.SamplesPerPull} unit(s). Please register sample.";
+            var msg = $"Sampling due: {plan.PlanName} — {plan.Material?.MaterialName ?? "Unknown"} " +
+                      $"({plan.SampleType?.TypeName ?? "Unknown"}) × {plan.SamplesPerPull} unit(s). Please register sample.";
 
             await notify.PushToGroupAsync("AllUsers", "SamplingDue",
                 new { planId = plan.SamplingPlanId, planName = plan.PlanName, msg }, ct);

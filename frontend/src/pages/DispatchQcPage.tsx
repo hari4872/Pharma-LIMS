@@ -112,7 +112,7 @@ export default function DispatchQcPage() {
         customerName: doForm.customerName || null,
         despatchDate: doForm.despatchDate || null,
         packingType:  doForm.packingType || null,
-        productId:    parseInt(doForm.productId)
+        productId:    parseInt(doForm.productId) || 0
       })
       setShowCreateDO(false); load()
     } catch (err: any) { setError(err.response?.data?.message ?? 'Create failed') }

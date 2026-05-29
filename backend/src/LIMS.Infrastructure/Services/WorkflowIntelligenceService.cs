@@ -134,7 +134,7 @@ public class WorkflowIntelligenceService : IWorkflowIntelligenceService
             .GroupBy(e => e.AnalystId)
             .Select(g => new AnalystLoad(
                 g.Key,
-                g.First().Analyst.FullName,
+                g.First().Analyst?.FullName ?? "Unassigned",
                 g.Count(e => e.Status == TestExecutionStatus.Assigned),
                 g.Count(e => e.Status == TestExecutionStatus.InProgress),
                 g.Count(e => e.Sample.DueDate.HasValue && e.Sample.DueDate.Value < now)

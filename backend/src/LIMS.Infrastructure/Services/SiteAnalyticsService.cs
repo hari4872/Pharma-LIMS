@@ -113,7 +113,7 @@ public class SiteAnalyticsService : ISiteAnalyticsService
 
         var rows = await _db.Samples
             .Where(s => s.Status == SampleStatus.Released && s.CreatedAt >= cutoff && s.DueDate.HasValue)
-            .Select(s => new { s.LabId, TatDays = (s.DueDate!.Value - s.CreatedAt).TotalDays, Lab = s.Lab.LabName })
+            .Select(s => new { s.LabId, TatDays = (s.DueDate!.Value - s.CreatedAt).TotalDays, Lab = s.Lab != null ? s.Lab.LabName : "Unknown" })
             .ToListAsync(ct);
 
         var labs = await _db.Laboratories.Where(l => l.IsActive).ToDictionaryAsync(l => l.LabId, l => l.LabName, ct);
@@ -139,7 +139,7 @@ public class SiteAnalyticsService : ISiteAnalyticsService
 
         var entries = await _db.DigitalLogbookEntries
             .Where(e => e.IsOos && e.CreatedAt >= cutoff)
-            .Select(e => new { e.Execution.Sample.LabId, LabName = e.Execution.Sample.Lab.LabName, e.CreatedAt })
+            .Select(e => new { e.Execution.Sample.LabId, LabName = e.Execution.Sample.Lab != null ? e.Execution.Sample.Lab.LabName : "Unknown", e.CreatedAt })
             .ToListAsync(ct);
 
         var labs = entries.GroupBy(e => e.LabId).Select(g => new { g.Key, Name = g.First().LabName });

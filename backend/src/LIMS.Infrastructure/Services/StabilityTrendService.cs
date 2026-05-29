@@ -46,6 +46,7 @@ public class StabilityTrendService : IStabilityTrendService
         foreach (var pg in paramGroups)
         {
             var param = pg.First().Parameter;
+            if (param is null) continue;   // orphaned parameter FK — skip this group
             var specLimit = await _db.SpecLimits
                 .FirstOrDefaultAsync(s => s.MaterialId == protocol.MaterialId && s.ParameterId == pg.Key, ct);
 

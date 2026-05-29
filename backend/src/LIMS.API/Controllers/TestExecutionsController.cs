@@ -38,7 +38,7 @@ public class TestExecutionsController : LimsControllerBase
     [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Assign([FromBody] AssignWorkQueueRequest request)
     {
-        var assignedById = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var assignedById)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new AssignWorkQueueItemCommand(
             request.SampleId, request.AnalystId, request.InstrumentId,
             assignedById, request.PriorityScore));
@@ -52,7 +52,7 @@ public class TestExecutionsController : LimsControllerBase
     [Authorize(Roles = "Admin,Analyst,QCLead")]
     public async Task<IActionResult> Start(int id)
     {
-        var analystId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new StartTestExecutionCommand(id, analystId));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { executionId = result.Value, status = "InProgress" });
@@ -63,7 +63,7 @@ public class TestExecutionsController : LimsControllerBase
     [Authorize(Roles = "Admin,Analyst,QCLead")]
     public async Task<IActionResult> SubmitResults(int id, [FromBody] SubmitResultsRequest request)
     {
-        var analystId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new SubmitTestResultsCommand(
             id, analystId, request.Entries, request.EntryMethod));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
@@ -169,7 +169,7 @@ public class TestExecutionsController : LimsControllerBase
     [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> AssignTestMethod(int id, [FromBody] AssignTestMethodRequest request)
     {
-        var assignedById = int.Parse(User.FindFirst("sub")?.Value ?? "0");
+        if (!TryGetUserId(out var assignedById)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new AssignTestMethodCommand(
             id, request.AnalystId, request.InstrumentId, assignedById, request.PriorityScore));
         if (!result.IsSuccess)
@@ -183,4 +183,5 @@ public class TestExecutionsController : LimsControllerBase
 public record AssignWorkQueueRequest(int SampleId, int AnalystId, int InstrumentId, int? PriorityScore = null);
 public record AssignTestMethodRequest(int AnalystId, int InstrumentId, int? PriorityScore = null);
 public record SubmitResultsRequest(List<ResultEntryDto> Entries, EntryMethod EntryMethod = EntryMethod.Manual);
+
 

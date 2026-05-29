@@ -23,8 +23,8 @@ public class FormTemplatesController : LimsControllerBase
     public async Task<IActionResult> GetAll([FromQuery] string? status, [FromQuery] string? triggerType)
     {
         var query = _db.FormTemplates.Include(f => f.Locations).Include(f => f.TemplateParameters).Where(f => f.IsActive);
-        if (!string.IsNullOrEmpty(status) && Enum.TryParse<FormTemplateStatus>(status, out var st)) query = query.Where(f => f.Status == st);
-        if (!string.IsNullOrEmpty(triggerType) && Enum.TryParse<TriggerType>(triggerType, out var tt)) query = query.Where(f => f.TriggerType == tt);
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<FormTemplateStatus>(status, true, out var st)) query = query.Where(f => f.Status == st);
+        if (!string.IsNullOrEmpty(triggerType) && Enum.TryParse<TriggerType>(triggerType, true, out var tt)) query = query.Where(f => f.TriggerType == tt);
 
         var results = await query.Include(f => f.SampleTypeNav).Select(f => new
         {
@@ -150,5 +150,6 @@ public record UpdateFormTemplateRequest(string FormName, string TriggerType, boo
 public record SaveFieldsRequest(string? FieldDefinitionsJson);
 public record AddTemplateParameterRequest(int ParameterId, int DisplayOrder, string? ColumnFrequency);
 public record AddTemplateLocationRequest(string LocationName, int ColumnOrder, int? SpecLimitId);
+
 
 
