@@ -355,7 +355,7 @@ export default function DigitalLogbookPage() {
         </>
       )}
 
-      <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
+      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />}
 
       {/* ── Amendment Modal ───────────────────────────────────────────────── */}
       {amendEntry && (

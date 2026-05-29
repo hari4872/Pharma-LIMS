@@ -131,7 +131,7 @@ export default function StabilityPullsPage() {
         },
       ]} />
 
-      <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
+      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />}
 
       {showSchedule && (
         <Modal title="Schedule Stability Pull" onClose={() => setShowSchedule(false)}>

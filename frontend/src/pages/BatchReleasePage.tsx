@@ -266,7 +266,7 @@ export default function BatchReleasePage() {
         </Modal>
       )}
 
-      <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
+      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />}
 
       {/* ── Decision Modal ── */}
       {showDecide && (

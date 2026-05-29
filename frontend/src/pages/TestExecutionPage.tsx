@@ -55,25 +55,11 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }>
   pending: { bg: '#f3f4f6', color: '#6b7280', label: '—' },
 }
 
-function useElapsed(startedAt: string | null) {
-  const [secs, setSecs] = useState(0)
-  useEffect(() => {
-    if (!startedAt) return
-    const update = () => setSecs(Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000))
-    update()
-    const t = setInterval(update, 1000)
-    return () => clearInterval(t)
-  }, [startedAt])
-  const h = String(Math.floor(secs / 3600)).padStart(2, '0')
-  const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0')
-  const s = String(secs % 60).padStart(2, '0')
-  return `${h}:${m}:${s}`
-}
 
 export default function TestExecutionPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const elapsed = useElapsed(null)  // placeholder — updated below
+  // elapsed timer driven by tick state below
 
   const [execution,   setExecution]   = useState<Execution | null>(null)
   const [parameters,  setParameters]  = useState<Parameter[]>([])
@@ -90,7 +76,7 @@ export default function TestExecutionPage() {
   const [draftSaved,  setDraftSaved]  = useState(false)
   const [error,       setError]       = useState('')
   const startedAtRef = useRef<string | null>(null)
-  const [tick, setTick] = useState(0)
+  const [, setTick] = useState(0)
 
   // Elapsed timer
   useEffect(() => {

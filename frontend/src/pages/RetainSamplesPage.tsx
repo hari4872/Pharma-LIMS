@@ -133,7 +133,7 @@ export default function RetainSamplesPage() {
         },
       ]} />
 
-      <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
+      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />}
 
       {showAdd && (
         <Modal title="Register Retain Sample" onClose={() => setShowAdd(false)}>

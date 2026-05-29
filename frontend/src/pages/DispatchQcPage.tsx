@@ -235,7 +235,7 @@ export default function DispatchQcPage() {
         ]} />
       )}
 
-      <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
+      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />}
 
       {/* Create Delivery Order Modal */}
       {showCreateDO && (

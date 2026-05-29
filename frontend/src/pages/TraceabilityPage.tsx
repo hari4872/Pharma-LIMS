@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
@@ -503,7 +503,7 @@ export default function TraceabilityPage() {
   const [graphLoading, setGraphLoading] = useState(false)
   const [graphError, setGraphError]     = useState('')
   const [activeView, setActiveView]     = useState<'coc' | 'graph'>('coc')
-  const searchRef = useRef<HTMLInputElement>(null)
+
 
   // ── Recall state ────────────────────────────────────────────────────────
   const [recallLot, setRecallLot]         = useState('')
