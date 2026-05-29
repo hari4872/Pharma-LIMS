@@ -7,15 +7,20 @@ namespace LIMS.Application.Features.Checkpoints;
 
 public record GetCheckpointsQuery(int? LabId, string? TriggerMode) : IRequest<List<CheckpointDto>>;
 
+public record CheckpointParameterDto(int ParameterId, string ParameterName, string ParameterCode, string? Uom, string DataType);
+
 public record CheckpointDto(
     int CheckpointId, string CheckpointCode, string TriggerMode,
     string CheckpointType, int? ShiftIntervalHrs, bool IsActive,
-    int LocationCount);
+    int LocationCount, List<CheckpointParameterDto> Parameters);
 
 public record GetProcessLogQuery(int CheckpointId, DateOnly? Date) : IRequest<List<ProcessLogRowDto>>;
 
+public record ProcessLogReadingDto(int ReadingId, int ParameterId, string ParameterName, string ParameterCode, string? Uom, string Value);
+
 public record ProcessLogRowDto(
-    int RowId, DateTimeOffset SlotTime, string SlotLabel, string Status, bool IsSigned);
+    int RowId, DateTimeOffset SlotTime, string SlotLabel, string Status, bool IsSigned,
+    List<ProcessLogReadingDto> Readings);
 
 public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, List<CheckpointDto>>
 {
@@ -24,14 +29,22 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
 
     public async Task<List<CheckpointDto>> Handle(GetCheckpointsQuery request, CancellationToken ct)
     {
-        var query = _db.Checkpoints.Include(c => c.Locations).AsQueryable();
+        var query = _db.Checkpoints
+            .Include(c => c.Locations)
+            .Include(c => c.CheckpointParameters).ThenInclude(cp => cp.Parameter)
+            .AsQueryable();
         if (request.LabId.HasValue) query = query.Where(c => c.LabId == request.LabId);
         if (!string.IsNullOrEmpty(request.TriggerMode) && Enum.TryParse<TriggerType>(request.TriggerMode, true, out var triggerEnum))
             query = query.Where(c => c.TriggerMode == triggerEnum);
-        return await query.Select(c => new CheckpointDto(
+        var list = await query.ToListAsync(ct);
+        return list.Select(c => new CheckpointDto(
             c.CheckpointId, c.CheckpointCode, c.TriggerMode.ToString(),
-            c.CheckpointType, c.ShiftIntervalHrs, c.IsActive, c.Locations.Count))
-            .ToListAsync(ct);
+            c.CheckpointType, c.ShiftIntervalHrs, c.IsActive, c.Locations.Count,
+            c.CheckpointParameters.Select(cp => new CheckpointParameterDto(
+                cp.Parameter.ParameterId, cp.Parameter.ParameterName,
+                cp.Parameter.ParameterCode, cp.Parameter.Uom,
+                cp.Parameter.DataType.ToString())).ToList()))
+            .ToList();
     }
 }
 
@@ -40,7 +53,8 @@ public record GetAllProcessLogQuery(DateOnly? Date) : IRequest<List<AllProcessLo
 
 public record AllProcessLogRowDto(
     int RowId, int CheckpointId, string CheckpointCode, string TriggerMode,
-    DateTimeOffset SlotTime, string SlotLabel, string Status, bool IsSigned);
+    DateTimeOffset SlotTime, string SlotLabel, string Status, bool IsSigned,
+    List<ProcessLogReadingDto> Readings);
 
 public class GetAllProcessLogQueryHandler : IRequestHandler<GetAllProcessLogQuery, List<AllProcessLogRowDto>>
 {
@@ -61,11 +75,15 @@ public class GetAllProcessLogQueryHandler : IRequestHandler<GetAllProcessLogQuer
             var today = DateOnly.FromDateTime(DateTime.UtcNow).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
             query = query.Where(r => r.SlotTime >= today && r.SlotTime < today.AddDays(1));
         }
-        return await query.OrderBy(r => r.SlotTime)
-            .Select(r => new AllProcessLogRowDto(
-                r.RowId, r.CheckpointId, r.Checkpoint.CheckpointCode, r.Checkpoint.TriggerMode.ToString(),
-                r.SlotTime, r.SlotLabel, r.Status, r.SignatureId.HasValue))
-            .ToListAsync(ct);
+        var rows = await query.Include(r => r.Readings).ThenInclude(rd => rd.Parameter)
+            .OrderBy(r => r.SlotTime).ToListAsync(ct);
+        return rows.Select(r => new AllProcessLogRowDto(
+            r.RowId, r.CheckpointId, r.Checkpoint.CheckpointCode, r.Checkpoint.TriggerMode.ToString(),
+            r.SlotTime, r.SlotLabel, r.Status, r.SignatureId.HasValue,
+            r.Readings.Select(rd => new ProcessLogReadingDto(
+                rd.ReadingId, rd.ParameterId, rd.Parameter.ParameterName,
+                rd.Parameter.ParameterCode, rd.Parameter.Uom, rd.Value)).ToList()))
+            .ToList();
     }
 }
 
@@ -82,8 +100,13 @@ public class GetProcessLogQueryHandler : IRequestHandler<GetProcessLogQuery, Lis
             var d = request.Date.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
             query = query.Where(r => r.SlotTime >= d && r.SlotTime < d.AddDays(1));
         }
-        return await query.OrderBy(r => r.SlotTime)
-            .Select(r => new ProcessLogRowDto(r.RowId, r.SlotTime, r.SlotLabel, r.Status, r.SignatureId.HasValue))
-            .ToListAsync(ct);
+        var rows = await query.Include(r => r.Readings).ThenInclude(rd => rd.Parameter)
+            .OrderBy(r => r.SlotTime).ToListAsync(ct);
+        return rows.Select(r => new ProcessLogRowDto(
+            r.RowId, r.SlotTime, r.SlotLabel, r.Status, r.SignatureId.HasValue,
+            r.Readings.Select(rd => new ProcessLogReadingDto(
+                rd.ReadingId, rd.ParameterId, rd.Parameter.ParameterName,
+                rd.Parameter.ParameterCode, rd.Parameter.Uom, rd.Value)).ToList()))
+            .ToList();
     }
 }

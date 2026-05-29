@@ -39,6 +39,7 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<CheckpointLocation> CheckpointLocations => Set<CheckpointLocation>();
     public DbSet<CheckpointTriggerLog> CheckpointTriggerLogs => Set<CheckpointTriggerLog>();
     public DbSet<ProcessLogRow> ProcessLogRows => Set<ProcessLogRow>();
+    public DbSet<ProcessLogReading> ProcessLogReadings => Set<ProcessLogReading>();
     public DbSet<CheckpointParameter> CheckpointParameters => Set<CheckpointParameter>();
     // Phase 2 join tables
     public DbSet<SampleCheckpoint> SampleCheckpoints => Set<SampleCheckpoint>();
@@ -99,6 +100,16 @@ public class LimsDbContext : DbContext, ILimsDbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(LimsDbContext).Assembly);
+
+        // ProcessLogReading — parameter values recorded when a process log row is signed
+        modelBuilder.Entity<Domain.Entities.ProcessLogReading>(e =>
+        {
+            e.HasKey(r => r.ReadingId);
+            e.Property(r => r.Value).IsRequired().HasMaxLength(200);
+            e.Property(r => r.RecordedBy).IsRequired().HasMaxLength(100);
+            e.HasOne(r => r.Row).WithMany(row => row.Readings).HasForeignKey(r => r.RowId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(r => r.Parameter).WithMany().HasForeignKey(r => r.ParameterId).OnDelete(DeleteBehavior.Restrict);
+        });
 
         // All enums stored as strings for readability
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())

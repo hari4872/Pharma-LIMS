@@ -58,10 +58,11 @@ public class CheckpointsController : ControllerBase
     // POST api/v1/checkpoints/{id}/process-log/{rowId}/sign — Mode 3: row §11.50 e-sig (FR-12)
     [HttpPost("{id}/process-log/{rowId:int}/sign")]
     [Authorize(Roles = "Admin,QA,Analyst")]
-    public async Task<IActionResult> SignProcessLogRow(int id, int rowId, [FromBody] ApproveRequest request)
+    public async Task<IActionResult> SignProcessLogRow(int id, int rowId, [FromBody] SignProcessLogRequest request)
     {
         var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-        var result = await _mediator.Send(new SignProcessLogRowCommand(rowId, userId, request.Password, request.Meaning, request.Reason));
+        var readings = request.Readings?.Select(r => new ParameterReadingInput(r.ParameterId, r.Value)).ToList();
+        var result = await _mediator.Send(new SignProcessLogRowCommand(rowId, userId, request.Password, request.Meaning, request.Reason, readings));
         if (!result.IsSuccess)
         {
             if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
@@ -75,3 +76,5 @@ public record CreateCheckpointRequest(string CheckpointCode, int LabId, string T
     string CheckpointType, string? TimeSlots, int? ShiftIntervalHrs, int? FormTemplateId,
     List<int>? ParameterIds = null);                        // parameters linked to this checkpoint
 public record TriggerCheckpointRequest(string? DeliveryOrder = null, bool IsOfflineSync = false);
+public record ReadingRequest(int ParameterId, string Value);
+public record SignProcessLogRequest(string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null);

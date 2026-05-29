@@ -12,6 +12,14 @@ import { inp, Modal, Field, ModalFooter } from './master-data/LaboratoriesPage'
 import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'
 import { toast } from '@/components/Toast'
 
+interface CheckpointParam {
+  parameterId:   number
+  parameterName: string
+  parameterCode: string
+  uom:           string | null
+  dataType:      string
+}
+
 interface Checkpoint {
   checkpointId:    number
   checkpointCode:  string
@@ -21,6 +29,7 @@ interface Checkpoint {
   isActive:        boolean
   locationCount:   number
   timeSlots?:      string   // JSON string e.g. '["08:00","14:00"]'
+  parameters:      CheckpointParam[]
 }
 
 interface ProcessLogRow {
@@ -113,8 +122,9 @@ export default function CheckpointExecutionPage() {
   const [logLoading, setLogLoading]     = useState(false)
 
   // E-signature modal state
-  const [signRow, setSignRow]           = useState<{ checkpointId: number; rowId: number } | null>(null)
+  const [signRow, setSignRow]           = useState<{ checkpointId: number; rowId: number; params: CheckpointParam[] } | null>(null)
   const [signForm, setSignForm]         = useState({ password: '', meaning: 'I confirm this process log entry', reason: '' })
+  const [readings, setReadings]         = useState<Record<number, string>>({})
   const [saving, setSaving]             = useState(false)
   const [error, setError]               = useState('')
 
@@ -154,12 +164,16 @@ export default function CheckpointExecutionPage() {
     if (!signRow) return
     setSaving(true); setError('')
     try {
+      const readingsList = Object.entries(readings)
+        .filter(([, v]) => v.trim() !== '')
+        .map(([parameterId, value]) => ({ parameterId: Number(parameterId), value }))
       await api.post(
         `/checkpoints/${signRow.checkpointId}/process-log/${signRow.rowId}/sign`,
-        signForm
+        { ...signForm, readings: readingsList }
       )
       toast('Row signed and locked ✓', 'success')
       setSignRow(null)
+      setReadings({})
       setSignForm({ password: '', meaning: 'I confirm this process log entry', reason: '' })
       if (logFor) openProcessLog(logFor)
     } catch (err: any) {
@@ -413,7 +427,7 @@ export default function CheckpointExecutionPage() {
                       </span>
                     ) : isOpen ? (
                       <button
-                        onClick={() => { setSignRow({ checkpointId: logFor.checkpointId, rowId: row.rowId }); setError('') }}
+                        onClick={() => { setSignRow({ checkpointId: logFor.checkpointId, rowId: row.rowId, params: logFor.parameters ?? [] }); setReadings({}); setError('') }}
                         style={{
                           padding: '7px 16px', background: '#7c3aed', color: '#fff',
                           border: 'none', borderRadius: 6, cursor: 'pointer',
@@ -446,6 +460,48 @@ export default function CheckpointExecutionPage() {
             21 CFR Part 11 — your signature will be permanently recorded.
           </p>
           <form onSubmit={handleSign}>
+
+            {/* ── Parameter readings ── */}
+            {signRow.params.length > 0 && (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 10 }}>
+                  📊 Enter Parameter Readings
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {signRow.params.map(p => (
+                    <div key={p.parameterId} style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 8, alignItems: 'center' }}>
+                      <label style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>
+                        {p.parameterName}
+                        <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{p.parameterCode}</span>
+                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {p.dataType === 'PassFail' ? (
+                          <select
+                            style={{ ...inp, margin: 0, width: '100%' }}
+                            value={readings[p.parameterId] ?? ''}
+                            onChange={e => setReadings(r => ({ ...r, [p.parameterId]: e.target.value }))}>
+                            <option value="">—</option>
+                            <option value="Pass">Pass</option>
+                            <option value="Fail">Fail</option>
+                          </select>
+                        ) : (
+                          <input
+                            type="number" step="any"
+                            style={{ ...inp, margin: 0, width: '100%' }}
+                            value={readings[p.parameterId] ?? ''}
+                            onChange={e => setReadings(r => ({ ...r, [p.parameterId]: e.target.value }))}
+                            placeholder="value"
+                          />
+                        )}
+                        {p.uom && <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>{p.uom}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ height: 1, background: '#e5e7eb', margin: '14px 0' }} />
+              </div>
+            )}
+
             <Field label="Password (re-enter to confirm identity)">
               <input style={inp} type="password" value={signForm.password}
                 onChange={e => setSignForm(f => ({ ...f, password: e.target.value }))} required autoFocus />

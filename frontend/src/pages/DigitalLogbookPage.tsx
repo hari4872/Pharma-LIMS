@@ -19,6 +19,8 @@ interface LogbookEntry {
   createdAt: string
 }
 
+interface CheckpointParam { parameterId: number; parameterName: string; parameterCode: string; uom: string | null; dataType: string }
+
 interface ProcessLogRow {
   rowId: number; checkpointId: number; checkpointCode: string; triggerMode: string
   slotTime: string; slotLabel: string; status: string; isSigned: boolean
@@ -64,6 +66,8 @@ export default function DigitalLogbookPage() {
   const [signForm, setSignForm]       = useState<SignForm>({ password: '', meaning: 'I confirm this process log entry is accurate', reason: '' })
   const [signSaving, setSignSaving]   = useState(false)
   const [signError, setSignError]     = useState('')
+  const [signReadings, setSignReadings] = useState<Record<number, string>>({})
+  const [cpParams, setCpParams]       = useState<CheckpointParam[]>([])
 
   // ── Logbook load ───────────────────────────────────────────────────────────
   async function loadLogbook() {
@@ -109,9 +113,13 @@ export default function DigitalLogbookPage() {
     e.preventDefault(); setSignSaving(true); setSignError('')
     if (!signRow) return
     try {
-      await api.post(`/checkpoints/${signRow.checkpointId}/process-log/${signRow.rowId}/sign`, signForm)
+      const readingsList = Object.entries(signReadings)
+        .filter(([, v]) => v.trim() !== '')
+        .map(([parameterId, value]) => ({ parameterId: Number(parameterId), value }))
+      await api.post(`/checkpoints/${signRow.checkpointId}/process-log/${signRow.rowId}/sign`,
+        { ...signForm, readings: readingsList })
       toast(`Process log row signed and locked ✓`, 'success')
-      setSignRow(null)
+      setSignRow(null); setSignReadings({}); setCpParams([])
       loadProcessLog()
     } catch (err: any) {
       const code = err.response?.data?.error
@@ -308,10 +316,15 @@ export default function DigitalLogbookPage() {
             )},
             { header: 'Action', accessor: r => r.status === 'Open' ? (
               <button
-                onClick={() => {
+                onClick={async () => {
                   setSignRow(r)
                   setSignForm({ password: '', meaning: 'I confirm this process log entry is accurate', reason: '' })
-                  setSignError('')
+                  setSignError(''); setSignReadings({})
+                  try {
+                    const all = await api.get('/checkpoints')
+                    const cp = all.data.find((c: any) => c.checkpointId === r.checkpointId)
+                    setCpParams(cp?.parameters ?? [])
+                  } catch { setCpParams([]) }
                 }}
                 style={{
                   padding: '6px 16px', background: '#7c3aed', color: '#fff',
@@ -387,6 +400,42 @@ export default function DigitalLogbookPage() {
             </div>
           </div>
           <form onSubmit={handleSign}>
+            {/* ── Parameter readings ── */}
+            {cpParams.length > 0 && (
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 10 }}>📊 Enter Parameter Readings</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {cpParams.map(p => (
+                    <div key={p.parameterId} style={{ display: 'grid', gridTemplateColumns: '1fr 130px', gap: 8, alignItems: 'center' }}>
+                      <label style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>
+                        {p.parameterName}
+                        <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{p.parameterCode}</span>
+                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {p.dataType === 'PassFail' ? (
+                          <select style={{ ...inp, margin: 0, width: '100%' }}
+                            value={signReadings[p.parameterId] ?? ''}
+                            onChange={e => setSignReadings(r => ({ ...r, [p.parameterId]: e.target.value }))}>
+                            <option value="">—</option>
+                            <option value="Pass">Pass</option>
+                            <option value="Fail">Fail</option>
+                          </select>
+                        ) : (
+                          <input type="number" step="any"
+                            style={{ ...inp, margin: 0, width: '100%' }}
+                            value={signReadings[p.parameterId] ?? ''}
+                            onChange={e => setSignReadings(r => ({ ...r, [p.parameterId]: e.target.value }))}
+                            placeholder="value" />
+                        )}
+                        {p.uom && <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>{p.uom}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ height: 1, background: '#e5e7eb', margin: '14px 0' }} />
+              </div>
+            )}
+
             <Field label="Password (re-enter)">
               <input type="password" style={inp} value={signForm.password}
                 onChange={e => setSignForm(f => ({ ...f, password: e.target.value }))} required autoFocus />

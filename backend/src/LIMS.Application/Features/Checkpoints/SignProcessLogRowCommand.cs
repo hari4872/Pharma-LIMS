@@ -6,8 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.Application.Features.Checkpoints;
 
+public record ParameterReadingInput(int ParameterId, string Value);
+
 // Mode 3: row e-signed §11.50 and locked — immutable after sign-off
-public record SignProcessLogRowCommand(int RowId, int UserId, string Password, string Meaning, string Reason)
+public record SignProcessLogRowCommand(
+    int RowId, int UserId, string Password, string Meaning, string Reason,
+    List<ParameterReadingInput>? Readings = null)
     : IRequest<Result<int>>;
 
 public class SignProcessLogRowValidator : AbstractValidator<SignProcessLogRowCommand>
@@ -41,6 +45,23 @@ public class SignProcessLogRowCommandHandler : IRequestHandler<SignProcessLogRow
             request.Meaning, request.Reason, "SignProcessLogRow", ct);
         if (sig is null) return Result<int>.Failure("ESIGN_AUTH_FAILED",
             "Electronic signature failed — password incorrect. (21 CFR §11.300)");
+
+        // Save parameter readings if provided
+        if (request.Readings is { Count: > 0 })
+        {
+            var username = (await _db.Users.FindAsync([request.UserId], ct))?.Username ?? "system";
+            foreach (var r in request.Readings.Where(r => !string.IsNullOrWhiteSpace(r.Value)))
+            {
+                _db.ProcessLogReadings.Add(new Domain.Entities.ProcessLogReading
+                {
+                    RowId       = request.RowId,
+                    ParameterId = r.ParameterId,
+                    Value       = r.Value.Trim(),
+                    RecordedAt  = DateTimeOffset.UtcNow,
+                    RecordedBy  = username,
+                });
+            }
+        }
 
         row.SignatureId = sig.SignatureId;
         row.Status = "Locked";

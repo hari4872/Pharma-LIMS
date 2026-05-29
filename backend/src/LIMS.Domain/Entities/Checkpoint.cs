@@ -69,4 +69,18 @@ public class ProcessLogRow
     public string Status { get; set; } = "Open";             // Open | Signed | Locked
     public int? SignatureId { get; set; }
     public ElectronicSignature? Signature { get; set; }
+    public ICollection<ProcessLogReading> Readings { get; set; } = [];
+}
+
+// Parameter readings recorded when a process log row is signed
+public class ProcessLogReading
+{
+    public int ReadingId { get; set; }
+    public int RowId { get; set; }
+    public ProcessLogRow Row { get; set; } = default!;
+    public int ParameterId { get; set; }
+    public TestMethodParameter Parameter { get; set; } = default!;
+    public string Value { get; set; } = default!;            // numeric or pass/fail as string
+    public DateTimeOffset RecordedAt { get; set; } = DateTimeOffset.UtcNow;
+    public string RecordedBy { get; set; } = default!;
 }
