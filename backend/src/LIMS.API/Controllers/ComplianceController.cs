@@ -50,7 +50,7 @@ public class ComplianceController : ControllerBase
     [HttpPost("validation-reviews")]
     public async Task<IActionResult> RecordValidationReview([FromBody] RecordReviewRequest request, CancellationToken ct)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new RecordValidationReviewCommand(
             request.ReviewType, request.Outcome, request.Notes,
             userId, request.Password, request.Meaning, request.Reason), ct);

@@ -38,7 +38,7 @@ public class TestExecutionsController : ControllerBase
     [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Assign([FromBody] AssignWorkQueueRequest request)
     {
-        var assignedById = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var assignedById = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new AssignWorkQueueItemCommand(
             request.SampleId, request.AnalystId, request.InstrumentId,
             assignedById, request.PriorityScore));
@@ -52,7 +52,7 @@ public class TestExecutionsController : ControllerBase
     [Authorize(Roles = "Admin,Analyst,QCLead")]
     public async Task<IActionResult> Start(int id)
     {
-        var analystId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var analystId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new StartTestExecutionCommand(id, analystId));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { executionId = result.Value, status = "InProgress" });
@@ -63,7 +63,7 @@ public class TestExecutionsController : ControllerBase
     [Authorize(Roles = "Admin,Analyst,QCLead")]
     public async Task<IActionResult> SubmitResults(int id, [FromBody] SubmitResultsRequest request)
     {
-        var analystId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var analystId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new SubmitTestResultsCommand(
             id, analystId, request.Entries, request.EntryMethod));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
@@ -121,7 +121,7 @@ public class TestExecutionsController : ControllerBase
     [Authorize(Roles = "Admin,Analyst,QCLead")]
     public async Task<IActionResult> SignOff(int id, [FromBody] ApproveRequest request)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new SignOffTestExecutionCommand(id, userId, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {
@@ -169,7 +169,7 @@ public class TestExecutionsController : ControllerBase
     [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> AssignTestMethod(int id, [FromBody] AssignTestMethodRequest request)
     {
-        var assignedById = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var assignedById = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new AssignTestMethodCommand(
             id, request.AnalystId, request.InstrumentId, assignedById, request.PriorityScore));
         if (!result.IsSuccess)

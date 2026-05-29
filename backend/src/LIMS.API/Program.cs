@@ -46,6 +46,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.MapInboundClaims = false;   // keep "sub" as "sub" — prevents NameIdentifier mismatch
         options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -55,7 +56,8 @@ builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-                System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+                System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+            NameClaimType = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.UniqueName,
         };
         // Allow JWT via SignalR query string (Contract 2)
         options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents

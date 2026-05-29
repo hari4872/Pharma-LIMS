@@ -64,7 +64,7 @@ public class CoAController : ControllerBase
     [Authorize(Roles = "QA,Admin")]
     public async Task<IActionResult> Approve(int id, [FromBody] CoASignRequest request)
     {
-        var qaUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var qaUserId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new ApproveCoACommand(id, qaUserId,
             request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
@@ -109,7 +109,7 @@ public class CoAController : ControllerBase
     [Authorize(Roles = "QA,Admin")]
     public async Task<IActionResult> Reject(int id, [FromBody] CoARejectRequest request)
     {
-        var qaUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var qaUserId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new RejectCoACommand(id, qaUserId,
             request.Justification, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)

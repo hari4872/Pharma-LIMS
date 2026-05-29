@@ -25,7 +25,7 @@ public class ResultsReviewController : ControllerBase
     [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
     public async Task<IActionResult> PeerReview(int executionId, [FromBody] ReviewRequest request)
     {
-        var reviewerId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var reviewerId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new PeerReviewCommand(
             executionId, reviewerId, request.Password, request.Meaning, request.Reason, request.Notes));
         if (!result.IsSuccess)
@@ -41,7 +41,7 @@ public class ResultsReviewController : ControllerBase
     [Authorize(Roles = "QCLead,QA,Admin")]
     public async Task<IActionResult> QCLeadVerify(int executionId, [FromBody] ReviewRequest request)
     {
-        var qcLeadId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var qcLeadId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new QCLeadVerifyCommand(
             executionId, qcLeadId, request.Password, request.Meaning, request.Reason, request.Notes));
         if (!result.IsSuccess)
@@ -113,7 +113,7 @@ public class ResultsReviewController : ControllerBase
     [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
     public async Task<IActionResult> AttachEvidence([FromBody] AttachEvidenceRequest request)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
 
         var entryExists = await _db.DigitalLogbookEntries.AnyAsync(e => e.EntryId == request.EntryId);
         if (!entryExists) return NotFound(new { error = "ENTRY_NOT_FOUND", message = "Logbook entry not found." });

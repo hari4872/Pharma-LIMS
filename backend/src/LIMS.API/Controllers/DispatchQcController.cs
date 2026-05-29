@@ -48,7 +48,7 @@ public class DispatchQcController : ControllerBase
     [Authorize(Roles = "QA,Admin")]
     public async Task<IActionResult> Approve(int taskId, [FromBody] DispatchQcApproveRequest request)
     {
-        var qaUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var qaUserId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new ApproveDispatchQcCommand(
             taskId, qaUserId, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)

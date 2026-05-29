@@ -30,7 +30,7 @@ public class SamplesController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterSampleRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
-        var userId   = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId   = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result   = await _mediator.Send(new RegisterSampleCommand(
             request.LabId, request.MaterialId, request.LotNumber,
             request.MfgDate, request.ExpDate, request.SampleTypeId,
@@ -55,7 +55,7 @@ public class SamplesController : ControllerBase
     [Authorize(Roles = "Admin,Analyst,QA")]
     public async Task<IActionResult> SignSRF(int id, [FromBody] ApproveRequest request)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new SignSRFCommand(id, userId, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {

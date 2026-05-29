@@ -31,7 +31,7 @@ public class OosInvestigationsController : ControllerBase
     [Authorize(Roles = "Admin,QA,QCLead")]
     public async Task<IActionResult> Close(int id, [FromBody] CloseOosRequest request)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new CloseOosInvestigationCommand(
             id, userId, request.RootCause, request.CapaRef, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
@@ -48,7 +48,7 @@ public class OosInvestigationsController : ControllerBase
     [Authorize(Roles = "Admin,QA,QCLead")]
     public async Task<IActionResult> EscalateToPhase2(int id, [FromBody] EscalatePhase2Request request)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new EscalateToPhase2Command(
             id, userId, request.EscalationReason, request.CapaRef,
             request.Password, request.Meaning, request.Reason));

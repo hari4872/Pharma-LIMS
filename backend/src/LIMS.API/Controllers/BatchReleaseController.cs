@@ -119,7 +119,7 @@ public class BatchReleaseController : ControllerBase
             (r.Status == BatchReleaseStatus.PendingReview || r.Status == BatchReleaseStatus.InReview));
         if (existing) return Conflict(new { error = "An active batch release review already exists for this sample." });
 
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
 
         // Auto-evaluate checklist
         var checkItems = await EvaluateChecklistAsync(req.SampleId);
@@ -178,7 +178,7 @@ public class BatchReleaseController : ControllerBase
         if (string.IsNullOrWhiteSpace(req.DecisionReason))
             return BadRequest(new { error = "DecisionReason is required." });
 
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
 
         // §11.50 e-signature required for batch release decision (21 CFR 211.192)
         var sig = await _esig.CreateSignatureAsync(

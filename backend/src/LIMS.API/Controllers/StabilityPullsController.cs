@@ -37,7 +37,7 @@ public class StabilityPullsController : ControllerBase
     [Authorize(Roles = "Admin,Analyst,QCLead")]
     public async Task<IActionResult> Execute(int id, [FromBody] ExecutePullRequest request)
     {
-        var analystId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var analystId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         try
         {
             var result = await _mediator.Send(new ExecutePullCommand(

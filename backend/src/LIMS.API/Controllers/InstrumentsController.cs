@@ -70,7 +70,7 @@ public class InstrumentsController : ControllerBase
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> ApproveCalibration(int id, int calId, [FromBody] ApproveRequest request)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new ApproveCalibrationCommand(calId, userId, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {
@@ -98,7 +98,7 @@ public class InstrumentsController : ControllerBase
     [HttpPost("{id}/breakdowns")]
     public async Task<IActionResult> RaiseBreakdown(int id, [FromBody] RaiseBreakdownRequest request)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new RaiseBreakdownCommand(id, userId, request.IssueDescription));
         var bd = result.Value!;
         return CreatedAtAction(nameof(GetBreakdowns), new { instrumentId = id },
@@ -121,7 +121,7 @@ public class InstrumentsController : ControllerBase
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> ReturnToService(int breakdownId, [FromBody] ApproveRequest request)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new ReturnToServiceCommand(breakdownId, userId, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {

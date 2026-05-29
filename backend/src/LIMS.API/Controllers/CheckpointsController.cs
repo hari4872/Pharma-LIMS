@@ -60,7 +60,7 @@ public class CheckpointsController : ControllerBase
     [Authorize(Roles = "Admin,QA,Analyst")]
     public async Task<IActionResult> SignProcessLogRow(int id, int rowId, [FromBody] SignProcessLogRequest request)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var readings = request.Readings?.Select(r => new ParameterReadingInput(r.ParameterId, r.Value)).ToList();
         var result = await _mediator.Send(new SignProcessLogRowCommand(rowId, userId, request.Password, request.Meaning, request.Reason, readings));
         if (!result.IsSuccess)

@@ -28,7 +28,7 @@ public class DigitalLogbookController : ControllerBase
     [Authorize(Roles = "Analyst,QCLead,QA,Admin")]
     public async Task<IActionResult> Amend(int id, [FromBody] AmendEntryRequest request)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new AmendLogbookEntryCommand(
             id, userId, request.NewRawValue, request.AmendmentReason,
             request.Password, request.Meaning, request.Reason));

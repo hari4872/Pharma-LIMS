@@ -53,7 +53,7 @@ public class TestMethodsController : ControllerBase
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Approve(int id, [FromBody] ApproveRequest request)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new ApproveTestMethodCommand(id, userId, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {

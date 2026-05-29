@@ -78,7 +78,7 @@ public class SampleContainersController : ControllerBase
             return BadRequest(new { error = "ALREADY_DESTROYED" });
 
         // Minimal e-sig via BCrypt re-auth (same pattern as other destruction endpoints)
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var user   = await _db.Users.FirstOrDefaultAsync(u => u.UserId == userId);
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized(new { error = "ESIGN_AUTH_FAILED", message = "Password incorrect. (21 CFR §11.300)" });

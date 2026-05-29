@@ -22,7 +22,7 @@ public class TraceabilityController : ControllerBase
     [HttpGet("samples/{sampleId:int}/graph")]
     public async Task<IActionResult> GetGraph(int sampleId)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new GetTraceabilityGraphQuery(sampleId, userId));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(result.Value);
@@ -40,7 +40,7 @@ public class TraceabilityController : ControllerBase
         [FromQuery] int? analystId,
         [FromQuery] int? instrumentId)
     {
-        var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        var userId = int.Parse(User.FindFirst("sub")?.Value ?? "0");
         var result = await _mediator.Send(new GetRecallScopeQuery(lotNumber, userId, batch, dateFrom, dateTo, analystId, instrumentId));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { lotNumber, affectedSampleIds = result.Value, count = result.Value?.Count });
