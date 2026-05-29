@@ -52,7 +52,7 @@ const labOpsItems: NavItem[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M4 6h16M4 10h16M4 14h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
   },
   {
-    label: 'Checkpoints', path: '/checkpoints',
+    label: 'Checkpoints', path: '/checkpoint-tasks',
     iconBg: '#fce7f3', iconColor: '#be185d',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8"/></svg>,
   },
@@ -127,6 +127,7 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/master-data/instrument-mapping':   { section: 'Master Data', label: 'Instrument Mapping' },
   '/samples':                          { section: 'Operations', label: 'Sample Registration' },
   '/checkpoints':                      { section: 'Operations', label: 'Checkpoints' },
+  '/checkpoint-tasks':                 { section: 'Operations', label: 'Checkpoint Execution' },
   '/work-queue':                       { section: 'Operations', label: 'Work Queue' },
   '/oos-investigations':               { section: 'Operations', label: 'OOS Investigations' },
   '/quality-events':                   { section: 'Operations', label: 'CAPA / Quality Events' },

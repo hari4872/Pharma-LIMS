@@ -16,6 +16,7 @@ import UsersPage from '@/pages/master-data/UsersPage'
 import SampleTypesPage from '@/pages/master-data/SampleTypesPage'
 import SampleRegistrationPage from '@/pages/SampleRegistrationPage'
 import CheckpointsPage from '@/pages/CheckpointsPage'
+import CheckpointExecutionPage from '@/pages/CheckpointExecutionPage'
 import WorkQueuePage from '@/pages/WorkQueuePage'
 import TestExecutionPage from '@/pages/TestExecutionPage'
 import OosInvestigationsPage from '@/pages/OosInvestigationsPage'
@@ -101,6 +102,7 @@ export default function App() {
         {/* Phases 2–4 */}
         <Route path="samples"           element={<SampleRegistrationPage />} />
         <Route path="checkpoints"       element={<CheckpointsPage />} />
+        <Route path="checkpoint-tasks"  element={<CheckpointExecutionPage />} />
         <Route path="work-queue"        element={<WorkQueuePage />} />
         <Route path="test-execution/:id" element={<TestExecutionPage />} />
         <Route path="oos-investigations" element={<OosInvestigationsPage />} />
