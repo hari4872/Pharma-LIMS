@@ -11,7 +11,7 @@ public record SampleDto(
     int SampleId, string SampleNumber, string MaterialName, string LotNumber,
     string SampleType, string Status, bool BarcodePrinted, DateTimeOffset? DueDate,
     string AnalystName, DateTimeOffset CreatedAt, int? FormTemplateId,
-    int? SpecTemplateId, string? SpecTemplateName);
+    int? SpecTemplateId, string? SpecTemplateName, bool SrfSigned);
 
 public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<SampleDto>>
 {
@@ -42,7 +42,8 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
                 s.Analyst != null ? s.Analyst.FullName : "Unassigned",
                 s.CreatedAt, s.FormTemplateId,
                 s.SpecTemplateId,
-                s.SpecTemplate != null ? s.SpecTemplate.TemplateName : null))
+                s.SpecTemplate != null ? s.SpecTemplate.TemplateName : null,
+                s.SrfSignatureId.HasValue))
             .ToListAsync(ct);
     }
 }

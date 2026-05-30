@@ -13,7 +13,7 @@ interface Sample {
   sampleId: number; sampleNumber: string; materialName: string; lotNumber: string
   sampleType: string; status: string; barcodePrinted: boolean; dueDate: string
   analystName: string; createdAt: string; isRush?: boolean
-  sampleCondition?: string; specTemplateName?: string; testsAutoCreated?: number
+  sampleCondition?: string; specTemplateName?: string; testsAutoCreated?: number; srfSigned?: boolean
 }
 interface Material   { materialId: number; materialName: string; productType: string }
 interface SampleType { sampleTypeId: number; typeName: string; typeCode: string; stage: string }
@@ -528,7 +528,7 @@ export default function SampleRegistrationPage() {
         {
           header: 'Actions', accessor: r => (
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {r.status === 'Registered' && (
+              {(r.status === 'Registered' || r.status === 'PendingTesting') && !r.srfSigned && (
                 <button onClick={() => { setShowSRF(r.sampleId); setError('') }}
                   style={{ padding: '3px 9px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
                   Sign SRF
