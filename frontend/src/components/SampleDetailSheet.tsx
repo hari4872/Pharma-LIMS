@@ -73,7 +73,24 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask }: Pr
 
         {/* Body */}
         <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
-          {loading && <p style={{ color: '#6b7280', textAlign: 'center', padding: 24 }}>Loading…</p>}
+          {loading && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} style={{ background: '#f1f5f9', borderRadius: 7, padding: '10px 14px', animation: 'pulse 1.5s ease-in-out infinite' }}>
+                    <div style={{ height: 10, width: '40%', background: '#e2e8f0', borderRadius: 4, marginBottom: 8 }} />
+                    <div style={{ height: 14, width: '70%', background: '#e2e8f0', borderRadius: 4 }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ height: 13, width: '30%', background: '#e2e8f0', borderRadius: 4, marginBottom: 10 }} />
+              <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 14px' }}>
+                <div style={{ height: 12, width: '60%', background: '#e2e8f0', borderRadius: 4, marginBottom: 8 }} />
+                <div style={{ height: 11, width: '80%', background: '#f1f5f9', borderRadius: 4 }} />
+              </div>
+              <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }`}</style>
+            </div>
+          )}
           {error && <p style={{ color: '#ef4444' }}>{error}</p>}
 
           {detail && (
