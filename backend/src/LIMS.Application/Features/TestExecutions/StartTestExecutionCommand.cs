@@ -27,6 +27,8 @@ public class StartTestExecutionHandler : IRequestHandler<StartTestExecutionComma
 
         // Step 3: instrument OOC hard block (21 CFR 211.68)
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (execution.Instrument is null)
+            return Result<int>.Failure("INSTRUMENT_REQUIRED", "No instrument assigned to this test execution.");
         if (execution.Instrument.Status == InstrumentStatus.OutOfCalibration ||
             execution.Instrument.Status == InstrumentStatus.Maintenance)
             return Result<int>.Failure("INSTRUMENT_OOC", $"Instrument is {execution.Instrument.Status} — test start blocked. (21 CFR 211.68)");
