@@ -7,7 +7,8 @@ import { toast } from '@/components/Toast'
 interface SampleType { sampleTypeId: number; typeName: string; typeCode: string; matrix: string; stage: string; description: string; isActive: boolean }
 
 const MATRICES = ['Solid', 'Liquid', 'Gas', 'Swab', 'Powder', 'Granule', 'Suspension', 'Emulsion']
-const STAGES = ['InProcess', 'Release', 'Stability', 'Incoming']
+const STAGES = ['Incoming', 'InProcess', 'Finished', 'Stability']
+function stageLabel(s: string) { return s.replace(/([a-z])([A-Z])/g, '$1 $2') }
 
 export default function SampleTypesPage() {
   const [data, setData] = useState<SampleType[]>([])
@@ -38,7 +39,7 @@ export default function SampleTypesPage() {
         { header: 'Code', accessor: 'typeCode' },
         { header: 'Name', accessor: 'typeName' },
         { header: 'Matrix', accessor: 'matrix' },
-        { header: 'Stage', accessor: 'stage' },
+        { header: 'Stage', accessor: r => stageLabel(r.stage) },
         { header: 'Description', accessor: 'description' },
         { header: 'Status', accessor: r => <StatusBadge active={r.isActive} /> },
       ]} />
@@ -55,7 +56,7 @@ export default function SampleTypesPage() {
             </Field>
             <Field label="Stage">
               <select style={inp} value={form.stage} onChange={e => setForm(f => ({ ...f, stage: e.target.value }))}>
-                {STAGES.map(s => <option key={s}>{s}</option>)}
+                {STAGES.map(s => <option key={s} value={s}>{stageLabel(s)}</option>)}
               </select>
             </Field>
             <Field label="Description"><input style={inp} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></Field>
