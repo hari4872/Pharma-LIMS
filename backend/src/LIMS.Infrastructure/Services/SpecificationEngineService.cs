@@ -121,8 +121,8 @@ public class SpecificationEngineService : ISpecificationEngineService
                 SpecTemplateItemId = item.SpecTemplateItemId,
                 ParameterId       = item.ParameterId,
                 // Instrument and Analyst will be assigned by Lab Manager (Phase D auto-suggests)
-                InstrumentId      = 0,   // placeholder — assigned at work queue
-                AnalystId         = 0,   // placeholder — assigned at work queue
+                InstrumentId      = null,  // assigned at work queue
+                AnalystId         = null,  // assigned at work queue
                 Status            = TestExecutionStatus.Assigned,
                 DueAt             = receivedAt.AddHours(item.TurnaroundHours),
                 PriorityScore     = sample.IsRush ? 100 : item.SortOrder,

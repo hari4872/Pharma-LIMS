@@ -131,7 +131,7 @@ public class WorkflowIntelligenceService : IWorkflowIntelligenceService
 
         // Analyst loads
         var analystLoads = execs
-            .GroupBy(e => e.AnalystId)
+            .GroupBy(e => e.AnalystId ?? 0)
             .Select(g => new AnalystLoad(
                 g.Key,
                 g.First().Analyst?.FullName ?? "Unassigned",

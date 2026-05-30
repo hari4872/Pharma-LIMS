@@ -33,7 +33,7 @@ public class DashboardAggregationService : IDashboardAggregationService
         // Analyst workloads — contract 2: server-side aggregation
         var workloads = await execQuery
             .Where(e => e.Status == TestExecutionStatus.Assigned || e.Status == TestExecutionStatus.InProgress)
-            .GroupBy(e => new { e.AnalystId, e.Analyst.FullName })
+            .GroupBy(e => new { AnalystId = e.AnalystId ?? 0, FullName = e.Analyst != null ? e.Analyst.FullName : "Unassigned" })
             .Select(g => new AnalystWorkload(g.Key.AnalystId, g.Key.FullName, g.Count()))
             .ToListAsync(ct);
 
@@ -69,7 +69,7 @@ public class DashboardAggregationService : IDashboardAggregationService
             (e.CompletedAt!.Value - e.StartedAt!.Value).TotalHours > (double)targetHours);
 
         var byAnalyst = executions
-            .GroupBy(e => new { e.AnalystId, e.Analyst.FullName })
+            .GroupBy(e => new { AnalystId = e.AnalystId ?? 0, FullName = e.Analyst != null ? e.Analyst.FullName : "Unassigned" })
             .Select(g => new TatByAnalyst(g.Key.AnalystId, g.Key.FullName,
                 (decimal)g.Average(e => (e.CompletedAt!.Value - e.StartedAt!.Value).TotalHours)))
             .ToList();

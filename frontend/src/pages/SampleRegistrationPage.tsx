@@ -208,7 +208,7 @@ export default function SampleRegistrationPage() {
       const r = await api.get(`/samples/${sampleId}/spec-assignment`)
       setSpecAssignData(r.data)
       if (r.data.candidates?.length === 1) setSelectedNewSpecId(r.data.candidates[0].templateId)
-    } catch { setAssignError('Failed to load spec candidates') }
+    } catch (err: any) { setAssignError(err.friendlyMessage ?? err.response?.data?.message ?? err.response?.data?.error ?? 'Failed to load spec candidates') }
     finally { setSpecAssignLoading(false) }
   }
 

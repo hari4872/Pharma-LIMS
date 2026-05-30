@@ -7,10 +7,10 @@ public class TestExecution
     public int ExecutionId { get; set; }
     public int SampleId { get; set; }
     public Sample Sample { get; set; } = null!;
-    public int InstrumentId { get; set; }
-    public Instrument Instrument { get; set; } = null!;
-    public int AnalystId { get; set; }
-    public User Analyst { get; set; } = null!;
+    public int? InstrumentId { get; set; }
+    public Instrument? Instrument { get; set; }
+    public int? AnalystId { get; set; }
+    public User? Analyst { get; set; }
     public int? AssignedById { get; set; }
     public User? AssignedBy { get; set; }
     public int? FormTemplateId { get; set; }
