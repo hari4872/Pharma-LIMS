@@ -225,7 +225,7 @@ export default function WorkQueuePage() {
       setReassignItem(null); load()
     } catch (err: any) {
       const code = err.response?.data?.error
-      if (code === 'TRAINING_EXPIRED') setReassignError('Analyst training expired — cannot assign (21 CFR Part 11)')
+      if (code === 'TRAINING_EXPIRED') setReassignError('Analyst training expired — cannot assign (21 CFR 11.10(i))')
       else if (code === 'INSTRUMENT_OOC') setReassignError('Instrument out of calibration (21 CFR 211.68)')
       else setReassignError(err.friendlyMessage ?? err.response?.data?.message ?? 'Re-assign failed')
     } finally { setReassignSaving(false) }

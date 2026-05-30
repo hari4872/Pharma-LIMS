@@ -49,7 +49,7 @@ public class AssignTestMethodHandler : IRequestHandler<AssignTestMethodCommand, 
             .AnyAsync(t => t.UserId == cmd.AnalystId && t.ValidUntil >= today, ct);
         if (!trained)
             return Result<int>.Failure("TRAINING_EXPIRED",
-                "Analyst training expired — assignment blocked. (21 CFR §11.10(i))");
+                "Analyst training expired — assignment blocked. (21 CFR 11.10(i))");
 
         // Instrument check (21 CFR 211.68)
         var instrument = await _db.Instruments

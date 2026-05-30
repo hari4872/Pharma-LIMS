@@ -39,7 +39,7 @@ public class StartTestExecutionHandler : IRequestHandler<StartTestExecutionComma
         var trained = await _db.UserTrainingRecords.AnyAsync(
             t => t.UserId == cmd.AnalystId && t.ValidUntil >= today, ct);
         if (!trained)
-            return Result<int>.Failure("TRAINING_EXPIRED", "Analyst training expired — test start blocked. (21 CFR §11.10(i))");
+            return Result<int>.Failure("TRAINING_EXPIRED", "Analyst training expired — test start blocked. (21 CFR 11.10(i))");
 
         execution.Status = TestExecutionStatus.InProgress;
         execution.StartedAt = DateTimeOffset.UtcNow; // ALCOA+ Contemporaneous — server-side UTC only

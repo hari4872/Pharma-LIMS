@@ -32,7 +32,7 @@ public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCom
         var trained = await _db.UserTrainingRecords.AnyAsync(
             t => t.UserId == cmd.AnalystId && t.ValidUntil >= today, ct);
         if (!trained)
-            return Result<int>.Failure("TRAINING_EXPIRED", "Analyst training expired — WAP assignment blocked. (21 CFR §11.10(i))");
+            return Result<int>.Failure("TRAINING_EXPIRED", "Analyst training expired — WAP assignment blocked. (21 CFR 11.10(i))");
 
         // WAP FR-14: instrument calibration check — hard block if OOC
         var instrument = await _db.Instruments.FirstOrDefaultAsync(i => i.InstrumentId == cmd.InstrumentId && i.IsActive, ct);

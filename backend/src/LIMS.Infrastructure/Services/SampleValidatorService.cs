@@ -40,7 +40,7 @@ public class SampleValidatorService : ISampleValidatorService
         var hasValidTraining = await _db.UserTrainingRecords.AnyAsync(
             t => t.UserId == analystId && t.ValidUntil >= today, ct);
         if (!hasValidTraining)
-            failures.Add("Analyst training expired or not recorded — registration blocked. (21 CFR §11.10(i))");
+            failures.Add("Analyst training expired or not recorded — registration blocked. (21 CFR 11.10(i))");
 
         // Check 5: reagents in stock — active reagent/standard materials exist (FR-07)
         var hasReagents = await _db.Materials.AnyAsync(
