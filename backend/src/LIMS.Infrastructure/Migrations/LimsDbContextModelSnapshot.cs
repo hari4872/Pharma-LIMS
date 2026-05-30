@@ -1982,10 +1982,16 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<int?>("SampleCondition")
                         .HasColumnType("integer");
 
+                    b.Property<string>("SampleLabel")
+                        .HasColumnType("text");
+
                     b.Property<string>("SampleNumber")
                         .IsRequired()
                         .HasMaxLength(60)
                         .HasColumnType("character varying(60)");
+
+                    b.Property<string>("TankSourceId")
+                        .HasColumnType("text");
 
                     b.Property<int>("SampleTypeId")
                         .HasColumnType("integer");
