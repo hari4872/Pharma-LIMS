@@ -18,6 +18,15 @@ public class CheckpointsController : LimsControllerBase
     public async Task<IActionResult> GetAll([FromQuery] int? labId, [FromQuery] string? triggerMode)
         => Ok(await _mediator.Send(new GetCheckpointsQuery(labId, triggerMode)));
 
+    // GET api/v1/checkpoints/{id} -- single checkpoint with its parameters
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var all = await _mediator.Send(new GetCheckpointsQuery(null, null));
+        var cp  = all.FirstOrDefault(c => c.CheckpointId == id);
+        return cp is null ? NotFound() : Ok(cp);
+    }
+
     // POST api/v1/checkpoints -- create checkpoint (Admin/QA, FR-01)
     [HttpPost]
     [Authorize(Roles = "Admin,QA")]

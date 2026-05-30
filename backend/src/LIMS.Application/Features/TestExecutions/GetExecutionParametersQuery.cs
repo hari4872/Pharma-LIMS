@@ -28,12 +28,20 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
         if (execution is null) return [];
 
         // ── Priority 1: Sample has a spec template → use its items' parameters ──────
-        // Spec template is material/sample-type scoped, so only relevant parameters appear.
-        var specParamIds = await _db.Samples
+        // Fetch the sample's SpecTemplateId first (avoids nav-chain SelectMany issues).
+        var sampleSpec = await _db.Samples
+            .AsNoTracking()
             .Where(s => s.SampleId == execution.SampleId && s.SpecTemplateId != null)
-            .SelectMany(s => s.SpecTemplate!.Items.Select(i => i.ParameterId))
-            .Distinct()
-            .ToListAsync(ct);
+            .Select(s => s.SpecTemplateId)
+            .FirstOrDefaultAsync(ct);
+
+        var specParamIds = sampleSpec.HasValue
+            ? await _db.SpecTemplateItems
+                .Where(sti => sti.SpecTemplateId == sampleSpec.Value)
+                .Select(sti => sti.ParameterId)
+                .Distinct()
+                .ToListAsync(ct)
+            : [];
 
         if (specParamIds.Count > 0)
         {

@@ -30,8 +30,17 @@ public class GetWorkQueueHandler : IRequestHandler<GetWorkQueueQuery, List<WorkQ
 
         if (q.AnalystId.HasValue) query = query.Where(e => e.AnalystId == q.AnalystId.Value);
         if (q.LabId.HasValue) query = query.Where(e => e.Sample.LabId == q.LabId.Value);
-        if (!string.IsNullOrEmpty(q.Status) && Enum.TryParse<TestExecutionStatus>(q.Status, out var s))
-            query = query.Where(e => e.Status == s);
+        if (!string.IsNullOrEmpty(q.Status))
+        {
+            // Support comma-separated statuses e.g. "Completed,OOSOpen"
+            var statuses = q.Status.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => Enum.TryParse<TestExecutionStatus>(s, out _))
+                .Select(s => Enum.Parse<TestExecutionStatus>(s))
+                .ToList();
+            if (statuses.Count > 0)
+                query = query.Where(e => statuses.Contains(e.Status));
+        }
 
         return await query
             .OrderBy(e => e.PriorityScore.HasValue ? e.PriorityScore.Value : 999)

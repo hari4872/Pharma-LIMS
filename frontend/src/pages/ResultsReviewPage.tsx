@@ -12,7 +12,7 @@ interface Execution {
 // ── Status config ──────────────────────────────────────────────────────────
 const STATUS_CFG: Record<string, { bg: string; color: string; label: string }> = {
   Completed:    { bg: '#dbeafe', color: '#1d4ed8', label: 'Pending Peer Review' },
-  // SignedOff is a planned future status — not yet in TestExecutionStatus enum
+  OOSOpen:      { bg: '#fef3c7', color: '#b45309', label: 'OOS Investigation Open' },
   PeerReviewed: { bg: '#fef3c7', color: '#b45309', label: 'Pending QC Verify' },
   QCVerified:   { bg: '#dcfce7', color: '#166534', label: 'QC Verified' },
   Approved:     { bg: '#dcfce7', color: '#166534', label: 'Approved' },
@@ -108,10 +108,9 @@ export default function ResultsReviewPage() {
   async function load() {
     setLoading(true)
     try {
-      // Fetch review-relevant statuses
-      // PeerReviewed / QCVerified are planned future states — backend enum not yet extended;
-      // only Completed rows need peer review action right now.
-      const c = await api.get('/test-executions?status=Completed')
+      // Fetch all terminal statuses that need peer review
+      // OOSOpen = completed but OOS investigation raised — still requires review chain
+      const c = await api.get('/test-executions?status=Completed,OOSOpen')
       setAll(c.data ?? [])
     } catch { setAll([]) }
     finally { setLoading(false) }

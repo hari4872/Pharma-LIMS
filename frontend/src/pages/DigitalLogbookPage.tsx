@@ -328,9 +328,10 @@ export default function DigitalLogbookPage() {
                   setSignForm({ password: '', meaning: 'I confirm this process log entry is accurate', reason: '' })
                   setSignError(''); setSignReadings({})
                   try {
-                    const all = await api.get('/checkpoints')
-                    const cp = all.data.find((c: any) => c.checkpointId === r.checkpointId)
-                    setCpParams(cp?.parameters ?? [])
+                    // Fetch only this specific checkpoint's parameters (avoids mixing parameters
+                    // from other checkpoints that may be of a different trigger type)
+                    const cpRes = await api.get(`/checkpoints/${r.checkpointId}`)
+                    setCpParams(cpRes.data?.parameters ?? [])
                   } catch { setCpParams([]) }
                 }}
                 style={{
