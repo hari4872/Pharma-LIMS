@@ -38,8 +38,8 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
     {
         var sample = await _db.Samples.FindAsync([request.SampleId], ct);
         if (sample is null) return Result<int>.Failure("NOT_FOUND", "Sample not found.");
-        if (sample.Status != SampleStatus.Registered)
-            return Result<int>.Failure("INVALID_STATE", "SRF can only be signed on Registered samples.");
+        if (sample.Status != SampleStatus.Registered && sample.Status != SampleStatus.PendingTesting)
+            return Result<int>.Failure("INVALID_STATE", "SRF can only be signed before testing begins.");
 
         // §11.300: password verified independently of session token
         var sig = await _esig.CreateSignatureAsync(request.UserId, request.Password,
@@ -48,7 +48,9 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
             "Electronic signature failed — password incorrect. (21 CFR §11.300)");
 
         sample.SrfSignatureId = sig.SignatureId;
-        sample.Status = SampleStatus.PendingTesting;
+        // Only advance status if still Registered — spec engine may have already set PendingTesting
+        if (sample.Status == SampleStatus.Registered)
+            sample.Status = SampleStatus.PendingTesting;
         await _db.SaveChangesAsync(ct);
 
         // Audit and notification are non-critical — wrap so they never fail the main operation
