@@ -10,7 +10,8 @@ public record GetSamplesQuery(int? LabId, string? Status, int? AnalystId) : IReq
 public record SampleDto(
     int SampleId, string SampleNumber, string MaterialName, string LotNumber,
     string SampleType, string Status, bool BarcodePrinted, DateTimeOffset? DueDate,
-    string AnalystName, DateTimeOffset CreatedAt, int? FormTemplateId);
+    string AnalystName, DateTimeOffset CreatedAt, int? FormTemplateId,
+    int? SpecTemplateId, string? SpecTemplateName);
 
 public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<SampleDto>>
 {
@@ -22,7 +23,8 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
         var query = _db.Samples
             .Include(s => s.Material)
             .Include(s => s.Analyst)
-            .Include(s => s.SampleTypeNav)              // Gap 2 fix
+            .Include(s => s.SampleTypeNav)
+            .Include(s => s.SpecTemplate)
             .AsQueryable();
 
         if (request.LabId.HasValue) query = query.Where(s => s.LabId == request.LabId);
@@ -38,7 +40,9 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
                 s.SampleTypeNav != null ? s.SampleTypeNav.TypeName : "Unknown",
                 s.Status.ToString(), s.BarcodePrinted, s.DueDate,
                 s.Analyst != null ? s.Analyst.FullName : "Unassigned",
-                s.CreatedAt, s.FormTemplateId))
+                s.CreatedAt, s.FormTemplateId,
+                s.SpecTemplateId,
+                s.SpecTemplate != null ? s.SpecTemplate.TemplateName : null))
             .ToListAsync(ct);
     }
 }
