@@ -462,37 +462,38 @@ function TestItemDesigner({
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#5f6368' }}>×</button>
         </div>
 
-        {/* Add parameter search */}
+        {/* Add parameter — searchable dropdown always visible */}
         {!isLocked && (
           <div style={{ padding: '12px 24px', borderBottom: '1px solid #f1f3f4', background: '#fafafa' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#111111', marginBottom: 6 }}>Add Test Parameter</div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                style={{ ...inp, flex: 1 }}
-                placeholder="Search parameters to add…"
-                value={paramSearch}
-                onChange={e => setParamSearch(e.target.value)}
-              />
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#111111', marginBottom: 6 }}>
+              Add Test Parameter
+              <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: 6 }}>({availableParams.length} available)</span>
             </div>
-            {paramSearch && (
-              <div style={{ marginTop: 6, border: '1px solid #e0e0e0', borderRadius: 8, maxHeight: 160, overflowY: 'auto', background: '#fff' }}>
-                {availableParams.length === 0 ? (
-                  <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>No matching parameters</div>
-                ) : availableParams.slice(0, 8).map(p => (
-                  <div key={p.parameterId}
-                    onClick={() => addParam(p)}
-                    style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #f1f3f4' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#f0fdfa')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
-                  >
-                    <span style={{ fontSize: 11, background: '#f0f4f8', padding: '1px 6px', borderRadius: 4, fontWeight: 700, color: '#374151' }}>{p.parameterCode}</span>
-                    <span style={{ color: '#111111' }}>{p.parameterName}</span>
-                    {p.uom && <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 'auto' }}>{p.uom}</span>}
-                    <span style={{ fontSize: 11, color: '#0d6e6e', fontWeight: 600 }}>+ Add</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <input
+              style={{ ...inp, marginBottom: 6 }}
+              placeholder="🔍  Search parameters by name or code…"
+              value={paramSearch}
+              onChange={e => setParamSearch(e.target.value)}
+            />
+            <div style={{ border: '1px solid #e0e0e0', borderRadius: 8, maxHeight: 160, overflowY: 'auto', background: '#fff' }}>
+              {availableParams.length === 0 ? (
+                <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>
+                  {paramSearch ? 'No matching parameters' : 'All parameters already added'}
+                </div>
+              ) : availableParams.map(p => (
+                <div key={p.parameterId}
+                  onClick={() => addParam(p)}
+                  style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #f9fafb' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#f0fdfa')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                >
+                  <span style={{ fontSize: 11, background: '#f0f4f8', padding: '1px 6px', borderRadius: 4, fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>{p.parameterCode}</span>
+                  <span style={{ color: '#111111', flex: 1 }}>{p.parameterName}</span>
+                  {p.uom && <span style={{ fontSize: 11, color: '#9ca3af' }}>{p.uom}</span>}
+                  <span style={{ fontSize: 11, color: '#0d6e6e', fontWeight: 600, whiteSpace: 'nowrap' }}>+ Add</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -500,7 +501,7 @@ function TestItemDesigner({
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px' }}>
           {items.length === 0 ? (
             <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
-              No tests added yet. Search above to add parameters.
+              No tests added yet. Select a parameter from the list above to add it.
             </div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
