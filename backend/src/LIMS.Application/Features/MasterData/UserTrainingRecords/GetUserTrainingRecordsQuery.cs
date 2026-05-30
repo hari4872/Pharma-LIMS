@@ -7,7 +7,7 @@ namespace LIMS.Application.Features.MasterData.UserTrainingRecords;
 public record GetUserTrainingRecordsQuery(int? UserId, int? MethodId) : IRequest<List<TrainingRecordDto>>;
 
 public record TrainingRecordDto(int TrainingId, int UserId, string UserFullName, int MethodId,
-    string MethodName, DateOnly TrainingDate, DateOnly? ValidUntil, bool IsExpired,
+    string MethodCode, string MethodName, DateOnly TrainingDate, DateOnly? ValidUntil, bool IsExpired,
     string RecordedBy, DateTimeOffset CreatedAt);
 
 public class GetUserTrainingRecordsQueryHandler : IRequestHandler<GetUserTrainingRecordsQuery, List<TrainingRecordDto>>
@@ -22,7 +22,11 @@ public class GetUserTrainingRecordsQueryHandler : IRequestHandler<GetUserTrainin
         if (request.MethodId.HasValue) query = query.Where(t => t.MethodId == request.MethodId);
 
         return await query.Select(t => new TrainingRecordDto(
-            t.TrainingId, t.UserId, t.User.FullName, t.MethodId, t.Method.MethodName,
+            t.TrainingId, t.UserId,
+            t.User != null ? t.User.FullName : "Unknown",
+            t.MethodId,
+            t.Method != null ? t.Method.MethodCode : "—",
+            t.Method != null ? t.Method.MethodName : "Unknown",
             t.TrainingDate, t.ValidUntil, t.IsExpired,
             t.RecordedBy, t.CreatedAt)).ToListAsync(ct);
     }
