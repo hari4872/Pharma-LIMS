@@ -106,26 +106,22 @@ public class SamplesController : LimsControllerBase
         });
     }
 
-    // GET api/v1/samples/{id} — full sample detail with related executions
+    // GET api/v1/samples/{id} — full sample detail with related executions (single query)
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         var sample = await _db.Samples
+            .Where(s => s.SampleId == id)
             .Include(s => s.Material)
             .Include(s => s.SampleTypeNav)
             .Include(s => s.SpecTemplate)
+            .Include(s => s.TestExecutions).ThenInclude(e => e.Analyst)
+            .Include(s => s.TestExecutions).ThenInclude(e => e.Instrument)
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.SampleId == id, ct);
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(ct);
 
         if (sample is null) return NotFound();
-
-        var executions = await _db.TestExecutions
-            .Where(e => e.SampleId == id)
-            .Include(e => e.Analyst)
-            .Include(e => e.Instrument)
-            .AsNoTracking()
-            .OrderBy(e => e.PriorityScore.HasValue ? e.PriorityScore.Value : 999)
-            .ToListAsync(ct);
 
         return Ok(new {
             sample.SampleId, sample.SampleNumber, sample.LotNumber,
@@ -139,13 +135,15 @@ public class SamplesController : LimsControllerBase
             sample.ExternalBatchId,
             SpecTemplateName = sample.SpecTemplate != null ? sample.SpecTemplate.TemplateName : null,
             sample.SpecTemplateId,
-            TestExecutions = executions.Select(e => new {
-                e.ExecutionId,
-                Status         = e.Status.ToString(),
-                AnalystName    = e.Analyst != null ? e.Analyst.FullName : "—",
-                InstrumentCode = e.Instrument != null ? e.Instrument.InstrumentCode : "—",
-                e.PriorityScore, e.StartedAt, e.CompletedAt, DueDate = e.DueAt
-            }).ToList()
+            TestExecutions = sample.TestExecutions
+                .OrderBy(e => e.PriorityScore ?? 999)
+                .Select(e => new {
+                    e.ExecutionId,
+                    Status         = e.Status.ToString(),
+                    AnalystName    = e.Analyst != null ? e.Analyst.FullName : "—",
+                    InstrumentCode = e.Instrument != null ? e.Instrument.InstrumentCode : "—",
+                    e.PriorityScore, e.StartedAt, e.CompletedAt, DueDate = e.DueAt
+                }).ToList()
         });
     }
 

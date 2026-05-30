@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
 
+// Module-level cache — survives re-renders, cleared on page refresh
+const _cache = new Map<number, SampleDetail>()
+
 interface SampleDetail {
   sampleId: number; sampleNumber: string; lotNumber: string
   materialId: number; materialName: string; sampleTypeName: string
@@ -49,10 +52,16 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask }: Pr
   const [error, setError]     = useState('')
 
   useEffect(() => {
+    // Serve from cache instantly if available
+    if (_cache.has(sampleId)) {
+      setDetail(_cache.get(sampleId)!)
+      setLoading(false)
+      return
+    }
     setLoading(true)
     api.get(`/samples/${sampleId}`)
-      .then(r => setDetail(r.data))
-      .catch(() => setError('Failed to load sample details.'))
+      .then(r => { _cache.set(sampleId, r.data); setDetail(r.data) })
+      .catch((err: any) => setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed to load sample details.'))
       .finally(() => setLoading(false))
   }, [sampleId])
 

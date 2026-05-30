@@ -276,21 +276,7 @@ export default function SampleRegistrationPage() {
     if (materialId && sampleTypeId) fetchSpecPreview(materialId, sampleTypeId)
   }, [materialId, sampleTypeId])
 
-  // ── Frequency summary ───────────────────────────────────────────────────────
-  function frequencySummary() {
-    if (selectedCps.length === 0) return null
-    const selected = checkpoints.filter(c => selectedCps.includes(c.checkpointId))
-    const modes = [...new Set(selected.map(c => c.triggerMode))]
-    if (modes.length === 1) {
-      return TRIGGER_LABEL[modes[0]] ?? modes[0]
-    }
-    return modes.map(m => TRIGGER_LABEL[m] ?? m).join(' · ')
-  }
 
-  function hasClockTime() {
-    const selected = checkpoints.filter(c => selectedCps.includes(c.checkpointId))
-    return selected.some(c => c.triggerMode === 'TimeBased')
-  }
 
   // ── Reset form ──────────────────────────────────────────────────────────────
   function resetForm() {
@@ -425,7 +411,6 @@ export default function SampleRegistrationPage() {
     document.head.removeChild(style)
   }
 
-  const freqText = frequencySummary()
 
   return (
     <div>
@@ -590,8 +575,8 @@ export default function SampleRegistrationPage() {
 
             <form onSubmit={submitRegister}>
 
-              {/* ── Section 1: Requestor & Product ─────────────────────── */}
-              <Section num={1} title="Requestor & Product" subtitle="Requestor is auto-filled from your login.">
+              {/* ── Section 1: Product & Type ──────────────────────────── */}
+              <Section num={1} title="Product & Type" subtitle="Requestor is auto-filled from your login.">
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                   {/* Requestor — read-only */}
                   <div>
@@ -680,8 +665,64 @@ export default function SampleRegistrationPage() {
                 )}
               </Section>
 
-              {/* ── Section 2: Checkpoints ──────────────────────────────── */}
-              <Section num={2} title="Checkpoints" subtitle="">
+              {/* ── Section 2: Sample Details ───────────────────────────── */}
+              <Section num={2} title="Sample Details" subtitle="Physical sample identification and receipt condition.">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div>
+                    <span style={label}>D.O. / Batch / Lot No. <span style={{ color: '#ef4444' }}>*</span></span>
+                    <input style={inp} value={lotNumber} onChange={e => setLotNumber(e.target.value)}
+                      required placeholder="e.g. B-20260422-03" />
+                  </div>
+                  <div>
+                    <span style={label}>Sample Condition <span style={{ color: '#ef4444' }}>*</span></span>
+                    <select style={inp} value={sampleCondition} onChange={e => setSampleCondition(e.target.value)}>
+                      <option value="OK">✓ OK — Acceptable condition</option>
+                      <option value="Damaged">⚠ Damaged — Physical damage noted</option>
+                      <option value="Compromised">✗ Compromised — Integrity at risk</option>
+                    </select>
+                  </div>
+                  <div>
+                    <span style={label}>Manufacturing Date <span style={{ color: '#ef4444' }}>*</span></span>
+                    <input style={inp} type="date" value={mfgDate} onChange={e => setMfgDate(e.target.value)} required />
+                  </div>
+                  <div>
+                    <span style={label}>Expiry Date <span style={{ color: '#ef4444' }}>*</span></span>
+                    <input style={inp} type="date" value={expDate} onChange={e => setExpDate(e.target.value)} required />
+                  </div>
+                  <div>
+                    <span style={label}>Tank / Source ID</span>
+                    <input style={inp} value={tankSourceId} onChange={e => setTankSourceId(e.target.value)} placeholder="e.g. 1T4002" />
+                  </div>
+                  <div>
+                    <span style={label}>Sample Label</span>
+                    <input style={inp} value={sampleLabel} onChange={e => setSampleLabel(e.target.value)} placeholder="As written on the bottle" />
+                  </div>
+                  <div>
+                    <span style={label}>Received Temp (°C)</span>
+                    <input type="number" step="0.1" style={inp} value={receivedTemp} onChange={e => setReceivedTemp(e.target.value)} placeholder="e.g. 5.2" />
+                  </div>
+                  <div>
+                    <span style={label}>External Batch ID</span>
+                    <input style={inp} value={externalBatchId} onChange={e => setExternalBatchId(e.target.value)} placeholder="MES / ERP batch ref" />
+                  </div>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '10px 14px', borderRadius: 8, border: `1.5px solid ${isRush ? '#fca5a5' : '#e5e7eb'}`, background: isRush ? '#fff5f5' : '#f9fafb', marginBottom: sampleCondition !== 'OK' ? 10 : 0 }}>
+                  <input type="checkbox" checked={isRush} onChange={e => setIsRush(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#dc2626', cursor: 'pointer' }} />
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: isRush ? '#dc2626' : '#374151' }}>🚨 Rush Sample</span>
+                    <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 10 }}>Flags this sample for expedited testing and elevated priority in the Work Queue</span>
+                  </div>
+                </label>
+                {sampleCondition !== 'OK' && (
+                  <div style={{ padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6 }}>
+                    <span style={{ fontSize: 12, color: '#92400e', fontWeight: 600 }}>⚠ Non-OK condition recorded — QA will be notified for review</span>
+                  </div>
+                )}
+                <p style={{ fontSize: 11, color: '#9ca3af', margin: '10px 0 0' }}>ℹ Sample ID is server-generated · Barcode auto-printed · 5 GMP checks run server-side</p>
+              </Section>
+
+              {/* ── Section 3: Checkpoints ──────────────────────────────── */}
+              <Section num={3} title="Checkpoints" subtitle="">
                 {checkpoints.length === 0 ? (
                   <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>No active checkpoints configured. Please add checkpoints in master data first.</p>
                 ) : (() => {
@@ -777,125 +818,6 @@ export default function SampleRegistrationPage() {
                 })()}
               </Section>
 
-              {/* ── Section 3: Frequency ────────────────────────────────── */}
-              <Section num={3} title="Frequency" subtitle="">
-                {selectedCps.length === 0 ? (
-                  <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>Select checkpoints above to see frequency information.</p>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{
-                      fontSize: 20,
-                      background: hasClockTime() ? '#fef9c3' : '#d1fae5',
-                      borderRadius: 8, width: 40, height: 40,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                      {hasClockTime() ? '🕐' : '📋'}
-                    </span>
-                    <div>
-                      <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#111827' }}>{freqText}</p>
-                      <p style={{ margin: '2px 0 0', fontSize: 12, color: '#6b7280' }}>
-                        {hasClockTime()
-                          ? 'One or more checkpoints require a scheduled clock time.'
-                          : `${selectedCps.length} checkpoint${selectedCps.length > 1 ? 's' : ''} selected — all per-batch; no clock time required.`}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </Section>
-
-              {/* ── Section 4: Sample Source ─────────────────────────────── */}
-              <Section num={4} title="Sample Source" subtitle="Helps the lab identify the physical sample.">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
-                  <div>
-                    <span style={label}>Tank / Source ID</span>
-                    <input style={inp} value={tankSourceId} onChange={e => setTankSourceId(e.target.value)}
-                      placeholder="e.g. 1T4002" />
-                  </div>
-                  <div>
-                    <span style={label}>Sample Label</span>
-                    <input style={inp} value={sampleLabel} onChange={e => setSampleLabel(e.target.value)}
-                      placeholder="As written on the bottle" />
-                  </div>
-                  <div>
-                    <span style={label}>D.O. / Batch / Lot No. <span style={{ color: '#ef4444' }}>*</span></span>
-                    <input style={inp} value={lotNumber} onChange={e => setLotNumber(e.target.value)}
-                      required placeholder="e.g. B-20260422-03" />
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <div>
-                    <span style={label}>Manufacturing Date <span style={{ color: '#ef4444' }}>*</span></span>
-                    <input style={inp} type="date" value={mfgDate} onChange={e => setMfgDate(e.target.value)} required />
-                  </div>
-                  <div>
-                    <span style={label}>Expiry Date <span style={{ color: '#ef4444' }}>*</span></span>
-                    <input style={inp} type="date" value={expDate} onChange={e => setExpDate(e.target.value)} required />
-                  </div>
-                </div>
-                {/* Phase A — Receipt Condition */}
-                <div style={{ marginTop: 18, padding: '16px 18px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: '#475569', marginBottom: 14 }}>
-                    📦 Receipt Condition
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-                    <div>
-                      <span style={label}>Received Temp (°C)</span>
-                      <input
-                        type="number" step="0.1" style={inp}
-                        value={receivedTemp}
-                        onChange={e => setReceivedTemp(e.target.value)}
-                        placeholder="e.g. 5.2"
-                      />
-                    </div>
-                    <div>
-                      <span style={label}>Sample Condition <span style={{ color: '#ef4444' }}>*</span></span>
-                      <select style={inp} value={sampleCondition} onChange={e => setSampleCondition(e.target.value)}>
-                        <option value="OK">✓ OK — Acceptable condition</option>
-                        <option value="Damaged">⚠ Damaged — Physical damage noted</option>
-                        <option value="Compromised">✗ Compromised — Integrity at risk</option>
-                      </select>
-                    </div>
-                    <div>
-                      <span style={label}>External Batch ID</span>
-                      <input
-                        style={inp}
-                        value={externalBatchId}
-                        onChange={e => setExternalBatchId(e.target.value)}
-                        placeholder="MES / ERP batch ref"
-                      />
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 14 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '10px 14px', borderRadius: 8, border: `1.5px solid ${isRush ? '#fca5a5' : '#e5e7eb'}`, background: isRush ? '#fff5f5' : '#fff', transition: 'all 0.15s' }}>
-                      <input
-                        type="checkbox"
-                        checked={isRush}
-                        onChange={e => setIsRush(e.target.checked)}
-                        style={{ width: 16, height: 16, accentColor: '#dc2626', cursor: 'pointer' }}
-                      />
-                      <div>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: isRush ? '#dc2626' : '#374151' }}>
-                          🚨 Rush Sample
-                        </span>
-                        <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 10 }}>
-                          Flags this sample for expedited testing and elevated priority in the Work Queue
-                        </span>
-                      </div>
-                    </label>
-                  </div>
-                  {sampleCondition !== 'OK' && (
-                    <div style={{ marginTop: 12, padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6 }}>
-                      <span style={{ fontSize: 12, color: '#92400e', fontWeight: 600 }}>
-                        ⚠ Non-OK condition recorded — QA will be notified for review
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <p style={{ fontSize: 11, color: '#9ca3af', margin: '12px 0 0' }}>
-                  ℹ Sample ID is server-generated · Barcode auto-printed · 5 GMP checks run server-side
-                </p>
-              </Section>
 
               {/* ── Submit ──────────────────────────────────────────────── */}
               {error && (
