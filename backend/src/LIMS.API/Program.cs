@@ -118,12 +118,17 @@ if (app.Environment.IsDevelopment())
 //         Prevents EF Core stack traces / connection strings leaking to clients
 app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
 {
+    var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
     ctx.Response.StatusCode  = 500;
     ctx.Response.ContentType = "application/json";
+    var isDev = app.Environment.IsDevelopment();
     await ctx.Response.WriteAsJsonAsync(new
     {
         error   = "INTERNAL_ERROR",
-        message = "An unexpected error occurred. Please contact your system administrator."
+        message = isDev && ex != null
+            ? $"{ex.GetType().Name}: {ex.Message}"
+            : "An unexpected error occurred. Please contact your system administrator.",
+        detail  = isDev ? ex?.StackTrace?.Split('\n').Take(5) : null
     });
 }));
 
