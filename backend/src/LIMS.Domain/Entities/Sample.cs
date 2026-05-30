@@ -46,6 +46,7 @@ public class Sample
 
     public ICollection<BarcodePrintLog> PrintLogs { get; set; } = [];
     public ICollection<SampleCheckpoint> SampleCheckpoints { get; set; } = [];
+    public ICollection<TestExecution> TestExecutions { get; set; } = [];
 }
 
 // Links checkpoints to samples — operator-selected at registration
