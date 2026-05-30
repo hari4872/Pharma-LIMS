@@ -65,6 +65,12 @@ public class GetAllProcessLogQueryHandler : IRequestHandler<GetAllProcessLogQuer
     public async Task<List<AllProcessLogRowDto>> Handle(GetAllProcessLogQuery request, CancellationToken ct)
     {
         var query = _db.ProcessLogRows.Include(r => r.Checkpoint).AsQueryable();
+
+        // Only return rows from ProcessLog-type checkpoints (shift sign-offs).
+        // TimeBased, OperatorScan and DispatchEvent checkpoints are recorded via
+        // Test Executions (Digital Logbook → Test Results tab), not here.
+        query = query.Where(r => r.Checkpoint.TriggerMode == TriggerType.ProcessLog);
+
         if (request.Date.HasValue)
         {
             var d = request.Date.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);

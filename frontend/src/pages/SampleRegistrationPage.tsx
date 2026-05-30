@@ -242,12 +242,13 @@ export default function SampleRegistrationPage() {
   }
   useEffect(() => { load() }, [statusFilter])
 
-  // Pre-select all active checkpoints when the list loads or when the form is opened
+  // Do NOT pre-select checkpoints — analyst must deliberately choose which are
+  // relevant for this sample type. Pre-selecting all causes every checkpoint's
+  // parameters (HPLC, pH, Dissolution, Conductivity) to appear across all pages.
+  // Checkpoint section starts expanded so the user sees their options clearly.
   useEffect(() => {
-    if (showForm && checkpoints.length > 0 && selectedCps.length === 0) {
-      setSelectedCps(checkpoints.map(c => c.checkpointId))
-    }
-  }, [showForm, checkpoints])
+    if (showForm) setCpExpanded(true)
+  }, [showForm])
 
   function toggleCheckpoint(id: number) {
     setSelectedCps(prev =>
@@ -281,7 +282,7 @@ export default function SampleRegistrationPage() {
   // ── Reset form ──────────────────────────────────────────────────────────────
   function resetForm() {
     setMaterialId(''); setSampleTypeId('')
-    setSelectedCps(checkpoints.map(c => c.checkpointId))
+    setSelectedCps([])
     setTankSourceId(''); setSampleLabel(''); setLotNumber('')
     setMfgDate(''); setExpDate(''); setError('')
     // Phase A
@@ -724,7 +725,7 @@ export default function SampleRegistrationPage() {
               </Section>
 
               {/* ── Section 3: Checkpoints ──────────────────────────────── */}
-              <Section num={3} title="Checkpoints" subtitle="">
+              <Section num={3} title="Checkpoints" subtitle="Select only the checkpoints relevant to this sample type. e.g. HPLC samples → TimeBased/OperatorScan only · Water samples → ProcessLog only.">
                 {checkpoints.length === 0 ? (
                   <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>No active checkpoints configured. Please add checkpoints in master data first.</p>
                 ) : (() => {
