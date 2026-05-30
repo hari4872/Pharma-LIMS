@@ -74,7 +74,7 @@ export default function MaterialsPage() {
             <Field label="UOM"><input style={inp} value={editForm.uom} onChange={e => setEditForm(f => ({ ...f, uom: e.target.value }))} required /></Field>
             <Field label="Material Type">
               <select style={inp} value={editForm.materialType} onChange={e => setEditForm(f => ({ ...f, materialType: e.target.value }))}>
-                {['RawMaterial', 'Intermediate', 'FinishedProduct', 'Reagent', 'Standard', 'Solvent'].map(t => <option key={t} value={t}>{typeLabel(t)}</option>)}
+                {['RawMaterial', 'IntermediateProduct', 'FinishedProduct', 'Reagent', 'Standard'].map(t => <option key={t} value={t}>{typeLabel(t)}</option>)}
               </select>
             </Field>
             <Field label="Product Type"><input style={inp} value={editForm.productType} onChange={e => setEditForm(f => ({ ...f, productType: e.target.value }))} /></Field>
@@ -92,7 +92,7 @@ export default function MaterialsPage() {
             <Field label="UOM"><input style={inp} value={form.uom} onChange={e => setForm(f => ({ ...f, uom: e.target.value }))} required /></Field>
             <Field label="Material Type">
               <select style={inp} value={form.materialType} onChange={e => setForm(f => ({ ...f, materialType: e.target.value }))}>
-                {['RawMaterial', 'Intermediate', 'FinishedProduct', 'Reagent', 'Standard', 'Solvent'].map(t => <option key={t} value={t}>{typeLabel(t)}</option>)}
+                {['RawMaterial', 'IntermediateProduct', 'FinishedProduct', 'Reagent', 'Standard'].map(t => <option key={t} value={t}>{typeLabel(t)}</option>)}
               </select>
             </Field>
             <Field label="Product Type"><input style={inp} value={form.productType} onChange={e => setForm(f => ({ ...f, productType: e.target.value }))} /></Field>

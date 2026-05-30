@@ -99,7 +99,7 @@ export default function UsersPage() {
             <Field label="Email"><input style={inp} type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} required /></Field>
             <Field label="Role">
               <select style={inp} value={editForm.role} onChange={e => setEditForm(f => ({ ...f, role: e.target.value }))}>
-                {['Admin', 'QA', 'Analyst', 'Supervisor', 'ReadOnly'].map(r => <option key={r}>{r}</option>)}
+                {['Admin', 'QA', 'QCLead', 'Analyst', 'LabManager', 'Viewer'].map(r => <option key={r}>{r}</option>)}
               </select>
             </Field>
             <Field label="Laboratory (optional)">
@@ -128,7 +128,7 @@ export default function UsersPage() {
             </Field>
             <Field label="Role">
               <select style={inp} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-                {['Admin', 'QA', 'Analyst', 'Supervisor', 'ReadOnly'].map(r => <option key={r}>{r}</option>)}
+                {['Admin', 'QA', 'QCLead', 'Analyst', 'LabManager', 'Viewer'].map(r => <option key={r}>{r}</option>)}
               </select>
             </Field>
             <Field label="Laboratory (optional)">

@@ -117,7 +117,7 @@ export default function LaboratoriesPage() {
             </Field>
             <Field label="Type">
               <select style={inp} value={editForm.labType} onChange={e => setEditForm(f => ({ ...f, labType: e.target.value }))}>
-                {['QC', 'R&D', 'Microbiology', 'Stability', 'Analytical'].map(t => <option key={t}>{t}</option>)}
+                {[['QC','QC'],['RD','R&D'],['Microbiology','Microbiology'],['Stability','Stability']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
@@ -146,7 +146,7 @@ export default function LaboratoriesPage() {
             </Field>
             <Field label="Type">
               <select style={inp} value={form.labType} onChange={e => setForm(f => ({ ...f, labType: e.target.value }))}>
-                {['QC', 'R&D', 'Microbiology', 'Stability', 'Analytical'].map(t => <option key={t}>{t}</option>)}
+                {[['QC','QC'],['RD','R&D'],['Microbiology','Microbiology'],['Stability','Stability']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}

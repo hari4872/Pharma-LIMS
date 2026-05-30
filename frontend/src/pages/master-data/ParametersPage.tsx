@@ -96,12 +96,12 @@ export default function ParametersPage() {
             <Field label="UOM"><input style={inp} value={editForm.uom} onChange={e => setEditForm(f => ({ ...f, uom: e.target.value }))} required /></Field>
             <Field label="Data Type">
               <select style={inp} value={editForm.dataType} onChange={e => setEditForm(f => ({ ...f, dataType: e.target.value }))}>
-                {['Numeric', 'Text', 'Boolean', 'Date', 'Image'].map(t => <option key={t}>{t}</option>)}
+                {['Numeric', 'Text', 'PassFail'].map(t => <option key={t}>{t}</option>)}
               </select>
             </Field>
             <Field label="Formula Type">
               <select style={inp} value={editForm.formulaType} onChange={e => setEditForm(f => ({ ...f, formulaType: e.target.value }))}>
-                {['Expression', 'TableLookup', 'Manual'].map(t => <option key={t}>{t}</option>)}
+                {['Expression', 'TableLookup'].map(t => <option key={t}>{t}</option>)}
               </select>
             </Field>
             {editForm.formulaType === 'Expression' && <Field label="Calc Formula"><input style={inp} value={editForm.calcFormula} onChange={e => setEditForm(f => ({ ...f, calcFormula: e.target.value }))} placeholder="e.g. (rawValue * 0.98) / 100" /></Field>}
@@ -144,12 +144,12 @@ export default function ParametersPage() {
             <Field label="UOM"><input style={inp} value={form.uom} onChange={e => setForm(f => ({ ...f, uom: e.target.value }))} required /></Field>
             <Field label="Data Type">
               <select style={inp} value={form.dataType} onChange={e => setForm(f => ({ ...f, dataType: e.target.value }))}>
-                {['Numeric', 'Text', 'Boolean', 'Date', 'Image'].map(t => <option key={t}>{t}</option>)}
+                {['Numeric', 'Text', 'PassFail'].map(t => <option key={t}>{t}</option>)}
               </select>
             </Field>
             <Field label="Formula Type">
               <select style={inp} value={form.formulaType} onChange={e => setForm(f => ({ ...f, formulaType: e.target.value }))}>
-                {['Expression', 'TableLookup', 'Manual'].map(t => <option key={t}>{t}</option>)}
+                {['Expression', 'TableLookup'].map(t => <option key={t}>{t}</option>)}
               </select>
             </Field>
             {form.formulaType === 'Expression' && <Field label="Calc Formula"><input style={inp} value={form.calcFormula} onChange={e => setForm(f => ({ ...f, calcFormula: e.target.value }))} placeholder="e.g. (rawValue * 0.98) / 100" /></Field>}
