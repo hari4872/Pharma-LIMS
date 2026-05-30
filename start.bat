@@ -42,16 +42,21 @@ echo       npm      : %NPM_VER%
 
 echo.
 
-:: ── 2. Restore backend NuGet packages if needed ──────────────────────────────
+:: ── 2. Restore + pre-build backend (skips recompile on run) ─────────────────
 
-echo [2/5] Restoring backend packages...
+echo [2/5] Restoring and building backend...
 cd /d "%ROOT%backend"
 dotnet restore --nologo -v quiet
 if errorlevel 1 (
     echo [ERROR] dotnet restore failed. Check your internet connection.
     pause & exit /b 1
 )
-echo       Backend packages OK.
+dotnet build src\LIMS.API\LIMS.API.csproj -c Debug --no-restore --nologo -v quiet
+if errorlevel 1 (
+    echo [ERROR] Build failed. Check the errors above.
+    pause & exit /b 1
+)
+echo       Backend build OK.
 echo.
 
 :: ── 3. Install frontend npm packages if node_modules is missing ───────────────
@@ -77,7 +82,7 @@ echo [4/5] Starting backend API  (http://localhost:5204)...
 echo       Swagger UI will be at: http://localhost:5204/swagger
 echo.
 
-start "Pharma LIMS — Backend API" cmd /k "title Pharma LIMS - Backend API && cd /d "%BACKEND%" && echo Starting .NET API on http://localhost:5204... && dotnet run --no-restore --urls http://localhost:5204"
+start "Pharma LIMS — Backend API" cmd /k "title Pharma LIMS - Backend API && cd /d "%BACKEND%" && echo Starting .NET API on http://localhost:5204... && dotnet run --no-build --no-restore --urls http://localhost:5204"
 
 :: Give the backend time to compile before launching frontend
 timeout /t 5 /nobreak >nul
