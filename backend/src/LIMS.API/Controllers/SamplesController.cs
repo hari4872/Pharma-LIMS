@@ -131,7 +131,7 @@ public class SamplesController : LimsControllerBase
             Status           = sample.Status.ToString(),
             sample.IsRush, sample.BarcodePrinted,
             sample.CreatedAt, sample.DueDate,
-            SampleCondition  = sample.SampleCondition != null ? sample.SampleCondition.ToString() : null,
+            sample.SampleCondition,
             sample.ExternalBatchId,
             SpecTemplateName = sample.SpecTemplate != null ? sample.SpecTemplate.TemplateName : null,
             sample.SpecTemplateId,

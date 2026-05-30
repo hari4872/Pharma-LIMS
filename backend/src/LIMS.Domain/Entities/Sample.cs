@@ -29,7 +29,7 @@ public class Sample
 
     // ── Phase A: Sample receipt fields (R8) ──────────────────────────────
     public decimal? ReceivedTemp           { get; set; }     // °C at time of receipt
-    public SampleCondition? SampleCondition { get; set; }   // OK | Damaged | Compromised
+    public string? SampleCondition           { get; set; }   // "OK" | "Damaged" | "Compromised" — stored as text
     public bool IsRush                     { get; set; } = false;
     public string? ExternalBatchId         { get; set; }    // MES/ERP batch reference
     public string? SampleLabel             { get; set; }    // physical label as written on container

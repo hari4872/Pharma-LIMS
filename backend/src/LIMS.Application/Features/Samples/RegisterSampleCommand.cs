@@ -109,9 +109,7 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
             BarcodePrintedAt = receivedAt,
             // Phase A receipt fields
             ReceivedTemp     = request.ReceivedTemp,
-            SampleCondition  = request.SampleCondition != null &&
-                               Enum.TryParse<SampleCondition>(request.SampleCondition, true, out var cond)
-                                 ? cond : null,
+            SampleCondition  = request.SampleCondition,   // stored as text; validator ensures "OK"|"Damaged"|"Compromised"
             IsRush           = request.IsRush,
             ExternalBatchId  = request.ExternalBatchId,
             SampleLabel      = request.SampleLabel,
