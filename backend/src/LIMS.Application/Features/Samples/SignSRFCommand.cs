@@ -4,6 +4,7 @@ using LIMS.Application.Interfaces;
 using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using LIMS.Domain.Entities;
 
 namespace LIMS.Application.Features.Samples;
 
@@ -29,10 +30,12 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
     private readonly IElectronicSignatureService _esig;
     private readonly IMasterDataAuditService _audit;
     private readonly INotificationService _notifications;
+    private readonly ISpecificationEngineService _specEngine;
 
     public SignSRFCommandHandler(ILimsDbContext db, IElectronicSignatureService esig,
-        IMasterDataAuditService audit, INotificationService notifications)
-    { _db = db; _esig = esig; _audit = audit; _notifications = notifications; }
+        IMasterDataAuditService audit, INotificationService notifications,
+        ISpecificationEngineService specEngine)
+    { _db = db; _esig = esig; _audit = audit; _notifications = notifications; _specEngine = specEngine; }
 
     public async Task<Result<int>> Handle(SignSRFCommand request, CancellationToken ct)
     {
@@ -48,10 +51,30 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
             "Electronic signature failed — password incorrect. (21 CFR §11.300)");
 
         sample.SrfSignatureId = sig.SignatureId;
-        // Only advance status if still Registered — spec engine may have already set PendingTesting
-        if (sample.Status == SampleStatus.Registered)
-            sample.Status = SampleStatus.PendingTesting;
+        sample.Status = SampleStatus.PendingTesting;
         await _db.SaveChangesAsync(ct);
+
+        // ── Run spec engine NOW (after SRF signed — correct GMP order) ──────
+        int testsCreated = 0;
+        try
+        {
+            var sampleType = await _db.SampleTypes.FindAsync([sample.SampleTypeId], ct);
+            if (sampleType is not null)
+            {
+                var matchResult = await _specEngine.MatchAsync(
+                    sample.MaterialId, sample.SampleTypeId, sampleType.Stage, ct);
+
+                if (matchResult.Outcome == SpecMatchOutcome.SingleMatch && matchResult.TemplateId.HasValue)
+                {
+                    var execIds = await _specEngine.ApplyTemplateAsync(
+                        sample.SampleId, matchResult.TemplateId.Value,
+                        "System", SpecAssignmentReason.AutoMatch,
+                        DateTimeOffset.UtcNow, ct);
+                    testsCreated = execIds.Count;
+                }
+            }
+        }
+        catch { /* spec engine failure must not block SRF sign-off */ }
 
         // Audit and notification are non-critical — wrap so they never fail the main operation
         try
@@ -66,7 +89,7 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
         {
             // Contract 2: push Work Queue task via SignalR
             await _notifications.PushToGroupAsync("Analyst", "WorkQueueTaskAdded",
-                new { sample.SampleId, sample.SampleNumber, sample.LotNumber }, ct);
+                new { sample.SampleId, sample.SampleNumber, sample.LotNumber, testsCreated }, ct);
         }
         catch { /* SignalR failure must not block SRF sign-off */ }
 

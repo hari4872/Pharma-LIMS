@@ -55,17 +55,14 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
     private readonly ISampleValidatorService _validator;
     private readonly IMasterDataAuditService _audit;
     private readonly INotificationService _notifications;
-    private readonly ISpecificationEngineService _specEngine;
 
     public RegisterSampleCommandHandler(
         ILimsDbContext db, ISampleIdFormatService sampleIdFormat,
         IFormTemplateSelectorService templateSelector, ISampleValidatorService validator,
-        IMasterDataAuditService audit, INotificationService notifications,
-        ISpecificationEngineService specEngine)
+        IMasterDataAuditService audit, INotificationService notifications)
     {
         _db = db; _sampleIdFormat = sampleIdFormat; _templateSelector = templateSelector;
         _validator = validator; _audit = audit; _notifications = notifications;
-        _specEngine = specEngine;
     }
 
     public async Task<Result<RegisterSampleResult>> Handle(RegisterSampleCommand request, CancellationToken ct)
@@ -145,78 +142,21 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
             await _db.SaveChangesAsync(ct);
         }
 
-        // ── Step 9: SPECIFICATION ENGINE ─────────────────────────────────
-        string specOutcome = "Pending";
-        string specMessage = "No specification template applied — tests must be assigned manually.";
-        int    testsCreated = 0;
-
-        int? resolvedTemplateId = request.OverrideSpecTemplateId;
-
-        if (resolvedTemplateId == null)
-        {
-            // Auto-match by Material + SampleType + Stage
-            var matchResult = await _specEngine.MatchAsync(
-                request.MaterialId, request.SampleTypeId, sampleType.Stage, ct);
-
-            switch (matchResult.Outcome)
-            {
-                case SpecMatchOutcome.SingleMatch:
-                    resolvedTemplateId = matchResult.TemplateId;
-                    specOutcome        = "AutoMatch";
-                    specMessage        = matchResult.Message;
-                    break;
-
-                case SpecMatchOutcome.MultipleMatches:
-                    // Cannot auto-assign — caller must re-submit with OverrideSpecTemplateId
-                    specOutcome = "MultipleMatches";
-                    specMessage = matchResult.Message;
-                    break;
-
-                case SpecMatchOutcome.NoMatch:
-                    specOutcome = "NoTemplateFound";
-                    specMessage = matchResult.Message;
-                    break;
-
-                case SpecMatchOutcome.DraftOnly:
-                case SpecMatchOutcome.ObsoleteOnly:
-                    specOutcome = "Blocked";
-                    specMessage = matchResult.Message;
-                    break;
-            }
-        }
-        else
-        {
-            specOutcome = "ManualOverride";
-            specMessage = $"Specification applied manually by {request.CreatedBy}.";
-        }
-
-        // Apply the template (creates TestExecution rows) if we have a resolved template
-        if (resolvedTemplateId.HasValue)
-        {
-            var reason = specOutcome == "AutoMatch"
-                ? SpecAssignmentReason.AutoMatch
-                : SpecAssignmentReason.ManualOverride;
-
-            var execIds = await _specEngine.ApplyTemplateAsync(
-                sample.SampleId, resolvedTemplateId.Value,
-                specOutcome == "AutoMatch" ? "System" : request.CreatedBy,
-                reason, receivedAt, ct);
-
-            testsCreated = execIds.Count;
-        }
-
-        // ─────────────────────────────────────────────────────────────────
-
+        // ── Step 9: Audit + notification ─────────────────────────────────
+        // Spec engine runs in SignSRFCommand — tests created only after SRF is signed (21 CFR GMP)
         await _audit.LogAsync("Sample", sample.SampleId, "Registered", null,
             new { sample.SampleNumber, sample.LotNumber, SampleType = sampleType.TypeCode,
-                  Status = "Registered", SpecOutcome = specOutcome, TestsAutoCreated = testsCreated },
+                  Status = "Registered" },
             request.CreatedBy);
 
         await _notifications.PushToGroupAsync("LabManager", "SampleRegistered",
             new { sample.SampleId, sample.SampleNumber, sample.LotNumber,
-                  material.MaterialName, specOutcome, testsCreated }, ct);
+                  material.MaterialName }, ct);
 
         return Result<RegisterSampleResult>.Success(new RegisterSampleResult(
-            sample.SampleId, sample.SampleNumber, specOutcome, specMessage, testsCreated));
+            sample.SampleId, sample.SampleNumber,
+            "PendingSignature",
+            "Sign the SRF to assign tests automatically.",
+            0));
     }
 }
