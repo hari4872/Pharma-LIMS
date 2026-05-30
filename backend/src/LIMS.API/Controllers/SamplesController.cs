@@ -176,5 +176,4 @@ public record RegisterSampleRequest(
     List<int>? CheckpointIds        = null);
 public record ReprintBarcodeRequest(string Reason);
 public record ApplySpecRequest(int SpecTemplateId);
-public record SignSrfRequest(string Password, string Meaning, string Reason);
 
