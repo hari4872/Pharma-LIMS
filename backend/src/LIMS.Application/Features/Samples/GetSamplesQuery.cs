@@ -26,6 +26,7 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
             .Include(s => s.Analyst)
             .Include(s => s.SampleTypeNav)
             .Include(s => s.SpecTemplate)
+            .AsNoTracking()
             .AsQueryable();
 
         if (request.LabId.HasValue) query = query.Where(s => s.LabId == request.LabId);
@@ -33,20 +34,35 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
             query = query.Where(s => s.Status == st);
         if (request.AnalystId.HasValue) query = query.Where(s => s.AnalystId == request.AnalystId);
 
-        return await query.OrderByDescending(s => s.CreatedAt)
-            .Select(s => new SampleDto(
+        // Project nullable enum SampleCondition as its raw value in SQL, then convert
+        // to string in memory. Calling .ToString() on a nullable enum inside EF LINQ can
+        // cause Npgsql to attempt an integer read on a text column (EF Core 8 ClrType quirk).
+        var rows = await query.OrderByDescending(s => s.CreatedAt)
+            .Select(s => new
+            {
                 s.SampleId, s.SampleNumber,
-                s.Material != null ? s.Material.MaterialName : "Unknown",
+                MaterialName     = s.Material != null ? s.Material.MaterialName : "Unknown",
                 s.LotNumber,
-                s.SampleTypeNav != null ? s.SampleTypeNav.TypeName : "Unknown",
-                s.Status.ToString(), s.BarcodePrinted, s.DueDate,
-                s.Analyst != null ? s.Analyst.FullName : "Unassigned",
+                SampleType       = s.SampleTypeNav != null ? s.SampleTypeNav.TypeName : "Unknown",
+                Status           = s.Status.ToString(),
+                s.BarcodePrinted, s.DueDate,
+                AnalystName      = s.Analyst != null ? s.Analyst.FullName : "Unassigned",
                 s.CreatedAt, s.FormTemplateId,
                 s.SpecTemplateId,
-                s.SpecTemplate != null ? s.SpecTemplate.TemplateName : null,
-                s.SrfSignatureId.HasValue,
+                SpecTemplateName = s.SpecTemplate != null ? s.SpecTemplate.TemplateName : null,
+                SrfSigned        = s.SrfSignatureId.HasValue,
                 s.IsRush,
-                s.SampleCondition != null ? s.SampleCondition.ToString() : null))
+                s.SampleCondition  // project as enum — converted to string below in C#
+            })
             .ToListAsync(ct);
+
+        return rows.Select(r => new SampleDto(
+            r.SampleId, r.SampleNumber, r.MaterialName, r.LotNumber,
+            r.SampleType, r.Status, r.BarcodePrinted, r.DueDate,
+            r.AnalystName, r.CreatedAt, r.FormTemplateId,
+            r.SpecTemplateId, r.SpecTemplateName, r.SrfSigned,
+            r.IsRush,
+            r.SampleCondition?.ToString()   // safe: runs in C# memory, not SQL
+        )).ToList();
     }
 }

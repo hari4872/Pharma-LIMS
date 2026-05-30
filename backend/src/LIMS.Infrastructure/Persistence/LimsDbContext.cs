@@ -116,9 +116,13 @@ public class LimsDbContext : DbContext, ILimsDbContext
         {
             foreach (var property in entityType.GetProperties())
             {
-                if (property.ClrType.IsEnum)
+                // In EF Core 8, property.ClrType for Nullable<TEnum> is Nullable<TEnum>, not TEnum.
+                // IsEnum returns false for Nullable<T> — so we must unwrap nullable types explicitly.
+                var clrType   = property.ClrType;
+                var enumType  = clrType.IsEnum ? clrType : Nullable.GetUnderlyingType(clrType);
+                if (enumType is not null && enumType.IsEnum)
                 {
-                    var converterType = typeof(EnumToStringConverter<>).MakeGenericType(property.ClrType);
+                    var converterType = typeof(EnumToStringConverter<>).MakeGenericType(enumType);
                     var converter = Activator.CreateInstance(converterType);
                     property.SetValueConverter((Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter)converter!);
                 }

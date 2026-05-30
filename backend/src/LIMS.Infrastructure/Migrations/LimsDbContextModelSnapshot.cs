@@ -1979,8 +1979,8 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<decimal?>("ReceivedTemp")
                         .HasColumnType("numeric");
 
-                    b.Property<int?>("SampleCondition")
-                        .HasColumnType("integer");
+                    b.Property<string>("SampleCondition")
+                        .HasColumnType("text");
 
                     b.Property<string>("SampleLabel")
                         .HasColumnType("text");
@@ -2002,8 +2002,8 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<string>("SpecAssignedBy")
                         .HasColumnType("text");
 
-                    b.Property<int?>("SpecAssignmentReason")
-                        .HasColumnType("integer");
+                    b.Property<string>("SpecAssignmentReason")
+                        .HasColumnType("text");
 
                     b.Property<int?>("SpecTemplateId")
                         .HasColumnType("integer");
