@@ -180,9 +180,8 @@ export function buildFriendlyMessage(err: any): string {
           : '') ??
       ''
 
-    if (serverMsg && !serverMsg.toLowerCase().includes('exception') &&
-        !serverMsg.toLowerCase().includes('at system.') &&
-        serverMsg.length < 300) {
+    if (serverMsg && !serverMsg.toLowerCase().includes('at system.') &&
+        serverMsg.length < 500) {
       return serverMsg
     }
 

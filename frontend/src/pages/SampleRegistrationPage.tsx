@@ -293,6 +293,7 @@ export default function SampleRegistrationPage() {
   // ── Submit registration ─────────────────────────────────────────────────────
   async function submitRegister(e: React.FormEvent) {
     e.preventDefault()
+    if (!materialId) { setError('Please select a Product / Material.'); return }
     if (!sampleTypeId) { setError('Please select a Sample Type.'); return }
     // Block if spec engine says DraftOnly / ObsoleteOnly
     if (specPreview?.outcome === 'DraftOnly' || specPreview?.outcome === 'ObsoleteOnly') {
@@ -316,6 +317,8 @@ export default function SampleRegistrationPage() {
         sampleCondition:       sampleCondition || null,
         isRush,
         externalBatchId:       externalBatchId || null,
+        sampleLabel:           sampleLabel || null,
+        tankSourceId:          tankSourceId || null,
         overrideSpecTemplateId: overrideSpecId ?? null,
         checkpointIds:         selectedCps,
       })
@@ -337,14 +340,8 @@ export default function SampleRegistrationPage() {
         registeredAt:  new Date().toISOString().slice(0, 10),
         testsCreated:  result.testsAutoCreated,
       })
-      // Show outcome toast
-      if (result.specOutcome === 'AutoMatch') {
-        toast(`✓ ${result.sampleNumber} registered — ${result.testsAutoCreated} test(s) auto-assigned from spec template`, 'success')
-      } else if (result.specOutcome === 'ManualOverride') {
-        toast(`✓ ${result.sampleNumber} registered — spec applied manually (${result.testsAutoCreated} tests)`, 'success')
-      } else {
-        toast(`✓ ${result.sampleNumber} registered — assign tests manually in Work Queue`, 'success')
-      }
+      // Spec engine runs after SRF is signed — registration always returns PendingSignature
+      toast(`✓ ${result.sampleNumber} registered — sign the SRF to activate the testing workflow`, 'success')
     } catch (err: any) {
       setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Registration failed')
     } finally { setSaving(false) }
@@ -490,6 +487,11 @@ export default function SampleRegistrationPage() {
             title="Click to view sample details">
             {r.sampleNumber}
             {r.isRush && <span style={{ marginLeft: 6, fontSize: 10, background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4 }}>RUSH</span>}
+            {r.sampleCondition && r.sampleCondition !== 'OK' && (
+              <span style={{ marginLeft: 4, fontSize: 10, background: '#fef2f2', color: '#991b1b', padding: '1px 5px', borderRadius: 4 }}>
+                {r.sampleCondition === 'Damaged' ? 'DAMAGED' : 'COMPROMISED'}
+              </span>
+            )}
           </button>
         ) },
         { header: 'Material', accessor: 'materialName' },

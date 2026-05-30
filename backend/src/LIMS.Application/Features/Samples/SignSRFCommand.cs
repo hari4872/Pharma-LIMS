@@ -4,6 +4,7 @@ using LIMS.Application.Interfaces;
 using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using LIMS.Domain.Entities;
 
 namespace LIMS.Application.Features.Samples;
@@ -31,11 +32,12 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
     private readonly IMasterDataAuditService _audit;
     private readonly INotificationService _notifications;
     private readonly ISpecificationEngineService _specEngine;
+    private readonly ILogger<SignSRFCommandHandler> _logger;
 
     public SignSRFCommandHandler(ILimsDbContext db, IElectronicSignatureService esig,
         IMasterDataAuditService audit, INotificationService notifications,
-        ISpecificationEngineService specEngine)
-    { _db = db; _esig = esig; _audit = audit; _notifications = notifications; _specEngine = specEngine; }
+        ISpecificationEngineService specEngine, ILogger<SignSRFCommandHandler> logger)
+    { _db = db; _esig = esig; _audit = audit; _notifications = notifications; _specEngine = specEngine; _logger = logger; }
 
     public async Task<Result<int>> Handle(SignSRFCommand request, CancellationToken ct)
     {
@@ -74,7 +76,10 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
                 }
             }
         }
-        catch { /* spec engine failure must not block SRF sign-off */ }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Spec engine failed for sample {SampleId} after SRF sign — tests not auto-created", request.SampleId);
+        }
 
         // Audit and notification are non-critical — wrap so they never fail the main operation
         try
@@ -83,7 +88,10 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
                 new { Status = "Registered" }, new { Status = "PendingTesting", sig.FullName, sig.SignedAt },
                 sig.FullName);
         }
-        catch { /* audit failure must not block SRF sign-off */ }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Audit log failed for SRF sign on sample {SampleId} — 21 CFR Part 11 gap", request.SampleId);
+        }
 
         try
         {
@@ -91,7 +99,10 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
             await _notifications.PushToGroupAsync("Analyst", "WorkQueueTaskAdded",
                 new { sample.SampleId, sample.SampleNumber, sample.LotNumber, testsCreated }, ct);
         }
-        catch { /* SignalR failure must not block SRF sign-off */ }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "SignalR notification failed for sample {SampleId} work queue push", request.SampleId);
+        }
 
         return Result<int>.Success(sample.SampleId);
     }

@@ -101,13 +101,6 @@ public class LimsDbContext : DbContext, ILimsDbContext
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(LimsDbContext).Assembly);
 
-        // Sample → TestExecutions: explicit relationship to avoid shadow SampleId1 column
-        modelBuilder.Entity<Domain.Entities.Sample>()
-            .HasMany(s => s.TestExecutions)
-            .WithOne(e => e.Sample)
-            .HasForeignKey(e => e.SampleId)
-            .OnDelete(DeleteBehavior.Cascade);
-
         // ProcessLogReading — parameter values recorded when a process log row is signed
         modelBuilder.Entity<Domain.Entities.ProcessLogReading>(e =>
         {

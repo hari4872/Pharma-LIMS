@@ -10,13 +10,15 @@ public class TestExecutionConfiguration : IEntityTypeConfiguration<TestExecution
     {
         b.ToTable("test_executions");
         b.HasKey(e => e.ExecutionId);
+        b.Property(e => e.Status).HasConversion<string>().IsRequired();
+        b.Property(e => e.EntryMethod).HasConversion<string>().IsRequired();
         b.Property(e => e.CorrectionType).HasMaxLength(200);
         b.Property(e => e.CreatedBy).HasMaxLength(200).IsRequired();
         b.Property(e => e.StartedAt).HasColumnType("timestamptz");
         b.Property(e => e.CompletedAt).HasColumnType("timestamptz");
         b.Property(e => e.CreatedAt).HasColumnType("timestamptz");
 
-        b.HasOne(e => e.Sample).WithMany().HasForeignKey(e => e.SampleId)
+        b.HasOne(e => e.Sample).WithMany(s => s.TestExecutions).HasForeignKey(e => e.SampleId)
             .OnDelete(DeleteBehavior.Restrict);
         b.HasOne(e => e.Instrument).WithMany().HasForeignKey(e => e.InstrumentId)
             .OnDelete(DeleteBehavior.Restrict);

@@ -32,6 +32,8 @@ public class Sample
     public SampleCondition? SampleCondition { get; set; }   // OK | Damaged | Compromised
     public bool IsRush                     { get; set; } = false;
     public string? ExternalBatchId         { get; set; }    // MES/ERP batch reference
+    public string? SampleLabel             { get; set; }    // physical label as written on container
+    public string? TankSourceId            { get; set; }    // source tank or vessel identifier
 
     // ── Phase A: Specification Engine audit trail ─────────────────────────
     // Records exactly which spec was applied and how — satisfies 21 CFR Part 11

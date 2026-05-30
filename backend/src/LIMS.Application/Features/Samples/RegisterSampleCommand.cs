@@ -18,17 +18,19 @@ public record RegisterSampleCommand(
     string?  SampleCondition  = null,      // "OK" | "Damaged" | "Compromised"
     bool     IsRush           = false,
     string?  ExternalBatchId  = null,
+    string?  SampleLabel      = null,      // physical label as written on container
+    string?  TankSourceId     = null,      // source tank or vessel identifier
     // Phase A: spec engine override — null = auto-match, set = manual pick
     int?     OverrideSpecTemplateId = null,
     List<int>? CheckpointIds  = null) : IRequest<Result<RegisterSampleResult>>;
 
-// Returns sample ID + spec match outcome so UI can show correct banner
+// Returns sample ID + spec match outcome — spec engine runs after SRF sign (SignSRFCommand)
 public record RegisterSampleResult(
     int    SampleId,
     string SampleNumber,
-    string SpecOutcome,         // "AutoMatch" | "ManualOverride" | "NoTemplateFound" | "Pending"
-    string SpecMessage,         // human-readable for UI banner
-    int    TestsAutoCreated);   // how many TestExecutions were auto-created
+    string SpecOutcome,         // "PendingSignature" at registration; spec runs after SRF sign
+    string SpecMessage,
+    int    TestsAutoCreated);
 
 public class RegisterSampleValidator : AbstractValidator<RegisterSampleCommand>
 {
@@ -44,6 +46,13 @@ public class RegisterSampleValidator : AbstractValidator<RegisterSampleCommand>
         RuleFor(x => x.SampleCondition)
             .Must(v => v == null || new[] { "OK", "Damaged", "Compromised" }.Contains(v))
             .WithMessage("SampleCondition must be OK, Damaged, or Compromised.");
+        RuleFor(x => x.ReceivedTemp)
+            .InclusiveBetween(-196m, 200m)
+            .When(x => x.ReceivedTemp.HasValue)
+            .WithMessage("Received temperature must be between -196°C and 200°C.");
+        RuleFor(x => x.ExternalBatchId).MaximumLength(100).When(x => x.ExternalBatchId != null);
+        RuleFor(x => x.SampleLabel).MaximumLength(200).When(x => x.SampleLabel != null);
+        RuleFor(x => x.TankSourceId).MaximumLength(100).When(x => x.TankSourceId != null);
     }
 }
 
@@ -100,11 +109,13 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
             BarcodePrintedAt = receivedAt,
             // Phase A receipt fields
             ReceivedTemp     = request.ReceivedTemp,
-            SampleCondition  = request.SampleCondition != null
-                                 ? Enum.Parse<SampleCondition>(request.SampleCondition, true)
-                                 : null,
+            SampleCondition  = request.SampleCondition != null &&
+                               Enum.TryParse<SampleCondition>(request.SampleCondition, true, out var cond)
+                                 ? cond : null,
             IsRush           = request.IsRush,
             ExternalBatchId  = request.ExternalBatchId,
+            SampleLabel      = request.SampleLabel,
+            TankSourceId     = request.TankSourceId,
             CreatedBy        = request.CreatedBy,
             CreatedAt        = receivedAt,
         };
