@@ -56,7 +56,7 @@ public class SpecificationTemplatesController : ControllerBase
             ItemCount  = t.Items.Count,
             Items = t.Items.OrderBy(i => i.SortOrder).Select(i => new
             {
-                i.SpecTemplateItemId, i.ParameterId, i.TurnaroundHours, i.IsMandatory, i.SortOrder,
+                i.SpecTemplateItemId, i.ParameterId, i.TestMethodId, i.TurnaroundHours, i.IsMandatory, i.SortOrder,
                 ParameterName = i.Parameter.ParameterName,
                 ParameterCode = i.Parameter.ParameterCode,
                 TestMethodName = i.TestMethod != null ? i.TestMethod.MethodName : null,

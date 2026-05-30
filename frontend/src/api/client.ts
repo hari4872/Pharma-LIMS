@@ -168,10 +168,11 @@ export function buildFriendlyMessage(err: any): string {
     const status = err.response.status as number
     const data   = err.response.data
 
-    // Try to extract a server message
+    // Try to extract a server message (check both "message" and "error" keys)
     const serverMsg: string =
       data?.message ??
       data?.title   ??
+      data?.error   ??
       (Array.isArray(data?.errors)
         ? (data.errors as string[]).join(', ')
         : typeof data?.errors === 'object'

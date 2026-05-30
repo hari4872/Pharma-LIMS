@@ -12,7 +12,7 @@ public record CheckpointParameterDto(int ParameterId, string ParameterName, stri
 public record CheckpointDto(
     int CheckpointId, string CheckpointCode, string TriggerMode,
     string CheckpointType, int? ShiftIntervalHrs, bool IsActive,
-    int LocationCount, List<CheckpointParameterDto> Parameters);
+    int LocationCount, string? TimeSlots, List<CheckpointParameterDto> Parameters);
 
 public record GetProcessLogQuery(int CheckpointId, DateOnly? Date) : IRequest<List<ProcessLogRowDto>>;
 
@@ -40,6 +40,7 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
         return list.Select(c => new CheckpointDto(
             c.CheckpointId, c.CheckpointCode, c.TriggerMode.ToString(),
             c.CheckpointType, c.ShiftIntervalHrs, c.IsActive, c.Locations.Count,
+            c.TimeSlots,
             c.CheckpointParameters.Select(cp => new CheckpointParameterDto(
                 cp.Parameter.ParameterId, cp.Parameter.ParameterName,
                 cp.Parameter.ParameterCode, cp.Parameter.Uom,

@@ -13,6 +13,7 @@ interface Props<T> {
   loading?: boolean
   searchable?: boolean
   exportFilename?: string
+  rowStyle?: (row: T) => React.CSSProperties
 }
 
 type Density = 'compact' | 'default' | 'spacious'
@@ -91,7 +92,7 @@ function DensityIcon({ type }: { type: Density }) {
 
 // ── Main component ────────────────────────────────────────────────────────
 export default function DataTable<T extends object>({
-  columns, data, loading, searchable = true, exportFilename,
+  columns, data, loading, searchable = true, exportFilename, rowStyle,
 }: Props<T>) {
 
   const [search,       setSearch]       = useState('')
@@ -439,6 +440,7 @@ export default function DataTable<T extends object>({
             ) : paginated.map((row, i) => {
               const sortedIdx  = safePage * pageSize + i
               const isSelected = selected.has(sortedIdx)
+              const extraStyle = rowStyle ? rowStyle(row) : {}
               return (
                 <tr key={i}
                   onMouseEnter={() => setHoveredRow(i)}
@@ -450,6 +452,7 @@ export default function DataTable<T extends object>({
                       : hoveredRow === i ? '#f8f9fa'
                       : '#ffffff',
                     transition: 'background 0.08s',
+                    ...extraStyle,
                   }}>
                   <td style={{ padding: d.cell, verticalAlign: 'middle', textAlign: 'center' }}>
                     <input type="checkbox" checked={isSelected} onChange={() => toggleRow(sortedIdx)}

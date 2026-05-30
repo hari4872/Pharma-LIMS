@@ -106,6 +106,49 @@ public class SamplesController : LimsControllerBase
         });
     }
 
+    // GET api/v1/samples/{id} — full sample detail with related executions
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id, CancellationToken ct)
+    {
+        var sample = await _db.Samples
+            .Include(s => s.Material)
+            .Include(s => s.SampleTypeNav)
+            .Include(s => s.SpecTemplate)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.SampleId == id, ct);
+
+        if (sample is null) return NotFound();
+
+        var executions = await _db.TestExecutions
+            .Where(e => e.SampleId == id)
+            .Include(e => e.Analyst)
+            .Include(e => e.Instrument)
+            .AsNoTracking()
+            .OrderBy(e => e.PriorityScore.HasValue ? e.PriorityScore.Value : 999)
+            .ToListAsync(ct);
+
+        return Ok(new {
+            sample.SampleId, sample.SampleNumber, sample.LotNumber,
+            sample.MaterialId,
+            MaterialName     = sample.Material != null ? sample.Material.MaterialName : "Unknown",
+            SampleTypeName   = sample.SampleTypeNav != null ? sample.SampleTypeNav.TypeName : "Unknown",
+            Status           = sample.Status.ToString(),
+            sample.IsRush, sample.BarcodePrinted,
+            sample.CreatedAt, sample.DueDate,
+            SampleCondition  = sample.SampleCondition != null ? sample.SampleCondition.ToString() : null,
+            sample.ExternalBatchId,
+            SpecTemplateName = sample.SpecTemplate != null ? sample.SpecTemplate.TemplateName : null,
+            sample.SpecTemplateId,
+            TestExecutions = executions.Select(e => new {
+                e.ExecutionId,
+                Status         = e.Status.ToString(),
+                AnalystName    = e.Analyst != null ? e.Analyst.FullName : "—",
+                InstrumentCode = e.Instrument != null ? e.Instrument.InstrumentCode : "—",
+                e.PriorityScore, e.StartedAt, e.CompletedAt, DueDate = e.DueAt
+            }).ToList()
+        });
+    }
+
     // POST api/v1/samples/{id}/apply-spec
     [HttpPost("{id}/apply-spec")]
     [Authorize(Roles = "Admin,QA,Analyst")]
@@ -133,4 +176,5 @@ public record RegisterSampleRequest(
     List<int>? CheckpointIds        = null);
 public record ReprintBarcodeRequest(string Reason);
 public record ApplySpecRequest(int SpecTemplateId);
+public record SignSrfRequest(string Password, string Meaning, string Reason);
 

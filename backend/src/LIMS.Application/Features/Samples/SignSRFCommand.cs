@@ -51,13 +51,22 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
         sample.Status = SampleStatus.PendingTesting;
         await _db.SaveChangesAsync(ct);
 
-        await _audit.LogAsync("Sample", sample.SampleId, "SRFSigned",
-            new { Status = "Registered" }, new { Status = "PendingTesting", sig.FullName, sig.SignedAt },
-            sig.FullName);
+        // Audit and notification are non-critical — wrap so they never fail the main operation
+        try
+        {
+            await _audit.LogAsync("Sample", sample.SampleId, "SRFSigned",
+                new { Status = "Registered" }, new { Status = "PendingTesting", sig.FullName, sig.SignedAt },
+                sig.FullName);
+        }
+        catch { /* audit failure must not block SRF sign-off */ }
 
-        // Contract 2: push Work Queue task via SignalR
-        await _notifications.PushToGroupAsync("Analyst", "WorkQueueTaskAdded",
-            new { sample.SampleId, sample.SampleNumber, sample.LotNumber }, ct);
+        try
+        {
+            // Contract 2: push Work Queue task via SignalR
+            await _notifications.PushToGroupAsync("Analyst", "WorkQueueTaskAdded",
+                new { sample.SampleId, sample.SampleNumber, sample.LotNumber }, ct);
+        }
+        catch { /* SignalR failure must not block SRF sign-off */ }
 
         return Result<int>.Success(sample.SampleId);
     }

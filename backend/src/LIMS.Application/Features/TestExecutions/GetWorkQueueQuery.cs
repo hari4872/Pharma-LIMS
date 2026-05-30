@@ -9,6 +9,7 @@ public record GetWorkQueueQuery(int? AnalystId, int? LabId, string? Status) : IR
 
 public record WorkQueueItemDto(
     int ExecutionId, int SampleId, string SampleNumber, string MaterialName,
+    int MaterialId,
     string LotNumber, string AnalystName, string InstrumentCode,
     string Status, int? PriorityScore,
     DateTimeOffset? StartedAt, DateTimeOffset? CompletedAt,
@@ -38,6 +39,7 @@ public class GetWorkQueueHandler : IRequestHandler<GetWorkQueueQuery, List<WorkQ
             .Select(e => new WorkQueueItemDto(
                 e.ExecutionId, e.SampleId, e.Sample.SampleNumber,
                 e.Sample.Material != null ? e.Sample.Material.MaterialName : "Unknown",
+                e.Sample.MaterialId,
                 e.Sample.LotNumber,
                 e.Analyst != null ? e.Analyst.FullName : "Unknown",
                 e.Instrument != null ? e.Instrument.InstrumentCode : "",

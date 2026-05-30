@@ -17,6 +17,45 @@ public class TraceabilityController : LimsControllerBase
     public TraceabilityController(IMediator mediator, ILimsDbContext db)
     { _mediator = mediator; _db = db; }
 
+    // GET api/v1/traceability/samples/lookup?q=SMPL-2026-0001  (or numeric ID)
+    // Allows the frontend to resolve a sample number string to a sample ID
+    [HttpGet("samples/lookup")]
+    public async Task<IActionResult> LookupSampleId([FromQuery] string q)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+            return BadRequest(new { error = "Query parameter 'q' is required." });
+
+        // Accept either a numeric ID or a sample number string
+        if (int.TryParse(q.Trim(), out var numericId))
+        {
+            var byId = await _db.Samples
+                .Include(s => s.Material)
+                .Include(s => s.SampleTypeNav)
+                .FirstOrDefaultAsync(s => s.SampleId == numericId);
+            if (byId is null) return NotFound(new { error = $"Sample #{numericId} not found." });
+            return Ok(new {
+                byId.SampleId, byId.SampleNumber, byId.LotNumber,
+                MaterialName = byId.Material.MaterialName,
+                SampleTypeName = byId.SampleTypeNav != null ? byId.SampleTypeNav.TypeName : "Unknown",
+                Status = byId.Status.ToString(), byId.CreatedAt
+            });
+        }
+        else
+        {
+            var byNumber = await _db.Samples
+                .Include(s => s.Material)
+                .Include(s => s.SampleTypeNav)
+                .FirstOrDefaultAsync(s => s.SampleNumber == q.Trim());
+            if (byNumber is null) return NotFound(new { error = $"Sample '{q}' not found." });
+            return Ok(new {
+                byNumber.SampleId, byNumber.SampleNumber, byNumber.LotNumber,
+                MaterialName = byNumber.Material.MaterialName,
+                SampleTypeName = byNumber.SampleTypeNav != null ? byNumber.SampleTypeNav.TypeName : "Unknown",
+                Status = byNumber.Status.ToString(), byNumber.CreatedAt
+            });
+        }
+    }
+
     // GET api/v1/traceability/samples/{sampleId}/graph
     // FR-01..FR-03, FR-08, FR-09: full bidirectional traceability graph
     [HttpGet("samples/{sampleId:int}/graph")]
@@ -43,7 +82,23 @@ public class TraceabilityController : LimsControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new GetRecallScopeQuery(lotNumber, userId, batch, dateFrom, dateTo, analystId, instrumentId));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
-        return Ok(new { lotNumber, affectedSampleIds = result.Value, count = result.Value?.Count });
+
+        // Enrich: return full sample objects instead of just IDs for LabVantage-parity recall table
+        var ids = result.Value ?? new List<int>();
+        var samples = await _db.Samples
+            .Include(s => s.Material)
+            .Where(s => ids.Contains(s.SampleId))
+            .OrderBy(s => s.SampleId)
+            .Select(s => new {
+                s.SampleId, s.SampleNumber,
+                MaterialName = s.Material.MaterialName,
+                s.LotNumber,
+                Status = s.Status.ToString(),
+                s.CreatedAt, s.DueDate, s.IsRush
+            })
+            .ToListAsync();
+
+        return Ok(new { lotNumber, affectedSamples = samples, count = samples.Count });
     }
 
     // POST api/v1/traceability/sampling-events
