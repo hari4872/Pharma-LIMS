@@ -21,26 +21,68 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
 
     public async Task<List<ExecutionParameterDto>> Handle(GetExecutionParametersQuery q, CancellationToken ct)
     {
-        // Resolve sampleId from the execution
         var execution = await _db.TestExecutions
             .AsNoTracking()
             .FirstOrDefaultAsync(e => e.ExecutionId == q.ExecutionId, ct);
 
-        if (execution is null)
-            return [];
+        if (execution is null) return [];
 
-        // Parameters via: Sample → SampleCheckpoints → Checkpoint → CheckpointParameters → TestMethodParameter
-        var parameters = await _db.SampleCheckpoints
+        // ── Priority 1: Sample has a spec template → use its items' parameters ──────
+        // Spec template is material/sample-type scoped, so only relevant parameters appear.
+        var specParamIds = await _db.Samples
+            .Where(s => s.SampleId == execution.SampleId && s.SpecTemplateId != null)
+            .SelectMany(s => s.SpecTemplate!.Items.Select(i => i.ParameterId))
+            .Distinct()
+            .ToListAsync(ct);
+
+        if (specParamIds.Count > 0)
+        {
+            return await _db.TestMethodParameters
+                .Where(p => specParamIds.Contains(p.ParameterId))
+                .AsNoTracking()
+                .Select(p => new ExecutionParameterDto(
+                    p.ParameterId, p.ParameterCode, p.ParameterName,
+                    p.Uom, p.DataType.ToString(), p.IsCritical, p.IsMandatory,
+                    p.InstrumentType,
+                    p.ColumnFrequency.HasValue ? p.ColumnFrequency.Value.ToString() : null,
+                    p.CalcFormula, p.LookupTableId))
+                .ToListAsync(ct);
+        }
+
+        // ── Priority 2: Execution has a form template → use its scoped parameters ──
+        if (execution.FormTemplateId.HasValue)
+        {
+            var formParamIds = await _db.FormTemplateParameters
+                .Where(fp => fp.FormTemplateId == execution.FormTemplateId)
+                .Select(fp => fp.ParameterId)
+                .Distinct()
+                .ToListAsync(ct);
+
+            if (formParamIds.Count > 0)
+            {
+                return await _db.TestMethodParameters
+                    .Where(p => formParamIds.Contains(p.ParameterId))
+                    .AsNoTracking()
+                    .OrderBy(p => p.ParameterId)
+                    .Select(p => new ExecutionParameterDto(
+                        p.ParameterId, p.ParameterCode, p.ParameterName,
+                        p.Uom, p.DataType.ToString(), p.IsCritical, p.IsMandatory,
+                        p.InstrumentType,
+                        p.ColumnFrequency.HasValue ? p.ColumnFrequency.Value.ToString() : null,
+                        p.CalcFormula, p.LookupTableId))
+                    .ToListAsync(ct);
+            }
+        }
+
+        // ── Priority 3: Fallback — checkpoint parameters (legacy/seeded samples) ───
+        return await _db.SampleCheckpoints
             .Where(sc => sc.SampleId == execution.SampleId)
             .Join(_db.CheckpointParameters,
-                sc  => sc.CheckpointId,
-                cp  => cp.CheckpointId,
+                sc => sc.CheckpointId, cp => cp.CheckpointId,
                 (sc, cp) => cp.ParameterId)
             .Distinct()
             .Join(_db.TestMethodParameters,
-                pid => pid,
-                p   => p.ParameterId,
-                (pid, p) => p)
+                pid => pid, p => p.ParameterId, (pid, p) => p)
             .AsNoTracking()
             .Select(p => new ExecutionParameterDto(
                 p.ParameterId, p.ParameterCode, p.ParameterName,
@@ -49,7 +91,5 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
                 p.ColumnFrequency.HasValue ? p.ColumnFrequency.Value.ToString() : null,
                 p.CalcFormula, p.LookupTableId))
             .ToListAsync(ct);
-
-        return parameters;
     }
 }
