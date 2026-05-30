@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+const SPEC_STAGES = ['Incoming', 'InProcess', 'Finished', 'Stability']
+function stageLabel(s: string) { return s.replace(/([a-z])([A-Z])/g, '$1 $2') }
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
@@ -115,7 +117,7 @@ export default function SpecLimitsPage() {
       <DataTable loading={loading} data={data} exportFilename="SpecLimits" columns={[
         { header: 'Parameter', accessor: 'parameterName' },
         { header: 'Material', accessor: 'materialName' },
-        { header: 'Stage', accessor: 'stage' },
+        { header: 'Stage', accessor: r => stageLabel(r.stage) },
         { header: 'Min', accessor: 'minValue' },
         { header: 'Max', accessor: 'maxValue' },
         { header: 'OOT Min', accessor: 'ootMinValue' },
@@ -154,7 +156,7 @@ export default function SpecLimitsPage() {
             </Field>
             <Field label="Stage">
               <select style={inp} value={form.stage} onChange={e => setForm(f => ({ ...f, stage: e.target.value }))}>
-                {['InProcess', 'Release', 'Stability', 'Incoming'].map(s => <option key={s}>{s}</option>)}
+                {SPEC_STAGES.map(s => <option key={s} value={s}>{stageLabel(s)}</option>)}
               </select>
             </Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
