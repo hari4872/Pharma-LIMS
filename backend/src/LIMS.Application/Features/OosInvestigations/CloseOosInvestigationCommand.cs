@@ -39,10 +39,14 @@ public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigatio
         inv.SignatureId = sig.SignatureId;
         inv.ClosedAt = DateTimeOffset.UtcNow;
 
-        // Check if all OOS for this execution are now closed — if so, set execution Completed
-        // NOTE: filter FIRST then AllAsync — without Where() the predicate runs over the entire table
+        // Check if all OTHER OOS for this execution are already closed.
+        // Must exclude the current investigation (inv) because it is still Open in the DB
+        // at this point — SaveChangesAsync hasn't run yet, so the DB query would find it
+        // as Open and incorrectly conclude allClosed = false.
         var allClosed = !await _db.OosInvestigations
-            .AnyAsync(i => i.ExecutionId == inv.ExecutionId && i.Status == OosStatus.Open, ct);
+            .AnyAsync(i => i.ExecutionId == inv.ExecutionId
+                        && i.InvestigationId != cmd.InvestigationId
+                        && i.Status == OosStatus.Open, ct);
         if (allClosed)
         {
             inv.Execution.Status = TestExecutionStatus.Completed;
