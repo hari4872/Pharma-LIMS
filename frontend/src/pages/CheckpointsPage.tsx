@@ -6,9 +6,12 @@ import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'
 import { toast } from '@/components/Toast'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+interface CheckpointParam { parameterId: number; parameterCode: string; parameterName: string; uom: string | null }
+interface TriggerLog { triggerId: number; triggerMode: string; triggeredBy: string | null; triggeredAt: string; deliveryOrder: string | null; isOfflineSync: boolean }
 interface Checkpoint {
   checkpointId: number; checkpointCode: string; triggerMode: string
   checkpointType: string; shiftIntervalHrs: number; isActive: boolean; locationCount: number
+  parameters: CheckpointParam[]
 }
 interface ProcessLogRow {
   rowId: number; slotTime: string; slotLabel: string; status: string; isSigned: boolean
@@ -62,6 +65,19 @@ export default function CheckpointsPage() {
   const [showForm, setShowForm]     = useState(false)
   const [editTarget, setEditTarget] = useState<Checkpoint | null>(null)
   const [showProcessLog, setShowProcessLog]   = useState<number | null>(null)
+  // History modal
+  const [historyCheckpoint, setHistoryCheckpoint] = useState<Checkpoint | null>(null)
+  const [historyLogs, setHistoryLogs]             = useState<TriggerLog[]>([])
+  const [historyLoading, setHistoryLoading]       = useState(false)
+
+  async function openHistory(cp: Checkpoint) {
+    setHistoryCheckpoint(cp); setHistoryLogs([]); setHistoryLoading(true)
+    try {
+      const r = await api.get(`/checkpoints/${cp.checkpointId}/triggers`)
+      setHistoryLogs(r.data)
+    } catch { setHistoryLogs([]) }
+    finally { setHistoryLoading(false) }
+  }
   const [showSignRow, setShowSignRow]         = useState<{ checkpointId: number; rowId: number } | null>(null)
   const [processLogRows, setProcessLogRows]   = useState<ProcessLogRow[]>([])
   const [saving, setSaving]         = useState(false)
@@ -249,11 +265,26 @@ export default function CheckpointsPage() {
         },
         { header: 'Type', accessor: 'checkpointType' },
         { header: 'Interval (hrs)', accessor: r => r.shiftIntervalHrs || '—' },
-        { header: 'Locations', accessor: 'locationCount' },
+        {
+          header: 'Parameters', accessor: r => (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {(r.parameters ?? []).length === 0
+                ? <span style={{ color: '#9ca3af', fontSize: 11 }}>—</span>
+                : (r.parameters ?? []).map(p => (
+                  <span key={p.parameterId} title={p.parameterName}
+                    style={{ padding: '1px 7px', background: '#f0fdfa', border: '1px solid #99f6e4',
+                      borderRadius: 6, fontSize: 11, fontWeight: 600, color: '#0d6e6e', fontFamily: 'monospace' }}>
+                    {p.parameterCode}
+                  </span>
+                ))
+              }
+            </div>
+          )
+        },
         { header: 'Active', accessor: r => <span style={{ fontSize: 12, fontWeight: 600, color: r.isActive ? '#16a34a' : '#dc2626' }}>{r.isActive ? '● Active' : '● Inactive'}</span> },
         {
           header: 'Actions', accessor: r => (
-            <div style={{ display: 'flex', gap: 5 }}>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {(r.triggerMode === 'OperatorScan' || r.triggerMode === 'DispatchEvent') && (
                 <button onClick={() => { triggerCheckpoint(r.checkpointId); toast(`Checkpoint "${r.checkpointCode}" triggered`, 'success') }}
                   style={{ padding: '3px 9px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
@@ -266,6 +297,10 @@ export default function CheckpointsPage() {
                   Process Log
                 </button>
               )}
+              <button onClick={() => openHistory(r)}
+                style={{ padding: '3px 9px', background: '#f1f5f9', color: '#374151', border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                📜 History
+              </button>
             </div>
           )
         },
@@ -545,6 +580,65 @@ export default function CheckpointsPage() {
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowSignRow(null)} label="Sign & Lock Row" />
           </form>
+        </Modal>
+      )}
+
+      {/* ── Trigger History Modal ────────────────────────────────────────── */}
+      {historyCheckpoint && (
+        <Modal title={`${historyCheckpoint.checkpointCode} — Trigger History`} onClose={() => setHistoryCheckpoint(null)}>
+          <div style={{ marginBottom: 12 }}>
+            <span style={{ fontSize: 12, color: '#6b7280' }}>Last 10 trigger events for this checkpoint</span>
+          </div>
+          {historyLoading && <p style={{ color: '#6b7280', fontSize: 13 }}>Loading…</p>}
+          {!historyLoading && historyLogs.length === 0 && (
+            <p style={{ color: '#9ca3af', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>
+              No trigger history found for this checkpoint.
+            </p>
+          )}
+          {!historyLoading && historyLogs.length > 0 && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                  {['Date / Time', 'Triggered By', 'Mode', 'Delivery Order', 'Sync'].map(h => (
+                    <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700,
+                      color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {historyLogs.map((t, i) => (
+                  <tr key={t.triggerId} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                    <td style={{ padding: '8px 10px', fontFamily: 'monospace', color: '#111827' }}>
+                      {new Date(t.triggeredAt).toLocaleString()}
+                    </td>
+                    <td style={{ padding: '8px 10px', color: '#374151' }}>{t.triggeredBy ?? '—'}</td>
+                    <td style={{ padding: '8px 10px' }}>
+                      <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                        background: '#dbeafe', color: '#1e40af' }}>
+                        {t.triggerMode}
+                      </span>
+                    </td>
+                    <td style={{ padding: '8px 10px', color: '#6b7280', fontFamily: 'monospace' }}>
+                      {t.deliveryOrder ?? '—'}
+                    </td>
+                    <td style={{ padding: '8px 10px' }}>
+                      {t.isOfflineSync
+                        ? <span style={{ fontSize: 11, color: '#854d0e', fontWeight: 600 }}>📴 Offline</span>
+                        : <span style={{ fontSize: 11, color: '#065f46' }}>✓ Online</span>
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+            <button onClick={() => setHistoryCheckpoint(null)}
+              style={{ padding: '8px 20px', background: '#f3f4f6', border: '1px solid #d1d5db',
+                borderRadius: 6, fontSize: 13, cursor: 'pointer' }}>
+              Close
+            </button>
+          </div>
         </Modal>
       )}
     </div>

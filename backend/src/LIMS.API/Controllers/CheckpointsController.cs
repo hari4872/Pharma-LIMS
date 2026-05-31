@@ -1,7 +1,9 @@
 using LIMS.Application.Features.Checkpoints;
+using LIMS.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.API.Controllers;
 
@@ -11,7 +13,9 @@ namespace LIMS.API.Controllers;
 public class CheckpointsController : LimsControllerBase
 {
     private readonly IMediator _mediator;
-    public CheckpointsController(IMediator mediator) => _mediator = mediator;
+    private readonly ILimsDbContext _db;
+    public CheckpointsController(IMediator mediator, ILimsDbContext db)
+    { _mediator = mediator; _db = db; }
 
     // GET api/v1/checkpoints?labId=1&triggerMode=TimeBased
     [HttpGet]
@@ -25,6 +29,22 @@ public class CheckpointsController : LimsControllerBase
         var all = await _mediator.Send(new GetCheckpointsQuery(null, null));
         var cp  = all.FirstOrDefault(c => c.CheckpointId == id);
         return cp is null ? NotFound() : Ok(cp);
+    }
+
+    // GET api/v1/checkpoints/{id}/triggers -- last 10 trigger log entries
+    [HttpGet("{id:int}/triggers")]
+    public async Task<IActionResult> GetTriggerHistory(int id, CancellationToken ct)
+    {
+        var logs = await _db.CheckpointTriggerLogs
+            .Where(t => t.CheckpointId == id)
+            .OrderByDescending(t => t.TriggeredAt)
+            .Take(10)
+            .Select(t => new {
+                t.TriggerId, t.TriggerMode, t.TriggeredBy,
+                t.TriggeredAt, t.DeliveryOrder, t.IsOfflineSync
+            })
+            .ToListAsync(ct);
+        return Ok(logs);
     }
 
     // POST api/v1/checkpoints -- create checkpoint (Admin/QA, FR-01)
