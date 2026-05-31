@@ -61,6 +61,8 @@ export default function DigitalLogbookPage() {
   const [plLoading, setPlLoading]     = useState(false)
   const [plDate, setPlDate]           = useState<string>(new Date().toISOString().slice(0, 10))
   const [plStatusFilter, setPlStatusFilter] = useState<string>('')
+  // Overdue alert — open slots from past dates
+  const [overdueSlots, setOverdueSlots] = useState<{ date: string; count: number }[]>([])
 
   // Sign modal
   const [signRow, setSignRow]         = useState<ProcessLogRow | null>(null)
@@ -95,6 +97,24 @@ export default function DigitalLogbookPage() {
     finally { setPlLoading(false) }
   }
   useEffect(() => { if (tab === 'processlog') loadProcessLog() }, [tab, plDate])
+
+  // ── Check for overdue slots from past 7 days ──────────────────────────────
+  async function checkOverdueSlots() {
+    const today = new Date()
+    const found: { date: string; count: number }[] = []
+    for (let d = 1; d <= 7; d++) {
+      const past = new Date(today)
+      past.setDate(today.getDate() - d)
+      const dateStr = past.toISOString().slice(0, 10)
+      try {
+        const r = await api.get(`/checkpoints/process-log?date=${dateStr}`)
+        const openCount = (r.data as ProcessLogRow[]).filter(row => row.status === 'Open').length
+        if (openCount > 0) found.push({ date: dateStr, count: openCount })
+      } catch { /* ignore */ }
+    }
+    setOverdueSlots(found)
+  }
+  useEffect(() => { if (tab === 'processlog') checkOverdueSlots() }, [tab])
 
   // ── Amendment submit ───────────────────────────────────────────────────────
   async function handleAmend(e: React.FormEvent) {
@@ -266,10 +286,45 @@ export default function DigitalLogbookPage() {
       ══════════════════════════════════════════════════════════════════════ */}
       {tab === 'processlog' && (
         <>
+          {/* ── Overdue alert banner ───────────────────────────────────────── */}
+          {overdueSlots.length > 0 && (
+            <div style={{
+              marginBottom: 14, padding: '12px 16px',
+              background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8,
+              display: 'flex', alignItems: 'flex-start', gap: 10
+            }}>
+              <span style={{ fontSize: 20, lineHeight: 1 }}>🚨</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: '#991b1b', fontSize: 14, marginBottom: 4 }}>
+                  Overdue Process Log Slots — Immediate Sign-off Required
+                </div>
+                <div style={{ fontSize: 13, color: '#7f1d1d', marginBottom: 8 }}>
+                  The following past dates have unsigned slots (21 CFR Part 11 — ALCOA+ Contemporaneous):
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {overdueSlots.map(s => (
+                    <button key={s.date}
+                      onClick={() => setPlDate(s.date)}
+                      style={{
+                        padding: '4px 12px', background: '#fee2e2',
+                        border: '1px solid #fca5a5', borderRadius: 6,
+                        cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#991b1b'
+                      }}>
+                      📅 {s.date} — {s.count} open slot{s.count > 1 ? 's' : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Toolbar */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginRight: 6 }}>Date</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginRight: 6 }}>
+                Date
+                <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: 4 }}>(change to sign prior slots)</span>
+              </label>
               <input type="date" style={{ ...inp, width: 170, marginTop: 0 }} value={plDate}
                 onChange={e => setPlDate(e.target.value)} />
             </div>
