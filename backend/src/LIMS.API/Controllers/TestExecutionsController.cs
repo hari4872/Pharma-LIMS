@@ -70,6 +70,19 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(result.Value);
     }
 
+    // POST api/v1/test-executions/ad-hoc - add an ad-hoc single-parameter test
+    [HttpPost("ad-hoc")]
+    [Authorize(Roles = "Admin,Analyst,QA,LabManager")]
+    public async Task<IActionResult> AddAdHoc([FromBody] AdHocTestRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new AddAdHocTestCommand(request.SampleId, request.ParameterId, request.Reason, username));
+        if (!result.IsSuccess) return result.ErrorCode is "NOT_FOUND" or "PARAM_NOT_FOUND"
+            ? NotFound(new { error = result.ErrorCode, message = result.ErrorMessage })
+            : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(result.Value);
+    }
+
     // POST api/v1/test-executions/batch-results - batch result entry for multiple samples at once
     [HttpPost("batch-results")]
     [Authorize(Roles = "Admin,Analyst,QCLead")]
@@ -198,6 +211,7 @@ public record AssignTestMethodRequest(int AnalystId, int InstrumentId, int? Prio
 public record SubmitResultsRequest(List<ResultEntryDto> Entries, EntryMethod EntryMethod = EntryMethod.Manual);
 public record BatchRowRequest(int ExecutionId, List<ResultEntryDto> Entries);
 public record BatchSubmitRequest(List<BatchRowRequest> Rows);
+public record AdHocTestRequest(int SampleId, int ParameterId, string Reason);
 
 
 

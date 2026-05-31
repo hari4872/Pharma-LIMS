@@ -32,6 +32,10 @@ public class TestExecution
     public TestMethodParameter? Parameter { get; set; }
     public DateTimeOffset? DueAt    { get; set; }           // ReceivedAt + SpecTemplateItem.TurnaroundHours
 
+    // ── Sprint 4: Ad-hoc additional test ─────────────────────────────────
+    public bool IsAdHoc { get; set; } = false;
+    public string? AdHocReason { get; set; }
+
     public string CreatedBy { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

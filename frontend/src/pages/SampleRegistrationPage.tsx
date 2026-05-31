@@ -15,6 +15,7 @@ interface Sample {
   analystName: string; createdAt: string; isRush?: boolean
   sampleCondition?: string; specTemplateName?: string; testsAutoCreated?: number; srfSigned?: boolean
 }
+interface Parameter  { parameterId: number; parameterName: string; uom: string }
 interface Material   { materialId: number; materialName: string; productType: string }
 interface SampleType { sampleTypeId: number; typeName: string; typeCode: string; stage: string }
 interface Checkpoint {
@@ -104,9 +105,14 @@ export default function SampleRegistrationPage() {
   const [showForm, setShowForm]       = useState(false)
   const [showSRF, setShowSRF]         = useState<number | null>(null)
   const [showReprint,  setShowReprint]  = useState<number | null>(null)
-  const [showRetest,   setShowRetest]   = useState<Sample | null>(null)
-  const [retestReason, setRetestReason] = useState('')
-  const [retestSaving, setRetestSaving] = useState(false)
+  const [showRetest,    setShowRetest]    = useState<Sample | null>(null)
+  const [retestReason,  setRetestReason]  = useState('')
+  const [retestSaving,  setRetestSaving]  = useState(false)
+  const [showAddTest,   setShowAddTest]   = useState<Sample | null>(null)
+  const [adHocParams,   setAdHocParams]   = useState<Parameter[]>([])
+  const [adHocParamId,  setAdHocParamId]  = useState('')
+  const [adHocReason,   setAdHocReason]   = useState('')
+  const [adHocSaving,   setAdHocSaving]   = useState(false)
   const [saving, setSaving]           = useState(false)
   const [error, setError]             = useState('')
   const [reprintReason, setReprintReason] = useState('')
@@ -368,6 +374,28 @@ export default function SampleRegistrationPage() {
     } catch (err: any) { toast(err.response?.data?.message ?? 'Duplicate failed', 'error') }
   }
 
+  async function openAddTest(sample: Sample) {
+    setShowAddTest(sample); setAdHocParamId(''); setAdHocReason(''); setAdHocParams([])
+    try {
+      const r = await api.get('/parameters')
+      setAdHocParams(r.data)
+    } catch { /* params optional */ }
+  }
+
+  async function submitAdHoc(e: React.FormEvent) {
+    e.preventDefault(); setAdHocSaving(true)
+    try {
+      const r = await api.post('/test-executions/ad-hoc', {
+        sampleId: showAddTest!.sampleId,
+        parameterId: Number(adHocParamId),
+        reason: adHocReason,
+      })
+      toast(`Additional test added — ${r.data.parameterName} (Execution #${r.data.executionId})`, 'success')
+      setShowAddTest(null); load()
+    } catch (err: any) { toast(err.response?.data?.message ?? 'Failed to add test', 'error') }
+    finally { setAdHocSaving(false) }
+  }
+
   async function submitRetest(e: React.FormEvent) {
     e.preventDefault(); setRetestSaving(true)
     try {
@@ -576,6 +604,12 @@ export default function SampleRegistrationPage() {
                 <button onClick={() => { setShowRetest(r); setRetestReason('') }}
                   style={{ padding: '3px 9px', background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
                   Retest
+                </button>
+              )}
+              {r.status !== 'Rejected' && (
+                <button onClick={() => openAddTest(r)}
+                  style={{ padding: '3px 9px', background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                  + Add Test
                 </button>
               )}
               <button onClick={() => { setContainerSample(r); loadContainers(r.sampleId) }}
@@ -897,6 +931,45 @@ export default function SampleRegistrationPage() {
             </Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowSRF(null)} label="Sign & Submit to Work Queue" />
+          </form>
+        </Modal>
+      )}
+
+      {/* ── Add Test (Ad-hoc) Modal ─────────────────────────────────────── */}
+      {showAddTest && (
+        <Modal title={`Add Test — ${showAddTest.sampleNumber}`} onClose={() => setShowAddTest(null)}>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+            Add a single-parameter additional test outside the normal test method workflow.
+          </p>
+          <form onSubmit={submitAdHoc}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+              Parameter *
+            </label>
+            <select required value={adHocParamId} onChange={e => setAdHocParamId(e.target.value)}
+              style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 8, fontFamily: 'inherit', marginBottom: 14, boxSizing: 'border-box' as const }}>
+              <option value="">Select parameter…</option>
+              {adHocParams.map(p => (
+                <option key={p.parameterId} value={p.parameterId}>{p.parameterName} ({p.uom})</option>
+              ))}
+            </select>
+
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+              Reason *
+            </label>
+            <textarea rows={3} required value={adHocReason} onChange={e => setAdHocReason(e.target.value)}
+              placeholder="e.g. Confirmatory test requested by QA — borderline Assay result"
+              style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 8, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' as const }}
+            />
+            <ModalFooter>
+              <button type="button" onClick={() => setShowAddTest(null)}
+                style={{ padding: '8px 18px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancel
+              </button>
+              <button type="submit" disabled={adHocSaving || !adHocParamId || !adHocReason.trim()}
+                style={{ padding: '8px 18px', borderRadius: 7, border: 'none', background: adHocSaving ? '#ddd6fe' : '#7c3aed', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {adHocSaving ? 'Adding…' : 'Add Test'}
+              </button>
+            </ModalFooter>
           </form>
         </Modal>
       )}
