@@ -68,7 +68,7 @@ public class CheckpointsController : LimsControllerBase
     {
         var username = User.Identity?.Name ?? "Unknown";
         var result = await _mediator.Send(new TriggerCheckpointCommand(
-            id, username, request.DeliveryOrder, request.IsOfflineSync));
+            id, username, request.DeliveryOrder, request.IsOfflineSync, request.SampleId));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { checkpointId = result.Value, status = "Triggered" });
     }
@@ -122,7 +122,7 @@ public class CheckpointsController : LimsControllerBase
 public record CreateCheckpointRequest(string CheckpointCode, int LabId, string TriggerMode,
     string CheckpointType, string? TimeSlots, int? ShiftIntervalHrs, int? FormTemplateId,
     List<int>? ParameterIds = null);
-public record TriggerCheckpointRequest(string? DeliveryOrder = null, bool IsOfflineSync = false);
+public record TriggerCheckpointRequest(string? DeliveryOrder = null, bool IsOfflineSync = false, int? SampleId = null);
 public record ReadingRequest(int ParameterId, string Value);
 public record SignProcessLogRequest(string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null);
 public record ExecuteTimeBasedRequest(string SlotLabel, string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null);

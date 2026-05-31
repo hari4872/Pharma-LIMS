@@ -1,5 +1,6 @@
 using LIMS.Application.Common;
 using LIMS.Application.Interfaces;
+using LIMS.Domain.Entities;
 using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,8 @@ namespace LIMS.Application.Features.Checkpoints;
 public record TriggerCheckpointCommand(
     int CheckpointId, string TriggeredBy,
     string? DeliveryOrder = null,
-    bool IsOfflineSync = false) : IRequest<Result<int>>;
+    bool IsOfflineSync = false,
+    int? SampleId = null) : IRequest<Result<int>>;
 
 public class TriggerCheckpointCommandHandler : IRequestHandler<TriggerCheckpointCommand, Result<int>>
 {
@@ -36,6 +38,25 @@ public class TriggerCheckpointCommandHandler : IRequestHandler<TriggerCheckpoint
 
         await _trigger.TriggerAsync(request.CheckpointId, checkpoint.TriggerMode.ToString(),
             request.TriggeredBy, request.DeliveryOrder, request.IsOfflineSync, ct);
+
+        // OperatorScan + SampleId: create an Open ProcessLogRow linked to the sample
+        // This closes the traceability gap — in-process check is directly tied to the batch
+        if (checkpoint.TriggerMode == TriggerType.OperatorScan && request.SampleId.HasValue)
+        {
+            var sample = await _db.Samples.FindAsync([request.SampleId.Value], ct);
+            if (sample is not null)
+            {
+                _db.ProcessLogRows.Add(new ProcessLogRow
+                {
+                    CheckpointId = request.CheckpointId,
+                    SampleId     = request.SampleId.Value,
+                    SlotTime     = DateTimeOffset.UtcNow,
+                    SlotLabel    = $"OperatorScan — {sample.SampleNumber}",
+                    Status       = "Open",
+                });
+                await _db.SaveChangesAsync(ct);
+            }
+        }
 
         // Contract 2: push via SignalR — no polling
         await _notifications.PushToGroupAsync("Analyst", "CheckpointTriggered",

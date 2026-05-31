@@ -76,7 +76,7 @@ export function useOfflineScanQueue() {
   }, [flush])
 
   // ── Public trigger — queues when offline, fires immediately when online ───
-  function triggerCheckpoint(checkpointId: number) {
+  function triggerCheckpoint(checkpointId: number, sampleId?: number) {
     if (!isOnline) {
       const queue = readQueue()
       queue.push({ checkpointId, queuedAt: new Date().toISOString() })
@@ -86,7 +86,7 @@ export function useOfflineScanQueue() {
       return
     }
 
-    api.post(`/checkpoints/${checkpointId}/trigger`, {})
+    api.post(`/checkpoints/${checkpointId}/trigger`, { sampleId: sampleId ?? null })
       .then(() => toast('✅ Checkpoint triggered — entry logged in process log', 'success'))
       .catch((err: any) => toast(err.friendlyMessage ?? err.response?.data?.message ?? 'Trigger failed', 'error'))
   }

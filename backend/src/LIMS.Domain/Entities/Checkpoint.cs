@@ -69,6 +69,11 @@ public class ProcessLogRow
     public string Status { get; set; } = "Open";             // Open | Signed | Locked
     public int? SignatureId { get; set; }
     public ElectronicSignature? Signature { get; set; }
+
+    // Sprint 4 — OperatorScan traceability: which sample triggered this row
+    public int? SampleId { get; set; }
+    public Sample? Sample { get; set; }
+
     public ICollection<ProcessLogReading> Readings { get; set; } = [];
 }
 

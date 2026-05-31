@@ -20,6 +20,7 @@ public record ProcessLogReadingDto(int ReadingId, int ParameterId, string Parame
 
 public record ProcessLogRowDto(
     int RowId, DateTimeOffset SlotTime, string SlotLabel, string Status, bool IsSigned,
+    int? SampleId, string? SampleNumber,
     List<ProcessLogReadingDto> Readings);
 
 public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, List<CheckpointDto>>
@@ -55,6 +56,7 @@ public record GetAllProcessLogQuery(DateOnly? Date) : IRequest<List<AllProcessLo
 public record AllProcessLogRowDto(
     int RowId, int CheckpointId, string CheckpointCode, string TriggerMode,
     DateTimeOffset SlotTime, string SlotLabel, string Status, bool IsSigned,
+    int? SampleId, string? SampleNumber,
     List<ProcessLogReadingDto> Readings);
 
 public class GetAllProcessLogQueryHandler : IRequestHandler<GetAllProcessLogQuery, List<AllProcessLogRowDto>>
@@ -82,11 +84,14 @@ public class GetAllProcessLogQueryHandler : IRequestHandler<GetAllProcessLogQuer
             var today = DateOnly.FromDateTime(DateTime.UtcNow).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
             query = query.Where(r => r.SlotTime >= today && r.SlotTime < today.AddDays(1));
         }
-        var rows = await query.Include(r => r.Readings).ThenInclude(rd => rd.Parameter)
+        var rows = await query
+            .Include(r => r.Readings).ThenInclude(rd => rd.Parameter)
+            .Include(r => r.Sample)
             .OrderBy(r => r.SlotTime).ToListAsync(ct);
         return rows.Select(r => new AllProcessLogRowDto(
             r.RowId, r.CheckpointId, r.Checkpoint.CheckpointCode, r.Checkpoint.TriggerMode.ToString(),
             r.SlotTime, r.SlotLabel, r.Status, r.SignatureId.HasValue,
+            r.SampleId, r.Sample?.SampleNumber,
             r.Readings.Select(rd => new ProcessLogReadingDto(
                 rd.ReadingId, rd.ParameterId, rd.Parameter.ParameterName,
                 rd.Parameter.ParameterCode, rd.Parameter.Uom, rd.Value)).ToList()))
@@ -107,10 +112,13 @@ public class GetProcessLogQueryHandler : IRequestHandler<GetProcessLogQuery, Lis
             var d = request.Date.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
             query = query.Where(r => r.SlotTime >= d && r.SlotTime < d.AddDays(1));
         }
-        var rows = await query.Include(r => r.Readings).ThenInclude(rd => rd.Parameter)
+        var rows = await query
+            .Include(r => r.Readings).ThenInclude(rd => rd.Parameter)
+            .Include(r => r.Sample)
             .OrderBy(r => r.SlotTime).ToListAsync(ct);
         return rows.Select(r => new ProcessLogRowDto(
             r.RowId, r.SlotTime, r.SlotLabel, r.Status, r.SignatureId.HasValue,
+            r.SampleId, r.Sample?.SampleNumber,
             r.Readings.Select(rd => new ProcessLogReadingDto(
                 rd.ReadingId, rd.ParameterId, rd.Parameter.ParameterName,
                 rd.Parameter.ParameterCode, rd.Parameter.Uom, rd.Value)).ToList()))

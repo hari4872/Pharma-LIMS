@@ -33,11 +33,13 @@ interface Checkpoint {
 }
 
 interface ProcessLogRow {
-  rowId:      number
-  slotTime:   string
-  slotLabel:  string
-  status:     string
-  isSigned:   boolean
+  rowId:         number
+  slotTime:      string
+  slotLabel:     string
+  status:        string
+  isSigned:      boolean
+  sampleId?:     number
+  sampleNumber?: string
 }
 
 const MODE_META: Record<string, { bg: string; color: string; icon: string; label: string }> = {
@@ -161,11 +163,40 @@ export default function CheckpointExecutionPage() {
   }
   useEffect(() => { load() }, [filterMode])
 
+  // ── OperatorScan: ask for sample number before triggering ─────────────
+  const [scanModal,     setScanModal]     = useState<Checkpoint | null>(null)
+  const [scanSampleNum, setScanSampleNum] = useState('')
+  const [scanLookup,    setScanLookup]    = useState<{ sampleId: number; sampleNumber: string } | null>(null)
+  const [scanLooking,   setScanLooking]   = useState(false)
+
+  async function lookupSample(num: string) {
+    if (!num.trim()) { setScanLookup(null); return }
+    setScanLooking(true)
+    try {
+      const r = await api.get(`/samples?sampleNumber=${encodeURIComponent(num.trim())}`)
+      const found = r.data?.find((s: any) => s.sampleNumber === num.trim())
+      setScanLookup(found ? { sampleId: found.sampleId, sampleNumber: found.sampleNumber } : null)
+    } catch { setScanLookup(null) }
+    finally { setScanLooking(false) }
+  }
+
+  async function confirmScanTrigger() {
+    if (!scanModal) return
+    triggerCheckpoint(scanModal.checkpointId, scanLookup?.sampleId)
+    setScanModal(null); setScanSampleNum(''); setScanLookup(null)
+    load()
+  }
+
   // ── Trigger (Mode 2 / Mode 4) ──────────────────────────────────────────
   async function handleTrigger(cp: Checkpoint) {
-    triggerCheckpoint(cp.checkpointId)
-    toast(`✅ "${cp.checkpointCode}" triggered successfully`, 'success')
-    load()
+    if (cp.triggerMode === 'OperatorScan') {
+      // Show sample lookup modal for traceability
+      setScanModal(cp); setScanSampleNum(''); setScanLookup(null)
+    } else {
+      triggerCheckpoint(cp.checkpointId)
+      toast(`✅ "${cp.checkpointCode}" triggered successfully`, 'success')
+      load()
+    }
   }
 
   // ── Open Process Log (Mode 3) ──────────────────────────────────────────
@@ -514,6 +545,59 @@ export default function CheckpointExecutionPage() {
         </Modal>
       )}
 
+      {/* ── OperatorScan: Sample Lookup Modal ───────────────────────────── */}
+      {scanModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 420, padding: '24px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#111827' }}>
+              📷 Operator Scan — {scanModal.checkpointCode}
+            </h3>
+            <p style={{ margin: '0 0 18px', fontSize: 13, color: '#6b7280' }}>
+              Enter the sample number this scan is for (required for full traceability).
+            </p>
+
+            <label style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>
+              Sample Number
+            </label>
+            <input
+              style={{ width: '100%', padding: '9px 12px', fontSize: 14, border: '1.5px solid #d1d5db', borderRadius: 8, fontFamily: 'monospace', fontWeight: 600, boxSizing: 'border-box' as const }}
+              placeholder="e.g. APC-HI-001-001"
+              value={scanSampleNum}
+              onChange={e => { setScanSampleNum(e.target.value); lookupSample(e.target.value) }}
+              autoFocus
+            />
+
+            {/* Lookup result */}
+            <div style={{ marginTop: 10, minHeight: 28 }}>
+              {scanLooking && <span style={{ fontSize: 12, color: '#6b7280' }}>Looking up…</span>}
+              {!scanLooking && scanSampleNum && scanLookup && (
+                <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  ✅ Found: {scanLookup.sampleNumber}
+                  <span style={{ color: '#0d9488', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: 4, padding: '1px 6px', fontSize: 11 }}>ID {scanLookup.sampleId}</span>
+                </div>
+              )}
+              {!scanLooking && scanSampleNum && !scanLookup && (
+                <div style={{ fontSize: 12, color: '#9ca3af' }}>⚠ Sample not found — checkpoint will still be triggered without sample link</div>
+              )}
+              {!scanSampleNum && (
+                <div style={{ fontSize: 12, color: '#9ca3af' }}>Leave blank to trigger without sample link</div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
+              <button onClick={() => setScanModal(null)}
+                style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancel
+              </button>
+              <button onClick={confirmScanTrigger}
+                style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: '#0d9488', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                ✅ Confirm Scan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Process Log Modal ────────────────────────────────────────────── */}
       {logFor && (
         <div style={{
@@ -561,7 +645,14 @@ export default function CheckpointExecutionPage() {
                   border: `1px solid ${isLocked ? '#bbf7d0' : '#fde68a'}`,
                 }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>{row.slotLabel}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#111827', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {row.slotLabel}
+                      {row.sampleNumber && (
+                        <span style={{ fontSize: 11, fontWeight: 700, background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: 4, padding: '1px 6px' }}>
+                          {row.sampleNumber}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
                       {new Date(row.slotTime).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
                     </div>
