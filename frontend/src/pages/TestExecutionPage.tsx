@@ -11,7 +11,11 @@ interface Execution {
 interface Parameter {
   parameterId: number; parameterCode: string; parameterName: string
   uom: string; dataType: string; isCritical: boolean; isMandatory: boolean
-  calcFormula: string | null
+  calcFormula: string | null; decimalPlaces: number | null
+}
+interface EvidenceFile {
+  evidenceId: number; fileRef: string; description: string | null
+  uploadedByName: string; uploadedAt: string
 }
 interface SpecLimit {
   specLimitId: number; parameterId: number
@@ -67,6 +71,7 @@ export default function TestExecutionPage() {
   const [entries,     setEntries]     = useState<Record<number, string>>({})
   const [evidence,    setEvidence]    = useState<Record<number, string>>({})
   const [results,     setResults]     = useState<ResultRow[]>([])
+  const [uploadFiles, setUploadFiles] = useState<Record<number, { file: File | null; desc: string; uploading: boolean; files: EvidenceFile[] }>>({})
   const [hasOos,      setHasOos]      = useState(false)
   const [hasOot,      setHasOot]      = useState(false)
   const [showSignOff, setShowSignOff] = useState(false)
@@ -127,6 +132,30 @@ export default function TestExecutionPage() {
       } catch { /* ignore */ }
     }
   }, [id])
+
+  async function loadEvidence(entryId: number, parameterId: number) {
+    try {
+      const r = await api.get(`/digital-logbook/entries/${entryId}/evidence`)
+      setUploadFiles(prev => ({ ...prev, [parameterId]: { ...prev[parameterId], files: r.data } }))
+    } catch { /* optional */ }
+  }
+
+  async function uploadEvidence(entryId: number, parameterId: number) {
+    const state = uploadFiles[parameterId]
+    if (!state?.file || !execution) return
+    setUploadFiles(prev => ({ ...prev, [parameterId]: { ...prev[parameterId], uploading: true } }))
+    try {
+      const fd = new FormData()
+      fd.append('file', state.file)
+      fd.append('sampleId', String(execution.sampleId))
+      if (state.desc) fd.append('description', state.desc)
+      await api.post(`/digital-logbook/entries/${entryId}/evidence`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setUploadFiles(prev => ({ ...prev, [parameterId]: { ...prev[parameterId], file: null, desc: '', uploading: false } }))
+      loadEvidence(entryId, parameterId)
+    } catch {
+      setUploadFiles(prev => ({ ...prev, [parameterId]: { ...prev[parameterId], uploading: false } }))
+    }
+  }
 
   function saveDraft() {
     if (!id) return
@@ -283,11 +312,19 @@ export default function TestExecutionPage() {
                           </span>
                         )}
                       </div>
-                      {p.calcFormula && (
-                        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, fontFamily: 'monospace' }}>
-                          f: {p.calcFormula}
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                        {p.calcFormula && (
+                          <span title={`Formula: ${p.calcFormula}`}
+                            style={{ fontSize: 10, fontWeight: 700, background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', padding: '1px 6px', borderRadius: 4 }}>
+                            ⚡ Calculated
+                          </span>
+                        )}
+                        {p.decimalPlaces !== null && p.decimalPlaces !== undefined && (
+                          <span style={{ fontSize: 10, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '1px 6px', borderRadius: 4 }}>
+                            {p.decimalPlaces} dp
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Spec limit */}
@@ -325,21 +362,45 @@ export default function TestExecutionPage() {
                     </span>
                   </div>
 
-                  {/* Evidence field for critical parameters */}
-                  {p.isCritical && (
-                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #fecaca' }}>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: '#991b1b', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 4 }}>
-                        🔴 Evidence File Reference (mandatory for critical parameter)
-                      </label>
+                  {/* Evidence — file upload for all parameters */}
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px dashed ${p.isCritical ? '#fecaca' : '#e5e7eb'}` }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: p.isCritical ? '#991b1b' : '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>
+                      {p.isCritical ? '🔴 Evidence (mandatory)' : '📎 Attach Evidence (optional)'}
+                    </label>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <input
-                        style={{ ...inp, margin: 0, borderColor: '#fca5a5', fontSize: 12 }}
-                        value={evidence[p.parameterId] ?? ''}
-                        onChange={e => setEvidence(prev => ({ ...prev, [p.parameterId]: e.target.value }))}
-                        placeholder="e.g. HPLC-RUN-2026-001.pdf"
-                        required={p.isCritical}
+                        type="file"
+                        accept="image/*,.pdf,.xlsx,.csv"
+                        onChange={e => setUploadFiles(prev => ({ ...prev, [p.parameterId]: { ...prev[p.parameterId], file: e.target.files?.[0] ?? null, desc: prev[p.parameterId]?.desc ?? '', uploading: false, files: prev[p.parameterId]?.files ?? [] } }))}
+                        style={{ fontSize: 12, flex: 1 }}
+                        required={p.isCritical && !(uploadFiles[p.parameterId]?.files?.length > 0) && !evidence[p.parameterId]}
                       />
+                      <input
+                        style={{ ...inp, margin: 0, fontSize: 12, width: 160 }}
+                        placeholder="Description…"
+                        value={uploadFiles[p.parameterId]?.desc ?? ''}
+                        onChange={e => setUploadFiles(prev => ({ ...prev, [p.parameterId]: { ...prev[p.parameterId], desc: e.target.value } }))}
+                      />
+                      <button type="button"
+                        disabled={!uploadFiles[p.parameterId]?.file || uploadFiles[p.parameterId]?.uploading}
+                        onClick={() => {
+                          const resultEntry = results.find(r => r.parameterId === p.parameterId)
+                          if (resultEntry) uploadEvidence(resultEntry.entryId, p.parameterId)
+                        }}
+                        style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #0d9488', background: '#f0fdfa', color: '#0d9488', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {uploadFiles[p.parameterId]?.uploading ? 'Uploading…' : 'Upload'}
+                      </button>
                     </div>
-                  )}
+                    {/* Uploaded files list */}
+                    {(uploadFiles[p.parameterId]?.files ?? []).map(f => (
+                      <div key={f.evidenceId} style={{ fontSize: 11, color: '#374151', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span>📎</span>
+                        <a href={`/uploads/${f.fileRef}`} target="_blank" rel="noreferrer" style={{ color: '#0d9488' }}>{f.fileRef.split('/').pop()}</a>
+                        {f.description && <span style={{ color: '#6b7280' }}>— {f.description}</span>}
+                        <span style={{ color: '#9ca3af' }}>{new Date(f.uploadedAt).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )
             })}

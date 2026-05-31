@@ -12,7 +12,8 @@ public record SampleDto(
     string SampleType, string Status, bool BarcodePrinted, DateTimeOffset? DueDate,
     string AnalystName, DateTimeOffset CreatedAt, int? FormTemplateId,
     int? SpecTemplateId, string? SpecTemplateName, bool SrfSigned,
-    bool IsRush, string? SampleCondition);
+    bool IsRush, string? SampleCondition,
+    int? RetestOfSampleId, string? RetestReason);
 
 public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<SampleDto>>
 {
@@ -51,7 +52,9 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
                 s.SampleCondition == "0" ? "OK"
                 : s.SampleCondition == "1" ? "Damaged"
                 : s.SampleCondition == "2" ? "Compromised"
-                : s.SampleCondition ?? "OK"))
+                : s.SampleCondition ?? "OK",
+                s.RetestOfSampleId,
+                s.RetestReason))
             .ToListAsync(ct);
     }
 }

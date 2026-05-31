@@ -153,6 +153,30 @@ public class SamplesController : LimsControllerBase
         });
     }
 
+    // POST api/v1/samples/{id}/duplicate
+    [HttpPost("{id}/duplicate")]
+    [Authorize(Roles = "Admin,Analyst,QA")]
+    public async Task<IActionResult> Duplicate(int id)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new DuplicateSampleCommand(id, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        var v = result.Value!;
+        return Ok(new { v.SampleId, v.SampleNumber, v.SpecOutcome, v.SpecMessage });
+    }
+
+    // POST api/v1/samples/{id}/retest
+    [HttpPost("{id}/retest")]
+    [Authorize(Roles = "Admin,Analyst,QA")]
+    public async Task<IActionResult> Retest(int id, [FromBody] RetestRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new RetestSampleCommand(id, request.RetestReason, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        var v = result.Value!;
+        return Ok(new { v.SampleId, v.SampleNumber, v.SpecOutcome, v.SpecMessage });
+    }
+
     // POST api/v1/samples/{id}/apply-spec
     [HttpPost("{id}/apply-spec")]
     [Authorize(Roles = "Admin,QA,Analyst")]
@@ -182,4 +206,5 @@ public record RegisterSampleRequest(
     List<int>? CheckpointIds        = null);
 public record ReprintBarcodeRequest(string Reason);
 public record ApplySpecRequest(int SpecTemplateId);
+public record RetestRequest(string RetestReason);
 

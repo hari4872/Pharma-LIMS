@@ -66,6 +66,8 @@ public static class DependencyInjection
         services.AddScoped<IStabilityTrendService, StabilityTrendService>();
         // MS-4: Site Analytics
         services.AddScoped<ISiteAnalyticsService, SiteAnalyticsService>();
+        // Sprint 1&2: Calc formula evaluation + rounding
+        services.AddScoped<ICalcFormulaService, CalcFormulaService>();
         // MS-1: HTTP context accessor for ILabContext
         services.AddHttpContextAccessor();
 

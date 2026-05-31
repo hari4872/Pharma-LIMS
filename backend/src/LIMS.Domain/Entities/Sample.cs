@@ -34,6 +34,8 @@ public class Sample
     public string? ExternalBatchId         { get; set; }    // MES/ERP batch reference
     public string? SampleLabel             { get; set; }    // physical label as written on container
     public string? TankSourceId            { get; set; }    // source tank or vessel identifier
+    public int? RetestOfSampleId           { get; set; }   // FK → original sample (null for first-run)
+    public string? RetestReason            { get; set; }
 
     // ── Phase A: Specification Engine audit trail ─────────────────────────
     // Records exactly which spec was applied and how — satisfies 21 CFR Part 11

@@ -9,7 +9,7 @@ public record GetParametersQuery(int? MethodId) : IRequest<List<ParameterDto>>;
 public record ParameterDto(int ParameterId, int MethodId, string MethodName, string ParameterName,
     string ParameterCode, string Uom, string DataType, string FormulaType, string? CalcFormula,
     int? LookupTableId, string? InstrumentType, bool IsCritical, bool IsMandatory,
-    string? ColumnFrequency, string CreatedBy, DateTimeOffset CreatedAt);
+    string? ColumnFrequency, string CreatedBy, DateTimeOffset CreatedAt, int? DecimalPlaces);
 
 public class GetParametersQueryHandler : IRequestHandler<GetParametersQuery, List<ParameterDto>>
 {
@@ -26,6 +26,6 @@ public class GetParametersQueryHandler : IRequestHandler<GetParametersQuery, Lis
             p.Uom, p.DataType.ToString(), p.FormulaType.ToString(), p.CalcFormula,
             p.LookupTableId, p.InstrumentType, p.IsCritical, p.IsMandatory,
             p.ColumnFrequency.HasValue ? p.ColumnFrequency.ToString() : null,
-            p.CreatedBy, p.CreatedAt)).ToListAsync(ct);
+            p.CreatedBy, p.CreatedAt, p.DecimalPlaces)).ToListAsync(ct);
     }
 }

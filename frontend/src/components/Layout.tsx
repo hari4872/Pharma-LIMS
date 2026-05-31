@@ -10,6 +10,8 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import ChatbotWidget from '@/components/ChatbotWidget'
 import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { useNotifications } from '@/hooks/useNotifications'
+import { useIdleLock } from '@/hooks/useIdleLock'
+import IdleLockOverlay from '@/components/IdleLockOverlay'
 
 // ── Nav item type ─────────────────────────────────────────────────────────
 type NavItem = {
@@ -227,9 +229,21 @@ export default function Layout() {
   const navigate   = useNavigate()
   const location   = useLocation()
   const fullName   = useSelector((s: RootState) => s.auth.fullName)
+  const token      = useSelector((s: RootState) => s.auth.token)
   const initials   = fullName
     ? fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : '?'
+
+  // Extract username from JWT for idle lock re-auth
+  const username = (() => {
+    if (!token) return ''
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+      return payload['unique_name'] ?? payload['sub'] ?? ''
+    } catch { return '' }
+  })()
+
+  const { isLocked, unlock } = useIdleLock(15, !!token)
 
   const [collapsed,    setCollapsed]    = useState(false)
   const [paletteOpen,  setPaletteOpen]  = useState(false)
@@ -764,6 +778,15 @@ export default function Layout() {
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <ToastContainer />
       <ChatbotWidget />
+      {isLocked && (
+        <IdleLockOverlay
+          fullName={fullName ?? 'User'}
+          initials={initials}
+          username={username}
+          onUnlock={unlock}
+          onSignOut={handleLogout}
+        />
+      )}
     </div>
   )
 }

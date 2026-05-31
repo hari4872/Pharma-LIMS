@@ -14,6 +14,7 @@ public class TestMethodParameter
     public DataType DataType { get; set; }
     public FormulaType FormulaType { get; set; } = FormulaType.Expression;
     public string? CalcFormula { get; set; }                // server-side only (Contract 2)
+    public int? DecimalPlaces { get; set; }               // null = no rounding; e.g. 2 = round to 2dp
     public int? LookupTableId { get; set; }
     public ParameterLookupTable? LookupTable { get; set; }
     public string? InstrumentType { get; set; }

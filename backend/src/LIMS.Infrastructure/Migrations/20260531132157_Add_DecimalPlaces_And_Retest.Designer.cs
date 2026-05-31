@@ -3,6 +3,7 @@ using System;
 using LIMS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LIMS.Infrastructure.Migrations
 {
     [DbContext(typeof(LimsDbContext))]
-    partial class LimsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260531132157_Add_DecimalPlaces_And_Retest")]
+    partial class Add_DecimalPlaces_And_Retest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

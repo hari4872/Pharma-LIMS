@@ -10,7 +10,7 @@ namespace LIMS.Application.Features.MasterData.Parameters;
 public record CreateParameterCommand(int MethodId, string ParameterName, string ParameterCode,
     string Uom, string DataType, string FormulaType, string? CalcFormula, int? LookupTableId,
     string? InstrumentType, bool IsCritical, bool IsMandatory, string? ColumnFrequency,
-    string CreatedBy) : IRequest<Result<int>>;
+    string CreatedBy, int? DecimalPlaces = null) : IRequest<Result<int>>;
 
 public class CreateParameterCommandValidator : AbstractValidator<CreateParameterCommand>
 {
@@ -45,6 +45,7 @@ public class CreateParameterCommandHandler : IRequestHandler<CreateParameterComm
             InstrumentType = request.InstrumentType, IsCritical = request.IsCritical,
             IsMandatory = request.IsMandatory,
             ColumnFrequency = request.ColumnFrequency is not null ? Enum.Parse<ColumnFrequency>(request.ColumnFrequency) : null,
+            DecimalPlaces = request.DecimalPlaces,
             CreatedBy = request.CreatedBy, CreatedAt = DateTimeOffset.UtcNow
         };
         _db.TestMethodParameters.Add(param);

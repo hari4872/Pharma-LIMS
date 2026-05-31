@@ -103,7 +103,10 @@ export default function SampleRegistrationPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm]       = useState(false)
   const [showSRF, setShowSRF]         = useState<number | null>(null)
-  const [showReprint, setShowReprint] = useState<number | null>(null)
+  const [showReprint,  setShowReprint]  = useState<number | null>(null)
+  const [showRetest,   setShowRetest]   = useState<Sample | null>(null)
+  const [retestReason, setRetestReason] = useState('')
+  const [retestSaving, setRetestSaving] = useState(false)
   const [saving, setSaving]           = useState(false)
   const [error, setError]             = useState('')
   const [reprintReason, setReprintReason] = useState('')
@@ -357,6 +360,24 @@ export default function SampleRegistrationPage() {
     finally { setSaving(false) }
   }
 
+  async function duplicateSample(sampleId: number) {
+    try {
+      const r = await api.post(`/samples/${sampleId}/duplicate`)
+      toast(`Sample duplicated — ${r.data.sampleNumber}`, 'success')
+      load()
+    } catch (err: any) { toast(err.response?.data?.message ?? 'Duplicate failed', 'error') }
+  }
+
+  async function submitRetest(e: React.FormEvent) {
+    e.preventDefault(); setRetestSaving(true)
+    try {
+      const r = await api.post(`/samples/${showRetest!.sampleId}/retest`, { retestReason })
+      toast(`Retest registered — ${r.data.sampleNumber}`, 'success')
+      setShowRetest(null); setRetestReason(''); load()
+    } catch (err: any) { toast(err.response?.data?.message ?? 'Retest failed', 'error') }
+    finally { setRetestSaving(false) }
+  }
+
   async function submitReprint(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
     try {
@@ -547,6 +568,16 @@ export default function SampleRegistrationPage() {
                 style={{ padding: '3px 9px', background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
                 Reprint
               </button>
+              <button onClick={() => duplicateSample(r.sampleId)}
+                style={{ padding: '3px 9px', background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                Duplicate
+              </button>
+              {(r.status === 'Released' || r.status === 'Rejected') && (
+                <button onClick={() => { setShowRetest(r); setRetestReason('') }}
+                  style={{ padding: '3px 9px', background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                  Retest
+                </button>
+              )}
               <button onClick={() => { setContainerSample(r); loadContainers(r.sampleId) }}
                 style={{ padding: '3px 9px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
                 🧪 Containers
@@ -866,6 +897,38 @@ export default function SampleRegistrationPage() {
             </Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowSRF(null)} label="Sign & Submit to Work Queue" />
+          </form>
+        </Modal>
+      )}
+
+      {/* ── Retest Modal ────────────────────────────────────────────────── */}
+      {showRetest && (
+        <Modal title={`Request Retest — ${showRetest.sampleNumber}`} onClose={() => setShowRetest(null)}>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+            FDA OOS Guidance 2006 §IV — retest will be linked to original sample.
+          </p>
+          <form onSubmit={submitRetest}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+              Retest Reason *
+            </label>
+            <textarea
+              rows={3}
+              required
+              value={retestReason}
+              onChange={e => setRetestReason(e.target.value)}
+              placeholder="e.g. OOS result on first test — retesting per SOP-LAB-012"
+              style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 8, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
+            />
+            <ModalFooter>
+              <button type="button" onClick={() => setShowRetest(null)}
+                style={{ padding: '8px 18px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancel
+              </button>
+              <button type="submit" disabled={retestSaving || !retestReason.trim()}
+                style={{ padding: '8px 18px', borderRadius: 7, border: 'none', background: retestSaving ? '#fed7aa' : '#c2410c', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {retestSaving ? 'Registering…' : 'Register Retest'}
+              </button>
+            </ModalFooter>
           </form>
         </Modal>
       )}

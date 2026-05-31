@@ -11,7 +11,7 @@ public record UpdateParameterCommand(
     int ParameterId, string ParameterName, string ParameterCode,
     string Uom, string DataType, string FormulaType, string? CalcFormula,
     string? InstrumentType, bool IsCritical, bool IsMandatory,
-    string? ColumnFrequency, string UpdatedBy) : IRequest<Result<int>>;
+    string? ColumnFrequency, string UpdatedBy, int? DecimalPlaces = null) : IRequest<Result<int>>;
 
 public class UpdateParameterCommandValidator : AbstractValidator<UpdateParameterCommand>
 {
@@ -49,6 +49,7 @@ public class UpdateParameterCommandHandler : IRequestHandler<UpdateParameterComm
         param.IsCritical = request.IsCritical;
         param.IsMandatory = request.IsMandatory;
         param.ColumnFrequency = request.ColumnFrequency is not null ? Enum.Parse<ColumnFrequency>(request.ColumnFrequency) : null;
+        param.DecimalPlaces = request.DecimalPlaces;
         await _db.SaveChangesAsync(ct);
         await _audit.LogAsync("Parameter", param.ParameterId, "Updated", old, new { param.ParameterName, param.ParameterCode, param.Uom, param.DataType, param.FormulaType, param.IsCritical, param.IsMandatory }, request.UpdatedBy);
         return Result<int>.Success(param.ParameterId);
