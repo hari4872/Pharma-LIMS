@@ -125,14 +125,24 @@ export default function OosInvestigationsPage() {
             {r.status === 'Open' && (
               <button
                 onClick={() => { setShowClose(r); setCloseForm(f => ({ ...f, rootCause: '', capaRef: '' })); setError('') }}
-                style={{ background: 'none', border: 'none', color: '#16a34a', cursor: 'pointer', fontSize: 12, padding: 0 }}>
-                Close Investigation
+                style={{
+                  background: '#dcfce7', border: '1px solid #86efac',
+                  color: '#15803d', cursor: 'pointer', fontSize: 12,
+                  fontWeight: 700, padding: '4px 10px', borderRadius: 6,
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 1px 3px rgba(22,163,74,0.15)',
+                }}>
+                ✓ Close Investigation
               </button>
             )}
             <button
               onClick={() => downloadPdf(r)}
               title="Download OOS Investigation Report PDF"
-              style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: 12, padding: 0 }}>
+              style={{
+                background: '#ede9fe', border: '1px solid #c4b5fd',
+                color: '#7c3aed', cursor: 'pointer', fontSize: 12,
+                fontWeight: 600, padding: '4px 10px', borderRadius: 6,
+              }}>
               PDF
             </button>
           </div>
