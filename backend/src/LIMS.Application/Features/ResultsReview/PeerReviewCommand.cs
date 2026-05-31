@@ -36,6 +36,13 @@ public class PeerReviewHandler : IRequestHandler<PeerReviewCommand, Result<int>>
             return Result<int>.Failure("SEGREGATION_VIOLATION",
                 "Peer reviewer cannot be the same analyst who performed the test. (GMP 4-eyes principle)");
 
+        // OOS gate: peer review blocked if open OOS investigations exist (FDA OOS Guidance 2006)
+        var openOos = await _db.OosInvestigations.AnyAsync(
+            i => i.ExecutionId == cmd.ExecutionId && i.Status == OosStatus.Open, ct);
+        if (openOos)
+            return Result<int>.Failure("OOS_OPEN",
+                "Open OOS/OOT investigation(s) must be closed before peer review. (FDA OOS Guidance)");
+
         // Duplicate review check
         var alreadyReviewed = await _db.ResultsReviews.AnyAsync(
             r => r.ExecutionId == cmd.ExecutionId && r.ReviewType == ReviewType.PeerReview, ct);
