@@ -47,7 +47,11 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
                 s.SpecTemplate != null ? s.SpecTemplate.TemplateName : null,
                 s.SrfSignatureId.HasValue,
                 s.IsRush,
-                s.SampleCondition))   // now plain string? — no enum cast, no converter issues
+                // Normalize legacy "0"/"1"/"2" (stored when column was enum-integer) → readable string
+                s.SampleCondition == "0" ? "OK"
+                : s.SampleCondition == "1" ? "Damaged"
+                : s.SampleCondition == "2" ? "Compromised"
+                : s.SampleCondition ?? "OK"))
             .ToListAsync(ct);
     }
 }

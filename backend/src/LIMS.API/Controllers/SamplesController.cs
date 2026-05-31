@@ -131,7 +131,13 @@ public class SamplesController : LimsControllerBase
             Status           = sample.Status.ToString(),
             sample.IsRush, sample.BarcodePrinted,
             sample.CreatedAt, sample.DueDate,
-            sample.SampleCondition,
+            // Normalize legacy integer-stored values ("0","1","2") to readable names
+            SampleCondition = sample.SampleCondition switch {
+                "0" => "OK",
+                "1" => "Damaged",
+                "2" => "Compromised",
+                _   => sample.SampleCondition ?? "OK"
+            },
             sample.ExternalBatchId,
             SpecTemplateName = sample.SpecTemplate != null ? sample.SpecTemplate.TemplateName : null,
             sample.SpecTemplateId,

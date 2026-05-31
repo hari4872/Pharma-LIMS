@@ -173,6 +173,12 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask }: Pr
                             📋 Enter Results
                           </a>
                         )}
+                        {(e.status === 'Completed' || e.status === 'OOSOpen') && (
+                          <a href={`/test-execution/${e.executionId}`}
+                            style={{ padding: '5px 14px', background: '#f0fdf4', color: '#065f46', border: '1px solid #86efac', borderRadius: 6, textDecoration: 'none', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            🔍 View Results
+                          </a>
+                        )}
                       </div>
                     ))}
                   </div>
