@@ -71,7 +71,7 @@ export default function TestExecutionPage() {
   const [entries,     setEntries]     = useState<Record<number, string>>({})
   const [evidence,    setEvidence]    = useState<Record<number, string>>({})
   const [results,     setResults]     = useState<ResultRow[]>([])
-  const [uploadFiles, setUploadFiles] = useState<Record<number, { file: File | null; desc: string; uploading: boolean; files: EvidenceFile[] }>>({})
+  const [uploadFiles, setUploadFiles] = useState<Record<number, { file: File | null; desc: string; uploading: boolean; files: EvidenceFile[]; open: boolean }>>({})
   const [hasOos,      setHasOos]      = useState(false)
   const [hasOot,      setHasOot]      = useState(false)
   const [showSignOff, setShowSignOff] = useState(false)
@@ -362,44 +362,58 @@ export default function TestExecutionPage() {
                     </span>
                   </div>
 
-                  {/* Evidence — file upload for all parameters */}
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px dashed ${p.isCritical ? '#fecaca' : '#e5e7eb'}` }}>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: p.isCritical ? '#991b1b' : '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>
-                      {p.isCritical ? '🔴 Evidence (mandatory)' : '📎 Attach Evidence (optional)'}
-                    </label>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <input
-                        type="file"
-                        accept="image/*,.pdf,.xlsx,.csv"
-                        onChange={e => setUploadFiles(prev => ({ ...prev, [p.parameterId]: { ...prev[p.parameterId], file: e.target.files?.[0] ?? null, desc: prev[p.parameterId]?.desc ?? '', uploading: false, files: prev[p.parameterId]?.files ?? [] } }))}
-                        style={{ fontSize: 12, flex: 1 }}
-                        required={p.isCritical && !(uploadFiles[p.parameterId]?.files?.length > 0) && !evidence[p.parameterId]}
-                      />
-                      <input
-                        style={{ ...inp, margin: 0, fontSize: 12, width: 160 }}
-                        placeholder="Description…"
-                        value={uploadFiles[p.parameterId]?.desc ?? ''}
-                        onChange={e => setUploadFiles(prev => ({ ...prev, [p.parameterId]: { ...prev[p.parameterId], desc: e.target.value } }))}
-                      />
-                      <button type="button"
-                        disabled={!uploadFiles[p.parameterId]?.file || uploadFiles[p.parameterId]?.uploading}
-                        onClick={() => {
-                          const resultEntry = results.find(r => r.parameterId === p.parameterId)
-                          if (resultEntry) uploadEvidence(resultEntry.entryId, p.parameterId)
-                        }}
-                        style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #0d9488', background: '#f0fdfa', color: '#0d9488', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                        {uploadFiles[p.parameterId]?.uploading ? 'Uploading…' : 'Upload'}
-                      </button>
-                    </div>
-                    {/* Uploaded files list */}
-                    {(uploadFiles[p.parameterId]?.files ?? []).map(f => (
-                      <div key={f.evidenceId} style={{ fontSize: 11, color: '#374151', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span>📎</span>
-                        <a href={`/uploads/${f.fileRef}`} target="_blank" rel="noreferrer" style={{ color: '#0d9488' }}>{f.fileRef.split('/').pop()}</a>
-                        {f.description && <span style={{ color: '#6b7280' }}>— {f.description}</span>}
-                        <span style={{ color: '#9ca3af' }}>{new Date(f.uploadedAt).toLocaleString()}</span>
+                  {/* Evidence — collapsed by default, expand on click */}
+                  <div style={{ marginTop: 8 }}>
+                    <button type="button"
+                      onClick={() => setUploadFiles(prev => ({
+                        ...prev,
+                        [p.parameterId]: { file: null, desc: '', uploading: false, files: prev[p.parameterId]?.files ?? [], open: !prev[p.parameterId]?.open }
+                      }))}
+                      style={{ fontSize: 11, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>{uploadFiles[p.parameterId]?.open ? '▾' : '▸'}</span>
+                      <span>📎 Attach Evidence</span>
+                      {(uploadFiles[p.parameterId]?.files?.length ?? 0) > 0 && (
+                        <span style={{ fontSize: 10, background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: 10, padding: '0 6px' }}>
+                          {uploadFiles[p.parameterId].files.length} file{uploadFiles[p.parameterId].files.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </button>
+
+                    {uploadFiles[p.parameterId]?.open && (
+                      <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #e5e7eb' }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <input
+                            type="file"
+                            accept="image/*,.pdf,.xlsx,.csv"
+                            onChange={e => setUploadFiles(prev => ({ ...prev, [p.parameterId]: { ...prev[p.parameterId], file: e.target.files?.[0] ?? null } }))}
+                            style={{ fontSize: 12, flex: 1 }}
+                          />
+                          <input
+                            style={{ ...inp, margin: 0, fontSize: 12, width: 160 }}
+                            placeholder="Description…"
+                            value={uploadFiles[p.parameterId]?.desc ?? ''}
+                            onChange={e => setUploadFiles(prev => ({ ...prev, [p.parameterId]: { ...prev[p.parameterId], desc: e.target.value } }))}
+                          />
+                          <button type="button"
+                            disabled={!uploadFiles[p.parameterId]?.file || uploadFiles[p.parameterId]?.uploading}
+                            onClick={() => {
+                              const resultEntry = results.find(r => r.parameterId === p.parameterId)
+                              if (resultEntry) uploadEvidence(resultEntry.entryId, p.parameterId)
+                            }}
+                            style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #0d9488', background: '#f0fdfa', color: '#0d9488', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                            {uploadFiles[p.parameterId]?.uploading ? 'Uploading…' : 'Upload'}
+                          </button>
+                        </div>
+                        {(uploadFiles[p.parameterId]?.files ?? []).map(f => (
+                          <div key={f.evidenceId} style={{ fontSize: 11, color: '#374151', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>📎</span>
+                            <a href={`/uploads/${f.fileRef}`} target="_blank" rel="noreferrer" style={{ color: '#0d9488' }}>{f.fileRef.split('/').pop()}</a>
+                            {f.description && <span style={{ color: '#6b7280' }}>— {f.description}</span>}
+                            <span style={{ color: '#9ca3af' }}>{new Date(f.uploadedAt).toLocaleString()}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               )
