@@ -61,6 +61,27 @@ public class CheckpointsController : LimsControllerBase
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { checkpointId = result.Value });
     }
 
+    // GET api/v1/checkpoints/{id}/linked-samples -- samples registered with this checkpoint
+    [HttpGet("{id}/linked-samples")]
+    public async Task<IActionResult> GetLinkedSamples(int id, CancellationToken ct)
+    {
+        var samples = await _db.SampleCheckpoints
+            .Where(sc => sc.CheckpointId == id)
+            .Include(sc => sc.Sample).ThenInclude(s => s.Material)
+            .Select(sc => new {
+                sc.Sample.SampleId,
+                sc.Sample.SampleNumber,
+                MaterialName = sc.Sample.Material != null ? sc.Sample.Material.MaterialName : "—",
+                sc.Sample.LotNumber,
+                Status = sc.Sample.Status.ToString(),
+                sc.Sample.CreatedAt,
+            })
+            .OrderByDescending(s => s.CreatedAt)
+            .Take(50)
+            .ToListAsync(ct);
+        return Ok(samples);
+    }
+
     // POST api/v1/checkpoints/{id}/trigger -- Mode 2: operator scan (FR-03), also Mode 4 manual DO entry
     [HttpPost("{id}/trigger")]
     [Authorize(Roles = "Admin,QA,Analyst")]

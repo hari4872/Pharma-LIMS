@@ -163,35 +163,32 @@ export default function CheckpointExecutionPage() {
   }
   useEffect(() => { load() }, [filterMode])
 
-  // ── OperatorScan: ask for sample number before triggering ─────────────
-  const [scanModal,     setScanModal]     = useState<Checkpoint | null>(null)
-  const [scanSampleNum, setScanSampleNum] = useState('')
-  const [scanLookup,    setScanLookup]    = useState<{ sampleId: number; sampleNumber: string } | null>(null)
-  const [scanLooking,   setScanLooking]   = useState(false)
+  // ── OperatorScan: load linked samples then trigger ─────────────────────
+  const [scanModal,       setScanModal]       = useState<Checkpoint | null>(null)
+  const [linkedSamples,   setLinkedSamples]   = useState<{ sampleId: number; sampleNumber: string; materialName: string; lotNumber: string; status: string }[]>([])
+  const [scanSampleId,    setScanSampleId]    = useState<number | null>(null)
+  const [scanLoading,     setScanLoading]     = useState(false)
 
-  async function lookupSample(num: string) {
-    if (!num.trim()) { setScanLookup(null); return }
-    setScanLooking(true)
+  async function openScanModal(cp: Checkpoint) {
+    setScanModal(cp); setScanSampleId(null); setLinkedSamples([]); setScanLoading(true)
     try {
-      const r = await api.get(`/samples?sampleNumber=${encodeURIComponent(num.trim())}`)
-      const found = r.data?.find((s: any) => s.sampleNumber === num.trim())
-      setScanLookup(found ? { sampleId: found.sampleId, sampleNumber: found.sampleNumber } : null)
-    } catch { setScanLookup(null) }
-    finally { setScanLooking(false) }
+      const r = await api.get(`/checkpoints/${cp.checkpointId}/linked-samples`)
+      setLinkedSamples(r.data)
+    } catch { setLinkedSamples([]) }
+    finally { setScanLoading(false) }
   }
 
   async function confirmScanTrigger() {
     if (!scanModal) return
-    triggerCheckpoint(scanModal.checkpointId, scanLookup?.sampleId)
-    setScanModal(null); setScanSampleNum(''); setScanLookup(null)
+    triggerCheckpoint(scanModal.checkpointId, scanSampleId ?? undefined)
+    setScanModal(null); setScanSampleId(null); setLinkedSamples([])
     load()
   }
 
   // ── Trigger (Mode 2 / Mode 4) ──────────────────────────────────────────
   async function handleTrigger(cp: Checkpoint) {
     if (cp.triggerMode === 'OperatorScan') {
-      // Show sample lookup modal for traceability
-      setScanModal(cp); setScanSampleNum(''); setScanLookup(null)
+      openScanModal(cp)
     } else {
       triggerCheckpoint(cp.checkpointId)
       toast(`✅ "${cp.checkpointCode}" triggered successfully`, 'success')
@@ -545,52 +542,62 @@ export default function CheckpointExecutionPage() {
         </Modal>
       )}
 
-      {/* ── OperatorScan: Sample Lookup Modal ───────────────────────────── */}
+      {/* ── OperatorScan: Linked Samples Modal ──────────────────────────── */}
       {scanModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 420, padding: '24px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+          <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 460, padding: '24px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
             <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#111827' }}>
               📷 Operator Scan — {scanModal.checkpointCode}
             </h3>
             <p style={{ margin: '0 0 18px', fontSize: 13, color: '#6b7280' }}>
-              Enter the sample number this scan is for (required for full traceability).
+              Select the sample this scan is for. Only samples registered with this checkpoint are shown.
             </p>
 
-            <label style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 6 }}>
-              Sample Number
-            </label>
-            <input
-              style={{ width: '100%', padding: '9px 12px', fontSize: 14, border: '1.5px solid #d1d5db', borderRadius: 8, fontFamily: 'monospace', fontWeight: 600, boxSizing: 'border-box' as const }}
-              placeholder="e.g. APC-HI-001-001"
-              value={scanSampleNum}
-              onChange={e => { setScanSampleNum(e.target.value); lookupSample(e.target.value) }}
-              autoFocus
-            />
+            {scanLoading && <div style={{ textAlign: 'center', padding: 20, color: '#9ca3af', fontSize: 13 }}>Loading linked samples…</div>}
 
-            {/* Lookup result */}
-            <div style={{ marginTop: 10, minHeight: 28 }}>
-              {scanLooking && <span style={{ fontSize: 12, color: '#6b7280' }}>Looking up…</span>}
-              {!scanLooking && scanSampleNum && scanLookup && (
-                <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  ✅ Found: {scanLookup.sampleNumber}
-                  <span style={{ color: '#0d9488', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: 4, padding: '1px 6px', fontSize: 11 }}>ID {scanLookup.sampleId}</span>
-                </div>
-              )}
-              {!scanLooking && scanSampleNum && !scanLookup && (
-                <div style={{ fontSize: 12, color: '#9ca3af' }}>⚠ Sample not found — checkpoint will still be triggered without sample link</div>
-              )}
-              {!scanSampleNum && (
-                <div style={{ fontSize: 12, color: '#9ca3af' }}>Leave blank to trigger without sample link</div>
-              )}
-            </div>
+            {!scanLoading && linkedSamples.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af', fontSize: 13 }}>
+                No samples are linked to this checkpoint yet.<br />
+                <span style={{ fontSize: 12 }}>Link samples by selecting this checkpoint during Sample Registration.</span>
+              </div>
+            )}
+
+            {!scanLoading && linkedSamples.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto' }}>
+                {linkedSamples.map(s => (
+                  <label key={s.sampleId} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                    border: `2px solid ${scanSampleId === s.sampleId ? '#0d9488' : '#e5e7eb'}`,
+                    background: scanSampleId === s.sampleId ? '#f0fdfa' : '#fafafa',
+                    transition: 'all 0.1s',
+                  }}>
+                    <input type="radio" name="scanSample" value={s.sampleId}
+                      checked={scanSampleId === s.sampleId}
+                      onChange={() => setScanSampleId(s.sampleId)}
+                      style={{ accentColor: '#0d9488' }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: '#0f172a' }}>{s.sampleNumber}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>{s.materialName} · Lot: {s.lotNumber}</div>
+                    </div>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                      background: s.status === 'InTesting' ? '#fde8d8' : s.status === 'Released' ? '#d1fae5' : '#f1f5f9',
+                      color: s.status === 'InTesting' ? '#9a3412' : s.status === 'Released' ? '#065f46' : '#475569',
+                    }}>{s.status}</span>
+                  </label>
+                ))}
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
               <button onClick={() => setScanModal(null)}
                 style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
                 Cancel
               </button>
-              <button onClick={confirmScanTrigger}
-                style={{ padding: '8px 20px', borderRadius: 7, border: 'none', background: '#0d9488', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <button onClick={confirmScanTrigger} disabled={!scanSampleId && linkedSamples.length > 0}
+                style={{ padding: '8px 20px', borderRadius: 7, border: 'none', fontWeight: 700, cursor: !scanSampleId && linkedSamples.length > 0 ? 'default' : 'pointer',
+                  background: !scanSampleId && linkedSamples.length > 0 ? '#99f6e4' : '#0d9488', color: '#fff', fontFamily: 'inherit' }}>
                 ✅ Confirm Scan
               </button>
             </div>
