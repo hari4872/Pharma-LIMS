@@ -960,7 +960,7 @@ export default function SampleRegistrationPage() {
               placeholder="e.g. Confirmatory test requested by QA — borderline Assay result"
               style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 8, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' as const }}
             />
-            <ModalFooter>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
               <button type="button" onClick={() => setShowAddTest(null)}
                 style={{ padding: '8px 18px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
                 Cancel
@@ -969,7 +969,7 @@ export default function SampleRegistrationPage() {
                 style={{ padding: '8px 18px', borderRadius: 7, border: 'none', background: adHocSaving ? '#ddd6fe' : '#7c3aed', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {adHocSaving ? 'Adding…' : 'Add Test'}
               </button>
-            </ModalFooter>
+            </div>
           </form>
         </Modal>
       )}
@@ -992,7 +992,7 @@ export default function SampleRegistrationPage() {
               placeholder="e.g. OOS result on first test — retesting per SOP-LAB-012"
               style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 8, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
             />
-            <ModalFooter>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
               <button type="button" onClick={() => setShowRetest(null)}
                 style={{ padding: '8px 18px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
                 Cancel
@@ -1001,7 +1001,7 @@ export default function SampleRegistrationPage() {
                 style={{ padding: '8px 18px', borderRadius: 7, border: 'none', background: retestSaving ? '#fed7aa' : '#c2410c', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {retestSaving ? 'Registering…' : 'Register Retest'}
               </button>
-            </ModalFooter>
+            </div>
           </form>
         </Modal>
       )}

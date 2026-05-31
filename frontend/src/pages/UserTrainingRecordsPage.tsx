@@ -85,7 +85,7 @@ export default function UserTrainingRecordsPage() {
 
       <DataTable loading={loading} data={data} columns={[
         { header: 'ID',            accessor: 'trainingId' },
-        { header: 'Analyst',       accessor: 'userFullName' },
+        { header: 'Analyst',       accessor: 'userName' },
         { header: 'Method Code',   accessor: 'methodCode' },
         { header: 'Method Name',   accessor: 'methodName' },
         { header: 'Training Date', accessor: r => new Date(r.trainingDate).toLocaleDateString() },
