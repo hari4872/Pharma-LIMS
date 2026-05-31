@@ -1,7 +1,9 @@
 ﻿using LIMS.Application.Features.DigitalLogbook;
+using LIMS.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace LIMS.API.Controllers;
@@ -12,7 +14,8 @@ namespace LIMS.API.Controllers;
 public class DigitalLogbookController : LimsControllerBase
 {
     private readonly IMediator _mediator;
-    public DigitalLogbookController(IMediator mediator) => _mediator = mediator;
+    private readonly ILimsDbContext _db;
+    public DigitalLogbookController(IMediator mediator, ILimsDbContext db) { _mediator = mediator; _db = db; }
 
     // GET api/v1/digital-logbook?sampleId=1&executionId=2&labId=3&status=Signed&dateFrom=...&dateTo=...
     [HttpGet]
@@ -66,6 +69,40 @@ public class DigitalLogbookController : LimsControllerBase
         var bytes = System.Text.Encoding.UTF8.GetBytes(lines.ToString());
         var fileName = $"DigitalLogbook_{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}.csv";
         return File(bytes, "text/csv", fileName);
+    }
+
+    // POST api/v1/digital-logbook/entries/{id}/evidence
+    [HttpPost("entries/{id}/evidence")]
+    [Authorize(Roles = "Admin,Analyst,QA")]
+    public async Task<IActionResult> UploadEvidence(int id, IFormFile file, [FromForm] int sampleId, [FromForm] string? description, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0) return BadRequest(new { error = "NO_FILE", message = "No file provided." });
+        if (file.Length > 20 * 1024 * 1024) return BadRequest(new { error = "FILE_TOO_LARGE", message = "Max file size is 20 MB." });
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+
+        var result = await _mediator.Send(new UploadEvidenceCommand(
+            id, sampleId, file.FileName, ms.ToArray(), file.ContentType, description, userId), ct);
+
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { evidenceId = result.Value });
+    }
+
+    // GET api/v1/digital-logbook/entries/{id}/evidence
+    [HttpGet("entries/{id}/evidence")]
+    public async Task<IActionResult> GetEvidence(int id, CancellationToken ct)
+    {
+        var list = await _db.ResultEvidences
+            .Where(e => e.EntryId == id)
+            .Include(e => e.UploadedBy)
+            .OrderBy(e => e.UploadedAt)
+            .Select(e => new EvidenceDto(
+                e.EvidenceId, e.FileRef, e.Description,
+                e.UploadedBy.FullName, e.UploadedAt))
+            .ToListAsync(ct);
+        return Ok(list);
     }
 }
 

@@ -31,14 +31,16 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
     private readonly IParameterCalculationService _calc;
     private readonly IOosDetectionService _oos;
     private readonly IAutoCorrectionService _correction;
+    private readonly ICalcFormulaService _rounding;
 
     public SubmitTestResultsHandler(
         ILimsDbContext db,
         IParameterCalculationService calc,
         IOosDetectionService oos,
-        IAutoCorrectionService correction)
+        IAutoCorrectionService correction,
+        ICalcFormulaService rounding)
     {
-        _db = db; _calc = calc; _oos = oos; _correction = correction;
+        _db = db; _calc = calc; _oos = oos; _correction = correction; _rounding = rounding;
     }
 
     public async Task<Result<SubmitTestResultsResponse>> Handle(SubmitTestResultsCommand cmd, CancellationToken ct)
@@ -94,6 +96,10 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
             var calculated = numericRaw.HasValue
                 ? _calc.Calculate(numericRaw.Value.ToString(), param.CalcFormula, param.FormulaType.ToString())
                 : null;
+
+            // Rounding applied after formula (ICH Q2(R1) — MidpointRounding.AwayFromZero)
+            if (calculated.HasValue)
+                calculated = _rounding.ApplyRounding(calculated.Value, param.DecimalPlaces);
 
             // OOS / OOT detection — single service for both (Contract 1)
             var detection = _oos.Detect(
