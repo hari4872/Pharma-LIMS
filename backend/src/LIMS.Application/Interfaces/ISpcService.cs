@@ -29,3 +29,33 @@ public record SpcDataPoint(
     double Value,
     bool IsOos,
     bool IsOot);
+
+// ── Levey-Jennings QC Chart ──────────────────────────────────────────────────
+public interface IQcChartService
+{
+    Task<QcChartResult> GetChartAsync(int parameterId, int? labId, int? points, CancellationToken ct = default);
+}
+
+public record QcChartResult(
+    int ParameterId,
+    string ParameterName,
+    string? Unit,
+    QcLotSeries[] Lots);
+
+public record QcLotSeries(
+    string LotNumber,
+    int N,
+    double Mean,
+    double Sigma,       // 1σ
+    double Usl2,        // +2σ
+    double Lsl2,        // -2σ
+    double Usl3,        // +3σ (control limit)
+    double Lsl3,        // -3σ
+    string[] Violations,
+    QcPoint[] Points);
+
+public record QcPoint(
+    string SampleNumber,
+    DateTimeOffset MeasuredAt,
+    double Value,
+    int SigmaZone);     // 0=within1σ, 1=1-2σ, 2=2-3σ, 3=beyond3σ
