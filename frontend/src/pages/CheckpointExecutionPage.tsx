@@ -590,16 +590,25 @@ export default function CheckpointExecutionPage() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
-              <button onClick={() => setScanModal(null)}
-                style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
-                Cancel
-              </button>
-              <button onClick={confirmScanTrigger} disabled={!scanSampleId && linkedSamples.length > 0}
-                style={{ padding: '8px 20px', borderRadius: 7, border: 'none', fontWeight: 700, cursor: !scanSampleId && linkedSamples.length > 0 ? 'default' : 'pointer',
-                  background: !scanSampleId && linkedSamples.length > 0 ? '#99f6e4' : '#0d9488', color: '#fff', fontFamily: 'inherit' }}>
-                ✅ Confirm Scan
-              </button>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'space-between', alignItems: 'center' }}>
+              {/* Always allow scan without sample link */}
+              {linkedSamples.length > 0 && (
+                <button onClick={() => { setScanSampleId(null); confirmScanTrigger() }}
+                  style={{ padding: '8px 14px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: '#6b7280' }}>
+                  Scan without sample link
+                </button>
+              )}
+              <div style={{ display: 'flex', gap: 10, marginLeft: 'auto' }}>
+                <button onClick={() => setScanModal(null)}
+                  style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Cancel
+                </button>
+                <button onClick={confirmScanTrigger}
+                  style={{ padding: '8px 20px', borderRadius: 7, border: 'none', fontWeight: 700, cursor: 'pointer',
+                    background: '#0d9488', color: '#fff', fontFamily: 'inherit' }}>
+                  ✅ {scanSampleId ? 'Confirm Scan' : linkedSamples.length === 0 ? 'Confirm Scan' : 'Confirm without selection'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
