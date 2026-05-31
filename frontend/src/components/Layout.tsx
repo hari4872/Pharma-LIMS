@@ -59,6 +59,11 @@ const labOpsItems: NavItem[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8"/></svg>,
   },
   {
+    label: 'Batch Entry', path: '/batch-entry',
+    iconBg: '#e0f2fe', iconColor: '#0284c7',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 10h18M3 14h18M10 3v18M6 3h12a1 1 0 011 1v16a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+  },
+  {
     label: 'Digital Logbook', path: '/digital-logbook',
     iconBg: '#fef3c7', iconColor: '#d97706',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
@@ -131,6 +136,7 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/checkpoints':                      { section: 'Operations', label: 'Checkpoints' },
   '/checkpoint-tasks':                 { section: 'Operations', label: 'Checkpoint Execution' },
   '/work-queue':                       { section: 'Operations', label: 'Work Queue' },
+  '/batch-entry':                      { section: 'Operations', label: 'Batch Result Entry' },
   '/oos-investigations':               { section: 'Operations', label: 'OOS Investigations' },
   '/quality-events':                   { section: 'Operations', label: 'CAPA / Quality Events' },
   '/spc':                              { section: 'Operations', label: 'SPC / Trending' },

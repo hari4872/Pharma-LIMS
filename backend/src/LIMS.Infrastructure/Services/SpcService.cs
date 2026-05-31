@@ -115,6 +115,77 @@ public class SpcService : ISpcService
             }
         }
 
+        double sigma1 = stddev, sigma2 = 2 * stddev;
+
+        // Rule 4: 14 consecutive points alternating up/down
+        if (values.Length >= 14)
+        {
+            for (int i = 0; i <= values.Length - 14; i++)
+            {
+                var seg = values.Skip(i).Take(14).ToArray();
+                bool alternating = true;
+                for (int j = 1; j < seg.Length; j++)
+                {
+                    bool shouldBeUp = (j % 2 == 1);
+                    if (shouldBeUp && seg[j] <= seg[j - 1]) { alternating = false; break; }
+                    if (!shouldBeUp && seg[j] >= seg[j - 1]) { alternating = false; break; }
+                }
+                if (alternating) { rules.Add("Rule 4: 14+ consecutive points alternating up/down"); break; }
+            }
+        }
+
+        // Rule 5: 2 of 3 consecutive points beyond ±2σ on same side
+        if (values.Length >= 3)
+        {
+            for (int i = 0; i <= values.Length - 3; i++)
+            {
+                var seg = values.Skip(i).Take(3).ToArray();
+                int above2 = seg.Count(v => v > mean + sigma2);
+                int below2 = seg.Count(v => v < mean - sigma2);
+                if (above2 >= 2 || below2 >= 2) { rules.Add("Rule 5: 2 of 3 consecutive points beyond ±2σ"); break; }
+            }
+        }
+
+        // Rule 6: 4 of 5 consecutive points beyond ±1σ on same side
+        if (values.Length >= 5)
+        {
+            for (int i = 0; i <= values.Length - 5; i++)
+            {
+                var seg = values.Skip(i).Take(5).ToArray();
+                int above1 = seg.Count(v => v > mean + sigma1);
+                int below1 = seg.Count(v => v < mean - sigma1);
+                if (above1 >= 4 || below1 >= 4) { rules.Add("Rule 6: 4 of 5 consecutive points beyond ±1σ on same side"); break; }
+            }
+        }
+
+        // Rule 7: 15 consecutive points within ±1σ (process too controlled / stratification)
+        if (values.Length >= 15)
+        {
+            for (int i = 0; i <= values.Length - 15; i++)
+            {
+                var seg = values.Skip(i).Take(15).ToArray();
+                if (seg.All(v => Math.Abs(v - mean) < sigma1))
+                {
+                    rules.Add("Rule 7: 15+ consecutive points within ±1σ (possible stratification)");
+                    break;
+                }
+            }
+        }
+
+        // Rule 8: 8 consecutive points on both sides of mean but none within ±1σ
+        if (values.Length >= 8)
+        {
+            for (int i = 0; i <= values.Length - 8; i++)
+            {
+                var seg = values.Skip(i).Take(8).ToArray();
+                if (seg.All(v => Math.Abs(v - mean) > sigma1))
+                {
+                    rules.Add("Rule 8: 8+ consecutive points outside ±1σ on both sides (mixture)");
+                    break;
+                }
+            }
+        }
+
         // Build point series
         var orderedEntries = entries.OrderBy(e => e.CreatedAt).ToList();
         var dataPoints = orderedEntries.Select(e => new SpcDataPoint(
