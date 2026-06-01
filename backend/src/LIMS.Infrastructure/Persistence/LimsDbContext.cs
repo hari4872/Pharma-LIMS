@@ -30,6 +30,7 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<UserTrainingRecord> UserTrainingRecords => Set<UserTrainingRecord>();
     public DbSet<MasterDataAuditLog> MasterDataAuditLogs => Set<MasterDataAuditLog>();
     public DbSet<SampleType> SampleTypes => Set<SampleType>();
+    public DbSet<SampleTypeCheckpoint> SampleTypeCheckpoints => Set<SampleTypeCheckpoint>();
     public DbSet<ReagentStandard> ReagentStandards => Set<ReagentStandard>();
     // Phase 2
     public DbSet<Sample> Samples => Set<Sample>();

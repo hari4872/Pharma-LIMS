@@ -305,7 +305,13 @@ export default function SampleRegistrationPage() {
     return () => clearTimeout(t)
   }, [materialId, sampleTypeId])
 
-
+  // ── Auto-select default checkpoints when sample type changes ────────────────
+  useEffect(() => {
+    if (!sampleTypeId) { setSelectedCps([]); return }
+    api.get(`/sample-types/${sampleTypeId}/checkpoints`)
+      .then(r => { if (r.data.length > 0) setSelectedCps(r.data) })
+      .catch(() => {})
+  }, [sampleTypeId])
 
   // ── Reset form ──────────────────────────────────────────────────────────────
   function resetForm() {

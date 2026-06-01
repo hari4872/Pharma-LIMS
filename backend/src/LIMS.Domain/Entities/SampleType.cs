@@ -14,4 +14,17 @@ public class SampleType
     public bool IsActive { get; set; } = true;
     public string CreatedBy { get; set; } = default!;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    // Default checkpoints auto-selected when this sample type is chosen at registration
+    public ICollection<SampleTypeCheckpoint> DefaultCheckpoints { get; set; } = [];
+}
+
+// Maps which checkpoints are auto-selected by default for a given sample type
+public class SampleTypeCheckpoint
+{
+    public int SampleTypeCheckpointId { get; set; }
+    public int SampleTypeId { get; set; }
+    public SampleType SampleType { get; set; } = default!;
+    public int CheckpointId { get; set; }
+    public Checkpoint Checkpoint { get; set; } = default!;
 }
