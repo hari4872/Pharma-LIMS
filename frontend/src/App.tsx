@@ -46,6 +46,8 @@ import QualityEventsPage from '@/pages/QualityEventsPage'
 import SpcPage from '@/pages/SpcPage'
 // Sprint 3 — Batch Result Entry
 import BatchResultEntryPage from '@/pages/BatchResultEntryPage'
+// Sprint 5/6 — Batch Sample Registration
+import BatchSampleRegistrationPage from '@/pages/BatchSampleRegistrationPage'
 // Sprint 7 — Batch Release
 import BatchReleasePage from '@/pages/BatchReleasePage'
 // Sprint 9 — Reports
@@ -111,6 +113,7 @@ export default function App() {
         <Route path="quality-events"    element={<QualityEventsPage />} />
         <Route path="spc"               element={<SpcPage />} />
         <Route path="batch-entry"       element={<BatchResultEntryPage />} />
+        <Route path="batch-register"    element={<BatchSampleRegistrationPage />} />
         <Route path="batch-release"     element={<BatchReleasePage />} />
         <Route path="reports"             element={<ReportsPage />} />
         <Route path="stability-study"      element={<StabilityStudyPage />} />

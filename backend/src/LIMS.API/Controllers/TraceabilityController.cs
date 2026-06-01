@@ -147,6 +147,47 @@ public class TraceabilityController : LimsControllerBase
     }
 
     // PUT api/v1/traceability/complaints-deviations/{id}/close
+    // GET api/v1/traceability/samples/{id}/environment-log
+    // Returns ProcessLog readings whose SlotTime falls within the sample's test execution window
+    [HttpGet("samples/{id:int}/environment-log")]
+    public async Task<IActionResult> GetEnvironmentLog(int id, CancellationToken ct)
+    {
+        // Find test window: earliest start to latest completion across all executions for this sample
+        var executions = await _db.TestExecutions
+            .Where(e => e.SampleId == id && e.StartedAt.HasValue)
+            .ToListAsync(ct);
+
+        if (!executions.Any())
+            return Ok(new { sampleId = id, windowStart = (DateTimeOffset?)null, windowEnd = (DateTimeOffset?)null, rows = Array.Empty<object>() });
+
+        var windowStart = executions.Min(e => e.StartedAt!.Value).AddHours(-1); // 1hr buffer before
+        var windowEnd   = executions.Max(e => e.CompletedAt ?? DateTimeOffset.UtcNow).AddHours(1); // 1hr buffer after
+
+        var rows = await _db.ProcessLogRows
+            .Where(r => r.SlotTime >= windowStart && r.SlotTime <= windowEnd && r.Status == "Locked")
+            .Include(r => r.Checkpoint)
+            .Include(r => r.Readings).ThenInclude(rd => rd.Parameter)
+            .OrderBy(r => r.SlotTime)
+            .Select(r => new {
+                r.RowId,
+                r.SlotLabel,
+                r.SlotTime,
+                r.Status,
+                CheckpointCode = r.Checkpoint.CheckpointCode,
+                TriggerMode    = r.Checkpoint.TriggerMode.ToString(),
+                Readings = r.Readings.Select(rd => new {
+                    rd.ParameterId,
+                    rd.Parameter.ParameterName,
+                    Uom   = rd.Parameter.Uom,
+                    rd.Value,
+                    rd.RecordedBy,
+                }).ToList(),
+            })
+            .ToListAsync(ct);
+
+        return Ok(new { sampleId = id, windowStart, windowEnd, rows });
+    }
+
     [HttpPut("complaints-deviations/{id:int}/close")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> CloseComplaintsDeviation(int id)

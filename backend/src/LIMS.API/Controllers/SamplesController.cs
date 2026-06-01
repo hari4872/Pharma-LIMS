@@ -153,6 +153,41 @@ public class SamplesController : LimsControllerBase
         });
     }
 
+    // POST api/v1/samples/batch-register - register multiple samples at once
+    [HttpPost("batch-register")]
+    [Authorize(Roles = "Admin,Analyst,QA")]
+    public async Task<IActionResult> BatchRegister([FromBody] BatchRegisterRequest request)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
+        var entries = request.Entries.Select(e => new BatchSampleEntry(
+            e.MaterialId, e.LotNumber, e.MfgDate, e.ExpDate, e.SampleTypeId,
+            e.ReceivedTemp, e.SampleCondition, e.IsRush, e.ExternalBatchId)).ToList();
+        var result = await _mediator.Send(new BatchRegisterSamplesCommand(request.LabId, userId, username, entries));
+        if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(result.Value);
+    }
+
+    // GET api/v1/samples/{id}/tested-parameters -- parameters tested on original sample with pass/fail
+    [HttpGet("{id}/tested-parameters")]
+    public async Task<IActionResult> GetTestedParameters(int id, CancellationToken ct)
+    {
+        var entries = await _db.DigitalLogbookEntries
+            .Where(e => e.SampleId == id)
+            .Include(e => e.Parameter)
+            .GroupBy(e => e.ParameterId)
+            .Select(g => new {
+                parameterId   = g.Key,
+                parameterName = g.First().Parameter != null ? g.First().Parameter.ParameterName : "Unknown",
+                uom           = g.First().Parameter != null ? g.First().Parameter.Uom : "",
+                isOos         = g.Any(e => e.IsOos),
+                isOot         = g.Any(e => e.IsOot),
+                lastValue     = g.OrderByDescending(e => e.CreatedAt).First().RawValue,
+            })
+            .ToListAsync(ct);
+        return Ok(entries);
+    }
+
     // POST api/v1/samples/{id}/duplicate
     [HttpPost("{id}/duplicate")]
     [Authorize(Roles = "Admin,Analyst,QA")]
@@ -171,7 +206,7 @@ public class SamplesController : LimsControllerBase
     public async Task<IActionResult> Retest(int id, [FromBody] RetestRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
-        var result = await _mediator.Send(new RetestSampleCommand(id, request.RetestReason, username));
+        var result = await _mediator.Send(new RetestSampleCommand(id, request.RetestReason, username, request.ParameterIds));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         var v = result.Value!;
         return Ok(new { v.SampleId, v.SampleNumber, v.SpecOutcome, v.SpecMessage });
@@ -206,5 +241,9 @@ public record RegisterSampleRequest(
     List<int>? CheckpointIds        = null);
 public record ReprintBarcodeRequest(string Reason);
 public record ApplySpecRequest(int SpecTemplateId);
-public record RetestRequest(string RetestReason);
+public record RetestRequest(string RetestReason, List<int>? ParameterIds = null);
+public record BatchRegisterEntryRequest(
+    int MaterialId, string LotNumber, DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId,
+    decimal? ReceivedTemp = null, string? SampleCondition = null, bool IsRush = false, string? ExternalBatchId = null);
+public record BatchRegisterRequest(int LabId, List<BatchRegisterEntryRequest> Entries);
 

@@ -8,7 +8,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.Application.Features.Samples;
 
-public record RetestSampleCommand(int OriginalSampleId, string RetestReason, string CreatedBy) : IRequest<Result<RegisterSampleResult>>;
+public record RetestSampleCommand(
+    int OriginalSampleId,
+    string RetestReason,
+    string CreatedBy,
+    List<int>? ParameterIds = null   // null = retest all; list = selective parameters only
+) : IRequest<Result<RegisterSampleResult>>;
 
 public class RetestSampleValidator : AbstractValidator<RetestSampleCommand>
 {
@@ -82,16 +87,47 @@ public class RetestSampleCommandHandler : IRequestHandler<RetestSampleCommand, R
 
         await _db.SaveChangesAsync(ct);
 
+        // Selective retest: create TestExecution rows for specified parameters only
+        // Full retest: leave to spec engine via SRF sign (standard flow)
+        int testsCreated = 0;
+        if (request.ParameterIds is { Count: > 0 })
+        {
+            foreach (var paramId in request.ParameterIds.Distinct())
+            {
+                var param = await _db.TestMethodParameters
+                    .FirstOrDefaultAsync(p => p.ParameterId == paramId, ct);
+                if (param is null) continue;
+
+                _db.TestExecutions.Add(new TestExecution
+                {
+                    SampleId    = retest.SampleId,
+                    ParameterId = paramId,
+                    IsAdHoc     = true,
+                    AdHocReason = $"Selective retest of {src.SampleNumber}: {request.RetestReason}",
+                    Status      = TestExecutionStatus.Assigned,
+                    CreatedBy   = request.CreatedBy,
+                    CreatedAt   = now,
+                });
+                testsCreated++;
+            }
+            await _db.SaveChangesAsync(ct);
+        }
+
         await _audit.LogAsync("Sample", retest.SampleId, "Retest",
             null,
-            new { retest.SampleNumber, OriginalSampleId = request.OriginalSampleId, OriginalSampleNumber = src.SampleNumber, request.RetestReason },
+            new { retest.SampleNumber, OriginalSampleId = request.OriginalSampleId, OriginalSampleNumber = src.SampleNumber, request.RetestReason, SelectiveParameters = request.ParameterIds },
             request.CreatedBy);
 
         await _notifications.PushToGroupAsync("LabManager", "RetestRegistered",
-            new { retest.SampleId, retest.SampleNumber, OriginalSampleNumber = src.SampleNumber, request.RetestReason }, ct);
+            new { retest.SampleId, retest.SampleNumber, OriginalSampleNumber = src.SampleNumber, request.RetestReason, testsCreated }, ct);
+
+        var message = request.ParameterIds is { Count: > 0 }
+            ? $"Selective retest of {src.SampleNumber} — {testsCreated} parameter(s): {request.RetestReason}"
+            : $"Full retest of {src.SampleNumber}: {request.RetestReason}";
 
         return Result<RegisterSampleResult>.Success(new RegisterSampleResult(
             retest.SampleId, retest.SampleNumber,
-            "PendingSignature", $"Retest of {src.SampleNumber}: {request.RetestReason}", 0));
+            request.ParameterIds is { Count: > 0 } ? "Assigned" : "PendingSignature",
+            message, testsCreated));
     }
 }
