@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { getErrorMessage, asApiError } from '@/utils/errors'
 import Barcode from 'react-barcode'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
@@ -7,6 +8,7 @@ import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
+import BatchSampleRegistrationPage from './BatchSampleRegistrationPage'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Sample {
@@ -93,8 +95,21 @@ const label: React.CSSProperties = {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
+const TAB_STYLE = (active: boolean): React.CSSProperties => ({
+  display: 'flex', alignItems: 'center', gap: 6,
+  padding: '10px 18px', border: 'none',
+  borderBottom: active ? '2px solid #0d9488' : '2px solid transparent',
+  background: 'transparent',
+  color: active ? '#0d9488' : '#6b7280',
+  fontWeight: active ? 700 : 500,
+  fontSize: 13, cursor: 'pointer',
+  fontFamily: 'inherit', marginBottom: -2,
+  transition: 'all 0.15s',
+})
+
 export default function SampleRegistrationPage() {
   const { fullName, labId } = useSelector((s: RootState) => s.auth)
+  const [tab, setTab] = useState<'single' | 'batch'>('single')
 
   const [data, setData]               = useState<Sample[]>([])
   const [materials, setMaterials]     = useState<Material[]>([])
@@ -174,7 +189,7 @@ export default function SampleRegistrationPage() {
       toast(`${r.data.count} containers created`, 'success')
       setSplitForm({ count: '3', containerType: 'Aliquot', volumePerContainer: '', volumeUom: '' })
       loadContainers(containerSample!.sampleId)
-    } catch (err: any) { toast(err.friendlyMessage ?? err.response?.data?.message ?? 'Split failed', 'error') }
+    } catch (err) { toast(getErrorMessage(err, 'Split failed'), 'error') }
     finally { setSplitSaving(false) }
   }
 
@@ -185,9 +200,10 @@ export default function SampleRegistrationPage() {
       toast('Container destroyed', 'success')
       setDestroyingId(null); setDestroyForm({ password: '', reason: '' })
       loadContainers(containerSample!.sampleId)
-    } catch (err: any) {
-      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Destroy failed'
-      if (err.response?.data?.error === 'ESIGN_AUTH_FAILED') setDestroyError('Password incorrect (21 CFR Part 11)')
+    } catch (err) {
+      const e = asApiError(err)
+      const msg = getErrorMessage(err, 'Destroy failed')
+      if (e.response?.data?.error === 'ESIGN_AUTH_FAILED') setDestroyError('Password incorrect (21 CFR Part 11)')
       else setDestroyError(msg)
     }
   }
@@ -219,7 +235,7 @@ export default function SampleRegistrationPage() {
       const r = await api.get(`/samples/${sampleId}/spec-assignment`)
       setSpecAssignData(r.data)
       if (r.data.candidates?.length === 1) setSelectedNewSpecId(r.data.candidates[0].templateId)
-    } catch (err: any) { setAssignError(err.friendlyMessage ?? err.response?.data?.message ?? err.response?.data?.error ?? 'Failed to load spec candidates') }
+    } catch (err) { setAssignError(getErrorMessage(err, 'Failed to load spec candidates')) }
     finally { setSpecAssignLoading(false) }
   }
 
@@ -231,7 +247,7 @@ export default function SampleRegistrationPage() {
       const r = await api.post(`/samples/${showAssignSpec}/apply-spec`, { specTemplateId: selectedNewSpecId })
       toast(`✓ Spec assigned — ${r.data.testsCreated} test(s) created`, 'success')
       setShowAssignSpec(null); load()
-    } catch (err: any) { setAssignError(err.friendlyMessage ?? err.response?.data?.message ?? 'Assignment failed') }
+    } catch (err) { setAssignError(getErrorMessage(err, 'Assignment failed')) }
     finally { setAssignSaving(false) }
   }
 
@@ -258,7 +274,8 @@ export default function SampleRegistrationPage() {
   // parameters (HPLC, pH, Dissolution, Conductivity) to appear across all pages.
   // Checkpoint section starts expanded so the user sees their options clearly.
   useEffect(() => {
-    if (showForm) setCpExpanded(true)
+    const t = setTimeout(() => { if (showForm) setCpExpanded(true) }, 0)
+    return () => clearTimeout(t)
   }, [showForm])
 
   function toggleCheckpoint(id: number) {
@@ -284,8 +301,8 @@ export default function SampleRegistrationPage() {
   }, [sampleTypes])
 
   useEffect(() => {
-    setSpecPreview(null); setOverrideSpecId(null)
-    if (materialId && sampleTypeId) fetchSpecPreview(materialId, sampleTypeId)
+    const t = setTimeout(() => { setSpecPreview(null); setOverrideSpecId(null); if (materialId && sampleTypeId) fetchSpecPreview(materialId, sampleTypeId) }, 0)
+    return () => clearTimeout(t)
   }, [materialId, sampleTypeId])
 
 
@@ -354,8 +371,8 @@ export default function SampleRegistrationPage() {
       })
       // Spec engine runs after SRF is signed — registration always returns PendingSignature
       toast(`✓ ${result.sampleNumber} registered — sign the SRF to activate the testing workflow`, 'success')
-    } catch (err: any) {
-      setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Registration failed')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Registration failed'))
     } finally { setSaving(false) }
   }
 
@@ -364,7 +381,7 @@ export default function SampleRegistrationPage() {
     try {
       await api.post(`/samples/${showSRF}/sign-srf`, srfForm)
       setShowSRF(null); load()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'E-signature failed') }
+    } catch (err) { setError(getErrorMessage(err, 'E-signature failed')) }
     finally { setSaving(false) }
   }
 
@@ -373,7 +390,7 @@ export default function SampleRegistrationPage() {
       const r = await api.post(`/samples/${sampleId}/duplicate`)
       toast(`Sample duplicated — ${r.data.sampleNumber}`, 'success')
       load()
-    } catch (err: any) { toast(err.response?.data?.message ?? 'Duplicate failed', 'error') }
+    } catch (err) { toast(getErrorMessage(err, 'Duplicate failed'), 'error') }
   }
 
   async function openAddTest(sample: Sample) {
@@ -394,7 +411,7 @@ export default function SampleRegistrationPage() {
       })
       toast(`Additional test added — ${r.data.parameterName} (Execution #${r.data.executionId})`, 'success')
       setShowAddTest(null); load()
-    } catch (err: any) { toast(err.response?.data?.message ?? 'Failed to add test', 'error') }
+    } catch (err) { toast(getErrorMessage(err, 'Failed to add test'), 'error') }
     finally { setAdHocSaving(false) }
   }
 
@@ -411,7 +428,7 @@ export default function SampleRegistrationPage() {
         : `Full retest registered — ${r.data.sampleNumber}`
       toast(msg, 'success')
       setShowRetest(null); setRetestReason(''); setSelectedParams([]); setTestedParams([]); load()
-    } catch (err: any) { toast(err.response?.data?.message ?? 'Retest failed', 'error') }
+    } catch (err) { toast(getErrorMessage(err, 'Retest failed'), 'error') }
     finally { setRetestSaving(false) }
   }
 
@@ -432,7 +449,7 @@ export default function SampleRegistrationPage() {
           testsCreated:   0,
         })
       }
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Reprint failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Reprint failed')) }
     finally { setSaving(false) }
   }
 
@@ -470,6 +487,18 @@ export default function SampleRegistrationPage() {
 
   return (
     <div>
+      {/* ── Tab strip ─────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid #e2e8f0', marginBottom: 20 }}>
+        <button style={TAB_STYLE(tab === 'single')} onClick={() => setTab('single')}>
+          <span>📋</span> Single
+        </button>
+        <button style={TAB_STYLE(tab === 'batch')} onClick={() => setTab('batch')}>
+          <span>🗂</span> Batch
+        </button>
+      </div>
+
+      {tab === 'batch' && <BatchSampleRegistrationPage />}
+      {tab === 'single' && <div>
       {/* ── Toolbar ──────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
@@ -616,7 +645,7 @@ export default function SampleRegistrationPage() {
                     const res = await api.get(`/samples/${r.sampleId}/tested-parameters`)
                     setTestedParams(res.data)
                     // Pre-select OOS parameters
-                    setSelectedParams(res.data.filter((p: any) => p.isOos).map((p: any) => p.parameterId))
+                    setSelectedParams(res.data.filter((p: { isOos: boolean; parameterId: number }) => p.isOos).map((p: { isOos: boolean; parameterId: number }) => p.parameterId))
                   } catch { setTestedParams([]) }
                 }}
                   style={{ padding: '3px 9px', background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
@@ -1379,6 +1408,7 @@ export default function SampleRegistrationPage() {
           )}
         </Modal>
       )}
+    </div>}
     </div>
   )
 }

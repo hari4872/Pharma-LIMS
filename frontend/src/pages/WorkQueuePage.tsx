@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { getErrorMessage, asApiError } from '@/utils/errors'
 import { useNavigate } from 'react-router-dom'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
+import BatchResultEntryPage from './BatchResultEntryPage'
 
 interface WorkItem {
   executionId: number; sampleId: number; sampleNumber: string; materialName: string
@@ -55,8 +57,21 @@ function priorityBadge(score: number | null): { label: string; bg: string; color
   return                      { label: '🟢 NORMAL',  bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' }
 }
 
+const TAB_STYLE = (active: boolean): React.CSSProperties => ({
+  display: 'flex', alignItems: 'center', gap: 6,
+  padding: '10px 18px', border: 'none',
+  borderBottom: active ? '2px solid #0d9488' : '2px solid transparent',
+  background: 'transparent',
+  color: active ? '#0d9488' : '#6b7280',
+  fontWeight: active ? 700 : 500,
+  fontSize: 13, cursor: 'pointer',
+  fontFamily: 'inherit', marginBottom: -2,
+  transition: 'all 0.15s',
+})
+
 export default function WorkQueuePage() {
   const navigate = useNavigate()
+  const [tab, setTab] = useState<'queue' | 'batch'>('queue')
   const [data, setData] = useState<WorkItem[]>([])
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState('')
@@ -95,7 +110,7 @@ export default function WorkQueuePage() {
     const r = await api.get(`/test-executions${params}`)
     setData(r.data); setLoading(false)
   }
-  useEffect(() => { load() }, [statusFilter])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [statusFilter])
 
   // ── Barcode scan / search ────────────────────────────────────────────────
   const runScan = useCallback((value: string) => {
@@ -199,7 +214,7 @@ export default function WorkQueuePage() {
         priorityScore: form.priorityScore ? Number(form.priorityScore) : null,
       })
       setShowAssign(false); load()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Assignment failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Assignment failed')) }
     finally { setSaving(false) }
   }
 
@@ -223,11 +238,12 @@ export default function WorkQueuePage() {
       })
       toast('Execution re-assigned successfully', 'success')
       setReassignItem(null); load()
-    } catch (err: any) {
-      const code = err.response?.data?.error
+    } catch (err) {
+      const e = asApiError(err)
+      const code = e.response?.data?.error
       if (code === 'TRAINING_EXPIRED') setReassignError('Analyst training expired — cannot assign (21 CFR 11.10(i))')
       else if (code === 'INSTRUMENT_OOC') setReassignError('Instrument out of calibration (21 CFR 211.68)')
-      else setReassignError(err.friendlyMessage ?? err.response?.data?.message ?? 'Re-assign failed')
+      else setReassignError(getErrorMessage(err, 'Re-assign failed'))
     } finally { setReassignSaving(false) }
   }
 
@@ -235,11 +251,11 @@ export default function WorkQueuePage() {
     try {
       await api.post(`/test-executions/${executionId}/start`, {})
       navigate(`/test-execution/${executionId}`)
-    } catch (err: any) {
-      const status = err.response?.status
-      const msg = err.friendlyMessage ?? err.response?.data?.message ?? err.response?.data?.error
+    } catch (err) {
+      const e = asApiError(err)
+      const status = e.response?.status
       if (status === 403) toast('Permission denied — only Analyst, QC Lead or Admin can start tasks', 'error')
-      else toast(msg ?? 'Start failed — please try again', 'error')
+      else toast(getErrorMessage(err, 'Start failed — please try again'), 'error')
     }
   }
 
@@ -250,6 +266,18 @@ export default function WorkQueuePage() {
 
   return (
     <div>
+      {/* ── Tab strip ─────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid #e2e8f0', marginBottom: 20 }}>
+        <button style={TAB_STYLE(tab === 'queue')} onClick={() => setTab('queue')}>
+          <span>📋</span> Queue
+        </button>
+        <button style={TAB_STYLE(tab === 'batch')} onClick={() => setTab('batch')}>
+          <span>🔬</span> Batch Entry
+        </button>
+      </div>
+
+      {tab === 'batch' && <BatchResultEntryPage />}
+      {tab === 'queue' && <div>
       {/* ── Barcode Scan Bar ───────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
@@ -688,6 +716,7 @@ export default function WorkQueuePage() {
           onStartTask={startTask}
         />
       )}
+    </div>}
     </div>
   )
 }
