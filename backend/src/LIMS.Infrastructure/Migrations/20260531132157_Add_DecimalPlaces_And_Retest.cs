@@ -10,6 +10,11 @@ namespace LIMS.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // PostgreSQL cannot alter a column type while a view depends on it.
+            // vw_active_spec_limits references spec_limits."RegulatoryTier", so drop it
+            // before the AlterColumn below and recreate it afterwards (see end of Up).
+            migrationBuilder.Sql(@"DROP VIEW IF EXISTS vw_active_spec_limits;");
+
             migrationBuilder.AlterColumn<string>(
                 name: "ColumnFrequency",
                 table: "test_method_parameters",
@@ -54,11 +59,44 @@ namespace LIMS.Infrastructure.Migrations
                 oldClrType: typeof(int),
                 oldType: "integer",
                 oldNullable: true);
+
+            // Recreate the view dropped above, with RegulatoryTier now typed as text.
+            // Definition kept identical to 20260522130000_Phase12_NormalizerViews.
+            migrationBuilder.Sql(@"
+CREATE OR REPLACE VIEW vw_active_spec_limits AS
+SELECT
+    s.""SpecLimitId"",
+    s.""ParameterId"",
+    p.""ParameterName"",
+    p.""ParameterCode"",
+    p.""Uom"",
+    s.""MaterialId"",
+    m.""MaterialName"",
+    s.""Stage"",
+    s.""MinValue"",
+    s.""MaxValue"",
+    s.""OotMinValue"",
+    s.""OotMaxValue"",
+    s.""RegulatoryTier"",
+    s.""RegulatoryMin"",
+    s.""RegulatoryMax"",
+    s.""Version"",
+    s.""ApprovedAt"",
+    s.""ApprovedBy""
+FROM spec_limits s
+JOIN test_method_parameters p ON s.""ParameterId"" = p.""ParameterId""
+JOIN materials m              ON s.""MaterialId""  = m.""MaterialId""
+WHERE s.""Status"" = 'Approved'
+  AND s.""IsActive"" = TRUE;
+");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            // Same view dependency applies when reverting RegulatoryTier text -> integer.
+            migrationBuilder.Sql(@"DROP VIEW IF EXISTS vw_active_spec_limits;");
+
             migrationBuilder.DropColumn(
                 name: "DecimalPlaces",
                 table: "test_method_parameters");
@@ -97,6 +135,34 @@ namespace LIMS.Infrastructure.Migrations
                 oldClrType: typeof(string),
                 oldType: "text",
                 oldNullable: true);
+
+            migrationBuilder.Sql(@"
+CREATE OR REPLACE VIEW vw_active_spec_limits AS
+SELECT
+    s.""SpecLimitId"",
+    s.""ParameterId"",
+    p.""ParameterName"",
+    p.""ParameterCode"",
+    p.""Uom"",
+    s.""MaterialId"",
+    m.""MaterialName"",
+    s.""Stage"",
+    s.""MinValue"",
+    s.""MaxValue"",
+    s.""OotMinValue"",
+    s.""OotMaxValue"",
+    s.""RegulatoryTier"",
+    s.""RegulatoryMin"",
+    s.""RegulatoryMax"",
+    s.""Version"",
+    s.""ApprovedAt"",
+    s.""ApprovedBy""
+FROM spec_limits s
+JOIN test_method_parameters p ON s.""ParameterId"" = p.""ParameterId""
+JOIN materials m              ON s.""MaterialId""  = m.""MaterialId""
+WHERE s.""Status"" = 'Approved'
+  AND s.""IsActive"" = TRUE;
+");
         }
     }
 }
