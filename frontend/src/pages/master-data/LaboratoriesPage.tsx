@@ -3,6 +3,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { toast } from '@/components/Toast'
 import AuditTrailPanel from '@/components/AuditTrailPanel'
+import { getErrorMessage } from '@/utils/errors'
 
 interface Lab { labId: number; labName: string; site: string; location: string; labType: string; isActive: boolean; createdBy: string }
 
@@ -29,7 +30,7 @@ export default function LaboratoriesPage() {
       await api.put(`/laboratories/${editRow!.labId}`, editForm)
       setEditRow(null); load()
       toast(`Laboratory "${editForm.labName}" updated successfully`, 'success')
-    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -48,7 +49,7 @@ export default function LaboratoriesPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -60,8 +61,8 @@ export default function LaboratoriesPage() {
       await api.post('/laboratories', form)
       setShowForm(false); setForm({ labName: '', site: '', location: '', labType: 'QC' }); setTouched({}); load()
       toast(`Laboratory "${form.labName}" added successfully`, 'success')
-    } catch (err: any) {
-      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Failed')
       setError(msg)
       toast(msg, 'error')
     }
@@ -201,4 +202,7 @@ export function ModalFooter({ saving, onCancel, label }: { saving: boolean; onCa
   )
 }
 
+// Shared input style reused by every master-data page (imported from here).
+// Disabling the fast-refresh-only rule rather than relocating ~15 import sites.
+// eslint-disable-next-line react-refresh/only-export-components
 export const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', border: '1px solid #dadce0', borderRadius: 4, fontSize: 14, boxSizing: 'border-box', color: '#111111' }

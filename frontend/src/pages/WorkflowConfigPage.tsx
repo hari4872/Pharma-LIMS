@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import { toast } from '@/components/Toast'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 
@@ -92,7 +93,7 @@ export default function WorkflowConfigPage() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   async function selectTemplate(t: WorkflowTemplate) {
     try {
@@ -136,7 +137,7 @@ export default function WorkflowConfigPage() {
         toast('Workflow template created', 'success')
       }
       setShowTplModal(false); load()
-    } catch (err: any) { setTplError(err.friendlyMessage ?? err.response?.data?.message ?? 'Save failed') }
+    } catch (err) { setTplError(getErrorMessage(err, 'Save failed')) }
     finally { setTplSaving(false) }
   }
 
@@ -193,7 +194,7 @@ export default function WorkflowConfigPage() {
       // Refresh selected
       const r = await api.get(`/workflow-templates/${selected.workflowTemplateId}`)
       setSelected(r.data)
-    } catch (err: any) { setStepError(err.friendlyMessage ?? err.response?.data?.message ?? 'Save failed') }
+    } catch (err) { setStepError(getErrorMessage(err, 'Save failed')) }
     finally { setStepSaving(false) }
   }
 

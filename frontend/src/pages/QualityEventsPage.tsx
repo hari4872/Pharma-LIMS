@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 
@@ -70,7 +71,7 @@ export default function QualityEventsPage() {
     const r = await api.get(`/quality-events${params.length ? '?' + params.join('&') : ''}`)
     setData(r.data); setLoading(false)
   }
-  useEffect(() => { load() }, [typeFilter, statusFilter])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [typeFilter, statusFilter])
 
   async function openCreate() {
     const [ur, sr, oor] = await Promise.all([
@@ -116,7 +117,7 @@ export default function QualityEventsPage() {
         dueDate:           form.dueDate || null,
       })
       setShowCreate(false); load()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Failed to create') }
+    } catch (err) { setError(getErrorMessage(err, 'Failed to create')) }
     finally { setSaving(false) }
   }
 
@@ -134,7 +135,7 @@ export default function QualityEventsPage() {
         dueDate:           form.dueDate || null,
       })
       setShowEdit(false); load()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Failed to update') }
+    } catch (err) { setError(getErrorMessage(err, 'Failed to update')) }
     finally { setSaving(false) }
   }
 
@@ -143,7 +144,7 @@ export default function QualityEventsPage() {
     try {
       await api.put(`/quality-events/${ev.cdId}`, { status: 'Closed' })
       load()
-    } catch (err: any) { alert(err.friendlyMessage ?? err.response?.data?.error ?? 'Failed to close') }
+    } catch (err) { alert(getErrorMessage(err, 'Failed to close')) }
   }
 
   const currentType = TYPE_OPTIONS.find(t => t.value === typeFilter) ?? TYPE_OPTIONS[0]

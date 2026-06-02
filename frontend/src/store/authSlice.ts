@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import api from '@/api/client'
+import { asApiError } from '@/utils/errors'
 
 interface AuthState {
   token: string | null
@@ -13,8 +14,20 @@ interface AuthState {
   error: string | null
 }
 
+/** Claims this app reads out of the JWT payload. */
+interface JwtClaims {
+  sub?: string | number
+  name?: string
+  unique_name?: string
+  role?: string
+  'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'?: string
+  userType?: string
+  labId?: string | number
+  labName?: string
+}
+
 /** Decode a JWT payload without a library (base64url → JSON) */
-function decodeJwt(token: string): Record<string, any> | null {
+function decodeJwt(token: string): JwtClaims | null {
   try {
     const payload = token.split('.')[1]
     const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
@@ -59,8 +72,8 @@ export const login = createAsyncThunk('auth/login',
       const { data } = await api.post('/auth/login', creds)
       localStorage.setItem('lims_token', data.token)
       return data
-    } catch (e: any) {
-      return rejectWithValue(e.response?.data?.error ?? 'Login failed')
+    } catch (e) {
+      return rejectWithValue(asApiError(e).response?.data?.error ?? 'Login failed')
     }
   }
 )

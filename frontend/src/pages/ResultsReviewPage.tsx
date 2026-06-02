@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
@@ -100,7 +101,7 @@ export default function ResultsReviewPage() {
 
   // Modal
   const [showReview, setShowReview] = useState<{ executionId: number; type: 'peer' | 'qclead' } | null>(null)
-  const [reviewForm, setReviewForm] = useState({ password: '', meaning: '', reason: '', notes: '' })
+  const [reviewForm, setReviewForm] = useState({ reviewerUsername: '', password: '', meaning: '', reason: '', notes: '' })
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
@@ -110,13 +111,13 @@ export default function ResultsReviewPage() {
     try {
       // Fetch all terminal statuses that need peer review
       // OOSOpen = completed but OOS investigation raised — still requires review chain
-      const c = await api.get('/test-executions?status=Completed,OOSOpen')
+      const c = await api.get('/test-executions?status=Completed,OOSOpen,PeerReviewed')
       setAll(c.data ?? [])
     } catch { setAll([]) }
     finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   // ── Derived filter counts for chips ─────────────────────────────────────
   const pendingPeer  = all.filter(r => r.status === 'Completed').length
@@ -157,6 +158,7 @@ export default function ResultsReviewPage() {
   function openReview(executionId: number, type: 'peer' | 'qclead') {
     setShowReview({ executionId, type })
     setReviewForm({
+      reviewerUsername: '',
       password: '',
       meaning: type === 'peer'
         ? 'I have reviewed and verified these test results'
@@ -182,13 +184,16 @@ export default function ResultsReviewPage() {
     try {
       const type     = showReview!.type
       const endpoint = type === 'peer' ? 'peer-review' : 'qc-lead-verify'
-      await api.post(`/results-review/${showReview!.executionId}/${endpoint}`, reviewForm)
+      const payload = reviewForm.reviewerUsername.trim()
+        ? { ...reviewForm, reviewerUsername: reviewForm.reviewerUsername.trim() }
+        : { password: reviewForm.password, meaning: reviewForm.meaning, reason: reviewForm.reason, notes: reviewForm.notes }
+      await api.post(`/results-review/${showReview!.executionId}/${endpoint}`, payload)
       setShowReview(null)
       await load()
       // Navigate to next stage bucket so user sees where the item went
       setStatusFilter(type === 'peer' ? 'PendingQC' : 'All')
       toast('Review recorded successfully', 'success')
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Review failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Review failed')) }
     finally { setSaving(false) }
   }
 
@@ -367,6 +372,11 @@ export default function ResultsReviewPage() {
             {' '}Your name, timestamp (UTC), meaning and reason will be immutably recorded.
           </p>
           <form onSubmit={submitReview}>
+            <Field label={showReview.type === 'peer' ? 'Reviewer Username (if different from you)' : 'QC Lead Username (if different from you)'}>
+              <input style={inp} value={reviewForm.reviewerUsername}
+                onChange={e => setReviewForm(f => ({ ...f, reviewerUsername: e.target.value }))}
+                placeholder="e.g. srikanth — leave blank to use your own account" />
+            </Field>
             <Field label="Password (re-enter to confirm identity)">
               <input style={inp} type="password" value={reviewForm.password}
                 onChange={e => setReviewForm(f => ({ ...f, password: e.target.value }))} required />

@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import api from '@/api/client'
 import { toast } from '@/components/Toast'
+import { getErrorMessage } from '@/utils/errors'
 
 const QUEUE_KEY = 'lims_offline_scan_queue'
 
@@ -67,9 +68,10 @@ export function useOfflineScanQueue() {
     window.addEventListener('offline', onOffline)
 
     // Attempt flush immediately on mount (page may have loaded after reconnect)
-    if (navigator.onLine) flush()
+    const t = navigator.onLine ? setTimeout(flush, 0) : undefined
 
     return () => {
+      if (t) clearTimeout(t)
       window.removeEventListener('online',  onOnline)
       window.removeEventListener('offline', onOffline)
     }
@@ -88,7 +90,7 @@ export function useOfflineScanQueue() {
 
     api.post(`/checkpoints/${checkpointId}/trigger`, { sampleId: sampleId ?? null })
       .then(() => toast('✅ Checkpoint triggered — entry logged in process log', 'success'))
-      .catch((err: any) => toast(err.friendlyMessage ?? err.response?.data?.message ?? 'Trigger failed', 'error'))
+      .catch((err: unknown) => toast(getErrorMessage(err, 'Trigger failed'), 'error'))
   }
 
   return { triggerCheckpoint, pendingCount, isOnline }

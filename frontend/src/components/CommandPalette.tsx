@@ -51,8 +51,13 @@ export default function CommandPalette({ open, onClose }: Props) {
       )
     : ALL_ROUTES
 
-  useEffect(() => { if (open) { setQuery(''); setCursor(0); setTimeout(() => inputRef.current?.focus(), 30) } }, [open])
-  useEffect(() => { setCursor(0) }, [query])
+  useEffect(() => {
+    if (!open) return
+    const t1 = setTimeout(() => { setQuery(''); setCursor(0) }, 0)
+    const t2 = setTimeout(() => inputRef.current?.focus(), 30)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [open])
+  useEffect(() => { const t = setTimeout(() => setCursor(0), 0); return () => clearTimeout(t) }, [query])
 
   function go(path: string) { navigate(path); onClose() }
 

@@ -3,6 +3,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import { getErrorMessage } from '@/utils/errors'
 
 interface StorageLocation {
   locationId: number; locationCode: string; locationName: string
@@ -36,7 +37,7 @@ export default function StorageLocationsPage() {
     const [r, lr] = await Promise.all([api.get('/storage-locations'), api.get('/laboratories')])
     setData(r.data); setLabs(lr.data); setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   function openAdd() {
     setEditing(null)
@@ -76,7 +77,7 @@ export default function StorageLocationsPage() {
       setShowForm(false)
       toast(`Storage Location "${form.locationName}" ${editing ? 'updated' : 'added'} successfully`, 'success')
       load()
-    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 

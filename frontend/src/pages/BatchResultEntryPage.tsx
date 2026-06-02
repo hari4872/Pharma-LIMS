@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import { toast } from '@/components/Toast'
+import { getErrorMessage } from '@/utils/errors'
 
 interface TestMethod { methodId: number; methodName: string; methodCode: string }
 interface Parameter  { parameterId: number; parameterName: string; uom: string; isMandatory: boolean }
@@ -49,7 +50,7 @@ export default function BatchResultEntryPage() {
       const params: Parameter[] = paramsRes.data
       // Filter executions to those whose test method matches
       // (work queue returns all InProgress; filter client-side by methodId)
-      const execs: Execution[] = queueRes.data.filter((e: any) => e.methodId === Number(mid) || !e.methodId)
+      const execs: Execution[] = queueRes.data.filter((e: { methodId?: number }) => e.methodId === Number(mid) || !e.methodId)
       setParameters(params)
       setExecutions(execs)
       setEntries({})
@@ -81,8 +82,8 @@ export default function BatchResultEntryPage() {
       const data = r.data
       setResults(data.rows)
       toast(`Batch submitted — ${data.successCount} passed, ${data.failCount} failed`, data.failCount > 0 ? 'error' : 'success')
-    } catch (err: any) {
-      toast(err.response?.data?.message ?? 'Batch submit failed', 'error')
+    } catch (err) {
+      toast(getErrorMessage(err, 'Batch submit failed'), 'error')
     } finally { setSubmitting(false) }
   }
 

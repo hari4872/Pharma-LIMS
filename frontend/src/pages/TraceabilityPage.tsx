@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import {
   ReactFlow, Background, Controls, MiniMap,
   type Node, type Edge, MarkerType,
@@ -199,7 +200,7 @@ function TraceGraphPanel({ graph }: { graph: TraceGraph }) {
           nodeTypes={nodeTypes} fitView fitViewOptions={{ padding: 0.3 }} minZoom={0.3} maxZoom={2}>
           <Background color="#e2e8f0" gap={20} />
           <Controls />
-          <MiniMap nodeColor={n => NODE_META[(n.data as any)?.node?.nodeType]?.border ?? '#d1d5db'}
+          <MiniMap nodeColor={n => NODE_META[(n.data as { node?: { nodeType?: string } })?.node?.nodeType ?? '']?.border ?? '#d1d5db'}
             style={{ background: '#fff', border: '1px solid #e5e7eb' }} />
         </ReactFlow>
       </div>
@@ -530,11 +531,14 @@ export default function TraceabilityPage() {
 
   // Load sample list on mount
   useEffect(() => {
-    setListLoading(true)
-    api.get('/samples')
-      .then(r => setSampleList(r.data ?? []))
-      .catch(() => setSampleList([]))
-      .finally(() => setListLoading(false))
+    const t = setTimeout(() => {
+      setListLoading(true)
+      api.get('/samples')
+        .then(r => setSampleList(r.data ?? []))
+        .catch(() => setSampleList([]))
+        .finally(() => setListLoading(false))
+    }, 0)
+    return () => clearTimeout(t)
   }, [])
 
   useEffect(() => { if (tab === 'cd') loadCdList() }, [tab])
@@ -560,8 +564,8 @@ export default function TraceabilityPage() {
       ])
       setGraph(graphRes.data)
       setEnvLog(envRes.data)
-    } catch (err: any) {
-      setGraphError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed to load trace.')
+    } catch (err) {
+      setGraphError(getErrorMessage(err, 'Failed to load trace.'))
     } finally { setGraphLoading(false) }
   }
 
@@ -572,8 +576,8 @@ export default function TraceabilityPage() {
     try {
       const r = await api.get(`/traceability/recall?lotNumber=${encodeURIComponent(recallLot.trim())}`)
       setRecallResult(r.data)
-    } catch (err: any) {
-      setRecallError(err.friendlyMessage ?? 'Recall query failed.')
+    } catch (err) {
+      setRecallError(getErrorMessage(err, 'Recall query failed.'))
     } finally { setRecallLoading(false) }
   }
 
@@ -601,7 +605,7 @@ export default function TraceabilityPage() {
       setShowCdForm(false)
       showCdToast('Record logged successfully.')
       loadCdList()
-    } catch (err: any) { setCdError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed to log record.') }
+    } catch (err) { setCdError(getErrorMessage(err, 'Failed to log record.')) }
     finally { setCdSaving(false) }
   }
 
@@ -611,7 +615,7 @@ export default function TraceabilityPage() {
       await api.put(`/traceability/complaints-deviations/${id}/close`)
       showCdToast('Record closed successfully.')
       loadCdList()
-    } catch (err: any) { showCdToast(err.friendlyMessage ?? 'Failed to close record.') }
+    } catch (err) { showCdToast(getErrorMessage(err, 'Failed to close record.')) }
     finally { setClosingId(null) }
   }
 

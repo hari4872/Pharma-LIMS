@@ -23,7 +23,12 @@ public class CoAGenerationService : ICoAGenerationService
             ?? throw new InvalidOperationException($"Sample {sampleId} not found.");
 
         if (sample.FormTemplateId is null)
-            throw new InvalidOperationException($"Sample {sampleId} has no FormTemplate — cannot generate CoA.");
+            return 0; // No active form template assigned — CoA will need manual generation via POST api/v1/coas/generate
+
+        // Idempotency guard — return existing Draft CoA if already generated (prevents duplicates on retry)
+        var existing = await _db.Coas.FirstOrDefaultAsync(c => c.SampleId == sampleId && c.Status == CoaStatus.Draft, ct);
+        if (existing is not null)
+            return existing.CoaId;
 
         // Resolve CoA number from lab_config format (Contract 2 — not hardcoded)
         var headerDto = await _header.BuildHeaderAsync(sampleId, deliveryOrderId: null, ct);

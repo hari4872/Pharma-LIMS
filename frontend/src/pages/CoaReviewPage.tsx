@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
@@ -55,8 +56,9 @@ export default function CoaReviewPage() {
   const [checklist, setChecklist] = useState<ChecklistItem[] | null>(null)
   const [checklistLoading, setChecklistLoading] = useState(false)
   const [showApprove, setShowApprove] = useState(false)
+  const [showConditional, setShowConditional] = useState(false)
   const [showReject, setShowReject] = useState(false)
-  const [form, setForm] = useState({ password: '', meaning: '', reason: '', justification: '' })
+  const [form, setForm] = useState({ password: '', meaning: '', reason: '', justification: '', conditionalJustification: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -82,7 +84,11 @@ export default function CoaReviewPage() {
     setShowGenerate(true); setGenerateExecId(null); setGenerateError('')
     try {
       const r = await api.get('/test-executions?status=Completed')
-      const list: ExecOption[] = (Array.isArray(r.data) ? r.data : []).map((e: any) => ({
+      const list: ExecOption[] = (Array.isArray(r.data) ? r.data : []).map((e: {
+        executionId: number
+        sampleId?: number; sampleNumber?: string; materialName?: string; lotNumber?: string
+        sample?: { sampleId?: number; sampleNumber?: string; materialName?: string; lotNumber?: string }
+      }) => ({
         executionId: e.executionId,
         sampleId:    e.sampleId ?? e.sample?.sampleId ?? 0,
         sampleNumber: e.sampleNumber ?? e.sample?.sampleNumber ?? '',
@@ -103,8 +109,8 @@ export default function CoaReviewPage() {
       const r = await api.post('/coas/generate', { sampleId: exec.sampleId, executionId: exec.executionId })
       toast(`CoA generated successfully — CoA #${r.data?.coaId ?? ''}`, 'success')
       setShowGenerate(false); load()
-    } catch (err: any) {
-      setGenerateError(err.friendlyMessage ?? err.response?.data?.message ?? 'CoA generation failed')
+    } catch (err) {
+      setGenerateError(getErrorMessage(err, 'CoA generation failed'))
     } finally { setGenerateSaving(false) }
   }
 
@@ -117,8 +123,8 @@ export default function CoaReviewPage() {
       const r = await api.post(`/coas/${reissueTarget.coaId}/reissue`, { reason: reissueReason })
       toast(`CoA reissued — new CoA #${r.data?.newCoaId ?? ''} created, original superseded`, 'success')
       setShowReissue(false); setReissueTarget(null); load()
-    } catch (err: any) {
-      setReissueError(err.friendlyMessage ?? err.response?.data?.message ?? 'Reissue failed')
+    } catch (err) {
+      setReissueError(getErrorMessage(err, 'Reissue failed'))
     } finally { setReissueSaving(false) }
   }
 
@@ -129,7 +135,7 @@ export default function CoaReviewPage() {
       setData(r.data)
     } finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   const filtered = useMemo(() => {
     return data.filter(r => {
@@ -171,8 +177,25 @@ export default function CoaReviewPage() {
       toast(`CoA ${selected!.coaNumber} approved and locked successfully`, 'success')
       setShowApprove(false); setSelected(null); await load()
       setStatusFilter('Released')
-    } catch (err: any) {
-      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Approval failed'
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Approval failed')
+      setError(msg); toast(msg, 'error')
+    }
+    finally { setSaving(false) }
+  }
+
+  async function submitConditional(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      await api.post(`/coas/${selected!.coaId}/approve`, {
+        password: form.password, meaning: form.meaning, reason: form.reason,
+        isConditionalRelease: true, conditionalJustification: form.conditionalJustification
+      })
+      toast(`CoA ${selected!.coaNumber} conditionally released`, 'success')
+      setShowConditional(false); setSelected(null); await load()
+      setStatusFilter('Released')
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Conditional release failed')
       setError(msg); toast(msg, 'error')
     }
     finally { setSaving(false) }
@@ -188,8 +211,8 @@ export default function CoaReviewPage() {
       toast(`CoA ${selected!.coaNumber} rejected`, 'warning')
       setShowReject(false); setSelected(null); await load()
       setStatusFilter('Rejected')
-    } catch (err: any) {
-      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Rejection failed'
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Rejection failed')
       setError(msg); toast(msg, 'error')
     }
     finally { setSaving(false) }
@@ -404,12 +427,19 @@ export default function CoaReviewPage() {
 
           {/* Approve / Reject Buttons */}
           {selected.status === 'Draft' && (
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
               <button
                 onClick={() => { setShowReject(true); setForm(f => ({ ...f, meaning: 'I reject this CoA — see justification', reason: '', password: '', justification: '' })) }}
                 style={{ padding: '7px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
                 Reject CoA
               </button>
+              {!allChecklistPassed && (
+                <button
+                  onClick={() => { setShowConditional(true); setForm(f => ({ ...f, meaning: 'I conditionally release this batch pending resolution of open items.', reason: '', password: '', conditionalJustification: '' })) }}
+                  style={{ padding: '7px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
+                  Conditional Release
+                </button>
+              )}
               <button
                 disabled={!allChecklistPassed}
                 onClick={() => { setShowApprove(true); setForm(f => ({ ...f, meaning: 'I approve the release of this batch. This CoA is accurate.', reason: '', password: '' })) }}
@@ -446,6 +476,33 @@ export default function CoaReviewPage() {
             <Field label="Reason"><input style={inp} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. All results reviewed and meet specification" /></Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowApprove(false)} label="Sign & Approve CoA" />
+          </form>
+        </Modal>
+      )}
+
+      {/* Conditional Release Modal */}
+      {showConditional && selected && (
+        <Modal title="Conditional Release — E-Signature" onClose={() => setShowConditional(false)}>
+          <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fef3c7', borderRadius: 6, fontSize: 13, color: '#92400e' }}>
+            ⚠ Conditional release bypasses soft checklist items (spec version, evidence). Hard gates (signatures, OOS, completeness) are still enforced. Justification is mandatory and embedded in the locked PDF.
+          </div>
+          {checklist && (
+            <div style={{ marginBottom: 12, fontSize: 12, color: '#6b7280' }}>
+              <strong>Items being overridden (soft gates):</strong>{' '}
+              {checklist.filter(c => !c.pass && (
+                c.label.startsWith('1.') || c.label.startsWith('7.') || c.label.startsWith('8.')
+              )).map(c => c.label).join(', ') || '—'}
+            </div>
+          )}
+          <form onSubmit={submitConditional}>
+            <Field label="Justification (mandatory)">
+              <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={form.conditionalJustification} onChange={e => setForm(f => ({ ...f, conditionalJustification: e.target.value }))} required placeholder="e.g. Evidence to be submitted within 5 working days per SOP-QC-014…" />
+            </Field>
+            <Field label="Password (re-enter)"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+            <Field label="Meaning"><input style={inp} value={form.meaning} onChange={e => setForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
+            <Field label="Reason"><input style={inp} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Batch required for urgent supply — evidence pending" /></Field>
+            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            <ModalFooter saving={saving} onCancel={() => setShowConditional(false)} label="Sign & Conditionally Release" />
           </form>
         </Modal>
       )}

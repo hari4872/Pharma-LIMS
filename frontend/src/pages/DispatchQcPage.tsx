@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import PipelineBar from '@/components/PipelineBar'
@@ -81,8 +82,8 @@ export default function DispatchQcPage() {
     setProducts(r.data.filter((m: { materialType: string }) => m.materialType === 'FinishedProduct'))
   }
 
-  useEffect(() => { load() }, [])
-  useEffect(() => { loadProducts() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
+  useEffect(() => { const t = setTimeout(loadProducts, 0); return () => clearTimeout(t) }, [])
 
   // Reset filter when switching views
   function switchView(v: 'tasks' | 'orders') {
@@ -125,7 +126,7 @@ export default function DispatchQcPage() {
       setStatusFilter('Open')
       setSuccessBanner(`Delivery Order ${doForm.doNumber} created — Dispatch QC task is now open below.`)
       setTimeout(() => setSuccessBanner(''), 6000)
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Create failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Create failed')) }
     finally { setSaving(false) }
   }
 
@@ -134,7 +135,7 @@ export default function DispatchQcPage() {
     try {
       await api.post(`/dispatch-qc/${showApprove!.taskId}/approve`, approveForm)
       setShowApprove(null); load()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Approval failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Approval failed')) }
     finally { setSaving(false) }
   }
 

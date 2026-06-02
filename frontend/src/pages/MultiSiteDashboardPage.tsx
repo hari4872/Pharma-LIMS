@@ -148,7 +148,7 @@ export default function MultiSiteDashboardPage() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [period])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [period])
 
   // Cross-lab access guard
   const isCrossLab = role === 'Admin' || role === 'SuperAdmin' || role === 'CorporateQA'

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
+import { getErrorMessage } from '@/utils/errors'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
@@ -35,7 +36,7 @@ export default function UsersPage() {
       await api.put(`/users/${editRow!.userId}`, { ...editForm, labId: editForm.labId ? Number(editForm.labId) : null })
       setEditRow(null); load()
       toast(`User "${editRow!.username}" updated successfully`, 'success')
-    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -53,7 +54,7 @@ export default function UsersPage() {
     setData(r.data); setLabs(lr.data)
     setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
@@ -62,7 +63,7 @@ export default function UsersPage() {
       setShowForm(false)
       toast(`User "${form.username}" created successfully`, 'success')
       load()
-    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 

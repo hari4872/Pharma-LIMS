@@ -58,7 +58,7 @@ public class GetCoAHandler : IRequestHandler<GetCoAQuery, List<CoADto>>
 
         return coas.Select(c => new CoADto(
             c.CoaId, c.SampleId, c.Sample.SampleNumber,
-            c.Sample.Material.MaterialName, c.Sample.LotNumber,
+            c.Sample.Material != null ? c.Sample.Material.MaterialName : "Unknown", c.Sample.LotNumber,
             c.CoaNumber, c.Status.ToString(),
             c.CreatedAt, c.LockedAt,
             c.DeliveryOrder?.CustomerName,
@@ -66,9 +66,11 @@ public class GetCoAHandler : IRequestHandler<GetCoAQuery, List<CoADto>>
             c.DeliveryOrder?.DespatchDate?.ToString("yyyy-MM-dd"),
             c.QaSignature?.FullName, c.QaSignature?.SignedAt,
             c.SupersededById,
-            c.Lines.OrderBy(l => l.DisplayOrder).Select(l => new CoALineDto(
+            c.Lines.OrderBy(l => l.DisplayOrder)
+                .Where(l => l.Entry != null)   // skip orphaned lines (duplicate COA cleanup)
+                .Select(l => new CoALineDto(
                 l.CoaLineId, l.EntryId, l.ParameterId,
-                l.Parameter.ParameterName,
+                l.Parameter != null ? l.Parameter.ParameterName : "Unknown",
                 "",   // MethodCode resolved separately if needed
                 l.Entry.SpecMinSnapshot, l.Entry.SpecMaxSnapshot,
                 l.Entry.RegulatoryTierSnapshot,

@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import { toast } from '@/components/Toast'
+import { getErrorMessage } from '@/utils/errors'
 
 interface Material   { materialId: number; materialName: string; productType: string }
 interface SampleType { sampleTypeId: number; typeName: string; typeCode: string }
@@ -82,8 +83,8 @@ export default function BatchSampleRegistrationPage() {
       const data = res.data
       setResults(data.rows)
       toast(`Batch registered — ${data.successCount} success, ${data.failCount} failed`, data.failCount > 0 ? 'error' : 'success')
-    } catch (err: any) {
-      toast(err.response?.data?.message ?? 'Batch registration failed', 'error')
+    } catch (err) {
+      toast(getErrorMessage(err, 'Batch registration failed'), 'error')
     } finally { setSubmitting(false) }
   }
 

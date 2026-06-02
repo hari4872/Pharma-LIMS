@@ -14,7 +14,7 @@
 //     sync runs.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import axios from 'axios'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
 import * as queue from '@/utils/offlineQueue'
 
 const CACHE_PREFIX = 'lims_cache_'
@@ -44,7 +44,7 @@ api.interceptors.request.use(async config => {
         const cancelToken = new axios.CancelToken(cancel => cancel('__offline_cache__'))
         config.cancelToken = cancelToken
         // Attach cached data to config so the response interceptor can pick it up
-        ;(config as any).__cachedData = data
+        ;(config as InternalAxiosRequestConfig & { __cachedData?: unknown }).__cachedData = data
       }
       return config
     }
@@ -55,7 +55,7 @@ api.interceptors.request.use(async config => {
       // Build a human-readable description from method + URL
       const description = buildDescription(method, url, config.data)
       await queue.enqueue({
-        method:      method as any,
+        method:      method as 'POST' | 'PUT' | 'PATCH' | 'DELETE',
         url,
         body:        config.data,
         authToken:   token ?? '',
@@ -162,11 +162,16 @@ function buildDescription(method: string, url: string, body: unknown): string {
  *   3. Network / timeout error
  *   4. Generic fallback
  */
-export function buildFriendlyMessage(err: any): string {
+export function buildFriendlyMessage(err: unknown): string {
+  const e = err as {
+    response?: { status?: number; data?: { message?: string; title?: string; error?: string; errors?: unknown } }
+    code?: string
+    message?: string
+  }
   // Server responded with a body
-  if (err.response) {
-    const status = err.response.status as number
-    const data   = err.response.data
+  if (e.response) {
+    const status = e.response.status as number
+    const data   = e.response.data
 
     // Try to extract a server message (check both "message" and "error" keys)
     const serverMsg: string =
@@ -205,12 +210,12 @@ export function buildFriendlyMessage(err: any): string {
   }
 
   // Axios timeout
-  if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+  if (e.code === 'ECONNABORTED' || e.message?.includes('timeout')) {
     return 'The server took too long to respond (30s). Check your connection and try again.'
   }
 
   // No response at all — network level failure
-  if (err.message === 'Network Error' || !navigator.onLine) {
+  if (e.message === 'Network Error' || !navigator.onLine) {
     return 'Cannot reach the server. Check your internet connection and try again.'
   }
 

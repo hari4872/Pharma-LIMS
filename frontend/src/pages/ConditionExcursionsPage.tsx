@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 
@@ -34,7 +35,7 @@ export default function ConditionExcursionsPage() {
     ])
     setData(r.data); setLocations(lr.data); setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   async function submitLog(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
@@ -47,7 +48,7 @@ export default function ConditionExcursionsPage() {
         excursionEnd: logForm.excursionEnd || null
       })
       setShowLog(false); load()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Failed')) }
     finally { setSaving(false) }
   }
 
@@ -56,7 +57,7 @@ export default function ConditionExcursionsPage() {
     try {
       await api.put(`/storage-locations/${showImpact!.locationId}/excursions/${showImpact!.excursionId}/impact`, { impactOutcome })
       setShowImpact(null); load()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Failed')) }
     finally { setSaving(false) }
   }
 

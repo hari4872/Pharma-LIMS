@@ -89,7 +89,7 @@ export default function ReportsPage() {
       a.download = filename
       a.click()
       URL.revokeObjectURL(blobUrl)
-    } catch (err: any) {
+    } catch {
       setError('Export failed. Check your access permissions or date range.')
     } finally { setDownloading(false) }
   }

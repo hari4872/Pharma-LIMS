@@ -26,6 +26,7 @@ function _notify(next: ToastItem[]) {
 }
 
 /** Call from anywhere — React or non-React code */
+// eslint-disable-next-line react-refresh/only-export-components -- global toast() API intentionally co-located with its container; imported across the app
 export function toast(message: string, type: ToastType = 'info', durationMs = 3500) {
   const id = Math.random().toString(36).slice(2, 9)
   _notify([..._store, { id, message, type }])

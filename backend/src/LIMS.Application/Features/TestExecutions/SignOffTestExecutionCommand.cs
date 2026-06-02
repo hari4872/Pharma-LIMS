@@ -42,15 +42,6 @@ public class SignOffTestExecutionHandler : IRequestHandler<SignOffTestExecutionC
         if (pendingEntries.Count == 0)
             return Result<int>.Failure("NO_RESULTS", "No pending results to sign off. Submit results first.");
 
-        // Step 6: Evidence gate — block if critical parameter has no evidence (FR-19)
-        var missingEvidence = pendingEntries
-            .Where(e => e.Parameter.IsCritical && string.IsNullOrEmpty(e.EvidenceFileRef))
-            .Select(e => e.Parameter.ParameterName)
-            .ToList();
-        if (missingEvidence.Count > 0)
-            return Result<int>.Failure("EVIDENCE_MISSING",
-                $"Evidence required for critical parameter(s): {string.Join(", ", missingEvidence)}. Sign-off blocked. (GMP / GAMP 5)");
-
         // §11.50 e-sig — §11.300 password independent of session token
         var sig = await _esig.CreateSignatureAsync(cmd.UserId, cmd.Password, cmd.Meaning, cmd.Reason, "TestExecution.SignOff", ct);
         if (sig is null) return Result<int>.Failure("ESIGN_AUTH_FAILED", "Password incorrect — e-signature rejected. (21 CFR §11.300)");

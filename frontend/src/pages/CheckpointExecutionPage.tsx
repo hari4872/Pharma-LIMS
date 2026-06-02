@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import { inp, Modal, Field, ModalFooter } from './master-data/LaboratoriesPage'
 import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'
 import { toast } from '@/components/Toast'
@@ -161,7 +162,19 @@ export default function CheckpointExecutionPage() {
       setCheckpoints(r.data.filter((c: Checkpoint) => c.isActive))
     } finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [filterMode])
+  useEffect(() => {
+    let cancelled = false
+    async function fetchCheckpoints() {
+      setLoading(true)
+      try {
+        const q = filterMode ? `?triggerMode=${filterMode}` : ''
+        const r = await api.get(`/checkpoints${q}`)
+        if (!cancelled) setCheckpoints(r.data.filter((c: Checkpoint) => c.isActive))
+      } finally { if (!cancelled) setLoading(false) }
+    }
+    fetchCheckpoints()
+    return () => { cancelled = true }
+  }, [filterMode])
 
   // ── OperatorScan: load linked samples then trigger ─────────────────────
   const [scanModal,       setScanModal]       = useState<Checkpoint | null>(null)
@@ -232,8 +245,8 @@ export default function CheckpointExecutionPage() {
       })
       toast(`✅ Checkpoint ${execFor.checkpoint.checkpointCode} (${execFor.slotLabel}) executed and signed`, 'success')
       setExecFor(null)
-    } catch (err: any) {
-      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Execution failed'
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Execution failed')
       setExecError(msg); toast(msg, 'error')
     }
     finally { setExecSaving(false) }
@@ -257,8 +270,8 @@ export default function CheckpointExecutionPage() {
       setReadings({})
       setSignForm({ password: '', meaning: 'I confirm this process log entry', reason: '' })
       if (logFor) openProcessLog(logFor)
-    } catch (err: any) {
-      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'E-signature failed'
+    } catch (err) {
+      const msg = getErrorMessage(err, 'E-signature failed')
       setError(msg); toast(msg, 'error')
     }
     finally { setSaving(false) }

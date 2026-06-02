@@ -110,8 +110,8 @@ public class BatchReleaseController : LimsControllerBase
             .FirstOrDefaultAsync(s => s.SampleId == req.SampleId);
         if (sample is null) return NotFound(new { error = "Sample not found." });
 
-        if (sample.Status != SampleStatus.PendingQAReview)
-            return BadRequest(new { error = $"Sample must be in PendingQAReview status. Current: {sample.Status}" });
+        if (sample.Status != SampleStatus.PendingQAReview && sample.Status != SampleStatus.Released)
+            return BadRequest(new { error = $"Sample must be in PendingQAReview or Released status. Current: {sample.Status}" });
 
         // Check if active review already exists
         var existing = await _db.BatchReleases.AnyAsync(r =>
@@ -223,7 +223,9 @@ public class BatchReleaseController : LimsControllerBase
             .Where(e => e.SampleId == sampleId)
             .ToListAsync();
         bool allDone = executions.Any() &&
-                       executions.All(e => e.Status == TestExecutionStatus.Completed || e.Status == TestExecutionStatus.OOSOpen);
+                       executions.All(e => e.Status == TestExecutionStatus.Completed ||
+                                           e.Status == TestExecutionStatus.QCVerified ||
+                                           e.Status == TestExecutionStatus.OOSOpen);
         items.Add(new ChecklistItem("AllTestsComplete", allDone,
             allDone ? $"All {executions.Count} test execution(s) completed"
                     : $"{executions.Count(e => e.Status != TestExecutionStatus.Completed && e.Status != TestExecutionStatus.OOSOpen)} execution(s) still in progress"));

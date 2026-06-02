@@ -11,6 +11,7 @@ import api from '@/api/client'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import { getErrorMessage } from '@/utils/errors'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -118,7 +119,7 @@ export default function StabilityProtocolsPage() {
     setSpecTemplates(spr.data)
     setLoading(false)
   }
-  useEffect(() => { load() }, [filterActive])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [filterActive])
 
   function resetForm() {
     setProtocolName(''); setMaterialId(''); setStorageCondition('')
@@ -178,8 +179,8 @@ export default function StabilityProtocolsPage() {
       })
       toast('Stability protocol created', 'success')
       setShowCreate(false); resetForm(); load()
-    } catch (err: any) {
-      setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Create failed')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Create failed'))
     } finally { setSaving(false) }
   }
 
@@ -201,8 +202,8 @@ export default function StabilityProtocolsPage() {
       })
       toast('Protocol updated', 'success')
       setEditing(null); resetForm(); load()
-    } catch (err: any) {
-      setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Update failed')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Update failed'))
     } finally { setSaving(false) }
   }
 
@@ -228,8 +229,8 @@ export default function StabilityProtocolsPage() {
       )
       toast(`${validRows.length} intervals saved`, 'success')
       setIntervalsFor(null); load()
-    } catch (err: any) {
-      setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Save intervals failed')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Save intervals failed'))
     } finally { setSaving(false) }
   }
 
@@ -267,8 +268,8 @@ export default function StabilityProtocolsPage() {
       await api.put(`/stability-protocols/${p.stabilityProtocolId}`, { isActive: !p.isActive })
       toast(p.isActive ? 'Protocol deactivated' : 'Protocol activated', 'success')
       load()
-    } catch (err: any) {
-      toast(err.friendlyMessage ?? err.response?.data?.error ?? 'Update failed', 'error')
+    } catch (err) {
+      toast(getErrorMessage(err, 'Update failed'), 'error')
     }
   }
 

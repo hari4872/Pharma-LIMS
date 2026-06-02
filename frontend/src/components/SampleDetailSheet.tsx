@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 
 // Module-level cache — survives re-renders, cleared on page refresh
 const _cache = new Map<number, SampleDetail>()
@@ -52,17 +53,20 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask }: Pr
   const [error, setError]     = useState('')
 
   useEffect(() => {
-    // Serve from cache instantly if available
-    if (_cache.has(sampleId)) {
-      setDetail(_cache.get(sampleId)!)
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    api.get(`/samples/${sampleId}`)
-      .then(r => { _cache.set(sampleId, r.data); setDetail(r.data) })
-      .catch((err: any) => setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed to load sample details.'))
-      .finally(() => setLoading(false))
+    const t = setTimeout(() => {
+      // Serve from cache instantly if available
+      if (_cache.has(sampleId)) {
+        setDetail(_cache.get(sampleId)!)
+        setLoading(false)
+        return
+      }
+      setLoading(true)
+      api.get(`/samples/${sampleId}`)
+        .then(r => { _cache.set(sampleId, r.data); setDetail(r.data) })
+        .catch((err: unknown) => setError(getErrorMessage(err, 'Failed to load sample details.')))
+        .finally(() => setLoading(false))
+    }, 0)
+    return () => clearTimeout(t)
   }, [sampleId])
 
   return (

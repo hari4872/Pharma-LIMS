@@ -13,10 +13,11 @@ public class QAReviewGateService : IQAReviewGateService
 
     public async Task<QAChecklistResult> EvaluateChecklistAsync(int sampleId, int coaId, CancellationToken ct = default)
     {
-        // Item 1: All test executions Completed
+        // Item 1: All test executions Completed or QCVerified (QCVerified is a terminal state post-verification)
         var testsComplete = !await _db.TestExecutions
             .AnyAsync(e => e.SampleId == sampleId &&
-                      e.Status != TestExecutionStatus.Completed, ct);
+                      e.Status != TestExecutionStatus.Completed &&
+                      e.Status != TestExecutionStatus.QCVerified, ct);
 
         // Item 2: No open OOS investigations
         var noOpenOos = !await _db.OosInvestigations
@@ -50,11 +51,12 @@ public class QAReviewGateService : IQAReviewGateService
             .AnyAsync(r => r.SampleId == sampleId &&
                       r.ReviewType == ReviewType.QCLeadVerification, ct);
 
-        // Item 7: Correct approved spec version (spec snapshots are non-null on signed entries)
-        // Verified by checking all signed entries have spec snapshots captured
+        // Item 7: Correct approved spec version — only Numeric params require min/max snapshots
+        // PassFail params have no spec range, so null snapshots are valid for them
         var correctSpecVersion = !await _db.DigitalLogbookEntries
             .AnyAsync(e => e.SampleId == sampleId &&
                       e.Status == LogbookEntryStatus.Signed &&
+                      e.Parameter.DataType == DataType.Numeric &&
                       e.SpecMinSnapshot == null && e.SpecMaxSnapshot == null, ct);
 
         // Item 8: Evidence present for all is_critical parameters (GAMP 5)
@@ -66,7 +68,7 @@ public class QAReviewGateService : IQAReviewGateService
         // Items 9 & 10: CoA header + body completeness
         var coa = await _db.Coas
             .Include(c => c.DeliveryOrder)
-            .Include(c => c.Lines)
+            .Include(c => c.Lines).ThenInclude(l => l.Entry)
             .FirstOrDefaultAsync(c => c.CoaId == coaId, ct);
 
         bool coaHeaderPopulated = true;

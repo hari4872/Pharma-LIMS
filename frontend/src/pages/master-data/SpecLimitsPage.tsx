@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { getErrorMessage } from '@/utils/errors'
 const SPEC_STAGES = ['Incoming', 'InProcess', 'Finished', 'Stability']
 function stageLabel(s: string) { return s.replace(/([a-z])([A-Z])/g, '$1 $2') }
 import api from '@/api/client'
@@ -65,7 +66,7 @@ export default function SpecLimitsPage() {
       })
       setEditRow(null); load()
       toast(`Spec Limit updated successfully`, 'success')
-    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -75,7 +76,7 @@ export default function SpecLimitsPage() {
     setData(r.data); setParams(pr.data); setMaterials(mr.data)
     setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
@@ -95,7 +96,7 @@ export default function SpecLimitsPage() {
       setShowForm(false)
       toast(`Spec Limit added successfully`, 'success')
       load()
-    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -107,7 +108,7 @@ export default function SpecLimitsPage() {
       toast(`Spec Limit approved successfully`, 'success')
       load()
     }
-    catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'E-signature failed'; setError(msg); toast(msg, 'error') }
+    catch (err) { const msg = getErrorMessage(err, 'E-signature failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 

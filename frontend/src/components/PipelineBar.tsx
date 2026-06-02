@@ -20,7 +20,7 @@ export default function PipelineBar<T extends object>({
   stages, data, statusField, active, onChange,
 }: Props<T>) {
   const counts = stages.reduce((acc, s) => {
-    acc[s.key] = data.filter(d => String((d as any)[statusField]) === s.key).length
+    acc[s.key] = data.filter(d => String((d as Record<string, unknown>)[statusField as string]) === s.key).length
     return acc
   }, {} as Record<string, number>)
 

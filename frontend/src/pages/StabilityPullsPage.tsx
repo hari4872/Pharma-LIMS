@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import PipelineBar from '@/components/PipelineBar'
@@ -45,7 +46,7 @@ export default function StabilityPullsPage() {
     const r = await api.get('/stability-pulls')
     setData(r.data); setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   const filtered = useMemo(() => {
     return data.filter(r => {
@@ -61,7 +62,7 @@ export default function StabilityPullsPage() {
     try {
       await api.post('/stability-pulls', { ...schedForm, sampleId: Number(schedForm.sampleId), requiredQty: Number(schedForm.requiredQty) })
       setShowSchedule(false); load()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Failed')) }
     finally { setSaving(false) }
   }
 
@@ -71,7 +72,7 @@ export default function StabilityPullsPage() {
       const body = { actualQty: Number(execForm.actualQty), shortReason: execForm.shortReason || null, password: execForm.password, meaning: execForm.meaning }
       await api.post(`/stability-pulls/${showExecute!.pullId}/execute`, body)
       setShowExecute(null); load()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Failed')) }
     finally { setSaving(false) }
   }
 

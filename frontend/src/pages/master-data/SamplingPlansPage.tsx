@@ -11,6 +11,7 @@ import api from '@/api/client'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import { getErrorMessage } from '@/utils/errors'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -96,7 +97,7 @@ export default function SamplingPlansPage() {
     setSpecTemplates(spr.data)
     setLoading(false)
   }
-  useEffect(() => { load() }, [filterStage, filterActive])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [filterStage, filterActive])  // load is stable: only reads filterStage/filterActive which are in deps
 
   // ── Reset form ──────────────────────────────────────────────────────────────
   function resetForm() {
@@ -141,8 +142,8 @@ export default function SamplingPlansPage() {
       })
       toast('Sampling plan created', 'success')
       setShowCreate(false); resetForm(); load()
-    } catch (err: any) {
-      setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Create failed')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Create failed'))
     } finally { setSaving(false) }
   }
 
@@ -163,8 +164,8 @@ export default function SamplingPlansPage() {
       })
       toast('Sampling plan updated', 'success')
       setEditing(null); resetForm(); load()
-    } catch (err: any) {
-      setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Update failed')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Update failed'))
     } finally { setSaving(false) }
   }
 
@@ -177,8 +178,8 @@ export default function SamplingPlansPage() {
       })
       toast(p.isActive ? 'Plan deactivated' : 'Plan activated', 'success')
       load()
-    } catch (err: any) {
-      toast(err.friendlyMessage ?? err.response?.data?.error ?? 'Update failed', 'error')
+    } catch (err) {
+      toast(getErrorMessage(err, 'Update failed'), 'error')
     }
   }
 
@@ -189,8 +190,8 @@ export default function SamplingPlansPage() {
       await api.delete(`/sampling-plans/${id}`)
       toast('Sampling plan deleted', 'success')
       load()
-    } catch (err: any) {
-      toast(err.friendlyMessage ?? err.response?.data?.error ?? 'Delete failed', 'error')
+    } catch (err) {
+      toast(getErrorMessage(err, 'Delete failed'), 'error')
     }
   }
 

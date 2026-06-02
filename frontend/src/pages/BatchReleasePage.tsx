@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import PipelineBar from '@/components/PipelineBar'
@@ -74,7 +75,7 @@ export default function BatchReleasePage() {
       setData(r.data)
     } finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   const filtered = useMemo(() => {
     return data.filter(r => {
@@ -101,7 +102,7 @@ export default function BatchReleasePage() {
       await api.post('/batch-releases', { sampleId: Number(form.sampleId) })
       setShowInitiate(false); await load()
       setStatusFilter('PendingReview')
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.error ?? 'Failed to initiate review') }
+    } catch (err) { setError(getErrorMessage(err, 'Failed to initiate review')) }
     finally { setSaving(false) }
   }
 
@@ -125,7 +126,7 @@ export default function BatchReleasePage() {
       await load()
       // Navigate to the filter matching the decision so user sees the result immediately
       setStatusFilter(decideForm.decision)   // 'Released' | 'Rejected' | 'OnHold'
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.error ?? err.response?.data?.message ?? 'Failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Failed')) }
     finally { setSaving(false) }
   }
 

@@ -49,11 +49,14 @@ export default function AuditTrailPanel({ entity, entityId, entityLabel, onClose
   const [error,   setError]   = useState('')
 
   useEffect(() => {
-    setLoading(true); setError('')
-    api.get(`/audit/${entity}/${entityId}`)
-      .then(r => setEvents(r.data))
-      .catch(() => setError('Audit trail not available for this record.'))
-      .finally(() => setLoading(false))
+    const t = setTimeout(() => {
+      setLoading(true); setError('')
+      api.get(`/audit/${entity}/${entityId}`)
+        .then(r => setEvents(r.data))
+        .catch(() => setError('Audit trail not available for this record.'))
+        .finally(() => setLoading(false))
+    }, 0)
+    return () => clearTimeout(t)
   }, [entity, entityId])
 
   return (

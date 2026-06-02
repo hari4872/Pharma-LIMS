@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import PipelineBar from '@/components/PipelineBar'
@@ -41,7 +42,7 @@ export default function RetainSamplesPage() {
     const [r, lr] = await Promise.all([api.get('/retain-samples'), api.get('/storage-locations')])
     setData(r.data); setLocations(lr.data); setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   const filtered = useMemo(() => {
     return data.filter(r => {
@@ -57,7 +58,7 @@ export default function RetainSamplesPage() {
     try {
       await api.post('/retain-samples', { sampleId: Number(addForm.sampleId), locationId: Number(addForm.locationId), quantity: Number(addForm.quantity), quantityUom: addForm.quantityUom, retainedOn: addForm.retainedOn })
       setShowAdd(false); load()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Failed')) }
     finally { setSaving(false) }
   }
 
@@ -66,7 +67,7 @@ export default function RetainSamplesPage() {
     try {
       await api.post(`/retain-samples/${showDestroy!.retainId}/destroy`, destroyForm)
       setShowDestroy(null); load()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Failed')) }
     finally { setSaving(false) }
   }
 

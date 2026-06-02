@@ -12,6 +12,7 @@ import api from '@/api/client'
 import { PageHeader, Modal, Field, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import { getErrorMessage } from '@/utils/errors'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -91,8 +92,8 @@ export default function SpecificationTemplatesPage() {
       setSampleTypes(stRes.data)
       setParameters(paramRes.data)
       setTestMethods(methRes.data)
-    } catch (e: any) {
-      toast(e.friendlyMessage ?? 'Failed to load specification templates', 'error')
+    } catch (e) {
+      toast(getErrorMessage(e, 'Failed to load specification templates'), 'error')
     } finally {
       setLoading(false)
     }
@@ -114,8 +115,8 @@ export default function SpecificationTemplatesPage() {
       await api.post(`/specification-templates/${id}/approve`)
       toast(`✓ ${name} approved — spec engine will now auto-apply this template`, 'success')
       loadAll()
-    } catch (e: any) {
-      toast(e.friendlyMessage ?? 'Approval failed', 'error')
+    } catch (e) {
+      toast(getErrorMessage(e, 'Approval failed'), 'error')
     }
   }
 
@@ -125,8 +126,8 @@ export default function SpecificationTemplatesPage() {
       await api.post(`/specification-templates/${id}/obsolete`)
       toast(`${name} marked Obsolete`, 'success')
       loadAll()
-    } catch (e: any) {
-      toast(e.friendlyMessage ?? 'Failed to obsolete template', 'error')
+    } catch (e) {
+      toast(getErrorMessage(e, 'Failed to obsolete template'), 'error')
     }
   }
 
@@ -298,8 +299,8 @@ function CreateTemplateModal({
       })
       toast(`Template "${form.templateName}" created — add tests in the designer`, 'success')
       onCreated()
-    } catch (e: any) {
-      toast(e.friendlyMessage ?? 'Failed to create template', 'error')
+    } catch (e) {
+      toast(getErrorMessage(e, 'Failed to create template'), 'error')
     } finally { setSaving(false) }
   }
 
@@ -422,7 +423,7 @@ function TestItemDesigner({
     })
   }
 
-  function updateItem(id: string, field: string, value: any) {
+  function updateItem(id: string, field: string, value: number | boolean | null) {
     setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i))
   }
 
@@ -439,8 +440,8 @@ function TestItemDesigner({
       )
       toast(`${items.length} test(s) saved to "${template.templateName}"`, 'success')
       onSaved()
-    } catch (e: any) {
-      toast(e.friendlyMessage ?? 'Failed to save tests', 'error')
+    } catch (e) {
+      toast(getErrorMessage(e, 'Failed to save tests'), 'error')
     } finally { setSaving(false) }
   }
 

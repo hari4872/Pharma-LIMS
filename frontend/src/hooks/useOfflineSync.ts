@@ -8,6 +8,7 @@ import axios from 'axios'
 import * as queue from '@/utils/offlineQueue'
 import type { QueueItem } from '@/utils/offlineQueue'
 import { toast } from '@/components/Toast'
+import { asApiError } from '@/utils/errors'
 
 export interface SyncResult {
   success: number
@@ -49,8 +50,9 @@ export function useOfflineSync(): OfflineSyncState {
     function handleOffline() { setIsOnline(false); refreshQueue() }
     window.addEventListener('online',  handleOnline)
     window.addEventListener('offline', handleOffline)
-    refreshQueue()
+    const t = setTimeout(refreshQueue, 0)
     return () => {
+      clearTimeout(t)
       window.removeEventListener('online',  handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
@@ -68,7 +70,7 @@ export function useOfflineSync(): OfflineSyncState {
     for (const item of pending) {
       try {
         await axios({
-          method:  item.method as any,
+          method:  item.method,
           url:     `/api/v1${item.url}`,
           data:    item.body,
           headers: {
@@ -82,8 +84,9 @@ export function useOfflineSync(): OfflineSyncState {
         await queue.remove(item.queueId)
         result.success++
         result.items.push({ queueId: item.queueId, description: item.description, ok: true })
-      } catch (err: any) {
-        const msg = err.friendlyMessage ?? err.response?.data?.message ?? err.message ?? 'Network error'
+      } catch (err) {
+        const e = asApiError(err)
+        const msg = e.friendlyMessage ?? e.response?.data?.message ?? e.message ?? 'Network error'
         await queue.markFailed(item.queueId, msg)
         result.failed++
         result.items.push({ queueId: item.queueId, description: item.description, ok: false, error: msg })

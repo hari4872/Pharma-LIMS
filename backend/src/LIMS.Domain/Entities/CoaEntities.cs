@@ -38,6 +38,8 @@ public class Coa
     public ElectronicSignature? QaSignature { get; set; }
     public int? SupersededById { get; set; }
     public Coa? SupersededBy { get; set; }                     // ALCOA+ Enduring — never delete original
+    public bool IsConditionalRelease { get; set; } = false;    // conditional release bypasses soft gates (items 7, 8)
+    public string? ConditionalJustification { get; set; }      // mandatory when IsConditionalRelease = true
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public ICollection<CoaLine> Lines { get; set; } = [];

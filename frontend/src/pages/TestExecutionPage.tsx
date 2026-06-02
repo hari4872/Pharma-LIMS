@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '@/api/client'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { getErrorMessage } from '@/utils/errors'
 
 interface Execution {
   executionId: number; sampleId: number; sampleNumber: string; materialName: string
@@ -80,22 +81,24 @@ export default function TestExecutionPage() {
   const [submitting,  setSubmitting]  = useState(false)
   const [draftSaved,  setDraftSaved]  = useState(false)
   const [error,       setError]       = useState('')
-  const startedAtRef = useRef<string | null>(null)
-  const [, setTick] = useState(0)
+  const [startedAt, setStartedAt] = useState<string | null>(null)
+  const [elapsedDisplay, setElapsedDisplay] = useState('00:00:00')
 
-  // Elapsed timer
+  // Elapsed timer — recompute once per second from the start time. Kept inside
+  // the effect (not during render) so the Date.now() read stays pure.
   useEffect(() => {
-    const t = setInterval(() => setTick(v => v + 1), 1000)
-    return () => clearInterval(t)
-  }, [])
-  const elapsedDisplay = (() => {
-    if (!startedAtRef.current) return '00:00:00'
-    const secs = Math.floor((Date.now() - new Date(startedAtRef.current).getTime()) / 1000)
-    const h = String(Math.floor(secs / 3600)).padStart(2, '0')
-    const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0')
-    const s = String(secs % 60).padStart(2, '0')
-    return `${h}:${m}:${s}`
-  })()
+    const compute = () => {
+      if (!startedAt) { setElapsedDisplay('00:00:00'); return }
+      const secs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
+      const h = String(Math.floor(secs / 3600)).padStart(2, '0')
+      const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0')
+      const s = String(secs % 60).padStart(2, '0')
+      setElapsedDisplay(`${h}:${m}:${s}`)
+    }
+    const t0 = setTimeout(compute, 0)
+    const t = setInterval(compute, 1000)
+    return () => { clearTimeout(t0); clearInterval(t) }
+  }, [startedAt])
 
   useEffect(() => {
     if (!id) return
@@ -103,7 +106,7 @@ export default function TestExecutionPage() {
     api.get(`/test-executions`)
       .then(r => {
         const ex = r.data.find((e: Execution) => e.executionId === Number(id))
-        if (ex) { setExecution(ex); startedAtRef.current = ex.startedAt }
+        if (ex) { setExecution(ex); setStartedAt(ex.startedAt) }
       })
       .catch(() => setError('Failed to load execution.'))
     // Load parameters
@@ -123,14 +126,17 @@ export default function TestExecutionPage() {
   // Restore draft
   useEffect(() => {
     if (!id) return
-    const saved = localStorage.getItem(DRAFT_KEY(id))
-    if (saved) {
-      try {
-        const { entries: e, evidence: ev } = JSON.parse(saved)
-        if (e) setEntries(e)
-        if (ev) setEvidence(ev)
-      } catch { /* ignore */ }
-    }
+    const t = setTimeout(() => {
+      const saved = localStorage.getItem(DRAFT_KEY(id))
+      if (saved) {
+        try {
+          const { entries: e, evidence: ev } = JSON.parse(saved)
+          if (e) setEntries(e)
+          if (ev) setEvidence(ev)
+        } catch { /* ignore */ }
+      }
+    }, 0)
+    return () => clearTimeout(t)
   }, [id])
 
   async function loadEvidence(entryId: number, parameterId: number) {
@@ -181,7 +187,7 @@ export default function TestExecutionPage() {
       setHasOot(r.data.hasOot)
       // Clear draft on successful submit
       if (id) localStorage.removeItem(DRAFT_KEY(id))
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Submit failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Submit failed')) }
     finally { setSubmitting(false) }
   }
 
@@ -190,7 +196,7 @@ export default function TestExecutionPage() {
     try {
       await api.post(`/test-executions/${id}/sign-off`, signForm)
       navigate('/work-queue')
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Sign-off failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Sign-off failed')) }
     finally { setSaving(false) }
   }
 
@@ -252,8 +258,20 @@ export default function TestExecutionPage() {
         </div>
       </div>
 
+      {/* ── Completed banner ──────────────────────────────────────────── */}
+      {execution.status === 'Completed' && (
+        <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 10, padding: '14px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 20 }}>✅</span>
+          <div>
+            <div style={{ fontWeight: 700, color: '#15803d', fontSize: 14 }}>Test Completed — Results Locked</div>
+            <div style={{ fontSize: 12, color: '#16a34a', marginTop: 2 }}>This execution has been signed off. Results cannot be modified.</div>
+          </div>
+        </div>
+      )}
+
       {/* ── Result Entry Form ──────────────────────────────────────────── */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '24px 28px', marginBottom: 20 }}>
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '24px 28px', marginBottom: 20,
+        opacity: execution.status === 'Completed' ? 0.6 : 1, pointerEvents: execution.status === 'Completed' ? 'none' : 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>
             📋 Enter Results
@@ -485,8 +503,8 @@ export default function TestExecutionPage() {
                       </td>
                       <td style={{ padding: '10px 12px', color: r.isOos ? '#dc2626' : '#16a34a', fontWeight: 600 }}>{r.isOos ? '⚠ OOS' : '✓'}</td>
                       <td style={{ padding: '10px 12px', color: r.isOot ? '#d97706' : '#16a34a', fontWeight: 600 }}>{r.isOot ? '⚠ OOT' : '✓'}</td>
-                      <td style={{ padding: '10px 12px', color: r.hasEvidence ? '#16a34a' : r.isCritical ? '#dc2626' : '#9ca3af' }}>
-                        {r.hasEvidence ? '✓ Filed' : r.isCritical ? '✗ Missing' : '—'}
+                      <td style={{ padding: '10px 12px', color: r.hasEvidence ? '#16a34a' : '#9ca3af' }}>
+                        {r.hasEvidence ? '✓ Filed' : '—'}
                       </td>
                     </tr>
                   )

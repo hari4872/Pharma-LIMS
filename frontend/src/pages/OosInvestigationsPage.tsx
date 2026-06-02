@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
@@ -43,7 +44,7 @@ export default function OosInvestigationsPage() {
       setData(r.data)
     } finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   const filtered = useMemo(() => {
     return data.filter(r => {
@@ -75,7 +76,7 @@ export default function OosInvestigationsPage() {
       await api.post(`/oos-investigations/${showClose!.investigationId}/close`, closeForm)
       setShowClose(null); await load()
       setStatusFilter('Closed')
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Close failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Close failed')) }
     finally { setSaving(false) }
   }
 

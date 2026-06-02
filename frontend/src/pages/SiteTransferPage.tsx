@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
@@ -76,7 +77,7 @@ export default function SiteTransferPage() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [filterStatus])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [filterStatus])
 
   async function submitInitiate(e: React.FormEvent) {
     e.preventDefault()
@@ -95,7 +96,7 @@ export default function SiteTransferPage() {
       setShowInitiate(false)
       setInitForm({ sampleId: '', toLabId: '', transferReason: '', chainOfCustodyNote: '' })
       load()
-    } catch (err: any) { setInitError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
+    } catch (err) { setInitError(getErrorMessage(err, 'Failed')) }
     finally { setInitSaving(false) }
   }
 
@@ -109,7 +110,7 @@ export default function SiteTransferPage() {
       await api.post(endpoint, { note: respondNote || null })
       toast(`Transfer ${action.toLowerCase()}d`, 'success')
       setShowRespond(null); setRespondNote(''); load()
-    } catch (err: any) { setRespondError(err.friendlyMessage ?? err.response?.data?.message ?? 'Action failed') }
+    } catch (err) { setRespondError(getErrorMessage(err, 'Action failed')) }
     finally { setRespondSaving(false) }
   }
 

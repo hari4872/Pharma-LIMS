@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
@@ -29,12 +30,12 @@ export default function TestMethodsPage() {
       await api.put(`/test-methods/${editRow!.methodId}`, editForm)
       setEditRow(null); load()
       toast(`Test Method "${editForm.methodName}" updated successfully`, 'success')
-    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
   async function load() { setLoading(true); const r = await api.get('/test-methods'); setData(r.data); setLoading(false) }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
@@ -44,7 +45,7 @@ export default function TestMethodsPage() {
       toast(`Test Method "${form.methodName}" added successfully`, 'success')
       load()
     }
-    catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -56,7 +57,7 @@ export default function TestMethodsPage() {
       toast(`Test Method approved successfully`, 'success')
       load()
     }
-    catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'E-signature failed'; setError(msg); toast(msg, 'error') }
+    catch (err) { const msg = getErrorMessage(err, 'E-signature failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 

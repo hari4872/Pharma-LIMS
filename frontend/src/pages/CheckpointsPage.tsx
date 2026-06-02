@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'
@@ -114,7 +115,7 @@ export default function CheckpointsPage() {
     setData(r.data); setLabs(lr.data); setParams(pr.data)
     setLoading(false)
   }
-  useEffect(() => { load() }, [modeFilter])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [modeFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Open form (create) ───────────────────────────────────────────────────
   function openCreate() {
@@ -177,8 +178,8 @@ export default function CheckpointsPage() {
       setShowForm(false)
       toast(`Checkpoint "${cpName}" added successfully`, 'success')
       load()
-    } catch (err: any) {
-      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed to create checkpoint'
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Failed to create checkpoint')
       setError(msg)
       toast(msg, 'error')
     }
@@ -199,8 +200,8 @@ export default function CheckpointsPage() {
       setShowSignRow(null)
       toast('Process log row signed and locked ✓', 'success')
       loadProcessLog(showSignRow.checkpointId)
-    } catch (err: any) {
-      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'E-signature failed'
+    } catch (err) {
+      const msg = getErrorMessage(err, 'E-signature failed')
       setError(msg)
       toast(msg, 'error')
     }

@@ -99,6 +99,19 @@ using (var scope = app.Services.CreateScope())
     {
         await db.Database.MigrateAsync();
         logger.LogInformation("Database migrations applied successfully.");
+
+        // One-time fix: set PeerReviewed for executions that have a peer review record but status = Completed
+        await db.Database.ExecuteSqlRawAsync(@"
+            UPDATE test_executions te
+            SET ""Status"" = 'PeerReviewed'
+            WHERE te.""Status"" = 'Completed'
+            AND EXISTS (
+                SELECT 1 FROM results_reviews rr
+                WHERE rr.""ExecutionId"" = te.""ExecutionId""
+                AND rr.""ReviewType"" = 'PeerReview'
+            );
+        ");
+        logger.LogInformation("PeerReviewed status fix applied.");
     }
     catch (Exception ex)
     {

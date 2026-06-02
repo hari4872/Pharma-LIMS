@@ -17,7 +17,11 @@ public static class DependencyInjection
         // DB — Neon PostgreSQL via connection string only (Contract 1: DB-portable)
         services.AddDbContext<LimsDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"),
-                npg => npg.MigrationsAssembly(typeof(LimsDbContext).Assembly.FullName)));
+                npg =>
+                {
+                    npg.MigrationsAssembly(typeof(LimsDbContext).Assembly.FullName);
+                    npg.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null);
+                }));
 
         services.AddScoped<ILimsDbContext>(sp => sp.GetRequiredService<LimsDbContext>());
 

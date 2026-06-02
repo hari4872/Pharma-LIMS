@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage, asApiError } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
@@ -85,7 +86,7 @@ export default function DigitalLogbookPage() {
     else if (oosFilter === 'critical') rows = rows.filter(e => e.isCritical)
     setData(rows); setLoading(false)
   }
-  useEffect(() => { if (tab === 'logbook') loadLogbook() }, [statusFilter, oosFilter, tab])
+  useEffect(() => { const t = setTimeout(() => { if (tab === 'logbook') loadLogbook() }, 0); return () => clearTimeout(t) }, [statusFilter, oosFilter, tab])
 
   // ── Process Log load ───────────────────────────────────────────────────────
   async function loadProcessLog() {
@@ -96,7 +97,7 @@ export default function DigitalLogbookPage() {
     } catch { setPlRows([]) }
     finally { setPlLoading(false) }
   }
-  useEffect(() => { if (tab === 'processlog') loadProcessLog() }, [tab, plDate])
+  useEffect(() => { const t = setTimeout(() => { if (tab === 'processlog') loadProcessLog() }, 0); return () => clearTimeout(t) }, [tab, plDate])
 
   // ── Check for overdue slots from past 7 days ──────────────────────────────
   async function checkOverdueSlots() {
@@ -114,7 +115,7 @@ export default function DigitalLogbookPage() {
     }
     setOverdueSlots(found)
   }
-  useEffect(() => { if (tab === 'processlog') checkOverdueSlots() }, [tab])
+  useEffect(() => { const t = setTimeout(() => { if (tab === 'processlog') checkOverdueSlots() }, 0); return () => clearTimeout(t) }, [tab])
 
   // ── Amendment submit ───────────────────────────────────────────────────────
   async function handleAmend(e: React.FormEvent) {
@@ -123,10 +124,10 @@ export default function DigitalLogbookPage() {
       await api.post(`/digital-logbook/${amendEntry!.entryId}/amend`, amendForm)
       toast('Amendment created — original preserved as Superseded', 'success')
       setAmendEntry(null); loadLogbook()
-    } catch (err: any) {
-      const code = err.response?.data?.error
-      if (code === 'ESIGN_AUTH_FAILED') setAmendError('Password incorrect')
-      else setAmendError(err.friendlyMessage ?? err.response?.data?.message ?? 'Amendment failed')
+    } catch (err) {
+      const e = asApiError(err)
+      if (e.response?.data?.error === 'ESIGN_AUTH_FAILED') setAmendError('Password incorrect')
+      else setAmendError(getErrorMessage(err, 'Amendment failed'))
     } finally { setAmendSaving(false) }
   }
 
@@ -143,10 +144,10 @@ export default function DigitalLogbookPage() {
       toast(`Process log row signed and locked ✓`, 'success')
       setSignRow(null); setSignReadings({}); setCpParams([])
       loadProcessLog()
-    } catch (err: any) {
-      const code = err.response?.data?.error
-      if (code === 'ESIGN_AUTH_FAILED') setSignError('Password incorrect')
-      else setSignError(err.friendlyMessage ?? err.response?.data?.message ?? 'Sign failed')
+    } catch (err) {
+      const e = asApiError(err)
+      if (e.response?.data?.error === 'ESIGN_AUTH_FAILED') setSignError('Password incorrect')
+      else setSignError(getErrorMessage(err, 'Sign failed'))
     } finally { setSignSaving(false) }
   }
 

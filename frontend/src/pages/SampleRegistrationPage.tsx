@@ -254,18 +254,23 @@ export default function SampleRegistrationPage() {
   // ── Load master data ────────────────────────────────────────────────────────
   async function load() {
     setLoading(true)
-    const params = statusFilter ? `?status=${statusFilter}` : ''
-    const [r, mr, str, cpr] = await Promise.all([
-      api.get(`/samples${params}`),
-      api.get('/materials'),
-      api.get('/sample-types'),
-      api.get('/checkpoints'),
-    ])
-    setData(r.data)
-    setMaterials(mr.data)
-    setSampleTypes(str.data.filter((t: SampleType) => t.typeCode !== 'DSPQC'))
-    setCheckpoints(cpr.data.filter((c: Checkpoint) => c.isActive))
-    setLoading(false)
+    try {
+      const params = statusFilter ? `?status=${statusFilter}` : ''
+      const [r, mr, str, cpr] = await Promise.all([
+        api.get(`/samples${params}`),
+        api.get('/materials'),
+        api.get('/sample-types'),
+        api.get('/checkpoints'),
+      ])
+      setData(r.data)
+      setMaterials(mr.data)
+      setSampleTypes(str.data.filter((t: SampleType) => t.typeCode !== 'DSPQC'))
+      setCheckpoints(cpr.data.filter((c: Checkpoint) => c.isActive))
+    } catch (err) {
+      toast(getErrorMessage(err, 'Failed to load sample data'), 'error')
+    } finally {
+      setLoading(false)
+    }
   }
   useEffect(() => { load() }, [statusFilter])
 

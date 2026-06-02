@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Legend, ResponsiveContainer,
 } from 'recharts'
@@ -39,10 +40,10 @@ function capabilityColor(val: number | null): string {
 }
 
 // ─── Custom dot to highlight OOS / OOT / OOC ──────────────────────────────
-function CustomDot(props: any) {
+function CustomDot(props: { cx?: number; cy?: number; payload?: { isOos?: boolean; isOot?: boolean } }) {
   const { cx, cy, payload } = props
-  if (payload.isOos) return <circle cx={cx} cy={cy} r={5} fill="#ef4444" stroke="#fff" strokeWidth={1.5} />
-  if (payload.isOot) return <circle cx={cx} cy={cy} r={4} fill="#f59e0b" stroke="#fff" strokeWidth={1.5} />
+  if (payload?.isOos) return <circle cx={cx} cy={cy} r={5} fill="#ef4444" stroke="#fff" strokeWidth={1.5} />
+  if (payload?.isOot) return <circle cx={cx} cy={cy} r={4} fill="#f59e0b" stroke="#fff" strokeWidth={1.5} />
   return <circle cx={cx} cy={cy} r={3} fill="#0d9488" />
 }
 
@@ -69,8 +70,8 @@ export default function SpcPage() {
     try {
       const r = await api.get(`/spc/${selectedId}?points=${points}`)
       setResult(r.data)
-    } catch (err: any) {
-      setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed to calculate SPC')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to calculate SPC'))
     } finally { setLoading(false) }
   }
 
@@ -80,8 +81,8 @@ export default function SpcPage() {
     try {
       const r = await api.get(`/spc/${selectedId}/qc-chart?points=${points}`)
       setQcResult(r.data)
-    } catch (err: any) {
-      setQcError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed to load QC chart')
+    } catch (err) {
+      setQcError(getErrorMessage(err, 'Failed to load QC chart'))
     } finally { setQcLoading(false) }
   }
 
@@ -425,10 +426,11 @@ export default function SpcPage() {
                       <ReferenceLine y={lot.lsl3} stroke="#dc2626" strokeDasharray="5 3" label={{ value: '-3σ', fontSize: 9, fill: '#dc2626', position: 'insideBottomRight' }} />
 
                       <Line type="monotone" dataKey="value" stroke="#0d9488" strokeWidth={2}
-                        dot={(props: any) => {
+                        dot={(props: { cx?: number; cy?: number; key?: string | number | bigint | null; payload?: { zone?: number } }) => {
                           const colors = ['#0d9488', '#d97706', '#f97316', '#dc2626']
-                          const c = colors[props.payload.zone] ?? '#0d9488'
-                          return <circle key={props.key} cx={props.cx} cy={props.cy} r={props.payload.zone >= 2 ? 5 : 3} fill={c} stroke="#fff" strokeWidth={1.5} />
+                          const zone = props.payload?.zone ?? 0
+                          const c = colors[zone] ?? '#0d9488'
+                          return <circle key={props.key} cx={props.cx} cy={props.cy} r={zone >= 2 ? 5 : 3} fill={c} stroke="#fff" strokeWidth={1.5} />
                         }}
                         name="Result" />
                     </LineChart>

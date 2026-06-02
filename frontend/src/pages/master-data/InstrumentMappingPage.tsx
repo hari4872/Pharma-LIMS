@@ -10,6 +10,7 @@ import api from '@/api/client'
 import { inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import { getErrorMessage } from '@/utils/errors'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -153,8 +154,8 @@ export default function InstrumentMappingPage() {
       toast('Mapping added', 'success')
       resetAddForm()
       loadMappings(selectedId)
-    } catch (err: any) {
-      setAddError(err.friendlyMessage ?? err.response?.data?.error ?? 'Add failed')
+    } catch (err) {
+      setAddError(getErrorMessage(err, 'Add failed'))
     } finally { setSaving(false) }
   }
 

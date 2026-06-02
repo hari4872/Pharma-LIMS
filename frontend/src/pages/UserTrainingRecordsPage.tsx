@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 
@@ -47,7 +48,7 @@ export default function UserTrainingRecordsPage() {
     setData(r.data); setUsers(ur.data); setMethods(mr.data)
     setLoading(false)
   }
-  useEffect(() => { load() }, [filterUser])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [filterUser])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
@@ -61,7 +62,7 @@ export default function UserTrainingRecordsPage() {
       setShowForm(false)
       setForm({ userId: '', methodId: '', trainingDate: '', validUntil: '' })
       load()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Failed')) }
     finally { setSaving(false) }
   }
 

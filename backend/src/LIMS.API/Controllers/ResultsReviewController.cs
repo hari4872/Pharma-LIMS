@@ -25,7 +25,20 @@ public class ResultsReviewController : LimsControllerBase
     [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
     public async Task<IActionResult> PeerReview(int executionId, [FromBody] ReviewRequest request)
     {
-        if (!TryGetUserId(out var reviewerId)) return Unauthorized(new { error = "Invalid token claims." });
+        int reviewerId;
+        if (!string.IsNullOrWhiteSpace(request.ReviewerUsername))
+        {
+            // Reviewer is a different person — resolve by username
+            var reviewer = await _db.Users
+                .FirstOrDefaultAsync(u => u.Username.ToLower() == request.ReviewerUsername.ToLower() && u.IsActive);
+            if (reviewer is null)
+                return BadRequest(new { error = "USER_NOT_FOUND", message = $"User '{request.ReviewerUsername}' not found or inactive." });
+            reviewerId = reviewer.UserId;
+        }
+        else
+        {
+            if (!TryGetUserId(out reviewerId)) return Unauthorized(new { error = "Invalid token claims." });
+        }
         var result = await _mediator.Send(new PeerReviewCommand(
             executionId, reviewerId, request.Password, request.Meaning, request.Reason, request.Notes));
         if (!result.IsSuccess)
@@ -41,7 +54,19 @@ public class ResultsReviewController : LimsControllerBase
     [Authorize(Roles = "QCLead,QA,Admin")]
     public async Task<IActionResult> QCLeadVerify(int executionId, [FromBody] ReviewRequest request)
     {
-        if (!TryGetUserId(out var qcLeadId)) return Unauthorized(new { error = "Invalid token claims." });
+        int qcLeadId;
+        if (!string.IsNullOrWhiteSpace(request.ReviewerUsername))
+        {
+            var reviewer = await _db.Users
+                .FirstOrDefaultAsync(u => u.Username.ToLower() == request.ReviewerUsername.ToLower() && u.IsActive);
+            if (reviewer is null)
+                return BadRequest(new { error = "USER_NOT_FOUND", message = $"User '{request.ReviewerUsername}' not found or inactive." });
+            qcLeadId = reviewer.UserId;
+        }
+        else
+        {
+            if (!TryGetUserId(out qcLeadId)) return Unauthorized(new { error = "Invalid token claims." });
+        }
         var result = await _mediator.Send(new QCLeadVerifyCommand(
             executionId, qcLeadId, request.Password, request.Meaning, request.Reason, request.Notes));
         if (!result.IsSuccess)
@@ -135,7 +160,7 @@ public class ResultsReviewController : LimsControllerBase
     }
 }
 
-public record ReviewRequest(string Password, string Meaning, string Reason, string? Notes = null);
+public record ReviewRequest(string Password, string Meaning, string Reason, string? Notes = null, string? ReviewerUsername = null);
 public record AttachEvidenceRequest(int EntryId, int SampleId, string FileRef, string? Description = null);
 
 

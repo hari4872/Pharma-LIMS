@@ -4,6 +4,7 @@ import { exportCsv } from '@/utils/exportCsv'
 interface Column<T> {
   header: string
   accessor: keyof T | ((row: T) => React.ReactNode)
+  render?: (row: T) => React.ReactNode
   width?: string | number
 }
 
@@ -139,7 +140,7 @@ export default function DataTable<T extends object>({
     return data.filter(row =>
       columns.some(col => {
         if (typeof col.accessor === 'function') return false
-        return String((row as any)[col.accessor] ?? '').toLowerCase().includes(q)
+        return String((row as Record<string, unknown>)[col.accessor as string] ?? '').toLowerCase().includes(q)
       })
     )
   }, [data, search, columns])
@@ -151,7 +152,7 @@ export default function DataTable<T extends object>({
     if (!col || typeof col.accessor === 'function') return filtered
     const key = col.accessor as keyof T
     return [...filtered].sort((a, b) => {
-      const av = (a as any)[key], bv = (b as any)[key]
+      const av = (a as Record<string, unknown>)[key as string], bv = (b as Record<string, unknown>)[key as string]
       const na = Number(av), nb = Number(bv)
       const cmp = !isNaN(na) && !isNaN(nb)
         ? na - nb
@@ -174,7 +175,7 @@ export default function DataTable<T extends object>({
   const someSelected    = pageIndices.some(i => selected.has(i))
 
   function toggleRow(idx: number) {
-    setSelected(s => { const n = new Set(s); n.has(idx) ? n.delete(idx) : n.add(idx); return n })
+    setSelected(s => { const n = new Set(s); if (n.has(idx)) n.delete(idx); else n.add(idx); return n })
   }
   function togglePage() {
     if (allPageSelected)
@@ -197,7 +198,7 @@ export default function DataTable<T extends object>({
     return rows.map(row => {
       const obj: Record<string, unknown> = {}
       columns.forEach(col => {
-        if (typeof col.accessor !== 'function') obj[col.header] = (row as any)[col.accessor] ?? ''
+        if (typeof col.accessor !== 'function') obj[col.header] = (row as Record<string, unknown>)[col.accessor as string] ?? ''
       })
       return obj
     })
@@ -216,7 +217,8 @@ export default function DataTable<T extends object>({
     <div>
 
       {/* ── Toolbar ── */}
-      {(searchable || exportFilename || true) && (
+      {/* Toolbar always renders (density + column-visibility controls are always available) */}
+      {(
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
 
           {/* Search */}
@@ -460,9 +462,11 @@ export default function DataTable<T extends object>({
                   </td>
                   {visCols.map(col => (
                     <td key={col.header} style={{ padding: d.cell, color: '#111111', fontSize: d.fs, verticalAlign: 'middle' }}>
-                      {typeof col.accessor === 'function'
-                        ? col.accessor(row)
-                        : String((row as any)[col.accessor] ?? '')}
+                      {col.render
+                        ? col.render(row)
+                        : typeof col.accessor === 'function'
+                          ? col.accessor(row)
+                          : String((row as Record<string, unknown>)[col.accessor as string] ?? '')}
                     </td>
                   ))}
                 </tr>

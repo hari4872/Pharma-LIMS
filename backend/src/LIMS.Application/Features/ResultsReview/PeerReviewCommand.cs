@@ -63,6 +63,7 @@ public class PeerReviewHandler : IRequestHandler<PeerReviewCommand, Result<int>>
             Notes = cmd.Notes
         };
         _db.ResultsReviews.Add(review);
+        execution.Status = TestExecutionStatus.PeerReviewed;
         await _db.SaveChangesAsync(ct);
 
         await _notify.PushToGroupAsync("QCLead", "PeerReviewCompleted",

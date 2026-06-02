@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { getErrorMessage } from '@/utils/errors'
 import { Field, Modal, ModalFooter, inp } from './master-data/LaboratoriesPage'
 
 // FR-18 / FR-20: Compliance & Governance — audit trail, signature log, validation reviews
@@ -129,10 +130,13 @@ export default function CompliancePanelPage() {
   }
 
   useEffect(() => {
-    if (tab === 'audit')        loadAudit(1)
-    if (tab === 'signatures')   loadSigs(1)
-    if (tab === 'reviews')      loadReviews()
-    if (tab === 'formTemplates') loadFtPending()
+    const t = setTimeout(() => {
+      if (tab === 'audit')        loadAudit(1)
+      if (tab === 'signatures')   loadSigs(1)
+      if (tab === 'reviews')      loadReviews()
+      if (tab === 'formTemplates') loadFtPending()
+    }, 0)
+    return () => clearTimeout(t)
   }, [tab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submitReview(e: React.FormEvent) {
@@ -142,7 +146,7 @@ export default function CompliancePanelPage() {
       setShowReviewForm(false)
       setReviewForm({ reviewType: 'Annual', outcome: 'Passed', notes: '', password: '', meaning: '', reason: '' })
       loadReviews()
-    } catch (err: any) { setError(err.friendlyMessage ?? err.response?.data?.message ?? 'Failed') }
+    } catch (err) { setError(getErrorMessage(err, 'Failed')) }
     finally { setSaving(false) }
   }
 

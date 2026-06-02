@@ -1,4 +1,5 @@
-﻿import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef, useCallback } from 'react'
+import api from '@/api/client'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import type { AppDispatch, RootState } from '@/store'
@@ -20,6 +21,7 @@ type NavItem = {
   iconBg: string
   iconColor: string
   icon: React.ReactNode
+  badge?: number
 }
 
 // ── Nav definitions ───────────────────────────────────────────────────────
@@ -217,6 +219,15 @@ function NavGroup({ items, dm, collapsed, onNavigate }: { items: NavItem[]; dm: 
             {n.icon}
           </div>
           {!collapsed && n.label}
+          {!collapsed && n.badge != null && n.badge > 0 && (
+            <span style={{
+              marginLeft: 'auto', minWidth: 18, height: 18,
+              background: '#ef4444', color: '#fff',
+              borderRadius: 9, fontSize: 11, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '0 5px',
+            }}>{n.badge}</span>
+          )}
         </NavLink>
       ))}
     </>
@@ -252,6 +263,19 @@ export default function Layout() {
   const [notifOpen,    setNotifOpen]    = useState(false)
   const [isMobile,     setIsMobile]     = useState(() => window.innerWidth < 768)
   const [mobileOpen,   setMobileOpen]   = useState(false)
+  const [pendingCoas,  setPendingCoas]  = useState(0)
+
+  // Poll pending Draft COAs every 60s to show badge on Release & Dispatch
+  const fetchPendingCoas = useCallback(async () => {
+    try {
+      const r = await api.get('/coas?status=Draft')
+      setPendingCoas((r.data ?? []).length)
+    } catch { /* silent */ }
+  }, [])
+
+  useEffect(() => {
+    if (token) { fetchPendingCoas(); const t = setInterval(fetchPendingCoas, 60000); return () => clearInterval(t) }
+  }, [token, fetchPendingCoas])
   const offlineSync = useOfflineSync()
   const { notifs, unreadCount: liveUnread, connected: hubConnected, markAllRead, markRead } = useNotifications()
 
@@ -420,7 +444,7 @@ export default function Layout() {
           <NavGroup items={qualityItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
 
           <SectionHead label="Release & Dispatch" dm={dm} collapsed={collapsed} />
-          <NavGroup items={releaseItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
+          <NavGroup items={releaseItems.map(i => i.path === '/release-dispatch' ? { ...i, badge: pendingCoas } : i)} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
 
           <SectionHead label="Stability & Retention" dm={dm} collapsed={collapsed} />
           <NavGroup items={stabilityItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />

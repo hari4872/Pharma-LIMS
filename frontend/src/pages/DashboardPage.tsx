@@ -261,7 +261,7 @@ export default function DashboardPage() {
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   // Load SPC parameter list once on quality tab open
   useEffect(() => {
@@ -277,21 +277,27 @@ export default function DashboardPage() {
   // Fetch SPC data when param or points changes
   useEffect(() => {
     if (spcParamId == null) return
-    setSpcLoading(true)
-    setSpcData(null)
-    api.get(`/spc/${spcParamId}?points=${spcPoints}`).then(r => {
-      setSpcData(r.data ?? null)
-    }).catch(() => { setSpcData(null) }).finally(() => setSpcLoading(false))
+    const t = setTimeout(() => {
+      setSpcLoading(true)
+      setSpcData(null)
+      api.get(`/spc/${spcParamId}?points=${spcPoints}`).then(r => {
+        setSpcData(r.data ?? null)
+      }).catch(() => { setSpcData(null) }).finally(() => setSpcLoading(false))
+    }, 0)
+    return () => clearTimeout(t)
   }, [spcParamId, spcPoints])
 
   // Lazy-load CoA history when compliance tab opens
   useEffect(() => {
     if (tab !== 'compliance') return
     if (coaHistory.length > 0) return
-    setCoaHistLoading(true)
-    api.get('/dashboard/coa-history').then(r => {
-      setCoaHistory(Array.isArray(r.data) ? r.data : [])
-    }).catch(() => {}).finally(() => setCoaHistLoading(false))
+    const t = setTimeout(() => {
+      setCoaHistLoading(true)
+      api.get('/dashboard/coa-history').then(r => {
+        setCoaHistory(Array.isArray(r.data) ? r.data : [])
+      }).catch(() => {}).finally(() => setCoaHistLoading(false))
+    }, 0)
+    return () => clearTimeout(t)
   }, [tab])
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
@@ -428,7 +434,7 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                   <XAxis type="number" tick={{ fontSize: 11, fill: '#6b7280' }} />
                   <YAxis type="category" dataKey="status" tick={{ fontSize: 11, fill: '#374151' }} width={90} />
-                  <Tooltip formatter={(v: any) => [v, 'Samples']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                  <Tooltip formatter={(v: number | string | ReadonlyArray<number | string> | undefined) => [String(v), 'Samples']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                   <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                     {pipeline.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Bar>
@@ -453,7 +459,7 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#6b7280' }} interval={1} />
                   <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} allowDecimals={false} />
-                  <Tooltip formatter={(v: any) => [v, 'Samples']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                  <Tooltip formatter={(v: number | string | ReadonlyArray<number | string> | undefined) => [String(v), 'Samples']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                   <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} fill="url(#grad1)" dot={{ r: 3, fill: '#3b82f6' }} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -527,7 +533,7 @@ export default function DashboardPage() {
                         paddingAngle={2} dataKey="value">
                         {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                       </Pie>
-                      <Tooltip formatter={(v: any) => [`${Number(v).toFixed(1)}%`, '']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                      <Tooltip formatter={(v: number | string | ReadonlyArray<number | string> | undefined) => [`${Number(v).toFixed(1)}%`, '']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                       <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
                     </PieChart>
                   </ResponsiveContainer>
@@ -547,7 +553,7 @@ export default function DashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#6b7280' }} interval={4} />
                   <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} unit="%" domain={[0, 'auto']} />
-                  <Tooltip formatter={(v: any) => [`${v}%`, 'OOS Rate']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                  <Tooltip formatter={(v: number | string | ReadonlyArray<number | string> | undefined) => [`${v}%`, 'OOS Rate']} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                   <Line type="monotone" dataKey="rate" stroke="#ef4444" strokeWidth={2}
                     dot={{ r: 2, fill: '#ef4444' }} activeDot={{ r: 4 }} />
                 </LineChart>
@@ -741,10 +747,10 @@ export default function DashboardPage() {
                         stroke="transparent"
                         strokeWidth={0}
                         isAnimationActive={false}
-                        dot={(props: any) => {
+                        dot={(props: { cx?: number; cy?: number; index?: number; payload?: { isOos?: boolean; isOot?: boolean } }) => {
                           const { cx, cy, payload } = props
-                          const fill = payload.isOos ? '#ef4444' : payload.isOot ? '#f59e0b' : '#22c55e'
-                          const r = payload.isOos ? 6 : 4
+                          const fill = payload?.isOos ? '#ef4444' : payload?.isOot ? '#f59e0b' : '#22c55e'
+                          const r = payload?.isOos ? 6 : 4
                           return (
                             <circle
                               key={`spc-dot-${props.index}`}

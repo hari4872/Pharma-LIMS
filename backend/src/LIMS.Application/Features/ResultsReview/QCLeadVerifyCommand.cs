@@ -39,6 +39,11 @@ public class QCLeadVerifyHandler : IRequestHandler<QCLeadVerifyCommand, Result<i
         if (peerReview is null)
             return Result<int>.Failure("PEER_REVIEW_MISSING", "Peer review must be completed before QC Lead verification.");
 
+        // Duplicate check — block if already QC-verified
+        var alreadyVerified = execution.ResultsReviews.Any(r => r.ReviewType == ReviewType.QCLeadVerification);
+        if (alreadyVerified)
+            return Result<int>.Failure("ALREADY_VERIFIED", "QC Lead verification already completed for this execution.");
+
         // 4-eyes: QC Lead must be different from analyst AND peer reviewer (FR-05)
         if (execution.AnalystId == cmd.QcLeadId || peerReview.ReviewerId == cmd.QcLeadId)
             return Result<int>.Failure("SEGREGATION_VIOLATION",
@@ -66,12 +71,15 @@ public class QCLeadVerifyHandler : IRequestHandler<QCLeadVerifyCommand, Result<i
         };
         _db.ResultsReviews.Add(review);
 
+        // Execution moves to QCVerified — removes it from Results Review queue
+        execution.Status = TestExecutionStatus.QCVerified;
         // Sample goes to PendingQAReview — Released only after QA CoA approval (Phase 4)
         execution.Sample.Status = SampleStatus.PendingQAReview;
-        await _db.SaveChangesAsync(ct);
 
-        // Auto-generate Draft CoA (Contract 1 — CoAGenerationService single builder)
+        // Auto-generate Draft CoA before committing — keeps review + CoA atomic (if CoA throws, review is not saved)
         await _coaGen.GenerateDraftAsync(execution.SampleId, cmd.ExecutionId, ct);
+
+        await _db.SaveChangesAsync(ct);
 
         await _notify.PushToGroupAsync("QA", "QCLeadVerified",
             new { executionId = cmd.ExecutionId, sampleId = execution.SampleId }, ct);

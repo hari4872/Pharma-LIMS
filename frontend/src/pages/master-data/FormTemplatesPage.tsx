@@ -3,6 +3,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import { getErrorMessage } from '@/utils/errors'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -131,7 +132,7 @@ export default function FormTemplatesPage() {
     await api.delete(`/form-templates/${manageRow!.formTemplateId}/locations/${locationId}`)
     openManage(manageRow!)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
@@ -143,7 +144,7 @@ export default function FormTemplatesPage() {
       setShowForm(false)
       toast(`Form Template "${form.formName}" added successfully`, 'success')
       load()
-    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Failed'; setError(msg); toast(msg, 'error') }
+    } catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -154,7 +155,7 @@ export default function FormTemplatesPage() {
       setShowApprove(null)
       toast(`Form Template approved successfully`, 'success')
       load()
-    } catch (err: any) { const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'E-signature failed'; setError(msg); toast(msg, 'error') }
+    } catch (err) { const msg = getErrorMessage(err, 'E-signature failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -464,9 +465,8 @@ function FieldDesigner({
       })
       toast(`Field layout saved — ${fields.length} field${fields.length !== 1 ? 's' : ''}`, 'success')
       onSaved()
-    } catch (err: any) {
-      const msg = err.friendlyMessage ?? err.response?.data?.message ?? 'Save failed'
-      toast(msg, 'error')
+    } catch (err) {
+      toast(getErrorMessage(err, 'Save failed'), 'error')
     } finally { setSaving(false) }
   }
 

@@ -3,7 +3,7 @@ import { getErrorMessage, asApiError } from '@/utils/errors'
 import { useNavigate } from 'react-router-dom'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
-import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 import BatchResultEntryPage from './BatchResultEntryPage'
@@ -395,7 +395,7 @@ export default function WorkQueuePage() {
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-        <PageHeader title="Work Queue (WAP)" onAdd={openAssign} addLabel="Assign Task" />
+        <div style={{ flex: 1 }} />
         <select style={{ ...inp, width: 180, marginTop: 0 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">All Statuses</option>
           {['Assigned', 'InProgress', 'Completed', 'OOSOpen'].map(s => <option key={s}>{s}</option>)}
@@ -410,6 +410,9 @@ export default function WorkQueuePage() {
           }}
         >
           🧠 AI Intelligence
+        </button>
+        <button onClick={openAssign} style={{ padding: '8px 18px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+          + Assign Task
         </button>
       </div>
 
@@ -570,7 +573,10 @@ export default function WorkQueuePage() {
         { header: 'Material / Lot', accessor: r => <span>{r.materialName}<br /><span style={{ fontSize: 12, color: '#6b7280' }}>{r.lotNumber}</span></span> },
         { header: 'Analyst', accessor: 'analystName' },
         { header: 'Instrument', accessor: 'instrumentCode' },
-        { header: 'Priority', accessor: r => r.priorityScore ?? '—' },
+        { header: 'Priority', accessor: 'priorityScore', render: r => {
+          const pb = priorityBadge(r.priorityScore)
+          return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: pb.bg, color: pb.color, border: `1px solid ${pb.border}` }}>{pb.label}</span>
+        }},
         { header: 'Status', accessor: r => {
           const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
           return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{r.status}</span>
@@ -632,7 +638,7 @@ export default function WorkQueuePage() {
       )}
 
       {showAssign && (
-        <Modal title="Assign Task (WAP)" onClose={() => setShowAssign(false)}>
+        <Modal title="Assign Task" onClose={() => setShowAssign(false)}>
           <form onSubmit={submitAssign}>
             <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
               ℹ WAP rules enforced: trained analyst + calibrated instrument + capacity check server-side.

@@ -80,11 +80,14 @@ function IchRegressionPanel({ protocolId, parameterId, paramName, onClose }: {
   const [err, setErr]         = useState('')
 
   useEffect(() => {
-    setLoading(true); setErr('')
-    api.get<IchTrendReport>(`/stability-trend/${protocolId}/${parameterId}`)
-      .then(r => setReport(r.data))
-      .catch(() => setErr('Failed to load regression data'))
-      .finally(() => setLoading(false))
+    const t = setTimeout(() => {
+      setLoading(true); setErr('')
+      api.get<IchTrendReport>(`/stability-trend/${protocolId}/${parameterId}`)
+        .then(r => setReport(r.data))
+        .catch(() => setErr('Failed to load regression data'))
+        .finally(() => setLoading(false))
+    }, 0)
+    return () => clearTimeout(t)
   }, [protocolId, parameterId])
 
   const FLAG_STYLE: Record<number, { bg: string; color: string; label: string }> = {
@@ -194,19 +197,20 @@ function Badge({ label, style }: { label: string; style: React.CSSProperties }) 
   )
 }
 
-function CustomDot(props: any) {
+function CustomDot(props: { cx?: number; cy?: number; payload?: { isOos?: boolean } }) {
   const { cx, cy, payload } = props
   return (
     <circle cx={cx} cy={cy} r={4}
-      fill={payload.isOos ? '#ef4444' : '#3b82f6'}
-      stroke={payload.isOos ? '#b91c1c' : '#1d4ed8'}
+      fill={payload?.isOos ? '#ef4444' : '#3b82f6'}
+      stroke={payload?.isOos ? '#b91c1c' : '#1d4ed8'}
       strokeWidth={1.5} />
   )
 }
 
-function CustomTooltip({ active, payload }: any) {
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload?: TrendDataPoint }> }) {
   if (!active || !payload?.length) return null
-  const d: TrendDataPoint = payload[0].payload
+  const d = payload[0].payload
+  if (!d) return null
   return (
     <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: '8px 12px', fontSize: 12, boxShadow: '0 2px 8px rgba(0,0,0,.1)' }}>
       <div style={{ fontWeight: 600, marginBottom: 2 }}>{d.timePointLabel}</div>
@@ -230,11 +234,14 @@ export default function StabilityStudyPage() {
   const [ichRegParam, setIchRegParam]     = useState<{ protocolId: number; parameterId: number; paramName: string } | null>(null)
 
   useEffect(() => {
-    setLoadingList(true)
-    api.get<StabilityProtocol[]>('/stability-protocols')
-      .then(r => setProtocols(r.data))
-      .catch(() => setProtocols([]))
-      .finally(() => setLoadingList(false))
+    const t = setTimeout(() => {
+      setLoadingList(true)
+      api.get<StabilityProtocol[]>('/stability-protocols')
+        .then(r => setProtocols(r.data))
+        .catch(() => setProtocols([]))
+        .finally(() => setLoadingList(false))
+    }, 0)
+    return () => clearTimeout(t)
   }, [])
 
   const loadProtocol = useCallback((id: number) => {

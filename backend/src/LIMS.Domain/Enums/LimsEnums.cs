@@ -33,7 +33,7 @@ public enum SampleStatus
     Registered, PendingTesting, InTesting, PendingQAReview, Released, Rejected
 }
 
-public enum TestExecutionStatus { Assigned, InProgress, Completed, OOSOpen }
+public enum TestExecutionStatus { Assigned, InProgress, Completed, OOSOpen, PeerReviewed, QCVerified }
 
 public enum LogbookEntryStatus { Pending, Signed, Superseded }
 
