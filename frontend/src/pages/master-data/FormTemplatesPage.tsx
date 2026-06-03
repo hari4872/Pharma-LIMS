@@ -86,14 +86,17 @@ export default function FormTemplatesPage() {
 
   async function load() {
     setLoading(true)
-    const [r, lr, str, pr, slr] = await Promise.all([
-      api.get('/form-templates'), api.get('/laboratories'),
-      api.get('/sample-types'),  api.get('/parameters'),
-      api.get('/storage-locations').catch(() => ({ data: [] })),
-    ])
-    setData(r.data); setLabs(lr.data); setSampleTypes(str.data); setParams(pr.data)
-    setAllLocations(slr.data)
-    setLoading(false)
+    try {
+      const [r, lr, str, pr, slr] = await Promise.all([
+        api.get('/form-templates').catch(() => ({ data: [] })),
+        api.get('/laboratories').catch(() => ({ data: [] })),
+        api.get('/sample-types').catch(() => ({ data: [] })),
+        api.get('/parameters').catch(() => ({ data: [] })),
+        api.get('/storage-locations').catch(() => ({ data: [] })),
+      ])
+      setData(r.data); setLabs(lr.data); setSampleTypes(str.data); setParams(pr.data)
+      setAllLocations(slr.data)
+    } finally { setLoading(false) }
   }
 
   async function openManage(row: Template) {

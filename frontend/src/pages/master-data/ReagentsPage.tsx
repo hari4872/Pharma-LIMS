@@ -38,9 +38,13 @@ export default function ReagentsPage() {
 
   async function load() {
     setLoading(true)
-    const [r, mr] = await Promise.all([api.get('/reagents'), api.get('/test-methods')])
-    setData(r.data); setMethods(mr.data)
-    setLoading(false)
+    try {
+      const [r, mr] = await Promise.all([
+        api.get('/reagents').catch(() => ({ data: [] })),
+        api.get('/test-methods').catch(() => ({ data: [] })),
+      ])
+      setData(r.data); setMethods(mr.data)
+    } finally { setLoading(false) }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 

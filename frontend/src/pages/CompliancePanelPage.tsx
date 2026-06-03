@@ -86,27 +86,33 @@ export default function CompliancePanelPage() {
 
   async function loadAudit(page = auditPage) {
     setLoading(true)
-    const params: Record<string, string | number> = { page, pageSize: 50 }
-    if (auditType) params.entityType = auditType
-    if (auditFrom) params.from = new Date(auditFrom).toISOString()
-    if (auditTo)   params.to   = new Date(auditTo + 'T23:59:59').toISOString()
-    const r = await api.get('/compliance/audit-trail', { params })
-    setAudit(r.data)
-    setLoading(false)
+    try {
+      const params: Record<string, string | number> = { page, pageSize: 50 }
+      if (auditType) params.entityType = auditType
+      if (auditFrom) params.from = new Date(auditFrom).toISOString()
+      if (auditTo)   params.to   = new Date(auditTo + 'T23:59:59').toISOString()
+      const r = await api.get('/compliance/audit-trail', { params })
+      setAudit(r.data)
+    } catch { setAudit({ items: [], total: 0 }) }
+    finally { setLoading(false) }
   }
 
   async function loadSigs(page = sigPage) {
     setLoading(true)
-    const r = await api.get('/compliance/signatures', { params: { page, pageSize: 50 } })
-    setSigs(r.data)
-    setLoading(false)
+    try {
+      const r = await api.get('/compliance/signatures', { params: { page, pageSize: 50 } })
+      setSigs(r.data)
+    } catch { setSigs({ items: [], total: 0 }) }
+    finally { setLoading(false) }
   }
 
   async function loadReviews() {
     setLoading(true)
-    const r = await api.get('/compliance/validation-reviews')
-    setReviews(r.data)
-    setLoading(false)
+    try {
+      const r = await api.get('/compliance/validation-reviews')
+      setReviews(r.data)
+    } catch { setReviews([]) }
+    finally { setLoading(false) }
   }
 
   async function loadLoginAudit() {
@@ -124,9 +130,11 @@ export default function CompliancePanelPage() {
 
   async function loadFtPending() {
     setLoading(true)
-    const r = await api.get('/compliance/form-templates/pending-review')
-    setFtPending(r.data)
-    setLoading(false)
+    try {
+      const r = await api.get('/compliance/form-templates/pending-review')
+      setFtPending(r.data)
+    } catch { setFtPending([]) }
+    finally { setLoading(false) }
   }
 
   useEffect(() => {

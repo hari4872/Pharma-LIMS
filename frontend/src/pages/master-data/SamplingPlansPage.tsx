@@ -81,21 +81,18 @@ export default function SamplingPlansPage() {
   // ── Load ────────────────────────────────────────────────────────────────────
   async function load() {
     setLoading(true)
-    const params = new URLSearchParams()
-    if (filterStage)                          params.set('stage',    filterStage)
-    if (filterActive !== '')                  params.set('isActive', filterActive)
-
-    const [r, mr, str, spr] = await Promise.all([
-      api.get(`/sampling-plans?${params}`),
-      api.get('/materials'),
-      api.get('/sample-types'),
-      api.get('/specification-templates?status=Approved'),
-    ])
-    setData(r.data)
-    setMaterials(mr.data)
-    setSampleTypes(str.data)
-    setSpecTemplates(spr.data)
-    setLoading(false)
+    try {
+      const params = new URLSearchParams()
+      if (filterStage)     params.set('stage',    filterStage)
+      if (filterActive !== '') params.set('isActive', filterActive)
+      const [r, mr, str, spr] = await Promise.all([
+        api.get(`/sampling-plans?${params}`).catch(() => ({ data: [] })),
+        api.get('/materials').catch(() => ({ data: [] })),
+        api.get('/sample-types').catch(() => ({ data: [] })),
+        api.get('/specification-templates?status=Approved').catch(() => ({ data: [] })),
+      ])
+      setData(r.data); setMaterials(mr.data); setSampleTypes(str.data); setSpecTemplates(spr.data)
+    } finally { setLoading(false) }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [filterStage, filterActive])  // load is stable: only reads filterStage/filterActive which are in deps
 

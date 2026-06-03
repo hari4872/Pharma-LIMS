@@ -45,9 +45,13 @@ export default function ParametersPage() {
 
   async function load() {
     setLoading(true)
-    const [r, mr] = await Promise.all([api.get('/parameters'), api.get('/test-methods?statusFilter=Approved')])
-    setData(r.data); setMethods(mr.data)
-    setLoading(false)
+    try {
+      const [r, mr] = await Promise.all([
+        api.get('/parameters').catch(() => ({ data: [] })),
+        api.get('/test-methods?statusFilter=Approved').catch(() => ({ data: [] })),
+      ])
+      setData(r.data); setMethods(mr.data)
+    } finally { setLoading(false) }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 

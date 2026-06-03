@@ -108,16 +108,17 @@ export default function StabilityProtocolsPage() {
   // ── Load ────────────────────────────────────────────────────────────────────
   async function load() {
     setLoading(true)
-    const params = filterActive !== '' ? `?isActive=${filterActive}` : ''
-    const [r, mr, spr] = await Promise.all([
-      api.get(`/stability-protocols${params}`),
-      api.get('/materials'),
-      api.get('/specification-templates?status=Approved'),
-    ])
-    setData(r.data)
-    setMaterials(mr.data)
-    setSpecTemplates(spr.data)
-    setLoading(false)
+    try {
+      const params = filterActive !== '' ? `?isActive=${filterActive}` : ''
+      const [r, mr, spr] = await Promise.all([
+        api.get(`/stability-protocols${params}`).catch(() => ({ data: [] })),
+        api.get('/materials').catch(() => ({ data: [] })),
+        api.get('/specification-templates?status=Approved').catch(() => ({ data: [] })),
+      ])
+      setData(r.data)
+      setMaterials(mr.data)
+      setSpecTemplates(spr.data)
+    } finally { setLoading(false) }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [filterActive])
 

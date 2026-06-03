@@ -72,9 +72,14 @@ export default function SpecLimitsPage() {
 
   async function load() {
     setLoading(true)
-    const [r, pr, mr] = await Promise.all([api.get('/spec-limits'), api.get('/parameters'), api.get('/materials')])
-    setData(r.data); setParams(pr.data); setMaterials(mr.data)
-    setLoading(false)
+    try {
+      const [r, pr, mr] = await Promise.all([
+        api.get('/spec-limits').catch(() => ({ data: [] })),
+        api.get('/parameters').catch(() => ({ data: [] })),
+        api.get('/materials').catch(() => ({ data: [] })),
+      ])
+      setData(r.data); setParams(pr.data); setMaterials(mr.data)
+    } finally { setLoading(false) }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
