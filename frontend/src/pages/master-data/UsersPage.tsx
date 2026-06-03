@@ -8,7 +8,7 @@ import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './Labor
 import { toast } from '@/components/Toast'
 import AuditTrailPanel from '@/components/AuditTrailPanel'
 
-interface UserRow { userId: number; username: string; fullName: string; email: string; userType: string; role: string; labName: string; isActive: boolean; isTenantAdmin: boolean }
+interface UserRow { userId: number; username: string; fullName: string; email: string; userType: string; role: string; labName: string; isActive: boolean; isTenantAdmin: boolean; customPermissionsJson: string | null }
 interface Lab { labId: number; labName: string }
 
 const PERMISSIONS = [
@@ -136,7 +136,14 @@ export default function UsersPage() {
         )},
         ...PERMISSIONS.map(p => ({
           header: p.label,
-          accessor: (r: UserRow) => <PermCheck val={r.role === 'Admin' || r.isTenantAdmin ? true : false} />
+          accessor: (r: UserRow) => {
+            if (r.role === 'Admin' || r.isTenantAdmin) return <PermCheck val={true} />
+            try {
+              const perms = r.customPermissionsJson ? JSON.parse(r.customPermissionsJson) : null
+              if (perms) return <PermCheck val={!!perms[p.key]} />
+            } catch { /* ignore */ }
+            return <PermCheck val={false} />
+          }
         })),
         { header: 'Status', accessor: r => <StatusBadge active={r.isActive} /> },
         { header: 'Actions', accessor: r => (
