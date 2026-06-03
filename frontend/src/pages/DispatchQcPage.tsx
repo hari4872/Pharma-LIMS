@@ -69,11 +69,15 @@ export default function DispatchQcPage() {
 
   async function load() {
     setLoading(true)
-    const [ordersRes, tasksRes] = await Promise.all([
-      api.get('/delivery-orders'),
-      api.get('/dispatch-qc')
-    ])
-    setOrders(ordersRes.data); setTasks(tasksRes.data); setLoading(false)
+    try {
+      const [ordersRes, tasksRes] = await Promise.all([
+        api.get('/delivery-orders').catch(() => ({ data: [] })),
+        api.get('/dispatch-qc').catch(() => ({ data: [] }))
+      ])
+      setOrders(ordersRes.data); setTasks(tasksRes.data)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function loadProducts() {

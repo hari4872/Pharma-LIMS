@@ -39,14 +39,17 @@ export default function UserTrainingRecordsPage() {
 
   async function load() {
     setLoading(true)
-    const params = filterUser ? `?userId=${filterUser}` : ''
-    const [r, ur, mr] = await Promise.all([
-      api.get(`/training-records${params}`),
-      api.get('/users'),
-      api.get('/test-methods'),
-    ])
-    setData(r.data); setUsers(ur.data); setMethods(mr.data)
-    setLoading(false)
+    try {
+      const params = filterUser ? `?userId=${filterUser}` : ''
+      const [r, ur, mr] = await Promise.all([
+        api.get(`/training-records${params}`).catch(() => ({ data: [] })),
+        api.get('/users').catch(() => ({ data: [] })),
+        api.get('/test-methods').catch(() => ({ data: [] })),
+      ])
+      setData(r.data); setUsers(ur.data); setMethods(mr.data)
+    } finally {
+      setLoading(false)
+    }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [filterUser])
 

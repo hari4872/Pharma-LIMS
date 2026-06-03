@@ -29,11 +29,15 @@ export default function ConditionExcursionsPage() {
 
   async function load() {
     setLoading(true)
-    const [r, lr] = await Promise.all([
-      api.get('/condition-excursions'),
-      api.get('/storage-locations')
-    ])
-    setData(r.data); setLocations(lr.data); setLoading(false)
+    try {
+      const [r, lr] = await Promise.all([
+        api.get('/condition-excursions').catch(() => ({ data: [] })),
+        api.get('/storage-locations').catch(() => ({ data: [] }))
+      ])
+      setData(r.data); setLocations(lr.data)
+    } finally {
+      setLoading(false)
+    }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 

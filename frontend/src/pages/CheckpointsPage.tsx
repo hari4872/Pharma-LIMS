@@ -106,14 +106,17 @@ export default function CheckpointsPage() {
   // ── Load ────────────────────────────────────────────────────────────────────
   async function load() {
     setLoading(true)
-    const mq = modeFilter ? `?triggerMode=${modeFilter}` : ''
-    const [r, lr, pr] = await Promise.all([
-      api.get(`/checkpoints${mq}`),
-      api.get('/laboratories'),
-      api.get('/parameters'),
-    ])
-    setData(r.data); setLabs(lr.data); setParams(pr.data)
-    setLoading(false)
+    try {
+      const mq = modeFilter ? `?triggerMode=${modeFilter}` : ''
+      const [r, lr, pr] = await Promise.all([
+        api.get(`/checkpoints${mq}`).catch(() => ({ data: [] })),
+        api.get('/laboratories').catch(() => ({ data: [] })),
+        api.get('/parameters').catch(() => ({ data: [] })),
+      ])
+      setData(r.data); setLabs(lr.data); setParams(pr.data)
+    } finally {
+      setLoading(false)
+    }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [modeFilter]) // eslint-disable-line react-hooks/exhaustive-deps
 
