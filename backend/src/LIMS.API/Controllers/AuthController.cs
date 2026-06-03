@@ -184,7 +184,8 @@ public class AuthController : ControllerBase
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, username),
             new Claim("fullName", fullName),
-            new Claim(ClaimTypes.Role, role),
+            new Claim(ClaimTypes.Role, role),   // long-form for ClaimsPrincipal.IsInRole
+            new Claim("role", role),            // short-form for RoleClaimType="role"
             new Claim("userType", userType),
             // MS-1: lab identity baked into token — backend validates from here, not request body
             new Claim("labId",   labId?.ToString() ?? ""),   // empty string = no lab; never "0" (avoids silent filter-to-zero)

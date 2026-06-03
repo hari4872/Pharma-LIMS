@@ -93,7 +93,7 @@ export default function CompliancePanelPage() {
       if (auditTo)   params.to   = new Date(auditTo + 'T23:59:59').toISOString()
       const r = await api.get('/compliance/audit-trail', { params })
       setAudit(r.data)
-    } catch { setAudit({ items: [], total: 0 }) }
+    } catch { setAudit({ items: [], totalCount: 0, page: 1, pageSize: 50 }) }
     finally { setLoading(false) }
   }
 
@@ -102,7 +102,7 @@ export default function CompliancePanelPage() {
     try {
       const r = await api.get('/compliance/signatures', { params: { page, pageSize: 50 } })
       setSigs(r.data)
-    } catch { setSigs({ items: [], total: 0 }) }
+    } catch { setSigs({ items: [], totalCount: 0, page: 1, pageSize: 50 }) }
     finally { setLoading(false) }
   }
 
