@@ -17,7 +17,7 @@ public class UsersController : ControllerBase
     public UsersController(IMediator mediator, ILimsDbContext db) { _mediator = mediator; _db = db; }
 
     [HttpGet]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,QA,LabManager")]   // QA & LabManager need user list for task assignment
     public async Task<IActionResult> GetAll([FromQuery] int? labId, [FromQuery] bool includeInactive = false)
         => Ok(await _mediator.Send(new GetUsersQuery(labId, includeInactive)));
 

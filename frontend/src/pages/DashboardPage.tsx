@@ -229,11 +229,11 @@ export default function DashboardPage() {
     setLoading(true)
     try {
       const [w, t, k, b, c, sm, wq, pl, st, ot] = await Promise.all([
-        api.get('/dashboard/wip'),
-        api.get('/dashboard/tat'),
-        api.get('/dashboard/quality-kpis'),
-        api.get('/dashboard/instrument-board'),
-        api.get('/dashboard/compliance'),
+        api.get('/dashboard/wip').catch(() => ({ data: null })),
+        api.get('/dashboard/tat').catch(() => ({ data: null })),
+        api.get('/dashboard/quality-kpis').catch(() => ({ data: null })),
+        api.get('/dashboard/instrument-board').catch(() => ({ data: [] })),
+        api.get('/dashboard/compliance').catch(() => ({ data: null })),   // QA/Admin only — silent 403 for others
         api.get('/samples').catch(() => ({ data: [] })),
         api.get('/test-executions').catch(() => ({ data: [] })),
         api.get('/dashboard/sample-pipeline').catch(() => ({ data: [] })),

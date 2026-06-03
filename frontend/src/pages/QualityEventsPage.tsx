@@ -75,9 +75,9 @@ export default function QualityEventsPage() {
 
   async function openCreate() {
     const [ur, sr, oor] = await Promise.all([
-      api.get('/users'),
-      api.get('/samples'),
-      api.get('/oos-investigations?status=Open'),
+      api.get('/users').catch(() => ({ data: [] })),
+      api.get('/samples').catch(() => ({ data: [] })),
+      api.get('/oos-investigations?status=Open').catch(() => ({ data: [] })),
     ])
     setUsers(ur.data); setSamples(sr.data); setOosInvs(oor.data)
     setForm({ ...EMPTY_FORM, cdType: typeFilter || 'Capa' })
@@ -86,7 +86,7 @@ export default function QualityEventsPage() {
 
   async function openEdit(ev: QualityEvent) {
     if (!users.length) {
-      const [ur] = await Promise.all([api.get('/users')])
+      const [ur] = await Promise.all([api.get('/users').catch(() => ({ data: [] }))])
       setUsers(ur.data)
     }
     setSelected(ev)

@@ -181,9 +181,9 @@ export default function WorkQueuePage() {
 
   async function openAssign() {
     const [sr, ur, ir] = await Promise.all([
-      api.get('/samples?status=PendingTesting'),
-      api.get('/users'),
-      api.get('/instruments'),
+      api.get('/samples?status=PendingTesting').catch(() => ({ data: [] })),
+      api.get('/users').catch(() => ({ data: [] })),
+      api.get('/instruments').catch(() => ({ data: [] })),
     ])
     setSamples(sr.data); setAnalysts(ur.data); setInstruments(ir.data)
     setSuggestions([]); setForm({ sampleId: '', analystId: '', instrumentId: '', priorityScore: '' })
@@ -220,7 +220,10 @@ export default function WorkQueuePage() {
 
   async function openReassign(item: WorkItem) {
     if (analysts.length === 0) {
-      const [ur, ir] = await Promise.all([api.get('/users'), api.get('/instruments')])
+      const [ur, ir] = await Promise.all([
+        api.get('/users').catch(() => ({ data: [] })),
+        api.get('/instruments').catch(() => ({ data: [] })),
+      ])
       setAnalysts(ur.data); setInstruments(ir.data)
     }
     setReassignItem(item)
