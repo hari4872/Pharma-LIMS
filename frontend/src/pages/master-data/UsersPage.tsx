@@ -92,9 +92,17 @@ export default function UsersPage() {
 
   async function load() {
     setLoading(true)
-    const [r, lr] = await Promise.all([api.get('/users'), api.get('/laboratories')])
-    setData(r.data); setLabs(lr.data)
-    setLoading(false)
+    try {
+      const [r, lr] = await Promise.all([
+        api.get('/users'),
+        api.get('/laboratories').catch(() => ({ data: [] })),
+      ])
+      setData(r.data); setLabs(lr.data)
+    } catch (err) {
+      toast(getErrorMessage(err, 'Failed to load users'), 'error')
+    } finally {
+      setLoading(false)
+    }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
