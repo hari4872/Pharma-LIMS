@@ -26,6 +26,9 @@ public class User
     public DateTimeOffset? LastLoginAt { get; set; }
     public string? LastLoginIp { get; set; }
 
+    // Custom permission overrides — null means use role defaults
+    public string? CustomPermissionsJson { get; set; }
+
     public ICollection<UserTrainingRecord> TrainingRecords { get; set; } = [];
     public ICollection<ElectronicSignature> Signatures { get; set; } = [];
 }

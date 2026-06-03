@@ -6,9 +6,28 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import AuditTrailPanel from '@/components/AuditTrailPanel'
 
 interface UserRow { userId: number; username: string; fullName: string; email: string; userType: string; role: string; labName: string; isActive: boolean; isTenantAdmin: boolean }
 interface Lab { labId: number; labName: string }
+
+const PERMISSIONS = [
+  { key: 'masterData',         label: 'Master Data' },
+  { key: 'sampleRegistration', label: 'Sample Reg.' },
+  { key: 'workQueue',          label: 'Work Queue' },
+  { key: 'resultsReview',      label: 'Results Review' },
+  { key: 'coaApproval',        label: 'COA Approval' },
+  { key: 'batchRelease',       label: 'Batch Release' },
+  { key: 'oosCapa',            label: 'OOS / CAPA' },
+  { key: 'compliance',         label: 'Compliance' },
+  { key: 'dispatchQc',         label: 'Dispatch QC' },
+]
+
+function PermCheck({ val }: { val: boolean }) {
+  return val
+    ? <span style={{ color: '#16a34a', fontSize: 16, fontWeight: 700 }}>✓</span>
+    : <span style={{ color: '#d1d5db', fontSize: 14 }}>—</span>
+}
 
 export default function UsersPage() {
   const role    = useSelector((s: RootState) => s.auth.role) ?? ''
@@ -23,6 +42,29 @@ export default function UsersPage() {
   const [error, setError] = useState('')
   const [editRow, setEditRow] = useState<UserRow | null>(null)
   const [editForm, setEditForm] = useState({ fullName: '', email: '', role: 'Analyst', labId: '' })
+  const [permUser, setPermUser] = useState<UserRow | null>(null)
+  const [perms, setPerms] = useState<Record<string, boolean>>({})
+  const [permSaving, setPermSaving] = useState(false)
+  const [auditUser, setAuditUser] = useState<UserRow | null>(null)
+
+  async function openPerms(r: UserRow) {
+    setPermUser(r)
+    try {
+      const res = await api.get(`/users/${r.userId}/permissions`)
+      setPerms(res.data.permissions ?? {})
+    } catch { setPerms({}) }
+  }
+
+  async function savePerms() {
+    if (!permUser) return
+    setPermSaving(true)
+    try {
+      await api.put(`/users/${permUser.userId}/permissions`, { permissions: perms })
+      toast(`Permissions updated for ${permUser.fullName}`, 'success')
+      setPermUser(null)
+    } catch (err) { toast(getErrorMessage(err, 'Failed'), 'error') }
+    finally { setPermSaving(false) }
+  }
 
   function openEdit(r: UserRow) {
     setEditRow(r)
@@ -71,28 +113,86 @@ export default function UsersPage() {
     <div>
       <PageHeader title="Users" onAdd={isAdmin ? () => setShowForm(true) : undefined} />
       <DataTable loading={loading} data={data} exportFilename="Users" columns={[
-        { header: 'Username', accessor: 'username' },
-        { header: 'Full Name', accessor: 'fullName' },
-        { header: 'Email', accessor: 'email' },
-        { header: 'Type', accessor: 'userType' },
-        { header: 'Role', accessor: 'role' },
-        { header: 'Lab', accessor: 'labName' },
-        { header: 'Admin', accessor: r => r.isTenantAdmin ? '✓' : '' },
+        { header: 'User', accessor: r => (
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{r.username}</div>
+            <div style={{ fontSize: 11, color: '#6b7280' }}>{r.email}</div>
+          </div>
+        )},
+        { header: 'Type', accessor: r => (
+          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600,
+            background: r.userType === 'Admin' ? '#ede9fe' : '#f1f5f9',
+            color: r.userType === 'Admin' ? '#6d28d9' : '#475569' }}>
+            {r.role}
+          </span>
+        )},
+        ...PERMISSIONS.map(p => ({
+          header: p.label,
+          accessor: (r: UserRow) => <PermCheck val={r.role === 'Admin' || r.isTenantAdmin ? true : false} />
+        })),
         { header: 'Status', accessor: r => <StatusBadge active={r.isActive} /> },
-        { header: 'Unlock', accessor: r => isAdmin ? (
-          <button onClick={() => unlockUser(r.userId, r.fullName)}
-            style={{ padding: '3px 8px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-            🔓 Unlock
-          </button>
-        ) : <span style={{ fontSize: 11, color: '#d1d5db' }}>—</span> },
-        { header: 'Edit', accessor: r => isAdmin ? (
-          <button onClick={() => openEdit(r)}
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e5e7eb', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#374151', fontFamily:'inherit' }}>
-            <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            Edit
-          </button>
-        ) : <span style={{ fontSize: 11, color: '#d1d5db' }}>—</span> },
+        { header: 'Actions', accessor: r => (
+          <div style={{ display: 'flex', gap: 6 }}>
+            {isAdmin && r.role !== 'Admin' && (
+              <button onClick={() => openPerms(r)}
+                style={{ padding: '3px 10px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                Edit Permissions
+              </button>
+            )}
+            {isAdmin && (
+              <button onClick={() => openEdit(r)}
+                style={{ padding: '3px 8px', background: '#f9fafb', color: '#374151', border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                Edit
+              </button>
+            )}
+            {isAdmin && (
+              <button onClick={() => unlockUser(r.userId, r.fullName)}
+                style={{ padding: '3px 8px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                🔓
+              </button>
+            )}
+          </div>
+        )},
       ]} />
+      {permUser && (
+        <Modal title={`Edit Permissions — ${permUser.username}`} onClose={() => setPermUser(null)}>
+          <form onSubmit={e => { e.preventDefault(); savePerms() }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>
+                Toggle permissions for <strong>{permUser.fullName}</strong> ({permUser.role}).
+              </p>
+              <button type="button"
+                onClick={() => { setAuditUser(permUser); setPermUser(null) }}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                📋 Audit Trail
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+              {PERMISSIONS.map(p => (
+                <label key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '7px 10px', borderRadius: 6, background: perms[p.key] ? '#f0fdf4' : '#f9fafb', border: `1px solid ${perms[p.key] ? '#bbf7d0' : '#e5e7eb'}`, transition: 'all 0.12s' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!perms[p.key]}
+                    onChange={e => setPerms(prev => ({ ...prev, [p.key]: e.target.checked }))}
+                    style={{ accentColor: '#16a34a', width: 15, height: 15, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{p.label}</span>
+                  {perms[p.key] && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#16a34a', fontWeight: 700 }}>Enabled</span>}
+                </label>
+              ))}
+            </div>
+            <ModalFooter saving={permSaving} onCancel={() => setPermUser(null)} label="Save Permissions" />
+          </form>
+        </Modal>
+      )}
+      {auditUser && (
+        <AuditTrailPanel
+          entity="UserPermissions"
+          entityId={auditUser.userId}
+          entityLabel={`${auditUser.fullName} (${auditUser.role})`}
+          onClose={() => setAuditUser(null)}
+        />
+      )}
       {editRow && (
         <Modal title={`Edit User — ${editRow.username}`} onClose={() => setEditRow(null)}>
           <form onSubmit={submitEdit}>

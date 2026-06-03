@@ -29,6 +29,7 @@ public class SpecificationTemplate
     public string TemplateName  { get; set; } = default!;   // e.g. "FP-STP-001"
     public string Version       { get; set; } = "1.0";
     public string? Description  { get; set; }
+    public string? CompendialStandard { get; set; }   // e.g. USP, EP, BP, JP, IP, In-house
 
     // ── Approval lifecycle ────────────────────────────────────────────────
     public SpecTemplateStatus Status { get; set; } = SpecTemplateStatus.Draft;

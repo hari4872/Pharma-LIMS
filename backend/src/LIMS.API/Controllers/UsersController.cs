@@ -76,7 +76,65 @@ public class UsersController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(new { userId = id, status = "Unlocked" });
     }
+
+    // GET api/v1/users/{id}/permissions — get user's permission matrix
+    [HttpGet("{id}/permissions")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetPermissions(int id)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == id);
+        if (user is null) return NotFound(new { message = "User not found." });
+
+        // If custom permissions are stored on the user, return them; else return role defaults
+        if (user.CustomPermissionsJson != null)
+        {
+            var custom = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, bool>>(user.CustomPermissionsJson);
+            return Ok(new { userId = id, permissions = custom });
+        }
+
+        return Ok(new { userId = id, permissions = GetDefaultPermissions(user.Role.ToString()) });
+    }
+
+    // PUT api/v1/users/{id}/permissions — save custom permission matrix
+    [HttpPut("{id}/permissions")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdatePermissions(int id, [FromBody] UpdatePermissionsRequest req)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == id);
+        if (user is null) return NotFound(new { message = "User not found." });
+
+        var oldJson = user.CustomPermissionsJson
+            ?? System.Text.Json.JsonSerializer.Serialize(GetDefaultPermissions(user.Role.ToString()));
+        var json = System.Text.Json.JsonSerializer.Serialize(req.Permissions);
+        user.CustomPermissionsJson = json;
+
+        var adminName = User.Identity?.Name ?? "System";
+        _db.MasterDataAuditLogs.Add(new LIMS.Domain.Entities.MasterDataAuditLog
+        {
+            EntityType  = "UserPermissions",
+            EntityId    = id,
+            EventType   = "Updated",
+            OldValue    = oldJson,
+            NewValue    = json,
+            PerformedBy = adminName,
+            PerformedAt = DateTimeOffset.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { userId = id, permissions = req.Permissions });
+    }
+
+    private static Dictionary<string, bool> GetDefaultPermissions(string role) => role switch
+    {
+        "Admin"      => new() { ["masterData"]=true,  ["sampleRegistration"]=true,  ["workQueue"]=true,  ["resultsReview"]=true,  ["coaApproval"]=true,  ["batchRelease"]=true,  ["oosCapa"]=true,  ["compliance"]=true,  ["dispatchQc"]=true  },
+        "QA"         => new() { ["masterData"]=true,  ["sampleRegistration"]=false, ["workQueue"]=false, ["resultsReview"]=true,  ["coaApproval"]=true,  ["batchRelease"]=true,  ["oosCapa"]=true,  ["compliance"]=true,  ["dispatchQc"]=true  },
+        "QCLead"     => new() { ["masterData"]=false, ["sampleRegistration"]=true,  ["workQueue"]=true,  ["resultsReview"]=true,  ["coaApproval"]=false, ["batchRelease"]=false, ["oosCapa"]=true,  ["compliance"]=false, ["dispatchQc"]=false },
+        "Analyst"    => new() { ["masterData"]=false, ["sampleRegistration"]=true,  ["workQueue"]=true,  ["resultsReview"]=false, ["coaApproval"]=false, ["batchRelease"]=false, ["oosCapa"]=false, ["compliance"]=false, ["dispatchQc"]=false },
+        "LabManager" => new() { ["masterData"]=false, ["sampleRegistration"]=true,  ["workQueue"]=true,  ["resultsReview"]=false, ["coaApproval"]=false, ["batchRelease"]=true,  ["oosCapa"]=true,  ["compliance"]=false, ["dispatchQc"]=false },
+        _            => new() { ["masterData"]=false, ["sampleRegistration"]=false, ["workQueue"]=false, ["resultsReview"]=false, ["coaApproval"]=false, ["batchRelease"]=false, ["oosCapa"]=false, ["compliance"]=false, ["dispatchQc"]=false },
+    };
 }
 
 public record CreateUserRequest(string Username, string Password, string FullName, string Email, string UserType, string Role, int? LabId);
 public record UpdateUserRequest(string FullName, string Email, string Role, int? LabId);
+public record UpdatePermissionsRequest(Dictionary<string, bool> Permissions);

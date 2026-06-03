@@ -5,8 +5,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.Application.Features.MasterData.Instruments;
 
-public record UpdateInstrumentCommand(int InstrumentId, string InstrumentType, string? Model,
-    string? SerialNumber, DateOnly CalibrationDue, string UpdatedBy) : IRequest<Result<int>>;
+public record UpdateInstrumentCommand(int InstrumentId, string? InstrumentName, string InstrumentType,
+    string? Manufacturer, string? Model, string? SerialNumber, string? Location,
+    DateOnly CalibrationDue, DateOnly? LastCalibration, string UpdatedBy) : IRequest<Result<int>>;
 
 public class UpdateInstrumentCommandHandler : IRequestHandler<UpdateInstrumentCommand, Result<int>>
 {
@@ -18,12 +19,14 @@ public class UpdateInstrumentCommandHandler : IRequestHandler<UpdateInstrumentCo
     {
         var inst = await _db.Instruments.FirstOrDefaultAsync(i => i.InstrumentId == request.InstrumentId, ct);
         if (inst is null) return Result<int>.Failure("NOT_FOUND", "Instrument not found.");
-        var old = new { inst.InstrumentType, inst.Model, inst.CalibrationDue };
-        inst.InstrumentType = request.InstrumentType; inst.Model = request.Model;
-        inst.SerialNumber = request.SerialNumber; inst.CalibrationDue = request.CalibrationDue;
+        var old = new { inst.InstrumentName, inst.InstrumentType, inst.Manufacturer, inst.Model, inst.Location, inst.CalibrationDue, inst.LastCalibration };
+        inst.InstrumentName = request.InstrumentName; inst.InstrumentType = request.InstrumentType;
+        inst.Manufacturer = request.Manufacturer; inst.Model = request.Model;
+        inst.SerialNumber = request.SerialNumber; inst.Location = request.Location;
+        inst.CalibrationDue = request.CalibrationDue; inst.LastCalibration = request.LastCalibration;
         await _db.SaveChangesAsync(ct);
         await _audit.LogAsync("Instrument", inst.InstrumentId, "Updated", old,
-            new { inst.InstrumentType, inst.Model, inst.CalibrationDue }, request.UpdatedBy);
+            new { inst.InstrumentName, inst.InstrumentType, inst.Manufacturer, inst.Model, inst.Location, inst.CalibrationDue, inst.LastCalibration }, request.UpdatedBy);
         return Result<int>.Success(inst.InstrumentId);
     }
 }

@@ -8,8 +8,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.Application.Features.MasterData.Instruments;
 
-public record CreateInstrumentCommand(int LabId, string InstrumentCode, string InstrumentType,
-    string? Model, string? SerialNumber, DateOnly CalibrationDue, string CreatedBy) : IRequest<Result<int>>;
+public record CreateInstrumentCommand(int LabId, string InstrumentCode, string? InstrumentName,
+    string InstrumentType, string? Manufacturer, string? Model, string? SerialNumber,
+    string? Location, DateOnly CalibrationDue, DateOnly? LastCalibration, string CreatedBy) : IRequest<Result<int>>;
 
 public class CreateInstrumentCommandValidator : AbstractValidator<CreateInstrumentCommand>
 {
@@ -35,8 +36,10 @@ public class CreateInstrumentCommandHandler : IRequestHandler<CreateInstrumentCo
         var instrument = new Instrument
         {
             LabId = request.LabId, InstrumentCode = request.InstrumentCode,
-            InstrumentType = request.InstrumentType, Model = request.Model,
-            SerialNumber = request.SerialNumber, CalibrationDue = request.CalibrationDue,
+            InstrumentName = request.InstrumentName, InstrumentType = request.InstrumentType,
+            Manufacturer = request.Manufacturer, Model = request.Model,
+            SerialNumber = request.SerialNumber, Location = request.Location,
+            CalibrationDue = request.CalibrationDue, LastCalibration = request.LastCalibration,
             CreatedBy = request.CreatedBy, CreatedAt = DateTimeOffset.UtcNow
         };
         _db.Instruments.Add(instrument);

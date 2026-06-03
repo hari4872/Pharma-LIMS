@@ -48,7 +48,7 @@ public class SpecificationTemplatesController : ControllerBase
 
         var list = await q.OrderByDescending(t => t.CreatedAt).Select(t => new
         {
-            t.SpecTemplateId, t.TemplateName, t.Version, t.Description,
+            t.SpecTemplateId, t.TemplateName, t.Version, t.Description, t.CompendialStandard,
             t.Stage, t.Status, t.EffectiveFrom, t.ApprovedBy, t.ApprovedAt,
             Material   = new { t.Material.MaterialId, t.Material.MaterialName },
             SampleType = new { t.SampleType.SampleTypeId, t.SampleType.TypeName, t.SampleType.TypeCode },
@@ -90,16 +90,17 @@ public class SpecificationTemplatesController : ControllerBase
         var user = User.Identity?.Name ?? "system";
         var template = new SpecificationTemplate
         {
-            MaterialId   = req.MaterialId,
-            SampleTypeId = req.SampleTypeId,
-            Stage        = req.Stage,
-            TemplateName = req.TemplateName,
-            Version      = req.Version ?? "1.0",
-            Description  = req.Description,
-            Status       = SpecTemplateStatus.Draft,
-            EffectiveFrom = req.EffectiveFrom,
-            CreatedBy    = user,
-            CreatedAt    = DateTimeOffset.UtcNow,
+            MaterialId        = req.MaterialId,
+            SampleTypeId      = req.SampleTypeId,
+            Stage             = req.Stage,
+            TemplateName      = req.TemplateName,
+            Version           = req.Version ?? "1.0",
+            Description       = req.Description,
+            CompendialStandard = req.CompendialStandard,
+            Status            = SpecTemplateStatus.Draft,
+            EffectiveFrom     = req.EffectiveFrom,
+            CreatedBy         = user,
+            CreatedAt         = DateTimeOffset.UtcNow,
         };
 
         _db.SpecificationTemplates.Add(template);
@@ -252,6 +253,7 @@ public record CreateSpecTemplateRequest(
     string    TemplateName,
     string?   Version,
     string?   Description,
+    string?   CompendialStandard,
     DateTimeOffset? EffectiveFrom);
 
 public record UpdateSpecTemplateRequest(

@@ -17,21 +17,22 @@ import { getErrorMessage } from '@/utils/errors'
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface SpecTemplate {
-  specTemplateId: number
-  templateName:   string
-  version:        string
-  description:    string | null
-  stage:          string
-  status:         string   // Draft | Approved | Obsolete
-  effectiveFrom:  string | null
-  approvedBy:     string | null
-  approvedAt:     string | null
-  material:       { materialId: number; materialName: string }
-  sampleType:     { sampleTypeId: number; typeName: string; typeCode: string }
-  itemCount:      number
-  items:          SpecTemplateItem[]
-  createdBy:      string
-  createdAt:      string
+  specTemplateId:     number
+  templateName:       string
+  version:            string
+  description:        string | null
+  compendialStandard: string | null
+  stage:              string
+  status:             string   // Draft | Approved | Obsolete
+  effectiveFrom:      string | null
+  approvedBy:         string | null
+  approvedAt:         string | null
+  material:           { materialId: number; materialName: string }
+  sampleType:         { sampleTypeId: number; typeName: string; typeCode: string }
+  itemCount:          number
+  items:              SpecTemplateItem[]
+  createdBy:          string
+  createdAt:          string
 }
 
 interface SpecTemplateItem {
@@ -171,7 +172,7 @@ export default function SpecificationTemplatesPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#f8f9fa', borderBottom: '1px solid #e0e0e0' }}>
-                  {['Template Name', 'Material', 'Sample Type', 'Stage', 'Tests', 'Version', 'Status', 'Effective From', 'Actions'].map(h => (
+                  {['Template Name', 'Material', 'Compendial Std.', 'Sample Type', 'Stage', 'Tests', 'Version', 'Status', 'Effective From', 'Actions'].map(h => (
                     <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#111111', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -187,6 +188,11 @@ export default function SpecificationTemplatesPage() {
                         {t.approvedBy && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Approved by {t.approvedBy}</div>}
                       </td>
                       <td style={{ padding: '11px 14px', fontSize: 13, color: '#111111' }}>{t.material.materialName}</td>
+                      <td style={{ padding: '11px 14px' }}>
+                        {t.compendialStandard
+                          ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>{t.compendialStandard}</span>
+                          : <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>}
+                      </td>
                       <td style={{ padding: '11px 14px' }}>
                         <span style={{ fontSize: 12, fontWeight: 600, color: '#111111' }}>{t.sampleType.typeName}</span>
                         <span style={{ fontSize: 10, color: '#5f6368', marginLeft: 4 }}>{t.sampleType.typeCode}</span>
@@ -277,7 +283,7 @@ function CreateTemplateModal({
 }) {
   const [form, setForm] = useState({
     materialId: '', sampleTypeId: '', stage: 'Finished',
-    templateName: '', version: '1.0', description: '', effectiveFrom: ''
+    templateName: '', version: '1.0', description: '', compendialStandard: '', effectiveFrom: ''
   })
   const [saving, setSaving] = useState(false)
   const f = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
@@ -289,13 +295,14 @@ function CreateTemplateModal({
     setSaving(true)
     try {
       await api.post('/specification-templates', {
-        materialId:   parseInt(form.materialId),
-        sampleTypeId: parseInt(form.sampleTypeId),
-        stage:        form.stage,
-        templateName: form.templateName,
-        version:      form.version || '1.0',
-        description:  form.description || null,
-        effectiveFrom: form.effectiveFrom || null,
+        materialId:         parseInt(form.materialId),
+        sampleTypeId:       parseInt(form.sampleTypeId),
+        stage:              form.stage,
+        templateName:       form.templateName,
+        version:            form.version || '1.0',
+        description:        form.description || null,
+        compendialStandard: form.compendialStandard || null,
+        effectiveFrom:      form.effectiveFrom || null,
       })
       toast(`Template "${form.templateName}" created — add tests in the designer`, 'success')
       onCreated()
@@ -331,6 +338,18 @@ function CreateTemplateModal({
       </Field>
       <Field label="Description">
         <input style={inp} placeholder="Optional description" value={form.description} onChange={e => f('description', e.target.value)} />
+      </Field>
+      <Field label="Compendial Standard">
+        <select style={inp} value={form.compendialStandard} onChange={e => f('compendialStandard', e.target.value)}>
+          <option value="">None / In-house</option>
+          <option value="USP">USP — United States Pharmacopeia</option>
+          <option value="EP">EP — European Pharmacopeia</option>
+          <option value="BP">BP — British Pharmacopeia</option>
+          <option value="JP">JP — Japanese Pharmacopeia</option>
+          <option value="IP">IP — Indian Pharmacopeia</option>
+          <option value="ICH">ICH Guidelines</option>
+          <option value="In-house">In-house Method</option>
+        </select>
       </Field>
       <Field label="Effective From">
         <input type="datetime-local" style={{ ...inp, width: 220 }} value={form.effectiveFrom} onChange={e => f('effectiveFrom', e.target.value)} />

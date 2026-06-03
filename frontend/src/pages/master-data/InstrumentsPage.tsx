@@ -5,7 +5,7 @@ import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './Labor
 import { toast } from '@/components/Toast'
 import { getErrorMessage } from '@/utils/errors'
 
-interface Instrument { instrumentId: number; labName: string; instrumentCode: string; instrumentType: string; model: string; serialNumber: string; calibrationDue: string; status: string; isActive: boolean }
+interface Instrument { instrumentId: number; labName: string; instrumentCode: string; instrumentName: string; instrumentType: string; manufacturer: string; model: string; serialNumber: string; location: string; calibrationDue: string; lastCalibration: string; status: string; isActive: boolean }
 interface Lab { labId: number; labName: string }
 interface Breakdown { breakdownId: number; instrumentId: number; instrumentCode: string; raisedByName: string; raisedAt: string; issueDescription: string; status: string; repairCount: number; returnSignatureId: number | null }
 interface UtilisationSummary { summaryId: number; windowDays: number; windowStart: string; windowEnd: string; totalTests: number; totalHours: number; utilisationPct: number | null; calculatedAt: string }
@@ -31,22 +31,26 @@ export default function InstrumentsPage() {
   const [showRepairForm, setShowRepairForm] = useState(false)
   const [showRtsForm, setShowRtsForm] = useState(false)
   const [selectedBreakdownId, setSelectedBreakdownId] = useState<number | null>(null)
-  const [form, setForm] = useState({ labId: '', instrumentCode: '', instrumentType: '', model: '', serialNumber: '', calibrationDue: '' })
+  const [form, setForm] = useState({ labId: '', instrumentCode: '', instrumentName: '', instrumentType: '', manufacturer: '', model: '', serialNumber: '', location: '', calibrationDue: '', lastCalibration: '' })
   const [bdForm, setBdForm] = useState({ instrumentId: '', issueDescription: '' })
   const [repairForm, setRepairForm] = useState({ technician: '', repairDate: '', repairDescription: '', partsUsed: '' })
   const [rtsForm, setRtsForm] = useState({ password: '', meaning: '', reason: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [editRow, setEditRow] = useState<Instrument | null>(null)
-  const [editForm, setEditForm] = useState({ instrumentType: '', model: '', serialNumber: '', calibrationDue: '' })
+  const [editForm, setEditForm] = useState({ instrumentName: '', instrumentType: '', manufacturer: '', model: '', serialNumber: '', location: '', calibrationDue: '', lastCalibration: '' })
 
   function openEdit(r: Instrument) {
     setEditRow(r)
     setEditForm({
+      instrumentName: r.instrumentName || '',
       instrumentType: r.instrumentType,
+      manufacturer: r.manufacturer || '',
       model: r.model || '',
       serialNumber: r.serialNumber || '',
+      location: r.location || '',
       calibrationDue: r.calibrationDue ? r.calibrationDue.slice(0, 10) : '',
+      lastCalibration: r.lastCalibration ? r.lastCalibration.slice(0, 10) : '',
     })
   }
 
@@ -157,11 +161,22 @@ export default function InstrumentsPage() {
         <>
           <PageHeader title="Instruments" onAdd={() => setShowForm(true)} />
           <DataTable loading={loading} data={data} exportFilename="Instruments" columns={[
-            { header: 'Code', accessor: 'instrumentCode' },
+            { header: 'Code', accessor: r => (
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{r.instrumentCode}</div>
+                {r.instrumentName && <div style={{ fontSize: 11, color: '#6b7280' }}>{r.instrumentName}</div>}
+              </div>
+            )},
             { header: 'Type', accessor: 'instrumentType' },
+            { header: 'Manufacturer', accessor: r => r.manufacturer || <span style={{ color: '#9ca3af' }}>—</span> },
             { header: 'Lab', accessor: 'labName' },
+            { header: 'Location', accessor: r => r.location || <span style={{ color: '#9ca3af' }}>—</span> },
             { header: 'Model', accessor: 'model' },
             { header: 'Serial No.', accessor: 'serialNumber' },
+            { header: 'Last Cal.', accessor: r => r.lastCalibration
+              ? <span style={{ fontSize: 12, color: '#374151' }}>{new Date(r.lastCalibration).toLocaleDateString('en-GB')}</span>
+              : <span style={{ color: '#9ca3af' }}>—</span>
+            },
             {
               header: 'Cal. Due', accessor: r => {
                 if (!r.calibrationDue) return <span style={{ color: '#9ca3af' }}>—</span>
@@ -286,10 +301,14 @@ export default function InstrumentsPage() {
               </select>
             </Field>
             <Field label="Instrument Code"><input style={inp} value={form.instrumentCode} onChange={e => setForm(f => ({ ...f, instrumentCode: e.target.value }))} required /></Field>
+            <Field label="Instrument Name"><input style={inp} value={form.instrumentName} onChange={e => setForm(f => ({ ...f, instrumentName: e.target.value }))} placeholder="e.g. Agilent HPLC System" /></Field>
             <Field label="Instrument Type"><input style={inp} value={form.instrumentType} onChange={e => setForm(f => ({ ...f, instrumentType: e.target.value }))} required /></Field>
+            <Field label="Manufacturer"><input style={inp} value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))} placeholder="e.g. Agilent Technologies" /></Field>
             <Field label="Model"><input style={inp} value={form.model} onChange={e => setForm(f => ({ ...f, model: e.target.value }))} /></Field>
             <Field label="Serial Number"><input style={inp} value={form.serialNumber} onChange={e => setForm(f => ({ ...f, serialNumber: e.target.value }))} /></Field>
+            <Field label="Location"><input style={inp} value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="e.g. QC Lab — Room 204" /></Field>
             <Field label="Calibration Due"><input style={inp} type="date" value={form.calibrationDue} onChange={e => setForm(f => ({ ...f, calibrationDue: e.target.value }))} required /></Field>
+            <Field label="Last Calibration"><input style={inp} type="date" value={form.lastCalibration} onChange={e => setForm(f => ({ ...f, lastCalibration: e.target.value }))} /></Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
@@ -334,10 +353,14 @@ export default function InstrumentsPage() {
       {editRow && (
         <Modal title={`Edit Instrument — ${editRow.instrumentCode}`} onClose={() => setEditRow(null)}>
           <form onSubmit={submitEditInstrument}>
+            <Field label="Instrument Name"><input style={inp} value={editForm.instrumentName} onChange={e => setEditForm(f => ({ ...f, instrumentName: e.target.value }))} /></Field>
             <Field label="Instrument Type"><input style={inp} value={editForm.instrumentType} onChange={e => setEditForm(f => ({ ...f, instrumentType: e.target.value }))} required /></Field>
+            <Field label="Manufacturer"><input style={inp} value={editForm.manufacturer} onChange={e => setEditForm(f => ({ ...f, manufacturer: e.target.value }))} /></Field>
             <Field label="Model"><input style={inp} value={editForm.model} onChange={e => setEditForm(f => ({ ...f, model: e.target.value }))} /></Field>
             <Field label="Serial Number"><input style={inp} value={editForm.serialNumber} onChange={e => setEditForm(f => ({ ...f, serialNumber: e.target.value }))} /></Field>
+            <Field label="Location"><input style={inp} value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} /></Field>
             <Field label="Calibration Due"><input style={inp} type="date" value={editForm.calibrationDue} onChange={e => setEditForm(f => ({ ...f, calibrationDue: e.target.value }))} required /></Field>
+            <Field label="Last Calibration"><input style={inp} type="date" value={editForm.lastCalibration} onChange={e => setEditForm(f => ({ ...f, lastCalibration: e.target.value }))} /></Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>

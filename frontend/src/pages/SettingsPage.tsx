@@ -73,8 +73,8 @@ const TAB_GROUPS: TabGroup[] = [
   {
     id: 'users-training', label: 'Users & Training', icon: '👥', color: '#2563eb', bg: '#dbeafe',
     subtabs: [
-      { id: 'users',            label: 'Users',             icon: '👥', component: UsersPage },
-      { id: 'training-records', label: 'Training Records',  icon: '🎓', component: UserTrainingRecordsPage },
+      { id: 'users',            label: 'Users',            icon: '👥', component: UsersPage },
+      { id: 'training-records', label: 'Training Records', icon: '🎓', component: UserTrainingRecordsPage },
     ],
   },
   {

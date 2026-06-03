@@ -64,6 +64,10 @@ builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer
             IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
                 System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
             NameClaimType = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.UniqueName,
+            // MapInboundClaims=false keeps "role" as "role" in the JWT payload.
+            // Without this, [Authorize(Roles="...")] can't find the claim because it
+            // defaults to looking for ClaimTypes.Role (the long URI form).
+            RoleClaimType = "role",
         };
         // Allow JWT via SignalR query string (Contract 2)
         options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
