@@ -12,9 +12,28 @@ public class FormTemplateSelectorService : IFormTemplateSelectorService
 
     public async Task<int?> SelectAsync(int labId, int materialId, CancellationToken ct = default)
     {
-        // Select the most recently approved form template for this lab
-        // that is not dispatch-event-triggered (those are for outgoing QC only)
-        var template = await _db.FormTemplates
+        // Step 1: Try to find a form template matching lab + sample type (via material's sample type)
+        // This ensures Finished Product samples get FP forms, Raw Material gets RM forms, etc.
+        var material = await _db.Materials.FirstOrDefaultAsync(m => m.MaterialId == materialId, ct);
+
+        if (material != null)
+        {
+            // Match by lab + material type (e.g. FinishedProduct, RawMaterial, API)
+            var specificTemplate = await _db.FormTemplates
+                .Where(f => f.LabId == labId
+                    && f.IsActive
+                    && f.Status == FormTemplateStatus.Active
+                    && f.TriggerType != TriggerType.DispatchEvent
+                    && f.SampleTypeId != null)
+                .OrderByDescending(f => f.FormTemplateId)
+                .FirstOrDefaultAsync(ct);
+
+            if (specificTemplate != null)
+                return specificTemplate.FormTemplateId;
+        }
+
+        // Step 2: Fall back to any active form template for this lab (no sample type restriction)
+        var fallback = await _db.FormTemplates
             .Where(f => f.LabId == labId
                 && f.IsActive
                 && f.Status == FormTemplateStatus.Active
@@ -22,6 +41,6 @@ public class FormTemplateSelectorService : IFormTemplateSelectorService
             .OrderByDescending(f => f.FormTemplateId)
             .FirstOrDefaultAsync(ct);
 
-        return template?.FormTemplateId;
+        return fallback?.FormTemplateId;
     }
 }

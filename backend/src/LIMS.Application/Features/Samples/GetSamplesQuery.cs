@@ -11,9 +11,11 @@ public record SampleDto(
     int SampleId, string SampleNumber, string MaterialName, string LotNumber,
     string SampleType, string Status, bool BarcodePrinted, DateTimeOffset? DueDate,
     string AnalystName, DateTimeOffset CreatedAt, int? FormTemplateId,
-    int? SpecTemplateId, string? SpecTemplateName, bool SrfSigned,
+    string? FormTemplateName,
+    int? SpecTemplateId, string? SpecTemplateName, string? SpecVersion, string? SpecStage, bool SrfSigned,
     bool IsRush, string? SampleCondition,
-    int? RetestOfSampleId, string? RetestReason);
+    int? RetestOfSampleId, string? RetestReason,
+    bool IsCheckpointLinked, int CheckpointCount);
 
 public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<SampleDto>>
 {
@@ -27,6 +29,8 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
             .Include(s => s.Analyst)
             .Include(s => s.SampleTypeNav)
             .Include(s => s.SpecTemplate)
+            .Include(s => s.FormTemplate)
+            .Include(s => s.SampleCheckpoints)
             .AsNoTracking()
             .AsQueryable();
 
@@ -44,8 +48,11 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
                 s.Status.ToString(), s.BarcodePrinted, s.DueDate,
                 s.Analyst != null ? s.Analyst.FullName : "Unassigned",
                 s.CreatedAt, s.FormTemplateId,
+                s.FormTemplate != null ? s.FormTemplate.FormName : null,
                 s.SpecTemplateId,
                 s.SpecTemplate != null ? s.SpecTemplate.TemplateName : null,
+                s.SpecTemplate != null ? s.SpecTemplate.Version : null,
+                s.SpecTemplate != null ? s.SpecTemplate.Stage.ToString() : null,
                 s.SrfSignatureId.HasValue,
                 s.IsRush,
                 // Normalize legacy "0"/"1"/"2" (stored when column was enum-integer) → readable string
@@ -54,7 +61,9 @@ public class GetSamplesQueryHandler : IRequestHandler<GetSamplesQuery, List<Samp
                 : s.SampleCondition == "2" ? "Compromised"
                 : s.SampleCondition ?? "OK",
                 s.RetestOfSampleId,
-                s.RetestReason))
+                s.RetestReason,
+                s.SampleCheckpoints.Any(),
+                s.SampleCheckpoints.Count))
             .ToListAsync(ct);
     }
 }

@@ -205,6 +205,27 @@ public class BatchReleaseController : LimsControllerBase
 
         await _db.SaveChangesAsync();
 
+        // Audit log — 21 CFR §11.10(e): INSERT-only record of batch release decision
+        var userName = User.Identity?.Name ?? "Unknown";
+        await _db.MasterDataAuditLogs.AddAsync(new LIMS.Domain.Entities.MasterDataAuditLog
+        {
+            EntityType  = "BatchRelease",
+            EntityId    = id,
+            EventType   = "Decision",
+            OldValue    = System.Text.Json.JsonSerializer.Serialize(new { Status = "InReview" }),
+            NewValue    = System.Text.Json.JsonSerializer.Serialize(new {
+                Status        = req.Decision,
+                Decision      = req.Decision,
+                DecisionReason= req.DecisionReason,
+                SignatureId   = sig.SignatureId,
+                SampleId      = release.SampleId,
+                SampleNumber  = release.Sample.SampleNumber
+            }),
+            PerformedBy = userName,
+            PerformedAt = DateTimeOffset.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
         // Push to LabManager + AllUsers
         await _notify.PushToGroupAsync("LabManager", "BatchDecision",
             new { releaseId = id, sampleNumber = release.Sample.SampleNumber, decision = req.Decision }, default);

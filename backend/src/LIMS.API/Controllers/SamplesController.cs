@@ -16,8 +16,9 @@ public class SamplesController : LimsControllerBase
     private readonly IMediator _mediator;
     private readonly ILimsDbContext _db;
     private readonly ISpecificationEngineService _specEngine;
-    public SamplesController(IMediator mediator, ILimsDbContext db, ISpecificationEngineService specEngine)
-    { _mediator = mediator; _db = db; _specEngine = specEngine; }
+    private readonly IMasterDataAuditService _audit;
+    public SamplesController(IMediator mediator, ILimsDbContext db, ISpecificationEngineService specEngine, IMasterDataAuditService audit)
+    { _mediator = mediator; _db = db; _specEngine = specEngine; _audit = audit; }
 
     // GET api/v1/samples?labId=1&status=PendingTesting
     [HttpGet]
@@ -225,7 +226,34 @@ public class SamplesController : LimsControllerBase
             DateTimeOffset.UtcNow, ct);
         return Ok(new { testsCreated = execIds.Count, specTemplateId = req.SpecTemplateId });
     }
+
+    // POST api/v1/samples/{id}/assign-form-template — manually assign a form template when auto-select failed
+    [HttpPost("{id}/assign-form-template")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
+    public async Task<IActionResult> AssignFormTemplate(int id, [FromBody] AssignFormTemplateRequest req, CancellationToken ct)
+    {
+        var sample = await _db.Samples.FindAsync([id], ct);
+        if (sample is null) return NotFound(new { error = "Sample not found." });
+
+        var template = await _db.FormTemplates.FindAsync([req.FormTemplateId], ct);
+        if (template is null) return NotFound(new { error = "Form template not found." });
+
+        var oldFormTemplateId = sample.FormTemplateId;
+        sample.FormTemplateId = req.FormTemplateId;
+        await _db.SaveChangesAsync(ct);
+
+        // Audit log — 21 CFR §11.10(e): record who changed form template, old value, new value
+        var userName = User.Identity?.Name ?? "Unknown";
+        await _audit.LogAsync("Sample", id, "FormTemplateChanged",
+            oldFormTemplateId.HasValue ? new { FormTemplateId = oldFormTemplateId.Value } : null,
+            new { FormTemplateId = req.FormTemplateId, FormTemplateName = template.FormName, AssignmentMethod = "Manual" },
+            userName);
+
+        return Ok(new { formTemplateId = req.FormTemplateId, formTemplateName = template.FormName });
+    }
 }
+
+public record AssignFormTemplateRequest(int FormTemplateId);
 
 public record RegisterSampleRequest(
     int     LabId, int MaterialId, string LotNumber,

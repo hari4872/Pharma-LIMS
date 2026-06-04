@@ -220,6 +220,32 @@ export default function SampleRegistrationPage() {
     testsCreated: number; matchOutcome: string
     candidates: SpecCandidate[]
   }
+  const [showAssignForm, setShowAssignForm]   = useState<number | null>(null)
+  const [formTemplates,  setFormTemplates]   = useState<{formTemplateId: number; formName: string; version: string}[]>([])
+  const [selectedFormId, setSelectedFormId]  = useState<number | null>(null)
+  const [formAssignSaving, setFormAssignSaving] = useState(false)
+  const [formAssignError, setFormAssignError]   = useState('')
+
+  async function openAssignForm(sampleId: number) {
+    setShowAssignForm(sampleId); setSelectedFormId(null); setFormAssignError('')
+    try {
+      const r = await api.get('/form-templates?status=Active')
+      setFormTemplates(r.data ?? [])
+    } catch { setFormTemplates([]) }
+  }
+
+  async function submitAssignForm(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedFormId || !showAssignForm) return
+    setFormAssignSaving(true); setFormAssignError('')
+    try {
+      await api.post(`/samples/${showAssignForm}/assign-form-template`, { formTemplateId: selectedFormId })
+      toast('Form template assigned', 'success')
+      setShowAssignForm(null); await load()
+    } catch (err) { setFormAssignError(getErrorMessage(err, 'Assignment failed')) }
+    finally { setFormAssignSaving(false) }
+  }
+
   const [showAssignSpec, setShowAssignSpec]   = useState<number | null>(null)
   const [specAssignData, setSpecAssignData]   = useState<SpecAssignData | null>(null)
   const [specAssignLoading, setSpecAssignLoading] = useState(false)
@@ -616,12 +642,34 @@ export default function SampleRegistrationPage() {
           </button>
         )},
         {
-          header: 'Spec Template', accessor: r => r.specTemplateName
+          header: 'Source', accessor: r => (r as any).isCheckpointLinked
+            ? <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#fef3c7', color: '#92400e', fontWeight: 600, border: '1px solid #fde68a', whiteSpace: 'nowrap' }}>
+                📍 CP ({(r as any).checkpointCount})
+              </span>
+            : <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#f1f5f9', color: '#475569', fontWeight: 600, border: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                🧪 Lab
+              </span>
+        },
+        {
+          header: 'Form Template', accessor: r => {
+            const name = (r as any).formTemplateName
+            const short = name ? (name.length > 22 ? name.slice(0, 20) + '…' : name) : null
+            return short
+              ? <span title={name} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#eff6ff', color: '#1d4ed8', fontWeight: 600, border: '1px solid #bfdbfe', whiteSpace: 'nowrap' }}>
+                  ✓ {short}
+                </span>
+              : <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#fef2f2', color: '#dc2626', fontWeight: 600, border: '1px solid #fecaca' }}>
+                  ⚠ No Form
+                </span>
+          }
+        },
+        {
+          header: 'Spec Version / Stage', accessor: r => (r as any).specVersion
             ? <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#f0fdfa', color: '#0d6e6e', fontWeight: 600, border: '1px solid #99f6e4', whiteSpace: 'nowrap' }}>
-                ✓ {r.specTemplateName}
+                v{(r as any).specVersion} — {(r as any).specStage}
               </span>
             : <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#fffbeb', color: '#92400e', fontWeight: 600, border: '1px solid #fde68a' }}>
-                ⚠ Unassigned
+                ⚠ No Spec
               </span>
         },
         { header: 'Due', accessor: r => r.dueDate ? new Date(r.dueDate).toLocaleDateString() : '—' },
@@ -633,6 +681,12 @@ export default function SampleRegistrationPage() {
                 <button onClick={() => { setShowSRF(r.sampleId); setError('') }}
                   style={{ padding: '3px 9px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
                   Sign SRF
+                </button>
+              )}
+              {!(r as any).formTemplateName && (
+                <button onClick={() => openAssignForm(r.sampleId)}
+                  style={{ padding: '3px 9px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                  Assign Form
                 </button>
               )}
               {!r.specTemplateName && (
@@ -1417,6 +1471,29 @@ export default function SampleRegistrationPage() {
           ) : (
             <div style={{ padding: '16px', color: '#ef4444', fontSize: 13 }}>{assignError || 'Failed to load data.'}</div>
           )}
+        </Modal>
+      )}
+
+      {/* ── Assign Form Template Modal ───────────────────────────────────────── */}
+      {showAssignForm && (
+        <Modal title="Assign Form Template" onClose={() => setShowAssignForm(null)}>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+            Select the testing form for this sample. This determines which parameters appear on the COA.
+          </p>
+          <form onSubmit={submitAssignForm}>
+            <Field label="Form Template *">
+              <select style={inp} value={selectedFormId ?? ''} onChange={e => setSelectedFormId(Number(e.target.value))} required>
+                <option value="">— Select form template —</option>
+                {formTemplates.map(f => (
+                  <option key={f.formTemplateId} value={f.formTemplateId}>
+                    {f.formName} (v{f.version})
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {formAssignError && <p style={{ color: '#ef4444', fontSize: 13 }}>{formAssignError}</p>}
+            <ModalFooter saving={formAssignSaving} onCancel={() => setShowAssignForm(null)} label="Assign Form Template" />
+          </form>
         </Modal>
       )}
     </div>}
