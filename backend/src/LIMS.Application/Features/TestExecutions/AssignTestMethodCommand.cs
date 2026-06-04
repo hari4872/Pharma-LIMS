@@ -34,6 +34,8 @@ public class AssignTestMethodHandler : IRequestHandler<AssignTestMethodCommand, 
 
         if (execution is null)
             return Result<int>.Failure("NOT_FOUND", "Test execution not found.");
+        if (execution.Sample is null)
+            return Result<int>.Failure("DATA_ERROR", "Sample data could not be loaded.");
         if (execution.Status != TestExecutionStatus.Assigned)
             return Result<int>.Failure("INVALID_STATE",
                 $"Execution is '{execution.Status}' — can only reassign Assigned executions.");
@@ -68,9 +70,8 @@ public class AssignTestMethodHandler : IRequestHandler<AssignTestMethodCommand, 
         execution.AssignedById = cmd.AssignedById;
         if (cmd.PriorityScore.HasValue) execution.PriorityScore = cmd.PriorityScore;
 
-        // If the sample was still Registered/PendingTesting, move it forward
-        if (execution.Sample.Status == SampleStatus.PendingTesting ||
-            execution.Sample.Status == SampleStatus.Registered)
+        // Only PendingTesting → InTesting; Registered is intentionally excluded (SRF must be signed first via SignSRFCommand)
+        if (execution.Sample.Status == SampleStatus.PendingTesting)
             execution.Sample.Status = SampleStatus.InTesting;
 
         await _db.SaveChangesAsync(ct);

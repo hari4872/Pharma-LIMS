@@ -44,6 +44,9 @@ public class RetestSampleCommandHandler : IRequestHandler<RetestSampleCommand, R
         if (src is null)
             return Result<RegisterSampleResult>.Failure("NOT_FOUND", "Original sample not found.");
 
+        if (src.SampleTypeNav is null)
+            return Result<RegisterSampleResult>.Failure("DATA_ERROR", "Sample type data could not be loaded.");
+
         if (src.Status != SampleStatus.Released && src.Status != SampleStatus.Rejected)
             return Result<RegisterSampleResult>.Failure("INVALID_STATUS",
                 $"Retest only allowed on Released or Rejected samples. Current status: {src.Status}.");
@@ -76,6 +79,17 @@ public class RetestSampleCommandHandler : IRequestHandler<RetestSampleCommand, R
             CreatedAt         = now,
         };
 
+        // Fetch selective retest params before saving (avoids double-save)
+        var selectedParams = new List<LIMS.Domain.Entities.TestMethodParameter>();
+        if (request.ParameterIds is { Count: > 0 })
+        {
+            foreach (var paramId in request.ParameterIds.Distinct())
+            {
+                var param = await _db.TestMethodParameters.FirstOrDefaultAsync(p => p.ParameterId == paramId, ct);
+                if (param is not null) selectedParams.Add(param);
+            }
+        }
+
         _db.Samples.Add(retest);
         _db.BarcodePrintLogs.Add(new BarcodePrintLog
         {
@@ -85,33 +99,23 @@ public class RetestSampleCommandHandler : IRequestHandler<RetestSampleCommand, R
             PrintedAt = now,
         });
 
-        await _db.SaveChangesAsync(ct);
-
-        // Selective retest: create TestExecution rows for specified parameters only
-        // Full retest: leave to spec engine via SRF sign (standard flow)
         int testsCreated = 0;
-        if (request.ParameterIds is { Count: > 0 })
+        foreach (var param in selectedParams)
         {
-            foreach (var paramId in request.ParameterIds.Distinct())
+            _db.TestExecutions.Add(new TestExecution
             {
-                var param = await _db.TestMethodParameters
-                    .FirstOrDefaultAsync(p => p.ParameterId == paramId, ct);
-                if (param is null) continue;
-
-                _db.TestExecutions.Add(new TestExecution
-                {
-                    SampleId    = retest.SampleId,
-                    ParameterId = paramId,
-                    IsAdHoc     = true,
-                    AdHocReason = $"Selective retest of {src.SampleNumber}: {request.RetestReason}",
-                    Status      = TestExecutionStatus.Assigned,
-                    CreatedBy   = request.CreatedBy,
-                    CreatedAt   = now,
-                });
-                testsCreated++;
-            }
-            await _db.SaveChangesAsync(ct);
+                Sample      = retest,
+                ParameterId = param.ParameterId,
+                IsAdHoc     = true,
+                AdHocReason = $"Selective retest of {src.SampleNumber}: {request.RetestReason}",
+                Status      = TestExecutionStatus.Assigned,
+                CreatedBy   = request.CreatedBy,
+                CreatedAt   = now,
+            });
+            testsCreated++;
         }
+
+        await _db.SaveChangesAsync(ct);
 
         await _audit.LogAsync("Sample", retest.SampleId, "Retest",
             null,

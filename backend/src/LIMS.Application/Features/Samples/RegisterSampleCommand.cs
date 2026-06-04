@@ -138,18 +138,17 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
             PrintedAt = receivedAt,
         });
 
-        await _db.SaveChangesAsync(ct);
-
-        // Step 8: Checkpoint links
+        // Step 8: Checkpoint links — added before save so EF Core resolves SampleId in one commit
         if (request.CheckpointIds is { Count: > 0 })
         {
             foreach (var cpId in request.CheckpointIds.Distinct())
             {
                 if (await _db.Checkpoints.AnyAsync(c => c.CheckpointId == cpId && c.IsActive, ct))
-                    _db.SampleCheckpoints.Add(new SampleCheckpoint { SampleId = sample.SampleId, CheckpointId = cpId });
+                    _db.SampleCheckpoints.Add(new SampleCheckpoint { Sample = sample, CheckpointId = cpId });
             }
-            await _db.SaveChangesAsync(ct);
         }
+
+        await _db.SaveChangesAsync(ct);
 
         // ── Step 9: Audit + notification ─────────────────────────────────
         // Spec engine runs in SignSRFCommand — tests created only after SRF is signed (21 CFR GMP)

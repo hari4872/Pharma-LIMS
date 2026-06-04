@@ -54,7 +54,7 @@ public class InstrumentsController : LimsControllerBase
         return Ok(new { instrumentId = result.Value, status = "Inactive" });
     }
 
-    // POST api/v1/instruments/{id}/calibrations â€” create calibration record
+    // POST api/v1/instruments/{id}/calibrations — create calibration record
     [HttpPost("{id}/calibrations")]
     [Authorize(Roles = "Admin,Analyst")]
     public async Task<IActionResult> CreateCalibration(int id, [FromBody] CreateCalibrationRequest request)
@@ -65,7 +65,7 @@ public class InstrumentsController : LimsControllerBase
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { calibrationId = result.Value });
     }
 
-    // POST api/v1/instruments/{id}/calibrations/{calId}/approve â€” QA Â§11.50 e-sig
+    // POST api/v1/instruments/{id}/calibrations/{calId}/approve — QA Â§11.50 e-sig
     [HttpPost("{id}/calibrations/{calId:int}/approve")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> ApproveCalibration(int id, int calId, [FromBody] ApproveRequest request)
@@ -80,21 +80,21 @@ public class InstrumentsController : LimsControllerBase
         return Ok(new { calibrationId = result.Value, status = "Approved" });
     }
 
-    // â”€â”€ FR-15: Instrument Utilisation Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ FR-15: Instrument Utilisation Summary â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
-    // GET api/v1/instruments/{id}/utilisation â€” returns 7/30/90-day windows
+    // GET api/v1/instruments/{id}/utilisation — returns 7/30/90-day windows
     [HttpGet("{id:int}/utilisation")]
     public async Task<IActionResult> GetUtilisation(int id)
         => Ok(await _mediator.Send(new GetInstrumentUtilisationQuery(id)));
 
-    // â”€â”€ FR-13: Breakdown / Repair Lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ FR-13: Breakdown / Repair Lifecycle â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
-    // GET api/v1/instruments/breakdowns â€” list all (filter by status)
+    // GET api/v1/instruments/breakdowns — list all (filter by status)
     [HttpGet("breakdowns")]
     public async Task<IActionResult> GetBreakdowns([FromQuery] int? instrumentId, [FromQuery] string? status)
         => Ok(await _mediator.Send(new GetBreakdownsQuery(instrumentId, status)));
 
-    // POST api/v1/instruments/{id}/breakdowns â€” raise breakdown (any role)
+    // POST api/v1/instruments/{id}/breakdowns — raise breakdown (any role)
     [HttpPost("{id}/breakdowns")]
     public async Task<IActionResult> RaiseBreakdown(int id, [FromBody] RaiseBreakdownRequest request)
     {
@@ -106,7 +106,7 @@ public class InstrumentsController : LimsControllerBase
             new { breakdownId = bd.BreakdownId, instrumentStatus = bd.InstrumentStatus });
     }
 
-    // POST api/v1/instruments/breakdowns/{breakdownId}/repairs â€” record repair
+    // POST api/v1/instruments/breakdowns/{breakdownId}/repairs — record repair
     [HttpPost("breakdowns/{breakdownId:int}/repairs")]
     [Authorize(Roles = "Admin,Analyst")]
     public async Task<IActionResult> RecordRepair(int breakdownId, [FromBody] RecordRepairRequest request)
@@ -117,7 +117,7 @@ public class InstrumentsController : LimsControllerBase
         return Ok(new { repairId });
     }
 
-    // POST api/v1/instruments/breakdowns/{breakdownId}/return-to-service â€” QA Â§11.50 e-sig
+    // POST api/v1/instruments/breakdowns/{breakdownId}/return-to-service — QA Â§11.50 e-sig
     [HttpPost("breakdowns/{breakdownId:int}/return-to-service")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> ReturnToService(int breakdownId, [FromBody] ApproveRequest request)
@@ -139,7 +139,7 @@ public class InstrumentsController : LimsControllerBase
         });
     }
 
-    // GET api/v1/instruments/{id}/calibration-certificate â€” Calibration Certificate PDF (21 CFR 211.68)
+    // GET api/v1/instruments/{id}/calibration-certificate — Calibration Certificate PDF (21 CFR 211.68)
     [HttpGet("{id:int}/calibration-certificate")]
     public async Task<IActionResult> GetCalibrationCertificate(int id)
     {

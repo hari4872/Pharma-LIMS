@@ -8,9 +8,9 @@ using Microsoft.Extensions.Logging;
 
 namespace LIMS.Infrastructure.BackgroundJobs;
 
-// FR-19: StorageInventoryJob â€” nightly capacity audit across all storage locations
+// FR-19: StorageInventoryJob — nightly capacity audit across all storage locations
 // Alerts LabManager when any location exceeds capacity threshold (from DB config)
-// Interval from DB config (Contract 2 â€” not hardcoded)
+// Interval from DB config (Contract 2 — not hardcoded)
 public class StorageInventoryJob : BackgroundService
 {
     private readonly IServiceProvider _services;
@@ -37,7 +37,7 @@ public class StorageInventoryJob : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<LimsDbContext>();
         var notifications = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
-        // Threshold from DB config (Contract 2 â€” not hardcoded)
+        // Threshold from DB config (Contract 2 — not hardcoded)
         var thresholdPct = await GetCapacityThresholdPctAsync(db, ct);
 
         // LowStockThreshold = minimum retain count per location before alert
@@ -84,7 +84,7 @@ public class StorageInventoryJob : BackgroundService
     {
         var config = await db.LabConfigs.FirstOrDefaultAsync(c => c.ConfigKey == "storage_capacity_alert_pct", ct);
         if (config != null && decimal.TryParse(config.ConfigValue, out var p)) return p;
-        return 80m; // 80% default â€” admin sets storage_capacity_alert_pct in LabConfig
+        return 80m; // 80% default — admin sets storage_capacity_alert_pct in LabConfig
     }
 
     private async Task<double> GetIntervalHoursAsync(CancellationToken ct)

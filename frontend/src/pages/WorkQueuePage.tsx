@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import { useNavigate } from 'react-router-dom'
 import api from '@/api/client'
@@ -104,11 +106,20 @@ export default function WorkQueuePage() {
   const scanLastKey                     = useRef(0)
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
 
+  const role = useSelector((s: RootState) => s.auth.role) ?? ''
+  const canAssign = ['Admin', 'QA', 'LabManager', 'QCLead'].includes(role)
+
   async function load() {
     setLoading(true)
-    const params = statusFilter ? `?status=${statusFilter}` : ''
-    const r = await api.get(`/test-executions${params}`)
-    setData(r.data); setLoading(false)
+    try {
+      const params = statusFilter ? `?status=${statusFilter}` : ''
+      const r = await api.get(`/test-executions${params}`)
+      setData(r.data)
+    } catch (err) {
+      toast(getErrorMessage(err, 'Failed to load work queue'), 'error')
+    } finally {
+      setLoading(false)
+    }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [statusFilter])
 
@@ -378,7 +389,7 @@ export default function WorkQueuePage() {
                         📋 Enter Results
                       </a>
                     )}
-                    {(r.status === 'Assigned' || r.status === 'InProgress') && (
+                    {(r.status === 'Assigned' || r.status === 'InProgress') && canAssign && (
                       <button onClick={() => openReassign(r)}
                         style={{ padding: '7px 14px', background: '#fff', color: '#6d28d9', border: '1.5px solid #ddd6fe', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                         ↩ Re-assign
@@ -414,9 +425,11 @@ export default function WorkQueuePage() {
         >
           🧠 AI Intelligence
         </button>
-        <button onClick={openAssign} style={{ padding: '8px 18px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-          + Assign Task
-        </button>
+        {canAssign && (
+          <button onClick={openAssign} style={{ padding: '8px 18px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            + Assign Task
+          </button>
+        )}
       </div>
 
       {/* ── AI Intelligence Panel ───────────────────────────────────────── */}
@@ -594,7 +607,7 @@ export default function WorkQueuePage() {
                 Start Task
               </button>
             )}
-            {r.status === 'Assigned' && (
+            {r.status === 'Assigned' && canAssign && (
               <button onClick={() => openReassign(r)}
                 style={{ padding: '3px 8px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
                 Re-assign

@@ -7,8 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace LIMS.Infrastructure.BackgroundJobs;
 
-// FR-15: UtilisationSummaryJob â€” compute instrument utilisation (7/30/90 days)
-// Window from DB config (Contract 2 â€” not hardcoded)
+// FR-15: UtilisationSummaryJob — compute instrument utilisation (7/30/90 days)
+// Window from DB config (Contract 2 — not hardcoded)
 public class UtilisationSummaryJob : BackgroundService
 {
     private readonly IServiceProvider _services;
@@ -94,7 +94,7 @@ public class UtilisationSummaryJob : BackgroundService
                 .Where(d => d.HasValue).Select(d => d!.Value).ToArray();
             if (parsed.Length > 0) return parsed;
         }
-        return new[] { 7, 30, 90 };   // fallback â€” admin should set utilisation_window_days in LabConfig
+        return new[] { 7, 30, 90 };   // fallback — admin should set utilisation_window_days in LabConfig
     }
 
     private async Task<double> GetIntervalHoursAsync(CancellationToken ct)

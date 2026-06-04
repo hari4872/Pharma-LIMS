@@ -68,9 +68,15 @@ public class AuthController : ControllerBase
 
             if (user is not null && user.IsActive)
             {
-                user.FailedLoginCount++;
-                if (user.FailedLoginCount >= 5)
-                    user.LockedUntil = DateTimeOffset.UtcNow.AddMinutes(30);
+                // Atomic increment — prevents concurrent brute-force bypass (21 CFR §11.10(d))
+                await _db.Database.ExecuteSqlInterpolatedAsync($@"
+                    UPDATE users
+                    SET ""FailedLoginCount"" = ""FailedLoginCount"" + 1,
+                        ""LockedUntil"" = CASE WHEN ""FailedLoginCount"" + 1 >= 5
+                            THEN (NOW() AT TIME ZONE 'UTC' + INTERVAL '30 minutes')
+                            ELSE ""LockedUntil"" END
+                    WHERE ""UserId"" = {user.UserId} AND ""IsActive"" = true", CancellationToken.None);
+                await _db.Entry(user).ReloadAsync();
             }
 
             await _db.SaveChangesAsync();
@@ -100,7 +106,7 @@ public class AuthController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        var token = GenerateJwt(user.UserId, user.Username, user.FullName, user.Role.ToString(), user.UserType.ToString(), user.LabId, labName);
+        var token = GenerateJwt(user.UserId, user.Username, user.FullName, user.Role.ToString(), user.UserType.ToString(), user.LabId, labName, user.CustomPermissionsJson);
         return Ok(new { token, userId = user.UserId, fullName = user.FullName, role = user.Role.ToString(), userType = user.UserType.ToString(), labId = user.LabId, labName });
     }
 
@@ -112,8 +118,9 @@ public class AuthController : ControllerBase
         if (hasAdmin) return Conflict(new { error = "Tenant Admin already configured." });
 
         // SEC-5: enforce minimum password policy on initial setup
-        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
-            return BadRequest(new { error = "Password must be at least 8 characters." });
+        var setupPwd = request.Password ?? string.Empty;
+        if (setupPwd.Length < 8 || !setupPwd.Any(char.IsUpper) || !setupPwd.Any(char.IsLower) || !setupPwd.Any(char.IsDigit) || !setupPwd.Any(c => !char.IsLetterOrDigit(c)))
+            return BadRequest(new { error = "WEAK_PASSWORD", message = "Password must be at least 8 characters and contain uppercase, lowercase, digit, and special character." });
 
         var admin = new LIMS.Domain.Entities.User
         {
@@ -152,8 +159,9 @@ public class AuthController : ControllerBase
         var target = await _db.Users.FirstOrDefaultAsync(u => u.UserId == request.TargetUserId);
         if (target is null) return NotFound(new { error = "User not found." });
 
-        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
-            return BadRequest(new { error = "New password must be at least 8 characters." });
+        var newPassword = request.NewPassword ?? string.Empty;
+        if (newPassword.Length < 8 || !newPassword.Any(char.IsUpper) || !newPassword.Any(char.IsLower) || !newPassword.Any(char.IsDigit) || !newPassword.Any(c => !char.IsLetterOrDigit(c)))
+            return BadRequest(new { error = "WEAK_PASSWORD", message = "Password must be at least 8 characters and contain uppercase, lowercase, digit, and special character." });
 
         // §11.300: BCrypt re-hash (independent of any session token)
         target.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
@@ -173,7 +181,7 @@ public class AuthController : ControllerBase
         return Ok(new { message = $"Password reset for {target.Username}. User must sign in with new credentials." });
     }
 
-    private string GenerateJwt(int userId, string username, string fullName, string role, string userType, int? labId, string labName)
+    private string GenerateJwt(int userId, string username, string fullName, string role, string userType, int? labId, string labName, string? customPermissionsJson = null)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -181,6 +189,7 @@ public class AuthController : ControllerBase
 
         var claims = new List<Claim>
         {
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, username),
             new Claim("fullName", fullName),
@@ -191,6 +200,9 @@ public class AuthController : ControllerBase
             new Claim("labId",   labId?.ToString() ?? ""),   // empty string = no lab; never "0" (avoids silent filter-to-zero)
             new Claim("labName", labName),
         };
+
+        if (!string.IsNullOrEmpty(customPermissionsJson))
+            claims.Add(new Claim("permissions", customPermissionsJson));
 
         var token = new JwtSecurityToken(_config["Jwt:Issuer"], _config["Jwt:Audience"], claims, expires: expiry, signingCredentials: creds);
         return new JwtSecurityTokenHandler().WriteToken(token);

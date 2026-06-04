@@ -68,7 +68,7 @@ public class TraceabilityController : LimsControllerBase
     }
 
     // GET api/v1/traceability/recall?lotNumber=LOT001
-    // FR-12: recall scope query â€” all affected downstream batches from lot node
+    // FR-12: recall scope query — all affected downstream batches from lot node
     [HttpGet("recall")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> GetRecallScope(

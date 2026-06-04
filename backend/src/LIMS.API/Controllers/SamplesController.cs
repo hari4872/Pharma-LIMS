@@ -1,4 +1,5 @@
-﻿using LIMS.Application.Features.Samples;
+﻿using LIMS.API.Attributes;
+using LIMS.Application.Features.Samples;
 using LIMS.Application.Interfaces;
 using LIMS.Domain.Enums;
 using MediatR;
@@ -25,9 +26,10 @@ public class SamplesController : LimsControllerBase
     public async Task<IActionResult> GetAll([FromQuery] int? labId, [FromQuery] string? status, [FromQuery] int? analystId)
         => Ok(await _mediator.Send(new GetSamplesQuery(labId, status, analystId)));
 
-    // POST api/v1/samples â€” FR-01: unified entry for both manual and checkpoint auto-trigger
+    // POST api/v1/samples — FR-01: unified entry for both manual and checkpoint auto-trigger
     [HttpPost]
-    [Authorize(Roles = "Admin,QA,Analyst")]
+    [Authorize(Roles = "Admin,QA,Analyst,QCLead,LabManager")]
+    [RequirePermission("sampleRegistration")]
     public async Task<IActionResult> Register([FromBody] RegisterSampleRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
@@ -51,9 +53,9 @@ public class SamplesController : LimsControllerBase
         });
     }
 
-    // POST api/v1/samples/{id}/sign-srf â€” Step 7: SRF Â§11.50 e-sig â†’ PendingTesting (FR-09)
+    // POST api/v1/samples/{id}/sign-srf — Step 7: SRF Â§11.50 e-sig â†’ PendingTesting (FR-09)
     [HttpPost("{id}/sign-srf")]
-    [Authorize(Roles = "Admin,Analyst,QA")]
+    [Authorize(Roles = "Admin,Analyst,QA,QCLead,LabManager")]
     public async Task<IActionResult> SignSRF(int id, [FromBody] ApproveRequest request)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -66,9 +68,9 @@ public class SamplesController : LimsControllerBase
         return Ok(new { sampleId = result.Value, status = "PendingTesting" });
     }
 
-    // POST api/v1/samples/{id}/barcode-reprint â€” FR-18: audit-logged reprint with mandatory reason
+    // POST api/v1/samples/{id}/barcode-reprint — FR-18: audit-logged reprint with mandatory reason
     [HttpPost("{id}/barcode-reprint")]
-    [Authorize(Roles = "Admin,Analyst")]
+    [Authorize(Roles = "Admin,Analyst,QCLead,LabManager")]
     public async Task<IActionResult> ReprintBarcode(int id, [FromBody] ReprintBarcodeRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
@@ -156,7 +158,8 @@ public class SamplesController : LimsControllerBase
 
     // POST api/v1/samples/batch-register - register multiple samples at once
     [HttpPost("batch-register")]
-    [Authorize(Roles = "Admin,Analyst,QA")]
+    [Authorize(Roles = "Admin,Analyst,QA,QCLead,LabManager")]
+    [RequirePermission("sampleRegistration")]
     public async Task<IActionResult> BatchRegister([FromBody] BatchRegisterRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
@@ -191,7 +194,8 @@ public class SamplesController : LimsControllerBase
 
     // POST api/v1/samples/{id}/duplicate
     [HttpPost("{id}/duplicate")]
-    [Authorize(Roles = "Admin,Analyst,QA")]
+    [Authorize(Roles = "Admin,Analyst,QA,QCLead,LabManager")]
+    [RequirePermission("sampleRegistration")]
     public async Task<IActionResult> Duplicate(int id)
     {
         var username = User.Identity?.Name ?? "Unknown";
@@ -203,7 +207,8 @@ public class SamplesController : LimsControllerBase
 
     // POST api/v1/samples/{id}/retest
     [HttpPost("{id}/retest")]
-    [Authorize(Roles = "Admin,Analyst,QA")]
+    [Authorize(Roles = "Admin,Analyst,QA,QCLead,LabManager")]
+    [RequirePermission("sampleRegistration")]
     public async Task<IActionResult> Retest(int id, [FromBody] RetestRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
@@ -215,7 +220,7 @@ public class SamplesController : LimsControllerBase
 
     // POST api/v1/samples/{id}/apply-spec
     [HttpPost("{id}/apply-spec")]
-    [Authorize(Roles = "Admin,QA,Analyst")]
+    [Authorize(Roles = "Admin,QA,Analyst,QCLead,LabManager")]
     public async Task<IActionResult> ApplySpec(int id, [FromBody] ApplySpecRequest req, CancellationToken ct)
     {
         var sample = await _db.Samples.FindAsync([id], ct);

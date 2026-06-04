@@ -73,11 +73,9 @@ public class SignOffTestExecutionHandler : IRequestHandler<SignOffTestExecutionC
         execution.Status = hasOpenOos ? TestExecutionStatus.OOSOpen : TestExecutionStatus.Completed;
         execution.CompletedAt = DateTimeOffset.UtcNow;
 
-        await _db.SaveChangesAsync(ct);
-
         // LabVantage parity: only advance sample when ALL executions for this sample are done
         // (supports per-test-method assignment where different analysts finish at different times)
-        if (!hasOpenOos)
+        if (!hasOpenOos && execution.Sample is not null)
         {
             var anyStillActive = await _db.TestExecutions
                 .AnyAsync(e => e.SampleId == execution.SampleId
@@ -87,9 +85,9 @@ public class SignOffTestExecutionHandler : IRequestHandler<SignOffTestExecutionC
 
             if (!anyStillActive)
                 execution.Sample.Status = SampleStatus.PendingQAReview;
-
-            await _db.SaveChangesAsync(ct);
         }
+
+        await _db.SaveChangesAsync(ct);
 
         // SignalR push — notify QA/LabManager (Contract 2: no polling)
         await _notify.PushToGroupAsync("QA", "TestExecutionSigned",

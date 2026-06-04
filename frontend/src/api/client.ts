@@ -14,10 +14,19 @@
 //     sync runs.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import axios, { type InternalAxiosRequestConfig } from 'axios'
+import axios from 'axios'
 import * as queue from '@/utils/offlineQueue'
 
 const CACHE_PREFIX = 'lims_cache_'
+
+function buildCacheKey(url: string | undefined, params?: Record<string, unknown>): string {
+  const base = CACHE_PREFIX + (url ?? '')
+  if (!params || Object.keys(params).length === 0) return base
+  const sorted = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&')
+  return base + '?' + sorted
+}
+
+let _redirectingToLogin = false
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -36,15 +45,10 @@ api.interceptors.request.use(async config => {
   if (!navigator.onLine) {
     if (method === 'GET') {
       // Serve from cache
-      const cacheKey = CACHE_PREFIX + (config.url ?? '')
+      const cacheKey = buildCacheKey(config.url, config.params)
       const cached   = sessionStorage.getItem(cacheKey)
       if (cached) {
-        // Abort real request and return cached data via a resolved promise
-        const data = JSON.parse(cached)
-        const cancelToken = new axios.CancelToken(cancel => cancel('__offline_cache__'))
-        config.cancelToken = cancelToken
-        // Attach cached data to config so the response interceptor can pick it up
-        ;(config as InternalAxiosRequestConfig & { __cachedData?: unknown }).__cachedData = data
+        return Promise.reject({ __offlineCancel: true, __cachedData: JSON.parse(cached) })
       }
       return config
     }
@@ -80,13 +84,13 @@ api.interceptors.response.use(
   r => {
     // Cache successful GET responses
     if ((r.config.method ?? '').toUpperCase() === 'GET' && r.config.url) {
-      const cacheKey = CACHE_PREFIX + r.config.url
+      const cacheKey = buildCacheKey(r.config.url, r.config.params)
       try { sessionStorage.setItem(cacheKey, JSON.stringify(r.data)) } catch { /* quota */ }
     }
     return r
   },
   err => {
-    // Cancelled because of offline cache hit → resolve with cached data
+    // Cancelled because of offline cache hit or offline queue write
     if (axios.isCancel(err)) {
       const msg = err.message ?? ''
 
@@ -110,18 +114,23 @@ api.interceptors.response.use(
           }
         } catch { /* not JSON */ }
       }
+    }
 
-      // Offline cache read — reconstruct a response
-      if (msg === '__offline_cache__') {
-        // cachedData was attached to config but we've lost it here
-        // so we just let the page handle the failed request
+    // Offline GET cache hit — return cached data as a resolved response
+    if (axios.isCancel(err) || err?.__offlineCancel) {
+      if (err?.__cachedData !== undefined) {
+        return Promise.resolve({ data: err.__cachedData } as any)
       }
+      return Promise.reject(new Error('You are offline and no cached data is available for this request.'))
     }
 
     // 401 → redirect to login
     if (err.response?.status === 401) {
-      localStorage.removeItem('lims_token')
-      window.location.href = '/login'
+      if (!_redirectingToLogin) {
+        _redirectingToLogin = true
+        localStorage.removeItem('lims_token')
+        window.location.href = '/login'
+      }
     }
 
     // Attach a friendly human-readable message to every error

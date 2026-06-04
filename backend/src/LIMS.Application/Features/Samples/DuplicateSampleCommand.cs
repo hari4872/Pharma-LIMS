@@ -27,6 +27,9 @@ public class DuplicateSampleCommandHandler : IRequestHandler<DuplicateSampleComm
         if (src is null)
             return Result<RegisterSampleResult>.Failure("NOT_FOUND", "Source sample not found.");
 
+        if (src.SampleTypeNav is null)
+            return Result<RegisterSampleResult>.Failure("DATA_ERROR", "Sample type data could not be loaded.");
+
         var now = DateTimeOffset.UtcNow;
         var sampleNumber = await _sampleIdFormat.GenerateAsync(src.LabId, src.MaterialId, src.SampleTypeNav.TypeCode, src.LotNumber, ct);
 

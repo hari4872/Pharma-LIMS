@@ -9,7 +9,10 @@ namespace LIMS.Infrastructure.Services;
 public class InstrumentStatusService : IInstrumentStatusService
 {
     private readonly ILimsDbContext _db;
-    public InstrumentStatusService(ILimsDbContext db) { _db = db; }
+    private readonly IMasterDataAuditService _audit;
+
+    public InstrumentStatusService(ILimsDbContext db, IMasterDataAuditService audit)
+    { _db = db; _audit = audit; }
 
     public async Task RefreshInUseStatusAsync(int instrumentId, CancellationToken ct = default)
     {
@@ -36,6 +39,10 @@ public class InstrumentStatusService : IInstrumentStatusService
         if (instrument.Status != InstrumentStatus.OutOfCalibration)
             instrument.Status = InstrumentStatus.Maintenance;
         await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("Instrument", instrumentId, "SetMaintenance",
+            new { Status = "Available" },
+            new { Status = "Maintenance", Reason = reason },
+            "System");
     }
 
     public async Task ClearMaintenanceAsync(int instrumentId, CancellationToken ct = default)
@@ -46,5 +53,9 @@ public class InstrumentStatusService : IInstrumentStatusService
         if (instrument.Status == InstrumentStatus.Maintenance)
             instrument.Status = InstrumentStatus.Available;
         await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("Instrument", instrumentId, "ClearedMaintenance",
+            new { Status = "Maintenance" },
+            new { Status = "Available" },
+            "System");
     }
 }

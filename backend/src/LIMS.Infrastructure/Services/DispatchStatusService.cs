@@ -9,14 +9,22 @@ namespace LIMS.Infrastructure.Services;
 public class DispatchStatusService : IDispatchStatusService
 {
     private readonly ILimsDbContext _db;
-    public DispatchStatusService(ILimsDbContext db) => _db = db;
+    private readonly IMasterDataAuditService _audit;
+
+    public DispatchStatusService(ILimsDbContext db, IMasterDataAuditService audit)
+    { _db = db; _audit = audit; }
 
     public async Task SetStatusAsync(int doId, DispatchStatus status, CancellationToken ct = default)
     {
         var deliveryOrder = await _db.DeliveryOrders.FindAsync([doId], ct)
             ?? throw new InvalidOperationException($"Delivery Order {doId} not found.");
 
+        var oldStatus = deliveryOrder.Status;
         deliveryOrder.Status = status;
         await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("DeliveryOrder", doId, "StatusChanged",
+            new { Status = oldStatus.ToString() },
+            new { Status = status.ToString() },
+            "System");
     }
 }

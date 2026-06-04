@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LIMS.API.Controllers;
 
 /// <summary>
-/// Sprint 7 â€” Batch Release Workflow
+/// Sprint 7 — Batch Release Workflow
 /// 21 CFR 211.192: QA reviews each batch before release.
 /// Auto-evaluates release checklist, then QA makes final decision with e-signature.
 /// Route: api/v1/batch-releases
@@ -100,9 +100,9 @@ public class BatchReleaseController : LimsControllerBase
         });
     }
 
-    // POST api/v1/batch-releases â€” initiate review for a sample
+    // POST api/v1/batch-releases — initiate review for a sample
     [HttpPost]
-    [Authorize(Roles = "Admin,QA,LabManager")]
+    [Authorize(Roles = "Admin,QA,LabManager,QCLead")]
     public async Task<IActionResult> Initiate([FromBody] InitiateBatchReleaseRequest req)
     {
         var sample = await _db.Samples
@@ -158,9 +158,9 @@ public class BatchReleaseController : LimsControllerBase
         return Ok(new { release.BatchReleaseId, status = "InReview", checkItems });
     }
 
-    // POST api/v1/batch-releases/{id}/decide â€” QA final release/reject/hold with Â§11.50 e-sig
+    // POST api/v1/batch-releases/{id}/decide — QA final release/reject/hold with Â§11.50 e-sig
     [HttpPost("{id}/decide")]
-    [Authorize(Roles = "Admin,QA")]
+    [Authorize(Roles = "Admin,QA,QCLead,LabManager")]
     public async Task<IActionResult> Decide(int id, [FromBody] BatchReleaseDecisionRequest req)
     {
         var release = await _db.BatchReleases
@@ -185,7 +185,7 @@ public class BatchReleaseController : LimsControllerBase
             userId, req.Password, req.Meaning, req.Reason,
             "BatchRelease.Decision", default);
         if (sig is null)
-            return Unauthorized(new { error = "ESIGN_AUTH_FAILED", message = "Password incorrect â€” e-signature rejected. (21 CFR Â§11.300)" });
+            return Unauthorized(new { error = "ESIGN_AUTH_FAILED", message = "Password incorrect — e-signature rejected. (21 CFR Â§11.300)" });
 
         // Update release
         release.Status         = Enum.Parse<BatchReleaseStatus>(req.Decision, true);
@@ -233,7 +233,7 @@ public class BatchReleaseController : LimsControllerBase
         return Ok(new { release.BatchReleaseId, decision = req.Decision, sampleStatus = release.Sample.Status.ToString() });
     }
 
-    // â”€â”€ Private Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ Private Helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
     private async Task<List<ChecklistItem>> EvaluateChecklistAsync(int sampleId)
     {

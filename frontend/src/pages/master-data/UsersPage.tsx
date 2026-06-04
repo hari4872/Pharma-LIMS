@@ -48,6 +48,7 @@ export default function UsersPage() {
   const [auditUser, setAuditUser] = useState<UserRow | null>(null)
 
   async function openPerms(r: UserRow) {
+    setPerms({})
     setPermUser(r)
     try {
       const res = await api.get(`/users/${r.userId}/permissions`)
@@ -62,6 +63,7 @@ export default function UsersPage() {
       await api.put(`/users/${permUser.userId}/permissions`, { permissions: perms })
       toast(`Permissions updated for ${permUser.fullName}`, 'success')
       setPermUser(null)
+      load()
     } catch (err) { toast(getErrorMessage(err, 'Failed'), 'error') }
     finally { setPermSaving(false) }
   }

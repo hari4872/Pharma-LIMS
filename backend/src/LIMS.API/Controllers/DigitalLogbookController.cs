@@ -25,7 +25,7 @@ public class DigitalLogbookController : LimsControllerBase
         [FromQuery] DateTimeOffset? dateFrom, [FromQuery] DateTimeOffset? dateTo)
         => Ok(await _mediator.Send(new GetLogbookEntriesQuery(sampleId, executionId, labId, status, dateFrom, dateTo)));
 
-    // POST api/v1/digital-logbook/{id}/amend â€” post-sign amendment; original preserved as Superseded
+    // POST api/v1/digital-logbook/{id}/amend — post-sign amendment; original preserved as Superseded
     // 21 CFR Â§11.10(e): original never deleted; amendment reason + e-sig mandatory
     [HttpPost("{id}/amend")]
     [Authorize(Roles = "Analyst,QCLead,QA,Admin")]
@@ -44,7 +44,7 @@ public class DigitalLogbookController : LimsControllerBase
         return Ok(new { newEntryId = result.Value, originalEntryId = id, status = "AmendmentCreated" });
     }
 
-    // GET api/v1/digital-logbook/export?format=csv â€” FR-09: export with all Â§11.50 manifestations
+    // GET api/v1/digital-logbook/export?format=csv — FR-09: export with all Â§11.50 manifestations
     [HttpGet("export")]
     [Authorize(Roles = "QA,QCLead,Admin")]
     public async Task<IActionResult> Export(

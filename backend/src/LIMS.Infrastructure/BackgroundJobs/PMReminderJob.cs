@@ -7,8 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace LIMS.Infrastructure.BackgroundJobs;
 
-// FR-14: PMReminderJob â€” T-7 and T-1 preventive maintenance due date alerts
-// PM interval from DB config (Contract 2 â€” no hardcoding)
+// FR-14: PMReminderJob — T-7 and T-1 preventive maintenance due date alerts
+// PM interval from DB config (Contract 2 — no hardcoding)
 public class PMReminderJob : BackgroundService
 {
     private readonly IServiceProvider _services;

@@ -25,6 +25,7 @@ public interface ILimsDbContext
     DbSet<UserTrainingRecord> UserTrainingRecords { get; }
     DbSet<MasterDataAuditLog> MasterDataAuditLogs { get; }
     DbSet<SampleType> SampleTypes { get; }
+    DbSet<SampleTypeCheckpoint> SampleTypeCheckpoints { get; }
     DbSet<ReagentStandard> ReagentStandards { get; }
     // Phase 2: Sample Registration
     DbSet<Sample> Samples { get; }

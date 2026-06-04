@@ -15,7 +15,8 @@ public record AssignWorkQueueItemCommand(
 public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCommand, Result<int>>
 {
     private readonly ILimsDbContext _db;
-    public AssignWorkQueueItemHandler(ILimsDbContext db) => _db = db;
+    private readonly IMasterDataAuditService _audit;
+    public AssignWorkQueueItemHandler(ILimsDbContext db, IMasterDataAuditService audit) { _db = db; _audit = audit; }
 
     public async Task<Result<int>> Handle(AssignWorkQueueItemCommand cmd, CancellationToken ct)
     {
@@ -78,6 +79,10 @@ public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCom
 
         sample.Status = SampleStatus.InTesting;
         await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("WorkQueue", cmd.SampleId, "Assigned",
+            null,
+            new { cmd.AnalystId, cmd.InstrumentId, cmd.PriorityScore },
+            "System");
         return Result<int>.Success(execution.ExecutionId);
     }
 }

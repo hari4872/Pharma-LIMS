@@ -94,6 +94,7 @@ public class ProcessLogRowConfiguration : IEntityTypeConfiguration<ProcessLogRow
         builder.Property(r => r.Status).HasMaxLength(20).IsRequired();
         builder.HasOne(r => r.Checkpoint).WithMany(c => c.ProcessLogRows).HasForeignKey(r => r.CheckpointId).OnDelete(DeleteBehavior.Cascade);
         builder.HasOne(r => r.Signature).WithMany().HasForeignKey(r => r.SignatureId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(r => r.Sample).WithMany().HasForeignKey(r => r.SampleId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -130,5 +131,43 @@ public class SampleCheckpointConfiguration : IEntityTypeConfiguration<SampleChec
             .WithMany()
             .HasForeignKey(sc => sc.CheckpointId)
             .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class SampleTypeCheckpointConfiguration : IEntityTypeConfiguration<SampleTypeCheckpoint>
+{
+    public void Configure(EntityTypeBuilder<SampleTypeCheckpoint> builder)
+    {
+        builder.ToTable("sample_type_checkpoints");
+        builder.HasKey(sc => sc.SampleTypeCheckpointId);
+        builder.HasIndex(sc => new { sc.SampleTypeId, sc.CheckpointId }).IsUnique();
+        builder.HasOne(sc => sc.SampleType)
+            .WithMany(s => s.DefaultCheckpoints)
+            .HasForeignKey(sc => sc.SampleTypeId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(sc => sc.Checkpoint)
+            .WithMany()
+            .HasForeignKey(sc => sc.CheckpointId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class SampleContainerConfiguration : IEntityTypeConfiguration<SampleContainer>
+{
+    public void Configure(EntityTypeBuilder<SampleContainer> builder)
+    {
+        builder.ToTable("sample_containers");
+        builder.HasKey(c => c.SampleContainerId);
+        builder.Property(c => c.ContainerLabel).HasMaxLength(100).IsRequired();
+        // Restrict delete — container records are chain-of-custody evidence (21 CFR 211.170)
+        builder.HasOne(c => c.Sample)
+            .WithMany()
+            .HasForeignKey(c => c.SampleId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(c => c.ParentContainer)
+            .WithMany(c => c.ChildContainers)
+            .HasForeignKey(c => c.ParentSampleContainerId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
     }
 }

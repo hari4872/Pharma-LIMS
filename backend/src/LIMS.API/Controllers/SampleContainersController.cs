@@ -46,7 +46,7 @@ public class SampleContainersController : LimsControllerBase
         return Ok(containers);
     }
 
-    // POST api/v1/samples/{sampleId}/containers â€” split into aliquots
+    // POST api/v1/samples/{sampleId}/containers — split into aliquots
     [HttpPost]
     [Authorize(Roles = "Admin,QA,LabManager,Analyst")]
     public async Task<IActionResult> Split(int sampleId, [FromBody] SplitContainersRequest request)
@@ -66,7 +66,7 @@ public class SampleContainersController : LimsControllerBase
         return Ok(new { containerIds = result.Value, count = result.Value!.Count });
     }
 
-    // POST api/v1/samples/{sampleId}/containers/{id}/destroy â€” e-sig required
+    // POST api/v1/samples/{sampleId}/containers/{id}/destroy — e-sig required
     [HttpPost("{id:int}/destroy")]
     [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Destroy(int sampleId, int id, [FromBody] DestroyContainerRequest request)

@@ -1,4 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
@@ -105,6 +107,10 @@ export default function ResultsReviewPage() {
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
+
+  const role = useSelector((s: RootState) => s.auth.role) ?? ''
+  const canPeerReview = ['Admin', 'Analyst', 'QCLead', 'QA'].includes(role)
+  const canQCVerify   = ['Admin', 'QCLead', 'QA'].includes(role)
 
   async function load() {
     setLoading(true)
@@ -320,14 +326,14 @@ export default function ResultsReviewPage() {
                     {/* Actions — link-style like the screenshot */}
                     <td style={{ padding: '10px 16px' }}>
                       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                        {canPeer && (
+                        {canPeer && canPeerReview && (
                           <button onClick={() => openReview(r.executionId, 'peer')}
                             style={{ background: 'none', border: 'none', cursor: 'pointer',
                               fontSize: 13, fontWeight: 600, color: '#2563eb', padding: 0 }}>
                             Peer Review
                           </button>
                         )}
-                        {canQC && (
+                        {canQC && canQCVerify && (
                           <button onClick={() => openReview(r.executionId, 'qclead')}
                             style={{ background: 'none', border: 'none', cursor: 'pointer',
                               fontSize: 13, fontWeight: 600, color: '#7c3aed', padding: 0 }}>

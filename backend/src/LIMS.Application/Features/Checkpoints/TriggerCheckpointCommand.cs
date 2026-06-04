@@ -51,7 +51,7 @@ public class TriggerCheckpointCommandHandler : IRequestHandler<TriggerCheckpoint
                     CheckpointId = request.CheckpointId,
                     SampleId     = request.SampleId.Value,
                     SlotTime     = DateTimeOffset.UtcNow,
-                    SlotLabel    = $"OperatorScan — {sample.SampleNumber}",
+                    SlotLabel    = "OperatorScan",
                     Status       = "Open",
                 });
                 await _db.SaveChangesAsync(ct);

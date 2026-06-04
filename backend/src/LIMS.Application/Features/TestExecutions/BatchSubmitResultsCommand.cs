@@ -51,6 +51,12 @@ public class BatchSubmitResultsHandler : IRequestHandler<BatchSubmitResultsComma
                 fail++; continue;
             }
 
+            if (execution.Sample is null)
+            {
+                rows.Add(new BatchRowResult(execEntry.ExecutionId, "Unknown", [], false, false, "Sample data could not be loaded."));
+                fail++; continue;
+            }
+
             if (execution.Status != TestExecutionStatus.InProgress)
             {
                 rows.Add(new BatchRowResult(execEntry.ExecutionId, execution.Sample?.SampleNumber ?? "?", [], false, false, $"Not InProgress (current: {execution.Status})"));
@@ -124,6 +130,7 @@ public class BatchSubmitResultsHandler : IRequestHandler<BatchSubmitResultsComma
                     IsOot                 = detection.IsOot,
                     InstrumentId          = execution.InstrumentId,
                     AnalystId             = cmd.AnalystId,
+                    EvidenceFileRef       = item.EvidenceFileRef,
                     Status                = LogbookEntryStatus.Pending,
                     CreatedAt             = DateTimeOffset.UtcNow,
                 };
@@ -132,6 +139,7 @@ public class BatchSubmitResultsHandler : IRequestHandler<BatchSubmitResultsComma
             }
 
             execution.EntryMethod = EntryMethod.Manual;
+            // Per-execution commit: intentional isolation — a failure on execution N does not roll back already-committed entries for N-1
             await _db.SaveChangesAsync(ct);
 
             var results = staged.Select(s => new LogbookEntryResult(

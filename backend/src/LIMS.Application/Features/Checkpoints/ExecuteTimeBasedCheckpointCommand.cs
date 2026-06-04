@@ -43,6 +43,9 @@ public class ExecuteTimeBasedCheckpointCommandHandler
 
         // Create a ProcessLogRow for this execution, immediately locked with e-sig
         var now = DateTimeOffset.UtcNow;
+        var user = await _db.Users.FindAsync([request.UserId], ct);
+        var username = user?.Username ?? "analyst";
+
         var row = new ProcessLogRow
         {
             CheckpointId = request.CheckpointId,
@@ -52,27 +55,23 @@ public class ExecuteTimeBasedCheckpointCommandHandler
             SignatureId  = sig.SignatureId,
         };
         _db.ProcessLogRows.Add(row);
-        await _db.SaveChangesAsync(ct);
 
-        // Record parameter readings (if provided)
         if (request.Readings is { Count: > 0 })
         {
-            var user = await _db.Users.FindAsync([request.UserId], ct);
-            var username = user?.Username ?? "analyst";
             foreach (var r in request.Readings.Where(r => !string.IsNullOrWhiteSpace(r.Value)))
             {
                 _db.ProcessLogReadings.Add(new ProcessLogReading
                 {
-                    RowId       = row.RowId,
+                    Row         = row,
                     ParameterId = r.ParameterId,
                     Value       = r.Value.Trim(),
                     RecordedAt  = now,
                     RecordedBy  = username,
                 });
             }
-            await _db.SaveChangesAsync(ct);
         }
 
+        await _db.SaveChangesAsync(ct);
         return Result<int>.Success(row.RowId);
     }
 }

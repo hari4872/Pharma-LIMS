@@ -74,6 +74,7 @@ export default function OosInvestigationsPage() {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post(`/oos-investigations/${showClose!.investigationId}/close`, closeForm)
+      setCloseForm({ rootCause: '', capaRef: '', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' })
       setShowClose(null); await load()
       setStatusFilter('Closed')
     } catch (err) { setError(getErrorMessage(err, 'Close failed')) }
@@ -125,7 +126,7 @@ export default function OosInvestigationsPage() {
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {r.status === 'Open' && (
               <button
-                onClick={() => { setShowClose(r); setCloseForm(f => ({ ...f, rootCause: '', capaRef: '' })); setError('') }}
+                onClick={() => { setShowClose(r); setCloseForm({ rootCause: '', capaRef: '', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' }); setError('') }}
                 style={{
                   background: '#dcfce7', border: '1px solid #86efac',
                   color: '#15803d', cursor: 'pointer', fontSize: 12,

@@ -25,9 +25,10 @@ public class EscalateToPhase2Handler : IRequestHandler<EscalateToPhase2Command, 
     private readonly ILimsDbContext _db;
     private readonly IElectronicSignatureService _esig;
     private readonly INotificationService _notify;
+    private readonly IMasterDataAuditService _audit;
 
-    public EscalateToPhase2Handler(ILimsDbContext db, IElectronicSignatureService esig, INotificationService notify)
-    { _db = db; _esig = esig; _notify = notify; }
+    public EscalateToPhase2Handler(ILimsDbContext db, IElectronicSignatureService esig, INotificationService notify, IMasterDataAuditService audit)
+    { _db = db; _esig = esig; _notify = notify; _audit = audit; }
 
     public async Task<Result<int>> Handle(EscalateToPhase2Command cmd, CancellationToken ct)
     {
@@ -36,6 +37,8 @@ public class EscalateToPhase2Handler : IRequestHandler<EscalateToPhase2Command, 
             .FirstOrDefaultAsync(i => i.InvestigationId == cmd.InvestigationId, ct);
 
         if (inv is null) return Result<int>.Failure("NOT_FOUND", "Investigation not found.");
+        if (inv.Execution?.Sample is null)
+            return Result<int>.Failure("DATA_ERROR", "Execution or sample data could not be loaded.");
         if (inv.Status == OosStatus.Closed)
             return Result<int>.Failure("ALREADY_CLOSED", "Cannot escalate a closed investigation.");
         if (inv.Phase == OosPhase.Phase2)
@@ -56,14 +59,18 @@ public class EscalateToPhase2Handler : IRequestHandler<EscalateToPhase2Command, 
         if (!string.IsNullOrWhiteSpace(cmd.CapaRef))
             inv.CapaRef = cmd.CapaRef;
 
-        // Push real-time alert to LabManager + QA group
         var sampleNo = inv.Execution.Sample.SampleNumber;
+        await _db.SaveChangesAsync(ct);
+
+        // Push real-time alerts after successful save — prevents phantom notifications on DB failure
         await _notify.PushToGroupAsync("LabManager", "OosPhase2Escalated",
             new { investigationId = inv.InvestigationId, sampleNumber = sampleNo, reason = cmd.EscalationReason }, ct);
         await _notify.PushToGroupAsync("QA", "OosPhase2Escalated",
             new { investigationId = inv.InvestigationId, sampleNumber = sampleNo, reason = cmd.EscalationReason }, ct);
-
-        await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("OosInvestigation", inv.InvestigationId, "EscalatedToPhase2",
+            new { Phase = "Phase1", Status = inv.Status.ToString() },
+            new { Phase = "Phase2", EscalationReason = cmd.EscalationReason, inv.CapaRef },
+            inv.Execution?.Sample?.SampleNumber ?? "Unknown");
         return Result<int>.Success(inv.InvestigationId);
     }
 }

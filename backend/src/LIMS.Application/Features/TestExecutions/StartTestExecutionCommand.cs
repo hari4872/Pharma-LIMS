@@ -7,12 +7,13 @@ using Microsoft.EntityFrameworkCore;
 namespace LIMS.Application.Features.TestExecutions;
 
 // Analyst scans barcode or selects task — records started_at UTC (ALCOA+ Contemporaneous FR-22)
-public record StartTestExecutionCommand(int ExecutionId, int AnalystId) : IRequest<Result<int>>;
+public record StartTestExecutionCommand(int ExecutionId, int AnalystId, bool IsAdmin = false) : IRequest<Result<int>>;
 
 public class StartTestExecutionHandler : IRequestHandler<StartTestExecutionCommand, Result<int>>
 {
     private readonly ILimsDbContext _db;
-    public StartTestExecutionHandler(ILimsDbContext db) => _db = db;
+    private readonly IMasterDataAuditService _audit;
+    public StartTestExecutionHandler(ILimsDbContext db, IMasterDataAuditService audit) { _db = db; _audit = audit; }
 
     public async Task<Result<int>> Handle(StartTestExecutionCommand cmd, CancellationToken ct)
     {
@@ -20,7 +21,7 @@ public class StartTestExecutionHandler : IRequestHandler<StartTestExecutionComma
             .Include(e => e.Instrument)
             .FirstOrDefaultAsync(e => e.ExecutionId == cmd.ExecutionId, ct);
         if (execution is null) return Result<int>.Failure("NOT_FOUND", "Work item not found.");
-        if (execution.AnalystId != cmd.AnalystId)
+        if (!cmd.IsAdmin && execution.AnalystId != cmd.AnalystId)
             return Result<int>.Failure("FORBIDDEN", "This task is not assigned to you.");
         if (execution.Status != TestExecutionStatus.Assigned)
             return Result<int>.Failure("INVALID_STATE", $"Task is already {execution.Status}.");
@@ -35,15 +36,22 @@ public class StartTestExecutionHandler : IRequestHandler<StartTestExecutionComma
         if (execution.Instrument.CalibrationDue < today)
             return Result<int>.Failure("INSTRUMENT_OOC", "Instrument calibration expired — test start blocked. (21 CFR 211.68)");
 
-        // Analyst training re-check at task open
-        var trained = await _db.UserTrainingRecords.AnyAsync(
-            t => t.UserId == cmd.AnalystId && t.ValidUntil >= today, ct);
-        if (!trained)
-            return Result<int>.Failure("TRAINING_EXPIRED", "Analyst training expired — test start blocked. (21 CFR 11.10(i))");
+        // Analyst training re-check at task open — Admin is exempt (oversight role, not analyst)
+        if (!cmd.IsAdmin)
+        {
+            var trained = await _db.UserTrainingRecords.AnyAsync(
+                t => t.UserId == cmd.AnalystId && t.ValidUntil >= today, ct);
+            if (!trained)
+                return Result<int>.Failure("TRAINING_EXPIRED", "Analyst training expired — test start blocked. (21 CFR 11.10(i))");
+        }
 
         execution.Status = TestExecutionStatus.InProgress;
         execution.StartedAt = DateTimeOffset.UtcNow; // ALCOA+ Contemporaneous — server-side UTC only
         await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("TestExecution", cmd.ExecutionId, "Started",
+            new { Status = "Assigned" },
+            new { Status = "InProgress", StartedAt = execution.StartedAt },
+            "Analyst");
         return Result<int>.Success(execution.ExecutionId);
     }
 }

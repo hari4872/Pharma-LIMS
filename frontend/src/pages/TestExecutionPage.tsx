@@ -103,9 +103,9 @@ export default function TestExecutionPage() {
   useEffect(() => {
     if (!id) return
     // Load execution
-    api.get(`/test-executions`)
+    api.get(`/test-executions/${id}`)
       .then(r => {
-        const ex = r.data.find((e: Execution) => e.executionId === Number(id))
+        const ex = r.data
         if (ex) { setExecution(ex); setStartedAt(ex.startedAt) }
       })
       .catch(() => setError('Failed to load execution.'))
@@ -413,7 +413,8 @@ export default function TestExecutionPage() {
                             onChange={e => setUploadFiles(prev => ({ ...prev, [p.parameterId]: { ...prev[p.parameterId], desc: e.target.value } }))}
                           />
                           <button type="button"
-                            disabled={!uploadFiles[p.parameterId]?.file || uploadFiles[p.parameterId]?.uploading}
+                            disabled={!uploadFiles[p.parameterId]?.file || uploadFiles[p.parameterId]?.uploading || results.length === 0}
+                            title={results.length === 0 ? "Submit results first before uploading evidence" : undefined}
                             onClick={() => {
                               const resultEntry = results.find(r => r.parameterId === p.parameterId)
                               if (resultEntry) uploadEvidence(resultEntry.entryId, p.parameterId)

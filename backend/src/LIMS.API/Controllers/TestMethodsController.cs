@@ -48,7 +48,7 @@ public class TestMethodsController : LimsControllerBase
         return Ok(new { methodId = result.Value, status = "Retired" });
     }
 
-    // POST api/v1/test-methods/{id}/approve â€” Â§11.50 QA e-sig
+    // POST api/v1/test-methods/{id}/approve — Â§11.50 QA e-sig
     [HttpPost("{id}/approve")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Approve(int id, [FromBody] ApproveRequest request)

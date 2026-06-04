@@ -7,12 +7,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.API.Controllers;
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// SpecificationTemplatesController â€” Phase A
+// â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// SpecificationTemplatesController — Phase A
 //
 // CRUD for SpecificationTemplate master data + approval lifecycle.
 // QA/Admin manages templates; Analysts have read-only access.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 [ApiController]
 [Route("api/v1/specification-templates")]
@@ -27,7 +27,7 @@ public class SpecificationTemplatesController : ControllerBase
         _db = db; _engine = engine;
     }
 
-    // â”€â”€ GET /specification-templates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ GET /specification-templates â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? status,
@@ -67,7 +67,7 @@ public class SpecificationTemplatesController : ControllerBase
         return Ok(list);
     }
 
-    // â”€â”€ GET /specification-templates/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ GET /specification-templates/:id â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
@@ -82,7 +82,7 @@ public class SpecificationTemplatesController : ControllerBase
         return Ok(t);
     }
 
-    // â”€â”€ POST /specification-templates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ POST /specification-templates â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpPost]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Create([FromBody] CreateSpecTemplateRequest req)
@@ -109,7 +109,7 @@ public class SpecificationTemplatesController : ControllerBase
             new { template.SpecTemplateId, template.TemplateName, template.Status });
     }
 
-    // â”€â”€ PUT /specification-templates/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ PUT /specification-templates/:id â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateSpecTemplateRequest req)
@@ -129,7 +129,7 @@ public class SpecificationTemplatesController : ControllerBase
         return Ok(new { template.SpecTemplateId, template.TemplateName, template.Status });
     }
 
-    // â”€â”€ PUT /specification-templates/:id/items â€” save full item list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ PUT /specification-templates/:id/items — save full item list â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpPut("{id:int}/items")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> SaveItems(int id, [FromBody] List<SaveSpecItemRequest> items)
@@ -168,7 +168,7 @@ public class SpecificationTemplatesController : ControllerBase
         return Ok(new { specTemplateId = id, itemCount = items.Count });
     }
 
-    // â”€â”€ POST /specification-templates/:id/approve â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ POST /specification-templates/:id/approve â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpPost("{id:int}/approve")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Approve(int id)
@@ -182,7 +182,7 @@ public class SpecificationTemplatesController : ControllerBase
         if (template.Status == SpecTemplateStatus.Approved)
             return BadRequest(new { error = "Template is already Approved." });
 
-        // Enforce uniqueness â€” only one Approved per Material+SampleType+Stage
+        // Enforce uniqueness — only one Approved per Material+SampleType+Stage
         var existingApproved = await _db.SpecificationTemplates.AnyAsync(t =>
             t.MaterialId   == template.MaterialId   &&
             t.SampleTypeId == template.SampleTypeId &&
@@ -204,7 +204,7 @@ public class SpecificationTemplatesController : ControllerBase
         return Ok(new { template.SpecTemplateId, template.Status, template.ApprovedAt });
     }
 
-    // â”€â”€ POST /specification-templates/:id/obsolete â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ POST /specification-templates/:id/obsolete â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpPost("{id:int}/obsolete")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Obsolete(int id)
@@ -223,7 +223,7 @@ public class SpecificationTemplatesController : ControllerBase
         return Ok(new { template.SpecTemplateId, template.Status });
     }
 
-    // â”€â”€ GET /specification-templates/match â€” preview spec engine result â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ GET /specification-templates/match — preview spec engine result â"€â"€â"€â"€â"€â"€â"€
     [HttpGet("match")]
     public async Task<IActionResult> Match(
         [FromQuery] int materialId,
@@ -244,7 +244,7 @@ public class SpecificationTemplatesController : ControllerBase
     }
 }
 
-// â”€â”€ Request DTOs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Request DTOs â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 public record CreateSpecTemplateRequest(
     int       MaterialId,

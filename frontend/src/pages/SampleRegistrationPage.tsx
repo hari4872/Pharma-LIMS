@@ -131,6 +131,7 @@ export default function SampleRegistrationPage() {
   const [adHocReason,   setAdHocReason]   = useState('')
   const [adHocSaving,   setAdHocSaving]   = useState(false)
   const [saving, setSaving]           = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
   const [error, setError]             = useState('')
   const [reprintReason, setReprintReason] = useState('')
 
@@ -389,6 +390,13 @@ export default function SampleRegistrationPage() {
         checkpointIds:         selectedCps,
       })
       const result = res.data
+      // Offline: request queued — show appropriate message instead of broken barcode modal
+      if (result.__offlineQueued) {
+        setShowForm(false)
+        resetForm()
+        toast('Sample registration queued — will sync automatically when back online', 'success')
+        return
+      }
       setLastSpecResult({ outcome: result.specOutcome, message: result.specMessage, testsCreated: result.testsAutoCreated })
       // Capture form data BEFORE resetForm() clears it
       const mat  = materials.find(m => m.materialId === Number(materialId))
@@ -417,17 +425,24 @@ export default function SampleRegistrationPage() {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post(`/samples/${showSRF}/sign-srf`, srfForm)
+      setSrfForm(f => ({ ...f, password: '', meaning: '', reason: '' }))
       setShowSRF(null); load()
     } catch (err) { setError(getErrorMessage(err, 'E-signature failed')) }
     finally { setSaving(false) }
   }
 
   async function duplicateSample(sampleId: number) {
+    if (duplicating) return
+    setDuplicating(true)
     try {
       const r = await api.post(`/samples/${sampleId}/duplicate`)
-      toast(`Sample duplicated — ${r.data.sampleNumber}`, 'success')
+      toast(`✓ Duplicate created: ${r.data.sampleNumber}`, 'success')
       load()
-    } catch (err) { toast(getErrorMessage(err, 'Duplicate failed'), 'error') }
+    } catch (err) {
+      toast(getErrorMessage(err, 'Duplicate failed'), 'error')
+    } finally {
+      setDuplicating(false)
+    }
   }
 
   async function openAddTest(sample: Sample) {
@@ -700,8 +715,9 @@ export default function SampleRegistrationPage() {
                 Reprint
               </button>
               <button onClick={() => duplicateSample(r.sampleId)}
-                style={{ padding: '3px 9px', background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                Duplicate
+                disabled={duplicating}
+                style={{ padding: '3px 9px', background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: 4, cursor: duplicating ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 600 }}>
+                {duplicating ? '…' : 'Duplicate'}
               </button>
               {(r.status === 'Released' || r.status === 'Rejected') && (
                 <button onClick={async () => {
@@ -1022,7 +1038,7 @@ export default function SampleRegistrationPage() {
 
       {/* ── Sign SRF — §11.50 e-sig ──────────────────────────────────────── */}
       {showSRF && (
-        <Modal title="Sign Sample Registration Form" onClose={() => setShowSRF(null)}>
+        <Modal title="Sign Sample Registration Form" onClose={() => { setSrfForm(f => ({ ...f, password: '', meaning: '', reason: '' })); setShowSRF(null) }}>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
             Your full name, timestamp, meaning, and reason will be captured and immutably recorded (21 CFR Part 11).
           </p>

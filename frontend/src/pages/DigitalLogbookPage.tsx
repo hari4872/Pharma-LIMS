@@ -151,11 +151,22 @@ export default function DigitalLogbookPage() {
     } finally { setSignSaving(false) }
   }
 
-  function exportCsv() {
+  async function exportCsv() {
     const params = new URLSearchParams()
     if (statusFilter) params.set('status', statusFilter)
-    const base = (api.defaults.baseURL ?? '').replace(/\/$/, '')
-    window.open(`${base}/digital-logbook/export?${params.toString()}`)
+    try {
+      const res = await api.get(`/digital-logbook/export?${params.toString()}`, { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `DigitalLogbook_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      toast(getErrorMessage(err, 'Export failed'), 'error')
+    }
   }
 
   const filteredPlRows = plStatusFilter

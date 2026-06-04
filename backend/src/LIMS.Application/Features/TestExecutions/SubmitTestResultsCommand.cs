@@ -49,6 +49,8 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
             .Include(e => e.Sample)
             .FirstOrDefaultAsync(e => e.ExecutionId == cmd.ExecutionId, ct);
         if (execution is null) return Result<SubmitTestResultsResponse>.Failure("NOT_FOUND", "Execution not found.");
+        if (execution.Sample is null)
+            return Result<SubmitTestResultsResponse>.Failure("DATA_ERROR", "Sample data could not be loaded.");
         if (execution.AnalystId != cmd.AnalystId)
             return Result<SubmitTestResultsResponse>.Failure("FORBIDDEN", "Not your task.");
         if (execution.Status != TestExecutionStatus.InProgress)

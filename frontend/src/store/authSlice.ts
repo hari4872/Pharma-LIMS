@@ -24,6 +24,7 @@ interface JwtClaims {
   userType?: string
   labId?: string | number
   labName?: string
+  exp?: number
 }
 
 /** Decode a JWT payload without a library (base64url → JSON) */
@@ -42,6 +43,11 @@ function hydrateFromToken(token: string | null): Partial<AuthState> {
   if (!token) return {}
   const claims = decodeJwt(token)
   if (!claims) return {}
+  const exp = claims.exp
+  if (exp && Math.floor(Date.now() / 1000) > exp) {
+    localStorage.removeItem('lims_token')
+    return {}
+  }
   return {
     userId:   claims['sub']       ? Number(claims['sub']) : null,
     fullName: claims['name']      ?? claims['unique_name'] ?? null,
@@ -91,6 +97,7 @@ const authSlice = createSlice({
       state.labId = null
       state.labName = null
       localStorage.removeItem('lims_token')
+      sessionStorage.clear()
     }
   },
   extraReducers: b => {

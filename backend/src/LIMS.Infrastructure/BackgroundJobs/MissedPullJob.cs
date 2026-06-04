@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LIMS.Infrastructure.BackgroundJobs;
 
-// FR-04: MissedPullJob â€” escalates missed stability pulls server-side (Contract 2)
+// FR-04: MissedPullJob — escalates missed stability pulls server-side (Contract 2)
 // Missed = DueDate < today AND Status = Pending â†’ escalate to QA
 public class MissedPullJob : BackgroundService
 {

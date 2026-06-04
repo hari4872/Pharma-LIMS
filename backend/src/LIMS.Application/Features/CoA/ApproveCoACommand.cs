@@ -41,14 +41,15 @@ public class ApproveCoAHandler : IRequestHandler<ApproveCoACommand, Result<int>>
         if (cmd.IsConditionalRelease && string.IsNullOrWhiteSpace(cmd.ConditionalJustification))
             return Result<int>.Failure("JUSTIFICATION_REQUIRED", "Conditional release requires a written justification.");
 
-        // QA checklist — hard gates always enforced; soft gates (items 7, 8) bypassed for conditional release
+        // QA checklist — hard gates always enforced; soft gates (items 1, 6, 7, 8) bypassed for conditional release
         var checklist = await _qaGate.EvaluateChecklistAsync(coa.SampleId, cmd.CoaId, ct);
-        // Hard gates — never bypassed even for conditional release (regulatory minimums)
+        // Hard gates — never bypassed (absolute regulatory minimums: no open OOS/OOT, analyst sigs, CoA body)
         var hardGatesPassed = checklist.NoOpenOos && checklist.NoOpenOot &&
                               checklist.AnalystSigsPresent && checklist.PeerReviewPresent &&
-                              checklist.QcLeadVerifPresent && checklist.CoaBodyComplete;
-        // Soft gates — bypassed with justification for conditional release
-        var softGatesPassed = checklist.TestsComplete && checklist.CorrectSpecVersion && checklist.EvidencePresent;
+                              checklist.CoaBodyComplete;
+        // Soft gates — bypassed with mandatory written justification for conditional release
+        var softGatesPassed = checklist.TestsComplete && checklist.QcLeadVerifPresent &&
+                              checklist.CorrectSpecVersion && checklist.EvidencePresent;
         var effectivePassed = hardGatesPassed && (softGatesPassed || cmd.IsConditionalRelease);
 
         if (!effectivePassed)
@@ -59,7 +60,7 @@ public class ApproveCoAHandler : IRequestHandler<ApproveCoACommand, Result<int>>
             if (!checklist.NoOpenOot)           failed.Add("Item 3: Open OOT investigation(s) exist");
             if (!checklist.AnalystSigsPresent)  failed.Add("Item 4: Missing analyst e-signatures on logbook entries");
             if (!checklist.PeerReviewPresent)   failed.Add("Item 5: Peer review e-signature missing");
-            if (!checklist.QcLeadVerifPresent)  failed.Add("Item 6: QC Lead verification e-signature missing");
+            if (!cmd.IsConditionalRelease && !checklist.QcLeadVerifPresent) failed.Add("Item 6: QC Lead verification e-signature missing");
             if (!cmd.IsConditionalRelease && !checklist.CorrectSpecVersion) failed.Add("Item 7: Incorrect or unapproved spec version used");
             if (!cmd.IsConditionalRelease && !checklist.EvidencePresent)    failed.Add("Item 8: Evidence missing for critical parameter(s)");
             if (!checklist.CoaHeaderPopulated)  failed.Add("Item 9: CoA header fields incomplete");

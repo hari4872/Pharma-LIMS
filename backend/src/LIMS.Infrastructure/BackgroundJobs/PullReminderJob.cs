@@ -7,8 +7,8 @@ using Microsoft.Extensions.Logging;
 
 namespace LIMS.Infrastructure.BackgroundJobs;
 
-// FR-03: PullReminderJob â€” T-7 and T-1 pull due date reminders (IHostedService â€” Contract 2)
-// Interval from DB config â€” no hardcoding (Contract 2)
+// FR-03: PullReminderJob — T-7 and T-1 pull due date reminders (IHostedService — Contract 2)
+// Interval from DB config — no hardcoding (Contract 2)
 public class PullReminderJob : BackgroundService
 {
     private readonly IServiceProvider _services;

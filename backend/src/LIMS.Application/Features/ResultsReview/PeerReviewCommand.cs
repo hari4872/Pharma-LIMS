@@ -18,14 +18,14 @@ public class PeerReviewHandler : IRequestHandler<PeerReviewCommand, Result<int>>
     private readonly ILimsDbContext _db;
     private readonly IElectronicSignatureService _esig;
     private readonly INotificationService _notify;
+    private readonly IMasterDataAuditService _audit;
 
-    public PeerReviewHandler(ILimsDbContext db, IElectronicSignatureService esig, INotificationService notify)
-    { _db = db; _esig = esig; _notify = notify; }
+    public PeerReviewHandler(ILimsDbContext db, IElectronicSignatureService esig, INotificationService notify, IMasterDataAuditService audit)
+    { _db = db; _esig = esig; _notify = notify; _audit = audit; }
 
     public async Task<Result<int>> Handle(PeerReviewCommand cmd, CancellationToken ct)
     {
         var execution = await _db.TestExecutions
-            .Include(e => e.Sample)
             .FirstOrDefaultAsync(e => e.ExecutionId == cmd.ExecutionId, ct);
         if (execution is null) return Result<int>.Failure("NOT_FOUND", "Execution not found.");
         if (execution.Status != TestExecutionStatus.Completed)
@@ -42,6 +42,15 @@ public class PeerReviewHandler : IRequestHandler<PeerReviewCommand, Result<int>>
         if (openOos)
             return Result<int>.Failure("OOS_OPEN",
                 "Open OOS/OOT investigation(s) must be closed before peer review. (FDA OOS Guidance)");
+
+        // BL-016: Phase 2 CAPA gate — block peer review if any Phase 2 investigation has no CAPA reference
+        var unresolvedPhase2 = await _db.OosInvestigations
+            .AnyAsync(i => i.ExecutionId == cmd.ExecutionId
+                && i.Phase == OosPhase.Phase2
+                && string.IsNullOrWhiteSpace(i.CapaRef), ct);
+        if (unresolvedPhase2)
+            return Result<int>.Failure("PHASE2_UNRESOLVED",
+                "Phase 2 OOS investigation has no CAPA reference — resolve before peer review.");
 
         // Duplicate review check
         var alreadyReviewed = await _db.ResultsReviews.AnyAsync(
@@ -65,6 +74,11 @@ public class PeerReviewHandler : IRequestHandler<PeerReviewCommand, Result<int>>
         _db.ResultsReviews.Add(review);
         execution.Status = TestExecutionStatus.PeerReviewed;
         await _db.SaveChangesAsync(ct);
+
+        await _audit.LogAsync("ResultsReview", cmd.ExecutionId, "PeerReviewed",
+            null,
+            new { ReviewType = "PeerReview", ReviewerId = cmd.ReviewerId },
+            "Reviewer");
 
         await _notify.PushToGroupAsync("QCLead", "PeerReviewCompleted",
             new { executionId = cmd.ExecutionId, sampleId = execution.SampleId }, ct);

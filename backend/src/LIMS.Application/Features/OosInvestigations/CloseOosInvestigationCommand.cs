@@ -17,9 +17,10 @@ public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigatio
     private readonly ILimsDbContext _db;
     private readonly IElectronicSignatureService _esig;
     private readonly INotificationService _notify;
+    private readonly IMasterDataAuditService _audit;
 
-    public CloseOosInvestigationHandler(ILimsDbContext db, IElectronicSignatureService esig, INotificationService notify)
-    { _db = db; _esig = esig; _notify = notify; }
+    public CloseOosInvestigationHandler(ILimsDbContext db, IElectronicSignatureService esig, INotificationService notify, IMasterDataAuditService audit)
+    { _db = db; _esig = esig; _notify = notify; _audit = audit; }
 
     public async Task<Result<int>> Handle(CloseOosInvestigationCommand cmd, CancellationToken ct)
     {
@@ -27,6 +28,8 @@ public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigatio
             .Include(i => i.Execution).ThenInclude(e => e.Sample)
             .FirstOrDefaultAsync(i => i.InvestigationId == cmd.InvestigationId, ct);
         if (inv is null) return Result<int>.Failure("NOT_FOUND", "Investigation not found.");
+        if (inv.Execution?.Sample is null)
+            return Result<int>.Failure("DATA_ERROR", "Execution or sample data could not be loaded.");
         if (inv.Status == OosStatus.Closed)
             return Result<int>.Failure("ALREADY_CLOSED", "Investigation is already closed.");
 
@@ -56,6 +59,10 @@ public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigatio
         }
 
         await _db.SaveChangesAsync(ct);
+        await _audit.LogAsync("OosInvestigation", inv.InvestigationId, "Closed",
+            new { inv.Phase, Status = "Open" },
+            new { inv.RootCause, inv.CapaRef, Status = "Closed" },
+            inv.Execution?.Sample?.SampleNumber ?? "Unknown");
         return Result<int>.Success(inv.InvestigationId);
     }
 }

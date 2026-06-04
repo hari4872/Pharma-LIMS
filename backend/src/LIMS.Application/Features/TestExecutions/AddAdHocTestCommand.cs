@@ -48,8 +48,11 @@ public class AddAdHocTestHandler : IRequestHandler<AddAdHocTestCommand, Result<A
         if (sample is null)
             return Result<AdHocTestResult>.Failure("NOT_FOUND", "Sample not found.");
 
-        if (sample.Status == SampleStatus.Rejected)
-            return Result<AdHocTestResult>.Failure("INVALID_STATUS", "Cannot add test to a Rejected sample.");
+        if (sample.Status == SampleStatus.Rejected ||
+            sample.Status == SampleStatus.Released ||
+            sample.Status == SampleStatus.PendingQAReview)
+            return Result<AdHocTestResult>.Failure("INVALID_STATUS",
+                $"Cannot add ad-hoc test to a sample in {sample.Status} status.");
 
         var param = await _db.TestMethodParameters
             .FirstOrDefaultAsync(p => p.ParameterId == cmd.ParameterId, ct);

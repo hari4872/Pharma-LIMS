@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
@@ -85,6 +87,7 @@ export default function CheckpointsPage() {
   const [error, setError]           = useState('')
 
   const { triggerCheckpoint, pendingCount, isOnline } = useOfflineScanQueue()
+  const role = useSelector((s: RootState) => s.auth.role) ?? ''
 
   // ── Form state ──────────────────────────────────────────────────────────────
   const [cpName, setCpName]               = useState('')
@@ -200,6 +203,7 @@ export default function CheckpointsPage() {
     if (!showSignRow) return
     try {
       await api.post(`/checkpoints/${showSignRow.checkpointId}/process-log/${showSignRow.rowId}/sign`, signForm)
+      setSignForm({ password: '', meaning: '', reason: '' })
       setShowSignRow(null)
       toast('Process log row signed and locked ✓', 'success')
       loadProcessLog(showSignRow.checkpointId)
@@ -229,10 +233,12 @@ export default function CheckpointsPage() {
             <option value="ProcessLog">Mode 3 — Process Log</option>
             <option value="DispatchEvent">Mode 4 — Dispatch Event</option>
           </select>
-          <button onClick={openCreate}
-            style={{ padding: '8px 18px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-            + Add Checkpoint
-          </button>
+          {(role === 'Admin' || role === 'QA') && (
+            <button onClick={openCreate}
+              style={{ padding: '8px 18px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+              + Add Checkpoint
+            </button>
+          )}
         </div>
       </div>
 
@@ -567,7 +573,7 @@ export default function CheckpointsPage() {
 
       {/* ── Sign Process Log Row §11.50 ───────────────────────────────────── */}
       {showSignRow && (
-        <Modal title="Sign Process Log Row" onClose={() => setShowSignRow(null)}>
+        <Modal title="Sign Process Log Row" onClose={() => { setSignForm({ password: '', meaning: '', reason: '' }); setShowSignRow(null) }}>
           <form onSubmit={submitSignRow}>
             <Field label="Password (re-enter)">
               <input style={inp} type="password" value={signForm.password}

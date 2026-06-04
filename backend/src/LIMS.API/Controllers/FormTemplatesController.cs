@@ -50,7 +50,7 @@ public class FormTemplatesController : LimsControllerBase
             TriggerType = Enum.Parse<TriggerType>(request.TriggerType, true),
             TimeSlots = request.TimeSlots, ShiftIntervalHrs = request.ShiftIntervalHrs,
             RegulatoryTier = request.RegulatoryTier, EvidenceMandatory = request.EvidenceMandatory,
-            SampleTypeId = request.SampleTypeId,   // configured by user â€” no hardcoding
+            SampleTypeId = request.SampleTypeId,   // configured by user — no hardcoding
             CreatedBy = username, CreatedAt = DateTimeOffset.UtcNow
         };
         _db.FormTemplates.Add(template);
@@ -92,7 +92,7 @@ public class FormTemplatesController : LimsControllerBase
         return Ok(new { formTemplateId = result.Value, status = "Active" });
     }
 
-    // PUT api/v1/form-templates/{id}/fields  â€” save custom field designer layout as JSON
+    // PUT api/v1/form-templates/{id}/fields  — save custom field designer layout as JSON
     [HttpPut("{id}/fields")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> SaveFields(int id, [FromBody] SaveFieldsRequest request)

@@ -26,9 +26,9 @@ public class OosInvestigationsController : LimsControllerBase
         [FromQuery] string? status, [FromQuery] int? labId, [FromQuery] int? executionId)
         => Ok(await _mediator.Send(new GetOosInvestigationsQuery(status, labId, executionId)));
 
-    // POST api/v1/oos-investigations/{id}/close â€” QA closes investigation Â§11.50 e-sig (FDA OOS Guidance)
+    // POST api/v1/oos-investigations/{id}/close — QA closes investigation Â§11.50 e-sig (FDA OOS Guidance)
     [HttpPost("{id}/close")]
-    [Authorize(Roles = "Admin,QA,QCLead")]
+    [Authorize(Roles = "Admin,QA,QCLead,LabManager")]
     public async Task<IActionResult> Close(int id, [FromBody] CloseOosRequest request)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -43,9 +43,9 @@ public class OosInvestigationsController : LimsControllerBase
         return Ok(new { investigationId = result.Value, status = "Closed" });
     }
 
-    // POST api/v1/oos-investigations/{id}/escalate-phase2 â€” Sprint 1: FDA OOS Phase 2 escalation
+    // POST api/v1/oos-investigations/{id}/escalate-phase2 — Sprint 1: FDA OOS Phase 2 escalation
     [HttpPost("{id}/escalate-phase2")]
-    [Authorize(Roles = "Admin,QA,QCLead")]
+    [Authorize(Roles = "Admin,QA,QCLead,LabManager")]
     public async Task<IActionResult> EscalateToPhase2(int id, [FromBody] EscalatePhase2Request request)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -61,7 +61,7 @@ public class OosInvestigationsController : LimsControllerBase
         return Ok(new { investigationId = result.Value, phase = "Phase2" });
     }
 
-    // GET api/v1/oos-investigations/{id}/pdf â€” OOS Investigation Report PDF (FDA OOS Guidance + 21 CFR Â§211.192)
+    // GET api/v1/oos-investigations/{id}/pdf — OOS Investigation Report PDF (FDA OOS Guidance + 21 CFR Â§211.192)
     [HttpGet("{id}/pdf")]
     public async Task<IActionResult> GetPdf(int id)
     {
@@ -80,7 +80,7 @@ public class OosInvestigationsController : LimsControllerBase
             MaterialName:    inv.Execution.Sample.Material.MaterialName,
             LotNumber:       inv.Execution.Sample.LotNumber,
             ParameterName:   inv.Parameter.ParameterName,
-            Uom:             inv.Parameter.Uom ?? "â€”",
+            Uom:             inv.Parameter.Uom ?? "—",
             FlagType:        inv.FlagType.ToString(),
             Phase:           inv.Phase.ToString(),
             Status:          inv.Status.ToString(),

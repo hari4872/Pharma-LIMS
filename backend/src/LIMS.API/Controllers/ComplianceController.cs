@@ -1,14 +1,16 @@
-﻿using LIMS.Application.Features.Compliance;
+﻿using LIMS.API.Attributes;
+using LIMS.Application.Features.Compliance;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LIMS.API.Controllers;
 
-// FR-18/FR-20: Compliance & Governance â€” audit trail, signature log, periodic reviews
+// FR-18/FR-20: Compliance & Governance — audit trail, signature log, periodic reviews
 [ApiController]
 [Route("api/v1/compliance")]
-[Authorize(Roles = "QA,Admin")]
+[Authorize(Roles = "QA,Admin,QCLead,LabManager")]
+[RequirePermission("compliance")]
 public class ComplianceController : LimsControllerBase
 {
     private readonly IMediator _mediator;
@@ -46,7 +48,7 @@ public class ComplianceController : LimsControllerBase
         CancellationToken ct = default)
         => Ok(await _mediator.Send(new GetValidationReviewsQuery(reviewType, limitDays), ct));
 
-    // POST api/v1/compliance/validation-reviews â€” Â§11.50 e-sig
+    // POST api/v1/compliance/validation-reviews — Â§11.50 e-sig
     [HttpPost("validation-reviews")]
     public async Task<IActionResult> RecordValidationReview([FromBody] RecordReviewRequest request, CancellationToken ct)
     {

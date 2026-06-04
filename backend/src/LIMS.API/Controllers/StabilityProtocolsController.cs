@@ -8,12 +8,12 @@ using System.Threading;
 
 namespace LIMS.API.Controllers;
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// StabilityProtocolsController â€” Phase B
+// â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+// StabilityProtocolsController — Phase B
 //
 // CRUD for StabilityProtocol master data + interval management.
 // QA/Admin manages; all authenticated users can read.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 [ApiController]
 [Route("api/v1/stability-protocols")]
@@ -26,7 +26,7 @@ public class StabilityProtocolsController : ControllerBase
     public StabilityProtocolsController(ILimsDbContext db, IStabilityTrendService trend)
     { _db = db; _trend = trend; }
 
-    // â”€â”€ GET /stability-protocols â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ GET /stability-protocols â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int? materialId,
@@ -64,7 +64,7 @@ public class StabilityProtocolsController : ControllerBase
         return Ok(list);
     }
 
-    // â”€â”€ GET /stability-protocols/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ GET /stability-protocols/:id â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
@@ -77,7 +77,7 @@ public class StabilityProtocolsController : ControllerBase
         return Ok(p);
     }
 
-    // â”€â”€ POST /stability-protocols â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ POST /stability-protocols â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpPost]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Create([FromBody] CreateStabilityProtocolRequest req)
@@ -104,7 +104,7 @@ public class StabilityProtocolsController : ControllerBase
             new { protocol.StabilityProtocolId, protocol.ProtocolName });
     }
 
-    // â”€â”€ PUT /stability-protocols/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ PUT /stability-protocols/:id â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateStabilityProtocolRequest req)
@@ -127,7 +127,7 @@ public class StabilityProtocolsController : ControllerBase
         return Ok(new { p.StabilityProtocolId, p.ProtocolName, p.IsActive });
     }
 
-    // â”€â”€ PUT /stability-protocols/:id/intervals â€” replace all intervals â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ PUT /stability-protocols/:id/intervals — replace all intervals â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpPut("{id:int}/intervals")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> SaveIntervals(int id, [FromBody] List<SaveIntervalRequest> intervals)
@@ -164,7 +164,7 @@ public class StabilityProtocolsController : ControllerBase
         return Ok(new { stabilityProtocolId = id, intervalCount = intervals.Count });
     }
 
-    // â”€â”€ DELETE /stability-protocols/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // â"€â"€ DELETE /stability-protocols/:id â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Delete(int id)
@@ -193,7 +193,7 @@ public class StabilityProtocolsController : ControllerBase
     }
 }
 
-// â”€â”€ Request DTOs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ Request DTOs â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 public record CreateStabilityProtocolRequest(
     string                     ProtocolName,

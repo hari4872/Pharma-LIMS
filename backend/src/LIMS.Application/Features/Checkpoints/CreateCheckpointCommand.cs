@@ -60,9 +60,7 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
             FormTemplateId = request.FormTemplateId
         };
         _db.Checkpoints.Add(checkpoint);
-        await _db.SaveChangesAsync(ct);
 
-        // Save parameter links (FK only — Contract 1)
         if (request.ParameterIds is { Count: > 0 })
         {
             foreach (var parameterId in request.ParameterIds.Distinct())
@@ -71,13 +69,13 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
                 if (paramExists)
                     _db.CheckpointParameters.Add(new CheckpointParameter
                     {
-                        CheckpointId = checkpoint.CheckpointId,
-                        ParameterId  = parameterId
+                        Checkpoint  = checkpoint,
+                        ParameterId = parameterId
                     });
             }
-            await _db.SaveChangesAsync(ct);
         }
 
+        await _db.SaveChangesAsync(ct);
         return Result<int>.Success(checkpoint.CheckpointId);
     }
 }

@@ -45,6 +45,17 @@ public class DispatchEventService : IDispatchEventService
             formTemplate.LabId, deliveryOrder.ProductId,
             formTemplate.SampleTypeNav.TypeCode, deliveryOrder.DoNumber, ct);
 
+        // Resolve system analyst dynamically — avoid hardcoded ID that breaks in non-seeded environments
+        var systemAnalystId = await _db.Users
+            .Where(u => u.IsActive && u.Role == LIMS.Domain.Enums.UserRole.Admin)
+            .Select(u => u.UserId)
+            .FirstOrDefaultAsync(ct);
+
+        if (systemAnalystId == 0)
+            throw new InvalidOperationException(
+                "No active Admin user found for system dispatch sample attribution. " +
+                "Ensure at least one Admin user exists before processing dispatch events.");
+
         var sample = new Sample
         {
             SampleNumber   = sampleNumber,
@@ -56,7 +67,7 @@ public class DispatchEventService : IDispatchEventService
             SampleTypeId   = formTemplate.SampleTypeId.Value,  // from FormTemplate — no hardcoding
             FormTemplateId = formTemplate.FormTemplateId,
             Status         = SampleStatus.InTesting,
-            AnalystId      = 1,   // Default system analyst — WAP assigns real analyst
+            AnalystId      = systemAnalystId,
             CreatedBy      = "DispatchEventService"
         };
         _db.Samples.Add(sample);

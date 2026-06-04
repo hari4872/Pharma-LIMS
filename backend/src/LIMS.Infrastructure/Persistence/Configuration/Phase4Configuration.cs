@@ -113,7 +113,7 @@ public class CoaApprovalConfiguration : IEntityTypeConfiguration<CoaApproval>
     {
         b.ToTable("coa_approvals");
         b.HasKey(e => e.ApprovalId);
-        b.Property(e => e.Decision).IsRequired().HasMaxLength(10);
+        b.Property(e => e.Decision).IsRequired().HasMaxLength(20);
         b.Property(e => e.Justification).HasMaxLength(2000);
         b.Property(e => e.DecidedAt).HasColumnType("timestamptz").IsRequired();
 

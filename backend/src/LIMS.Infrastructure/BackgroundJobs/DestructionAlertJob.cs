@@ -7,9 +7,9 @@ using Microsoft.Extensions.Logging;
 
 namespace LIMS.Infrastructure.BackgroundJobs;
 
-// FR-14: DestructionAlertJob â€” T-90 and T-30 retain sample destruction due date alerts
-// Alert days from DB config (Contract 2 â€” no hardcoding)
-// IHostedService â€” runs server-side, daily
+// FR-14: DestructionAlertJob — T-90 and T-30 retain sample destruction due date alerts
+// Alert days from DB config (Contract 2 — no hardcoding)
+// IHostedService — runs server-side, daily
 public class DestructionAlertJob : BackgroundService
 {
     private readonly IServiceProvider _services;
@@ -71,7 +71,7 @@ public class DestructionAlertJob : BackgroundService
 
     private async Task<int[]> GetAlertDaysAsync(LimsDbContext db, CancellationToken ct)
     {
-        // Alert days from DB config â€” not hardcoded (Contract 2)
+        // Alert days from DB config — not hardcoded (Contract 2)
         var config = await db.LabConfigs.FirstOrDefaultAsync(c => c.ConfigKey == "destruction_alert_days", ct);
         if (config != null && !string.IsNullOrEmpty(config.ConfigValue))
         {
@@ -82,7 +82,7 @@ public class DestructionAlertJob : BackgroundService
                 .ToArray();
             if (parsed.Length > 0) return parsed;
         }
-        return new[] { 90, 30 }; // fallback T-90 and T-30 â€” admin should set destruction_alert_days in LabConfig
+        return new[] { 90, 30 }; // fallback T-90 and T-30 — admin should set destruction_alert_days in LabConfig
     }
 
     private async Task<double> GetIntervalHoursAsync(CancellationToken ct)
