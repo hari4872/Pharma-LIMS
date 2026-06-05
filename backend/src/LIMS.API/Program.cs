@@ -150,6 +150,13 @@ app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
     });
 }));
 
+// SEC: Enforce HTTPS in production
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
 app.UseCors("LimsFrontend");
 
 // Serve uploaded evidence files at /uploads/*

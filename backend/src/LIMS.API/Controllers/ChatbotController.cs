@@ -92,13 +92,13 @@ public class ChatbotController : ControllerBase
                 "https://api.groq.com/openai/v1/chat/completions",
                 new StringContent(JsonSerializer.Serialize(groqBody), Encoding.UTF8, "application/json"));
         }
-        catch (Exception ex)
+        catch
         {
-            return StatusCode(503, new { error = "AI service unreachable.", detail = ex.Message });
+            return StatusCode(503, new { error = "AI service unreachable. Please try again later." });
         }
 
         if (!response.IsSuccessStatusCode)
-            return StatusCode(500, new { error = "AI service error." });
+            return StatusCode(500, new { error = "AI service error. Please try again later." });
 
         string reply;
         try
@@ -110,9 +110,9 @@ public class ChatbotController : ControllerBase
                 .GetProperty("content")
                 .GetString() ?? "No response from AI service.";
         }
-        catch (Exception ex)
+        catch
         {
-            return StatusCode(500, new { error = "Failed to parse AI response.", detail = ex.Message });
+            return StatusCode(500, new { error = "Failed to process AI response. Please try again." });
         }
 
         return Ok(new { reply });
