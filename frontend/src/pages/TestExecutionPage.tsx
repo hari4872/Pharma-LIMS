@@ -106,7 +106,30 @@ export default function TestExecutionPage() {
     api.get(`/test-executions/${id}`)
       .then(r => {
         const ex = r.data
-        if (ex) { setExecution(ex); setStartedAt(ex.startedAt) }
+        if (ex) {
+          setExecution(ex); setStartedAt(ex.startedAt)
+          // For completed executions load actual submitted results from the
+          // digital logbook so values show correctly regardless of localStorage
+          if (ex.status === 'Completed') {
+            api.get(`/digital-logbook?executionId=${id}`)
+              .then(lr => {
+                const logbookEntries: { parameterId: number; rawValue: string; entryId: number; calculatedResult: number | null; parameterName: string }[] = lr.data ?? []
+                // Populate entries state so VALUE column shows real data
+                const entryMap: Record<number, string> = {}
+                logbookEntries.forEach(e => { entryMap[e.parameterId] = e.rawValue })
+                setEntries(entryMap)
+                // Also populate results so evidence upload knows entry IDs
+                setResults(logbookEntries.map(e => ({
+                  entryId: e.entryId,
+                  parameterId: e.parameterId,
+                  parameterName: e.parameterName,
+                  rawValue: e.rawValue,
+                  calculatedResult: e.calculatedResult,
+                })))
+              })
+              .catch(() => {/* non-blocking — form still shows, just without prefilled values */})
+          }
+        }
       })
       .catch(() => setError('Failed to load execution.'))
     // Load parameters
