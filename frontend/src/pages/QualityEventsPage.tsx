@@ -162,7 +162,7 @@ export default function QualityEventsPage() {
         <div style={{ display: 'flex', gap: 4, marginLeft: 8 }}>
           {TYPE_OPTIONS.map(t => (
             <button key={t.value}
-              onClick={() => { setTypeFilter(t.value); setStatusFilter('') }}
+              onClick={() => setTypeFilter(t.value)}
               style={{
                 padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer',
                 border: `1.5px solid ${typeFilter === t.value ? t.color : '#e0e0e0'}`,
@@ -181,7 +181,12 @@ export default function QualityEventsPage() {
       </div>
 
       {/* ── Table ── */}
-      <DataTable loading={loading} data={data} columns={[
+      <DataTable loading={loading} data={data}
+        rowStyle={r => {
+          const isOverdue = !!r.dueDate && new Date(r.dueDate) < new Date() && r.status !== 'Closed' && r.status !== 'Void'
+          return isOverdue ? { background: '#fff5f5', borderLeft: '3px solid #fca5a5' } : {}
+        }}
+        columns={[
         { header: 'Reference', accessor: r => (
           <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 12 }}>{r.cdReference}</span>
         )},

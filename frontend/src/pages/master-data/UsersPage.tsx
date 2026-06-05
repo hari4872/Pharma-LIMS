@@ -36,6 +36,8 @@ export default function UsersPage() {
   const [data, setData] = useState<UserRow[]>([])
   const [labs, setLabs] = useState<Lab[]>([])
   const [loading, setLoading] = useState(false)
+  const [showInactive, setShowInactive] = useState(false)
+  const [roleConfirm, setRoleConfirm] = useState<{ from: string; to: string } | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ username: '', password: '', fullName: '', email: '', userType: 'RegularUser', role: 'Analyst', labId: '' })
   const [saving, setSaving] = useState(false)
@@ -75,10 +77,19 @@ export default function UsersPage() {
   }
 
   async function submitEdit(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true); setError('')
+    e.preventDefault()
+    if (editRow && editForm.role !== editRow.role) {
+      setRoleConfirm({ from: editRow.role, to: editForm.role })
+      return
+    }
+    await doSaveEdit()
+  }
+
+  async function doSaveEdit() {
+    setSaving(true); setError('')
     try {
       await api.put(`/users/${editRow!.userId}`, { ...editForm, labId: editForm.labId ? Number(editForm.labId) : null })
-      setEditRow(null); load()
+      setEditRow(null); setRoleConfirm(null); load()
       toast(`User "${editRow!.username}" updated successfully`, 'success')
     } catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
@@ -92,11 +103,11 @@ export default function UsersPage() {
     } catch { toast('Unlock failed', 'error') }
   }
 
-  async function load() {
+  async function load(inactive = showInactive) {
     setLoading(true)
     try {
       const [r, lr] = await Promise.all([
-        api.get('/users'),
+        api.get(`/users${inactive ? '?includeInactive=true' : ''}`),
         api.get('/laboratories').catch(() => ({ data: [] })),
       ])
       setData(r.data); setLabs(lr.data)
@@ -106,7 +117,7 @@ export default function UsersPage() {
       setLoading(false)
     }
   }
-  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
+  useEffect(() => { const t = setTimeout(() => load(showInactive), 0); return () => clearTimeout(t) }, [showInactive])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
@@ -121,7 +132,14 @@ export default function UsersPage() {
 
   return (
     <div>
-      <PageHeader title="Users" onAdd={isAdmin ? () => setShowForm(true) : undefined} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <PageHeader title="Users" onAdd={isAdmin ? () => setShowForm(true) : undefined} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#6b7280', cursor: 'pointer', userSelect: 'none' }}>
+          <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)}
+            style={{ accentColor: '#6b7280', width: 14, height: 14 }} />
+          Show inactive users
+        </label>
+      </div>
       <DataTable loading={loading} data={data} exportFilename="Users" columns={[
         { header: 'User', accessor: r => (
           <div>
@@ -210,6 +228,22 @@ export default function UsersPage() {
           onClose={() => setAuditUser(null)}
         />
       )}
+      {roleConfirm && editRow && (
+        <Modal title="Confirm Role Change" onClose={() => setRoleConfirm(null)}>
+          <p style={{ fontSize: 13, color: '#374151', marginBottom: 8 }}>
+            You are changing <strong>{editRow.fullName}</strong>'s role from{' '}
+            <strong style={{ color: '#b45309' }}>{roleConfirm.from}</strong> →{' '}
+            <strong style={{ color: '#1d4ed8' }}>{roleConfirm.to}</strong>.
+          </p>
+          <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 4px' }}>
+            This updates their permissions on next login.
+          </p>
+          <form onSubmit={e => { e.preventDefault(); doSaveEdit() }}>
+            <ModalFooter saving={saving} onCancel={() => setRoleConfirm(null)} label="Yes, Change Role" />
+          </form>
+        </Modal>
+      )}
+
       {editRow && (
         <Modal title={`Edit User — ${editRow.username}`} onClose={() => setEditRow(null)}>
           <form onSubmit={submitEdit}>

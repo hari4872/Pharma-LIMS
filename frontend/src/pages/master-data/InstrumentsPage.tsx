@@ -145,6 +145,32 @@ export default function InstrumentsPage() {
   }
 
   const openBreakdowns = breakdowns.filter(b => b.status !== 'Resolved')
+  const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set())
+  const [showBulkRts, setShowBulkRts] = useState(false)
+  const [bulkRtsForm, setBulkRtsForm] = useState({ password: '', meaning: '', reason: '' })
+  const [bulkSaving, setBulkSaving] = useState(false)
+
+  function daysOpen(raisedAt: string) {
+    return Math.floor((Date.now() - new Date(raisedAt).getTime()) / 86400000)
+  }
+
+  function toggleBulkSelect(id: number) {
+    setBulkSelected(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  }
+
+  async function submitBulkRts(e: React.FormEvent) {
+    e.preventDefault(); setBulkSaving(true)
+    try {
+      await Promise.all([...bulkSelected].map(id =>
+        api.post(`/instruments/breakdowns/${id}/return-to-service`, bulkRtsForm)
+      ))
+      setBulkSelected(new Set()); setShowBulkRts(false)
+      setBulkRtsForm({ password: '', meaning: '', reason: '' })
+      toast(`${bulkSelected.size} breakdown(s) returned to service`, 'success')
+      load()
+    } catch (err) { toast(getErrorMessage(err, 'Bulk RTS failed'), 'error') }
+    finally { setBulkSaving(false) }
+  }
 
   return (
     <div>
@@ -233,12 +259,30 @@ export default function InstrumentsPage() {
 
       {tab === 'breakdowns' && (
         <>
-          <PageHeader title="Instrument Breakdowns" onAdd={() => setShowBreakdownForm(true)} addLabel="Raise Breakdown" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <PageHeader title="Instrument Breakdowns" onAdd={() => setShowBreakdownForm(true)} addLabel="Raise Breakdown" />
+            {bulkSelected.size > 0 && (
+              <button onClick={() => setShowBulkRts(true)}
+                style={{ padding: '7px 16px', background: '#065f46', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                ✓ Return {bulkSelected.size} to Service
+              </button>
+            )}
+          </div>
           <DataTable loading={loading} data={breakdowns} columns={[
+            { header: '', accessor: r => r.status !== 'Resolved' ? (
+              <input type="checkbox" checked={bulkSelected.has(r.breakdownId)}
+                onChange={() => toggleBulkSelect(r.breakdownId)}
+                style={{ accentColor: '#065f46', width: 14, height: 14, cursor: 'pointer' }} />
+            ) : null },
             { header: 'ID', accessor: 'breakdownId' },
             { header: 'Instrument', accessor: 'instrumentCode' },
             { header: 'Raised By', accessor: 'raisedByName' },
             { header: 'Raised At', accessor: r => r.raisedAt?.replace('T', ' ').slice(0, 16) + ' UTC' },
+            { header: 'Days Open', accessor: r => {
+              if (r.status === 'Resolved') return <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>
+              const d = daysOpen(r.raisedAt)
+              return <span style={{ fontWeight: 700, color: d >= 7 ? '#dc2626' : d >= 3 ? '#d97706' : '#374151' }}>{d}d</span>
+            }},
             { header: 'Issue', accessor: 'issueDescription' },
             { header: 'Status', accessor: r => <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: r.status === 'Resolved' ? '#d1fae5' : r.status === 'InRepair' ? '#fef3c7' : '#fee2e2', color: r.status === 'Resolved' ? '#065f46' : r.status === 'InRepair' ? '#92400e' : '#991b1b' }}>{r.status}</span> },
             { header: 'Repairs', accessor: 'repairCount' },
@@ -363,6 +407,22 @@ export default function InstrumentsPage() {
             <Field label="Last Calibration"><input style={inp} type="date" value={editForm.lastCalibration} onChange={e => setEditForm(f => ({ ...f, lastCalibration: e.target.value }))} /></Field>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
+          </form>
+        </Modal>
+      )}
+
+      {/* Bulk Return to Service */}
+      {showBulkRts && (
+        <Modal title={`Bulk Return to Service — ${bulkSelected.size} breakdown(s)`} onClose={() => setShowBulkRts(false)}>
+          <p style={{ color: '#6b7280', fontSize: 13, margin: '0 0 16px' }}>
+            ⚠️ This will mark all {bulkSelected.size} selected breakdown(s) as resolved and instruments as Available. A single e-signature covers all. (21 CFR Part 11)
+          </p>
+          <form onSubmit={submitBulkRts}>
+            <Field label="Password (re-enter)"><input style={inp} type="password" value={bulkRtsForm.password} onChange={e => setBulkRtsForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+            <Field label="Meaning of Signature"><input style={inp} value={bulkRtsForm.meaning} onChange={e => setBulkRtsForm(f => ({ ...f, meaning: e.target.value }))} required placeholder="e.g. QA Batch Return-to-Service Approval" /></Field>
+            <Field label="Reason for Signature"><input style={inp} value={bulkRtsForm.reason} onChange={e => setBulkRtsForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. All instruments verified in-spec post-maintenance" /></Field>
+            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            <ModalFooter saving={bulkSaving} onCancel={() => setShowBulkRts(false)} label={`Approve & Return ${bulkSelected.size} to Service`} />
           </form>
         </Modal>
       )}

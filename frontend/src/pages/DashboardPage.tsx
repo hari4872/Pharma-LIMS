@@ -221,6 +221,7 @@ export default function DashboardPage() {
   // CoA History state
   const [coaHistory,    setCoaHistory]    = useState<CoaHistoryItem[]>([])
   const [coaHistLoading, setCoaHistLoading] = useState(false)
+  const [lastUpdated,   setLastUpdated]   = useState<Date | null>(null)
   const navigate = useNavigate()
 
   const firstName = fullName?.split(' ')[0] ?? 'there'
@@ -258,7 +259,7 @@ export default function DashboardPage() {
         if (overdueCount > 0)
           setTimeout(() => toast(`⚠ ${overdueCount} overdue sample${overdueCount > 1 ? 's' : ''} need attention`, 'warning', 5000), 800)
       }
-    } finally { setLoading(false) }
+    } finally { setLoading(false); setLastUpdated(new Date()) }
   }
 
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
@@ -322,19 +323,26 @@ export default function DashboardPage() {
 
       {/* ── Page header ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-        <button onClick={() => load(true)} style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          padding: '7px 16px', border: `1px solid ${T.border}`, borderRadius: 8,
-          cursor: 'pointer', fontSize: 13, fontWeight: 600,
-          background: T.light, color: T.primary, fontFamily: 'inherit',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-          transition: 'box-shadow 0.12s',
-        }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <path d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.7-3.7M20 15a9 9 0 01-14.7 3.7"/>
-          </svg>
-          Refresh
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => load(true)} style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 16px', border: `1px solid ${T.border}`, borderRadius: 8,
+            cursor: 'pointer', fontSize: 13, fontWeight: 600,
+            background: T.light, color: T.primary, fontFamily: 'inherit',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+            transition: 'box-shadow 0.12s',
+          }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.7-3.7M20 15a9 9 0 01-14.7 3.7"/>
+            </svg>
+            Refresh
+          </button>
+          {lastUpdated && (
+            <span style={{ fontSize: 11, color: '#9ca3af' }}>
+              Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* ── Summary strip ── */}
@@ -406,9 +414,17 @@ export default function DashboardPage() {
                 Analyst Workload
               </div>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr><th style={th}>Analyst</th><th style={th}>Active Assignments</th></tr></thead>
+                <thead><tr><th style={th}>Analyst</th><th style={th}>Active Assignments</th><th style={th}></th></tr></thead>
                 <tbody>{wip!.analystWorkloads.map(a => (
-                  <tr key={a.analystId}><td style={td}>{a.fullName}</td><td style={{ ...td, fontWeight: 600 }}>{a.assignedCount}</td></tr>
+                  <tr key={a.analystId}
+                    onClick={() => navigate('/work-queue')}
+                    style={{ cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f8f9fa')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                    <td style={td}>{a.fullName}</td>
+                    <td style={{ ...td, fontWeight: 600 }}>{a.assignedCount}</td>
+                    <td style={{ ...td, color: T.primary, fontSize: 12 }}>View queue →</td>
+                  </tr>
                 ))}</tbody>
               </table>
             </div>
