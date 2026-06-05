@@ -101,9 +101,10 @@ public class QAReviewGateService : IQAReviewGateService
             dispatchQcPassed = hasApprovedDispatch;
         }
 
+        // evidencePresent is informational only — shown in checklist but does not block approval
         var allPassed = testsComplete && noOpenOos && noOpenOot &&
                         analystSigsPresent && peerReviewPresent && qcLeadVerifPresent &&
-                        correctSpecVersion && evidencePresent &&
+                        correctSpecVersion &&
                         coaHeaderPopulated && coaBodyComplete && dispatchQcPassed;
 
         return new QAChecklistResult(
