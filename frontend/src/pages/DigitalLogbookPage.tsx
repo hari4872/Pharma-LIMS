@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store'
 import api from '@/api/client'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
@@ -40,6 +42,10 @@ const TRIGGER_COLORS: Record<string, { bg: string; color: string }> = {
 type Tab = 'logbook' | 'processlog'
 
 export default function DigitalLogbookPage() {
+  const role = useSelector((s: RootState) => s.auth.role) ?? ''
+  const canAmend  = ['Admin', 'Analyst', 'QCLead', 'QA'].includes(role)
+  const canSign   = ['Admin', 'Analyst', 'QCLead', 'QA', 'LabManager'].includes(role)
+  const [signLoading, setSignLoading] = useState(false)
   const [tab, setTab] = useState<Tab>('logbook')
 
   // ── Logbook tab state ──────────────────────────────────────────────────────
@@ -77,14 +83,20 @@ export default function DigitalLogbookPage() {
   // ── Logbook load ───────────────────────────────────────────────────────────
   async function loadLogbook() {
     setLoading(true)
-    const params = new URLSearchParams()
-    if (statusFilter) params.set('status', statusFilter)
-    const r = await api.get(`/digital-logbook?${params.toString()}`)
-    let rows: LogbookEntry[] = r.data
-    if (oosFilter === 'oos')      rows = rows.filter(e => e.isOos)
-    else if (oosFilter === 'oot') rows = rows.filter(e => e.isOot)
-    else if (oosFilter === 'critical') rows = rows.filter(e => e.isCritical)
-    setData(rows); setLoading(false)
+    try {
+      const params = new URLSearchParams()
+      if (statusFilter) params.set('status', statusFilter)
+      const r = await api.get(`/digital-logbook?${params.toString()}`)
+      let rows: LogbookEntry[] = r.data
+      if (oosFilter === 'oos')           rows = rows.filter(e => e.isOos)
+      else if (oosFilter === 'oot')      rows = rows.filter(e => e.isOot)
+      else if (oosFilter === 'critical') rows = rows.filter(e => e.isCritical)
+      setData(rows)
+    } catch (err) {
+      toast(getErrorMessage(err, 'Failed to load logbook entries'), 'error')
+    } finally {
+      setLoading(false)
+    }
   }
   useEffect(() => { const t = setTimeout(() => { if (tab === 'logbook') loadLogbook() }, 0); return () => clearTimeout(t) }, [statusFilter, oosFilter, tab])
 
@@ -283,7 +295,7 @@ export default function DigitalLogbookPage() {
             { header: 'Signed By / At', accessor: r => r.signedByFullName
               ? <span style={{ fontSize: 12 }}>{r.signedByFullName}<br /><span style={{ color: '#6b7280' }}>{new Date(r.signedAt!).toLocaleString()}</span></span>
               : '—' },
-            { header: 'Actions', accessor: r => r.status === 'Signed' ? (
+            { header: 'Actions', accessor: r => r.status === 'Signed' && canAmend ? (
               <button onClick={() => { setAmendEntry(r); setAmendForm({ newRawValue: r.rawValue, amendmentReason: '', password: '', meaning: 'I attest the amendment is accurate and complete', reason: '' }); setAmendError('') }}
                 style={{ padding: '3px 8px', background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
                 Amend
@@ -388,25 +400,27 @@ export default function DigitalLogbookPage() {
                 {r.status === 'Locked' ? '✅ Locked' : '🟡 Open'}
               </span>
             )},
-            { header: 'Action', accessor: r => r.status === 'Open' ? (
+            { header: 'Action', accessor: r => r.status === 'Open' && canSign ? (
               <button
+                disabled={signLoading}
                 onClick={async () => {
+                  if (signLoading) return
+                  setSignLoading(true)
                   setSignRow(r)
                   setSignForm({ password: '', meaning: 'I confirm this process log entry is accurate', reason: '' })
                   setSignError(''); setSignReadings({})
                   try {
-                    // Fetch only this specific checkpoint's parameters (avoids mixing parameters
-                    // from other checkpoints that may be of a different trigger type)
                     const cpRes = await api.get(`/checkpoints/${r.checkpointId}`)
                     setCpParams(cpRes.data?.parameters ?? [])
                   } catch { setCpParams([]) }
+                  finally { setSignLoading(false) }
                 }}
                 style={{
-                  padding: '6px 16px', background: '#7c3aed', color: '#fff',
-                  border: 'none', borderRadius: 6, cursor: 'pointer',
+                  padding: '6px 16px', background: signLoading ? '#a78bfa' : '#7c3aed', color: '#fff',
+                  border: 'none', borderRadius: 6, cursor: signLoading ? 'not-allowed' : 'pointer',
                   fontSize: 13, fontWeight: 700,
                 }}>
-                ✍ Sign & Lock
+                {signLoading ? '…' : '✍ Sign & Lock'}
               </button>
             ) : (
               <span style={{ fontSize: 12, color: '#9ca3af' }}>— Signed —</span>

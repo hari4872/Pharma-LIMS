@@ -136,7 +136,7 @@ export default function SpecificationTemplatesPage() {
     <ErrorBoundary label="Specification Templates">
       <div>
         <PageHeader
-          title="Specification Templates"
+          title="Product Test Plans"
           onAdd={() => setShowCreate(true)}
           addLabel="+ New Template"
         />

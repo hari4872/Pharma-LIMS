@@ -78,11 +78,11 @@ public class TestExecutionsController : LimsControllerBase
 
     // POST api/v1/test-executions/{id}/start — Analyst opens task / barcode scan (FR-22 started_at UTC)
     [HttpPost("{id}/start")]
-    [Authorize(Roles = "Admin,Analyst,QCLead")]
+    [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
     public async Task<IActionResult> Start(int id)
     {
         if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });
-        var isAdmin = User.IsInRole("Admin");
+        var isAdmin = User.IsInRole("Admin") || User.IsInRole("QA");
         var result = await _mediator.Send(new StartTestExecutionCommand(id, analystId, isAdmin));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { executionId = result.Value, status = "InProgress" });
@@ -90,7 +90,7 @@ public class TestExecutionsController : LimsControllerBase
 
     // POST api/v1/test-executions/{id}/results — Step 4-5: submit raw values + OOS/OOT detection
     [HttpPost("{id}/results")]
-    [Authorize(Roles = "Admin,Analyst,QCLead")]
+    [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
     public async Task<IActionResult> SubmitResults(int id, [FromBody] SubmitResultsRequest request)
     {
         if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -115,7 +115,7 @@ public class TestExecutionsController : LimsControllerBase
 
     // POST api/v1/test-executions/batch-results - batch result entry for multiple samples at once
     [HttpPost("batch-results")]
-    [Authorize(Roles = "Admin,Analyst,QCLead")]
+    [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
     public async Task<IActionResult> BatchSubmit([FromBody] BatchSubmitRequest request)
     {
         if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -174,7 +174,7 @@ public class TestExecutionsController : LimsControllerBase
 
     // POST api/v1/test-executions/{id}/sign-off — Step 7: Â§11.50 e-sig, logbook rows finalized
     [HttpPost("{id}/sign-off")]
-    [Authorize(Roles = "Admin,Analyst,QCLead")]
+    [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
     public async Task<IActionResult> SignOff(int id, [FromBody] ApproveRequest request)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });

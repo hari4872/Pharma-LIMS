@@ -164,7 +164,7 @@ export default function FormTemplatesPage() {
 
   return (
     <div>
-      <PageHeader title="Form Templates" onAdd={() => setShowForm(true)} />
+      <PageHeader title="Monitoring & Log Forms" onAdd={() => setShowForm(true)} />
 
       <DataTable loading={loading} data={data} exportFilename="FormTemplates" columns={[
         { header: 'Code',       accessor: 'formCode' },

@@ -70,7 +70,7 @@ public class SamplesController : LimsControllerBase
 
     // POST api/v1/samples/{id}/barcode-reprint — FR-18: audit-logged reprint with mandatory reason
     [HttpPost("{id}/barcode-reprint")]
-    [Authorize(Roles = "Admin,Analyst,QCLead,LabManager")]
+    [Authorize(Roles = "Admin,Analyst,QCLead,LabManager,QA")]
     public async Task<IActionResult> ReprintBarcode(int id, [FromBody] ReprintBarcodeRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";

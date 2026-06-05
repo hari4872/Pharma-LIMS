@@ -73,7 +73,7 @@ public class DigitalLogbookController : LimsControllerBase
 
     // POST api/v1/digital-logbook/entries/{id}/evidence
     [HttpPost("entries/{id}/evidence")]
-    [Authorize(Roles = "Admin,Analyst,QA")]
+    [Authorize(Roles = "Admin,Analyst,QA,QCLead")]
     public async Task<IActionResult> UploadEvidence(int id, IFormFile file, [FromForm] int sampleId, [FromForm] string? description, CancellationToken ct)
     {
         if (file is null || file.Length == 0) return BadRequest(new { error = "NO_FILE", message = "No file provided." });

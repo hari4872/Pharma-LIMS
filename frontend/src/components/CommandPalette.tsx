@@ -16,7 +16,7 @@ const ALL_ROUTES = [
   { label: 'Test Methods',         path: '/master-data/test-methods',        section: 'Master Data', icon: '📋' },
   { label: 'Parameters',           path: '/master-data/parameters',          section: 'Master Data', icon: '⚙' },
   { label: 'Spec Limits',          path: '/master-data/spec-limits',         section: 'Master Data', icon: '📊' },
-  { label: 'Form Templates',       path: '/master-data/form-templates',      section: 'Master Data', icon: '📄' },
+  { label: 'Monitoring & Log Forms',  path: '/master-data/form-templates',      section: 'Master Data', icon: '📄' },
   { label: 'Users',                path: '/master-data/users',               section: 'Master Data', icon: '👥' },
   { label: 'Sample Types',         path: '/master-data/sample-types',        section: 'Master Data', icon: '🧪' },
   { label: 'Storage Locations',    path: '/master-data/storage-locations',   section: 'Master Data', icon: '🏠' },

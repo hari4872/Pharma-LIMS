@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import api from '@/api/client'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
@@ -119,8 +119,8 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/master-data/test-methods':         { section: 'Master Data', label: 'Test Methods' },
   '/master-data/parameters':           { section: 'Master Data', label: 'Parameters' },
   '/master-data/spec-limits':          { section: 'Master Data', label: 'Spec Limits' },
-  '/master-data/form-templates':             { section: 'Master Data', label: 'Form Templates' },
-  '/master-data/specification-templates':    { section: 'Master Data', label: 'Spec Templates' },
+  '/master-data/form-templates':             { section: 'Master Data', label: 'Monitoring & Log Forms' },
+  '/master-data/specification-templates':    { section: 'Master Data', label: 'Product Test Plans' },
   '/master-data/users':                { section: 'Master Data', label: 'Users' },
   '/master-data/sample-types':         { section: 'Master Data', label: 'Sample Types' },
   '/master-data/storage-locations':    { section: 'Master Data', label: 'Storage Locations' },
@@ -263,19 +263,6 @@ export default function Layout() {
   const [notifOpen,    setNotifOpen]    = useState(false)
   const [isMobile,     setIsMobile]     = useState(() => window.innerWidth < 768)
   const [mobileOpen,   setMobileOpen]   = useState(false)
-  const [pendingCoas,  setPendingCoas]  = useState(0)
-
-  // Poll pending Draft COAs every 60s to show badge on Release & Dispatch
-  const fetchPendingCoas = useCallback(async () => {
-    try {
-      const r = await api.get('/coas?status=Draft')
-      setPendingCoas((r.data ?? []).length)
-    } catch { /* silent */ }
-  }, [])
-
-  useEffect(() => {
-    if (token) { fetchPendingCoas(); const t = setInterval(fetchPendingCoas, 60000); return () => clearInterval(t) }
-  }, [token, fetchPendingCoas])
   const offlineSync = useOfflineSync()
   const { notifs, unreadCount: liveUnread, connected: hubConnected, markAllRead, markRead } = useNotifications()
 
@@ -444,7 +431,7 @@ export default function Layout() {
           <NavGroup items={qualityItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
 
           <SectionHead label="Release & Dispatch" dm={dm} collapsed={collapsed} />
-          <NavGroup items={releaseItems.map(i => i.path === '/release-dispatch' ? { ...i, badge: pendingCoas } : i)} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
+          <NavGroup items={releaseItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
 
           <SectionHead label="Stability & Retention" dm={dm} collapsed={collapsed} />
           <NavGroup items={stabilityItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />

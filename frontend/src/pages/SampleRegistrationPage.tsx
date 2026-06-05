@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+﻿import { useEffect, useState, useCallback, useRef } from 'react'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import Barcode from 'react-barcode'
 import { useSelector } from 'react-redux'
@@ -666,7 +666,7 @@ export default function SampleRegistrationPage() {
               </span>
         },
         {
-          header: 'Form Template', accessor: r => {
+          header: 'Log Form', accessor: r => {
             const name = (r as any).formTemplateName
             const short = name ? (name.length > 22 ? name.slice(0, 20) + '…' : name) : null
             return short
@@ -679,7 +679,7 @@ export default function SampleRegistrationPage() {
           }
         },
         {
-          header: 'Spec Version / Stage', accessor: r => (r as any).specVersion
+          header: 'Test Plan', accessor: r => (r as any).specVersion
             ? <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#f0fdfa', color: '#0d6e6e', fontWeight: 600, border: '1px solid #99f6e4', whiteSpace: 'nowrap' }}>
                 v{(r as any).specVersion} — {(r as any).specStage}
               </span>
@@ -691,58 +691,65 @@ export default function SampleRegistrationPage() {
         { header: 'Analyst', accessor: 'analystName' },
         {
           header: 'Actions', accessor: r => (
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {(r.status === 'Registered' || r.status === 'PendingTesting') && !r.srfSigned && (
-                <button onClick={() => { setShowSRF(r.sampleId); setError('') }}
-                  style={{ padding: '3px 9px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                  Sign SRF
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 130 }}>
+
+              {/* ── Primary actions: visible only when action is required ── */}
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {(r.status === 'Registered' || r.status === 'PendingTesting') && !r.srfSigned && (
+                  <button onClick={() => { setShowSRF(r.sampleId); setError('') }}
+                    style={{ padding: '4px 10px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                    ✍ Sign SRF
+                  </button>
+                )}
+                {!(r as any).formTemplateName && (
+                  <button onClick={() => openAssignForm(r.sampleId)}
+                    style={{ padding: '4px 10px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                    📄 Form
+                  </button>
+                )}
+                {!r.specTemplateName && (
+                  <button onClick={() => openAssignSpec(r.sampleId)}
+                    style={{ padding: '4px 10px', background: '#0f766e', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                    📋 Plan
+                  </button>
+                )}
+                {(r.status === 'Released' || r.status === 'Rejected') && (
+                  <button onClick={async () => {
+                    setShowRetest(r); setRetestReason(''); setTestedParams([]); setSelectedParams([])
+                    try {
+                      const res = await api.get(`/samples/${r.sampleId}/tested-parameters`)
+                      setTestedParams(res.data)
+                      setSelectedParams(res.data.filter((p: { isOos: boolean; parameterId: number }) => p.isOos).map((p: { isOos: boolean; parameterId: number }) => p.parameterId))
+                    } catch { setTestedParams([]) }
+                  }}
+                    style={{ padding: '4px 10px', background: '#c2410c', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                    🔁 Retest
+                  </button>
+                )}
+              </div>
+
+              {/* ── Secondary actions: compact icon buttons with tooltips ── */}
+              <div style={{ display: 'flex', gap: 3 }}>
+                <button onClick={() => { setShowReprint(r.sampleId); setError('') }} title="Reprint barcode label"
+                  style={{ padding: '3px 8px', background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>
+                  🖨
                 </button>
-              )}
-              {!(r as any).formTemplateName && (
-                <button onClick={() => openAssignForm(r.sampleId)}
-                  style={{ padding: '3px 9px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                  Assign Form
+                <button onClick={() => duplicateSample(r.sampleId)} disabled={duplicating} title="Duplicate this sample"
+                  style={{ padding: '3px 8px', background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: 4, cursor: duplicating ? 'not-allowed' : 'pointer', fontSize: 12 }}>
+                  {duplicating ? '…' : '⧉'}
                 </button>
-              )}
-              {!r.specTemplateName && (
-                <button onClick={() => openAssignSpec(r.sampleId)}
-                  style={{ padding: '3px 9px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                  Assign Spec
+                {r.status !== 'Rejected' && (
+                  <button onClick={() => openAddTest(r)} title="Add ad-hoc test"
+                    style={{ padding: '3px 8px', background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>
+                    ＋
+                  </button>
+                )}
+                <button onClick={() => { setContainerSample(r); loadContainers(r.sampleId) }} title="Manage sample containers"
+                  style={{ padding: '3px 8px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>
+                  🧪
                 </button>
-              )}
-              <button onClick={() => { setShowReprint(r.sampleId); setError('') }}
-                style={{ padding: '3px 9px', background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                Reprint
-              </button>
-              <button onClick={() => duplicateSample(r.sampleId)}
-                disabled={duplicating}
-                style={{ padding: '3px 9px', background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: 4, cursor: duplicating ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 600 }}>
-                {duplicating ? '…' : 'Duplicate'}
-              </button>
-              {(r.status === 'Released' || r.status === 'Rejected') && (
-                <button onClick={async () => {
-                  setShowRetest(r); setRetestReason(''); setTestedParams([]); setSelectedParams([])
-                  try {
-                    const res = await api.get(`/samples/${r.sampleId}/tested-parameters`)
-                    setTestedParams(res.data)
-                    // Pre-select OOS parameters
-                    setSelectedParams(res.data.filter((p: { isOos: boolean; parameterId: number }) => p.isOos).map((p: { isOos: boolean; parameterId: number }) => p.parameterId))
-                  } catch { setTestedParams([]) }
-                }}
-                  style={{ padding: '3px 9px', background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                  Retest
-                </button>
-              )}
-              {r.status !== 'Rejected' && (
-                <button onClick={() => openAddTest(r)}
-                  style={{ padding: '3px 9px', background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                  + Add Test
-                </button>
-              )}
-              <button onClick={() => { setContainerSample(r); loadContainers(r.sampleId) }}
-                style={{ padding: '3px 9px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                🧪 Containers
-              </button>
+              </div>
+
             </div>
           )
         },
@@ -1433,12 +1440,12 @@ export default function SampleRegistrationPage() {
 
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' as const, color: '#6b7280', marginBottom: 10 }}>
-                  Available Spec Templates
+                  Available Product Test Plans
                 </div>
                 {specAssignData.candidates.length === 0 ? (
                   <div style={{ padding: '16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 13, color: '#92400e' }}>
                     ⚠ No approved specification templates found for this material/sample type combination.
-                    Create and approve a specification template in Settings → Spec Templates first.
+                    Create and approve a Product Test Plan in Settings → Product Test Plans first.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
