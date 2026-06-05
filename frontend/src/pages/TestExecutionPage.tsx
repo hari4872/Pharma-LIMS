@@ -125,6 +125,11 @@ export default function TestExecutionPage() {
                   parameterName: e.parameterName,
                   rawValue: e.rawValue,
                   calculatedResult: e.calculatedResult,
+                  passFail: (e as any).passFail ?? '',
+                  isOos: (e as any).isOos ?? false,
+                  isOot: (e as any).isOot ?? false,
+                  isCritical: (e as any).isCritical ?? false,
+                  hasEvidence: (e as any).hasEvidence ?? false,
                 })))
               })
               .catch(() => {/* non-blocking — form still shows, just without prefilled values */})
