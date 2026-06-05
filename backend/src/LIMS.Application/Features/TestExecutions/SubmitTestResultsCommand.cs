@@ -13,7 +13,8 @@ public record ResultEntryDto(int ParameterId, string RawValue, string? EvidenceF
 public record SubmitTestResultsCommand(
     int ExecutionId, int AnalystId,
     List<ResultEntryDto> Entries,
-    EntryMethod EntryMethod = EntryMethod.Manual) : IRequest<Result<SubmitTestResultsResponse>>;
+    EntryMethod EntryMethod = EntryMethod.Manual,
+    bool IsAdmin = false) : IRequest<Result<SubmitTestResultsResponse>>;
 
 public record SubmitTestResultsResponse(
     int ExecutionId,
@@ -51,7 +52,7 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
         if (execution is null) return Result<SubmitTestResultsResponse>.Failure("NOT_FOUND", "Execution not found.");
         if (execution.Sample is null)
             return Result<SubmitTestResultsResponse>.Failure("DATA_ERROR", "Sample data could not be loaded.");
-        if (execution.AnalystId != cmd.AnalystId)
+        if (!cmd.IsAdmin && execution.AnalystId != cmd.AnalystId)
             return Result<SubmitTestResultsResponse>.Failure("FORBIDDEN", "Not your task.");
         if (execution.Status != TestExecutionStatus.InProgress)
             return Result<SubmitTestResultsResponse>.Failure("INVALID_STATE", "Task must be InProgress to submit results.");

@@ -94,8 +94,9 @@ public class TestExecutionsController : LimsControllerBase
     public async Task<IActionResult> SubmitResults(int id, [FromBody] SubmitResultsRequest request)
     {
         if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });
+        var isAdmin = User.IsInRole("Admin") || User.IsInRole("QA");
         var result = await _mediator.Send(new SubmitTestResultsCommand(
-            id, analystId, request.Entries, request.EntryMethod));
+            id, analystId, request.Entries, request.EntryMethod, isAdmin));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(result.Value);
     }
@@ -178,7 +179,8 @@ public class TestExecutionsController : LimsControllerBase
     public async Task<IActionResult> SignOff(int id, [FromBody] ApproveRequest request)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
-        var result = await _mediator.Send(new SignOffTestExecutionCommand(id, userId, request.Password, request.Meaning, request.Reason));
+        var isAdminSignOff = User.IsInRole("Admin") || User.IsInRole("QA");
+        var result = await _mediator.Send(new SignOffTestExecutionCommand(id, userId, request.Password, request.Meaning, request.Reason, isAdminSignOff));
         if (!result.IsSuccess)
         {
             if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });

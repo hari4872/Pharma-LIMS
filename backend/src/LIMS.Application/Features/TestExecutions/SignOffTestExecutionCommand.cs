@@ -10,7 +10,8 @@ namespace LIMS.Application.Features.TestExecutions;
 // Step 7: Analyst §11.50 e-sig sign-off — logbook rows finalized atomically (FR-06)
 public record SignOffTestExecutionCommand(
     int ExecutionId, int UserId,
-    string Password, string Meaning, string Reason) : IRequest<Result<int>>;
+    string Password, string Meaning, string Reason,
+    bool IsAdmin = false) : IRequest<Result<int>>;
 
 public class SignOffTestExecutionHandler : IRequestHandler<SignOffTestExecutionCommand, Result<int>>
 {
@@ -30,7 +31,7 @@ public class SignOffTestExecutionHandler : IRequestHandler<SignOffTestExecutionC
             .Include(e => e.Sample)
             .FirstOrDefaultAsync(e => e.ExecutionId == cmd.ExecutionId, ct);
         if (execution is null) return Result<int>.Failure("NOT_FOUND", "Execution not found.");
-        if (execution.AnalystId != cmd.UserId)
+        if (!cmd.IsAdmin && execution.AnalystId != cmd.UserId)
             return Result<int>.Failure("FORBIDDEN", "Only the assigned analyst can sign off this task.");
         if (execution.Status != TestExecutionStatus.InProgress)
             return Result<int>.Failure("INVALID_STATE", $"Task status is {execution.Status} — must be InProgress.");
