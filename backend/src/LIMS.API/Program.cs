@@ -82,6 +82,7 @@ builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer
         };
     });
 
+builder.Services.AddHttpClient();
 builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>
     options.AddPolicy("LimsFrontend", policy =>

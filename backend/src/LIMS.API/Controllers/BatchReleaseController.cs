@@ -233,7 +233,115 @@ public class BatchReleaseController : LimsControllerBase
         return Ok(new { release.BatchReleaseId, decision = req.Decision, sampleStatus = release.Sample.Status.ToString() });
     }
 
-    // â"€â"€ Private Helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+    // GET api/v1/batch-releases/{id}/risk-score
+    [HttpGet("{id}/risk-score")]
+    public async Task<IActionResult> GetRiskScore(int id)
+    {
+        var release = await _db.BatchReleases
+            .FirstOrDefaultAsync(r => r.BatchReleaseId == id);
+        if (release is null) return NotFound();
+
+        var sampleId = release.SampleId;
+        var today    = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // 1. OOS count
+        var oosCount = await _db.DigitalLogbookEntries
+            .CountAsync(e => e.SampleId == sampleId && e.IsOos);
+
+        // 2. OOT count
+        var ootCount = await _db.DigitalLogbookEntries
+            .CountAsync(e => e.SampleId == sampleId && e.IsOot);
+
+        // 3. Retest count — executions beyond the first are retests
+        var executionCount = await _db.TestExecutions
+            .CountAsync(e => e.SampleId == sampleId);
+        var retestCount = Math.Max(0, executionCount - 1);
+
+        // 4. Open CAPA count linked to this sample
+        var openCapaCount = await _db.ComplaintsDeviations
+            .CountAsync(c => c.SampleId == sampleId &&
+                             c.CdType == CdType.Capa &&
+                             c.Status != "Closed");
+
+        // 5. Analyst training expiring within 30 days
+        var expiryThreshold = today.AddDays(30);
+        var analystIds = await _db.TestExecutions
+            .Where(e => e.SampleId == sampleId && e.AnalystId != null)
+            .Select(e => e.AnalystId!.Value)
+            .Distinct()
+            .ToListAsync();
+
+        bool trainingExpirySoon = analystIds.Any() && await _db.UserTrainingRecords
+            .AnyAsync(r => analystIds.Contains(r.UserId) &&
+                           r.ValidUntil.HasValue &&
+                           r.ValidUntil.Value <= expiryThreshold &&
+                           r.ValidUntil.Value >= today);
+
+        // 6. Instrument calibration due within 14 days
+        var calibThreshold = today.AddDays(14);
+        var instrumentIds = await _db.TestExecutions
+            .Where(e => e.SampleId == sampleId && e.InstrumentId != null)
+            .Select(e => e.InstrumentId!.Value)
+            .Distinct()
+            .ToListAsync();
+
+        bool instrumentCalibrationSoon = instrumentIds.Any() && await _db.Instruments
+            .AnyAsync(i => instrumentIds.Contains(i.InstrumentId) &&
+                           i.CalibrationDue <= calibThreshold);
+
+        // ── Scoring ────────────────────────────────────────────────────────
+        int score = 0;
+        var factors = new List<object>();
+
+        if (oosCount > 0)
+        {
+            score += 40;
+            if (oosCount > 2) score += 20;
+            factors.Add(new { factor = "OOS results", count = oosCount, impact = "High" });
+        }
+        if (ootCount > 0)
+        {
+            score += 15;
+            factors.Add(new { factor = "OOT results", count = ootCount, impact = "Medium" });
+        }
+        if (retestCount > 1)
+        {
+            score += 10;
+            factors.Add(new { factor = "Retest performed", count = retestCount, impact = "Medium" });
+        }
+        if (openCapaCount > 0)
+        {
+            score += 15;
+            factors.Add(new { factor = "Open CAPA actions", count = openCapaCount, impact = "High" });
+        }
+        if (trainingExpirySoon)
+        {
+            score += 10;
+            factors.Add(new { factor = "Analyst training expiring soon", count = 1, impact = "Medium" });
+        }
+        if (instrumentCalibrationSoon)
+        {
+            score += 10;
+            factors.Add(new { factor = "Instrument calibration due soon", count = 1, impact = "Medium" });
+        }
+
+        var riskLevel = score >= 60 ? "Critical"
+                      : score >= 40 ? "High"
+                      : score >= 20 ? "Medium"
+                      : "Low";
+
+        var recommendation = riskLevel switch
+        {
+            "Critical" => "Multiple OOS results — full re-investigation required before release",
+            "High"     => "Review OOS/OOT findings and retest justification before approving",
+            "Medium"   => "Verify retest rationale and check analyst/instrument compliance",
+            _          => "Standard QA review — no major risk factors identified",
+        };
+
+        return Ok(new { riskLevel, score, factors, recommendation });
+    }
+
+    // ── Private Helpers ────────────────────────────────────────────────────────
 
     private async Task<List<ChecklistItem>> EvaluateChecklistAsync(int sampleId)
     {

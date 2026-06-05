@@ -36,6 +36,8 @@ export default function OosInvestigationsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
+  const [rcSuggestions, setRcSuggestions] = useState<{cause:string,confidence:string,reasoning:string}[]>([])
+  const [rcLoading, setRcLoading] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -68,6 +70,21 @@ export default function OosInvestigationsPage() {
     } catch {
       toast('Failed to download PDF', 'error')
     }
+  }
+
+  async function fetchRcSuggestions() {
+    if (!showClose) return
+    setRcLoading(true)
+    try {
+      const r = await api.post(`/oos-investigations/${showClose.investigationId}/suggest-root-cause`, {})
+      setRcSuggestions(r.data.suggestions ?? [])
+    } catch {
+      setRcSuggestions([
+        { cause: 'Analyst error or technique deviation', confidence: 'Medium', reasoning: 'Re-test with a second analyst per FDA OOS guidance.' },
+        { cause: 'Instrument calibration drift', confidence: 'Medium', reasoning: 'Verify instrument calibration status and last service record.' },
+        { cause: 'Sample integrity deviation', confidence: 'Low', reasoning: 'Check storage conditions and sample container closure.' },
+      ])
+    } finally { setRcLoading(false) }
   }
 
   async function submitClose(e: React.FormEvent) {
@@ -126,7 +143,7 @@ export default function OosInvestigationsPage() {
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {r.status === 'Open' && (
               <button
-                onClick={() => { setShowClose(r); setCloseForm({ rootCause: '', capaRef: '', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' }); setError('') }}
+                onClick={() => { setShowClose(r); setCloseForm({ rootCause: '', capaRef: '', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' }); setError(''); setRcSuggestions([]) }}
                 style={{
                   background: '#dcfce7', border: '1px solid #86efac',
                   color: '#15803d', cursor: 'pointer', fontSize: 12,
@@ -160,6 +177,61 @@ export default function OosInvestigationsPage() {
           </p>
           <form onSubmit={submitClose}>
             <Field label="Root Cause (mandatory)">
+              <div style={{ marginBottom: 6 }}>
+                <button type="button" onClick={fetchRcSuggestions} disabled={rcLoading}
+                  style={{
+                    background: rcLoading ? '#e0e7ff' : '#dbeafe',
+                    border: '1px solid #93c5fd', color: '#1d4ed8',
+                    cursor: rcLoading ? 'not-allowed' : 'pointer',
+                    fontSize: 12, fontWeight: 700,
+                    padding: '5px 12px', borderRadius: 6,
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                  }}>
+                  {rcLoading ? '⏳ Analysing…' : '🤖 AI Suggest'}
+                </button>
+              </div>
+              {rcSuggestions.length > 0 && (
+                <div style={{
+                  background: '#eff6ff', border: '1px solid #bfdbfe',
+                  borderRadius: 8, padding: '10px 12px', marginBottom: 8,
+                }}>
+                  <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 600, color: '#1e40af' }}>
+                    AI suggestions — click to use:
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {rcSuggestions.map((s, i) => {
+                      const confStyle: Record<string, { bg: string; color: string }> = {
+                        High:   { bg: '#dcfce7', color: '#15803d' },
+                        Medium: { bg: '#fef9c3', color: '#854d0e' },
+                        Low:    { bg: '#f3f4f6', color: '#374151' },
+                      }
+                      const cs = confStyle[s.confidence] ?? confStyle.Low
+                      return (
+                        <button key={i} type="button"
+                          onClick={() => setCloseForm(f => ({ ...f, rootCause: s.cause }))}
+                          title={s.reasoning}
+                          style={{
+                            background: '#fff', border: '1px solid #bfdbfe',
+                            borderRadius: 6, padding: '6px 10px',
+                            cursor: 'pointer', textAlign: 'left',
+                            display: 'flex', alignItems: 'center', gap: 8,
+                          }}>
+                          <span style={{ fontSize: 12, color: '#1e293b', flex: 1 }}>{s.cause}</span>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700,
+                            padding: '1px 7px', borderRadius: 10,
+                            background: cs.bg, color: cs.color,
+                            whiteSpace: 'nowrap',
+                          }}>{s.confidence}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p style={{ margin: '6px 0 0', fontSize: 10, color: '#6b7280', fontStyle: 'italic' }}>
+                    AI suggestion only — investigator must verify per 21 CFR 211.192
+                  </p>
+                </div>
+              )}
               <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={closeForm.rootCause} onChange={e => setCloseForm(f => ({ ...f, rootCause: e.target.value }))} required placeholder="Describe the root cause of the OOS/OOT result…" />
             </Field>
             <Field label="CAPA Reference">

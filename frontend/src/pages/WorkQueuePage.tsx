@@ -98,6 +98,11 @@ export default function WorkQueuePage() {
   const [aiSuggestion, setAiSuggestion] = useState<WorkloadSuggestion | null>(null)
   const [aiLoading, setAiLoading]     = useState(false)
 
+  // Shift Handover
+  const [handoverOpen, setHandoverOpen]   = useState(false)
+  const [handoverData, setHandoverData]   = useState<{ summary: string; generatedAt: string } | null>(null)
+  const [handoverLoading, setHandoverLoading] = useState(false)
+
   // Barcode scan
   const [scanQuery, setScanQuery]       = useState('')
   const [scanResults, setScanResults]   = useState<WorkItem[] | null>(null)
@@ -188,6 +193,20 @@ export default function WorkQueuePage() {
     } catch {
       toast('Failed to load AI intelligence', 'error')
     } finally { setAiLoading(false) }
+  }
+
+  async function openHandover() {
+    setHandoverOpen(true)
+    setHandoverLoading(true)
+    try {
+      const res = await api.get('/shift-handover/summary')
+      setHandoverData(res.data)
+    } catch {
+      toast('Failed to generate shift handover summary', 'error')
+      setHandoverOpen(false)
+    } finally {
+      setHandoverLoading(false)
+    }
   }
 
   async function openAssign() {
@@ -424,6 +443,17 @@ export default function WorkQueuePage() {
           }}
         >
           🧠 AI Intelligence
+        </button>
+        <button
+          onClick={openHandover}
+          style={{
+            padding: '6px 14px', borderRadius: 8, border: '1.5px solid #c7d2fe',
+            background: '#eef2ff', color: '#4338ca',
+            fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+            transition: 'all 0.15s',
+          }}
+        >
+          📋 Shift Handover
         </button>
         {canAssign && (
           <button onClick={openAssign} style={{ padding: '8px 18px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
@@ -737,6 +767,46 @@ export default function WorkQueuePage() {
           onClose={() => setDetailSampleId(null)}
           onStartTask={startTask}
         />
+      )}
+
+      {/* ── Shift Handover Modal ───────────────────────────────────────── */}
+      {handoverOpen && (
+        <Modal title="Shift Handover Report" onClose={() => setHandoverOpen(false)}>
+          {handoverLoading && (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: '#4338ca', fontSize: 14 }}>
+              Generating AI shift handover summary…
+            </div>
+          )}
+          {!handoverLoading && handoverData && (
+            <>
+              <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
+                Generated at: {new Date(handoverData.generatedAt).toLocaleString()}
+              </p>
+              <div style={{
+                background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8,
+                padding: '16px', marginBottom: 16, maxHeight: 420, overflowY: 'auto',
+              }}>
+                <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit', color: '#1e293b' }}>
+                  {handoverData.summary}
+                </pre>
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => window.print()}
+                  style={{ padding: '7px 18px', background: '#4338ca', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                >
+                  🖨 Print / Save
+                </button>
+                <button
+                  onClick={() => setHandoverOpen(false)}
+                  style={{ padding: '7px 18px', background: '#f1f5f9', color: '#374151', border: '1px solid #e2e8f0', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                >
+                  Close
+                </button>
+              </div>
+            </>
+          )}
+        </Modal>
       )}
     </div>}
     </div>

@@ -1,3 +1,6 @@
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 using LIMS.Application.Interfaces;
 using LIMS.Domain.Entities;
 using LIMS.Domain.Enums;
@@ -19,9 +22,11 @@ public class QualityEventsController : ControllerBase
 {
     private readonly ILimsDbContext _db;
     private readonly ILabContext _lab;
+    private readonly IConfiguration _config;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public QualityEventsController(ILimsDbContext db, ILabContext lab)
-    { _db = db; _lab = lab; }
+    public QualityEventsController(ILimsDbContext db, ILabContext lab, IConfiguration config, IHttpClientFactory httpClientFactory)
+    { _db = db; _lab = lab; _config = config; _httpClientFactory = httpClientFactory; }
 
     // GET api/v1/quality-events?type=Capa&status=Open&labId=1&sampleId=5
     [HttpGet]
@@ -220,6 +225,98 @@ public class QualityEventsController : ControllerBase
 
         return Ok(new { message = "Quality event voided." });
     }
+
+    // POST api/v1/quality-events/classify — AI classification via Groq
+    [HttpPost("classify")]
+    public async Task<IActionResult> Classify([FromBody] ClassifyQualityEventRequest req)
+    {
+        var fallback = new
+        {
+            priority            = "Medium",
+            cdType              = "Deviation",
+            rootCauseCategory   = "Unknown",
+            suggestedRootCause  = "",
+            reasoning           = "Classification unavailable — please classify manually."
+        };
+
+        var groqApiKey = _config["Groq:ApiKey"];
+        if (string.IsNullOrWhiteSpace(groqApiKey))
+            return Ok(fallback);
+
+        var prompt = $$"""
+            You are a pharmaceutical quality management expert. Classify this quality event.
+
+            Title: {{req.Title}}
+            Description: {{req.Description ?? "(none)"}}
+
+            Classify and return JSON only:
+            {
+              "priority": "Low|Medium|High|Critical",
+              "cdType": "Capa|Deviation|Complaint",
+              "rootCauseCategory": "Process|Human|Equipment|Material|Environment|Documentation|Unknown",
+              "suggestedRootCause": "brief root cause hypothesis",
+              "reasoning": "one sentence explanation"
+            }
+
+            Base priority on: Critical=patient safety/regulatory risk, High=product quality impact, Medium=process deviation, Low=minor documentation issue.
+            """;
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", groqApiKey);
+
+            var requestBody = new
+            {
+                model       = "llama-3.3-70b-versatile",
+                messages    = new[] { new { role = "user", content = prompt } },
+                max_tokens  = 400,
+                temperature = 0.2,
+            };
+
+            var json     = JsonSerializer.Serialize(requestBody);
+            var content  = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await client.PostAsync("https://api.groq.com/openai/v1/chat/completions", content);
+
+            if (!response.IsSuccessStatusCode)
+                return Ok(fallback);
+
+            var responseJson = await response.Content.ReadAsStringAsync();
+            using var doc    = JsonDocument.Parse(responseJson);
+
+            var messageContent = doc.RootElement
+                .GetProperty("choices")[0]
+                .GetProperty("message")
+                .GetProperty("content")
+                .GetString() ?? "";
+
+            // Strip markdown code fences if present
+            var cleaned = messageContent.Trim();
+            if (cleaned.StartsWith("```"))
+            {
+                var firstNewline = cleaned.IndexOf('\n');
+                var lastFence    = cleaned.LastIndexOf("```");
+                if (firstNewline >= 0 && lastFence > firstNewline)
+                    cleaned = cleaned[(firstNewline + 1)..lastFence].Trim();
+            }
+
+            using var resultDoc = JsonDocument.Parse(cleaned);
+            var root = resultDoc.RootElement;
+
+            return Ok(new
+            {
+                priority           = root.TryGetProperty("priority",           out var p)  ? p.GetString()  : "Medium",
+                cdType             = root.TryGetProperty("cdType",             out var ct) ? ct.GetString() : "Deviation",
+                rootCauseCategory  = root.TryGetProperty("rootCauseCategory",  out var rc) ? rc.GetString() : "Unknown",
+                suggestedRootCause = root.TryGetProperty("suggestedRootCause", out var sr) ? sr.GetString() : "",
+                reasoning          = root.TryGetProperty("reasoning",          out var r)  ? r.GetString()  : "",
+            });
+        }
+        catch
+        {
+            return Ok(fallback);
+        }
+    }
 }
 
 public record CreateQualityEventRequest(
@@ -246,3 +343,5 @@ public record UpdateQualityEventRequest(
     string? PreventiveAction,
     int? AssignedToUserId,
     DateTime? DueDate);
+
+public record ClassifyQualityEventRequest(string Title, string? Description);

@@ -62,6 +62,11 @@ export default function QualityEventsPage() {
   const [oosInvs,      setOosInvs]      = useState<OosInv[]>([])
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState('')
+  const [classifying,  setClassifying]  = useState(false)
+  const [classification, setClassification] = useState<{
+    priority: string; cdType: string; rootCauseCategory: string;
+    suggestedRootCause: string; reasoning: string
+  } | null>(null)
 
   async function load() {
     setLoading(true)
@@ -81,7 +86,7 @@ export default function QualityEventsPage() {
     ])
     setUsers(ur.data); setSamples(sr.data); setOosInvs(oor.data)
     setForm({ ...EMPTY_FORM, cdType: typeFilter || 'Capa' })
-    setError(''); setShowCreate(true)
+    setClassification(null); setError(''); setShowCreate(true)
   }
 
   async function openEdit(ev: QualityEvent) {
@@ -224,7 +229,7 @@ export default function QualityEventsPage() {
 
       {/* ── Create Modal ── */}
       {showCreate && (
-        <Modal title={`New ${currentType.label}`} onClose={() => setShowCreate(false)}>
+        <Modal title={`New ${currentType.label}`} onClose={() => { setShowCreate(false); setClassification(null) }}>
           <form onSubmit={submitCreate}>
             <Field label="Type">
               <select style={inp} value={form.cdType} onChange={e => setForm(f => ({ ...f, cdType: e.target.value }))}>
@@ -234,6 +239,79 @@ export default function QualityEventsPage() {
             <Field label="Title *">
               <input style={inp} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required placeholder="Short descriptive title" />
             </Field>
+            {/* ── AI Classify ── */}
+            <div style={{ marginBottom: 10 }}>
+              <button
+                type="button"
+                disabled={classifying || form.title.length < 5}
+                onClick={async () => {
+                  setClassifying(true); setClassification(null)
+                  try {
+                    const r = await api.post('/quality-events/classify', { title: form.title, description: form.description || null })
+                    setClassification(r.data)
+                  } catch { /* silent — fallback shown if API fails */ }
+                  finally { setClassifying(false) }
+                }}
+                style={{
+                  padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+                  background: form.title.length < 5 ? '#f3f4f6' : '#0d6e6e',
+                  color: form.title.length < 5 ? '#9ca3af' : '#fff',
+                  border: 'none', cursor: form.title.length < 5 ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit',
+                }}>
+                {classifying ? '⏳ Classifying…' : '🤖 AI Classify'}
+              </button>
+            </div>
+            {/* ── Classification Result Panel ── */}
+            {classification && (
+              <div style={{
+                marginBottom: 12, padding: '10px 14px', borderRadius: 8,
+                background: '#f0fdfa', border: '1.5px solid #99f6e4',
+                display: 'flex', flexDirection: 'column', gap: 6,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#0f766e' }}>AI Suggestion</span>
+                  {/* Priority badge */}
+                  {(() => {
+                    const c = PRIORITY_COLORS[classification.priority] ?? PRIORITY_COLORS['Medium']
+                    return (
+                      <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.bg, color: c.color }}>
+                        {classification.priority}
+                      </span>
+                    )
+                  })()}
+                  <span style={{ fontSize: 11, color: '#374151' }}>
+                    Type: <strong>{classification.cdType}</strong>
+                  </span>
+                  <span style={{ fontSize: 11, color: '#374151' }}>
+                    Root Cause Category: <strong>{classification.rootCauseCategory}</strong>
+                  </span>
+                </div>
+                {classification.suggestedRootCause && (
+                  <div style={{ fontSize: 12, color: '#374151' }}>
+                    <span style={{ fontWeight: 600 }}>Hypothesis: </span>{classification.suggestedRootCause}
+                  </div>
+                )}
+                {classification.reasoning && (
+                  <div style={{ fontSize: 11, color: '#6b7280', fontStyle: 'italic' }}>{classification.reasoning}</div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({
+                    ...f,
+                    priority:  classification.priority,
+                    cdType:    classification.cdType,
+                    rootCause: classification.suggestedRootCause || f.rootCause,
+                  }))}
+                  style={{
+                    alignSelf: 'flex-start', padding: '4px 12px', borderRadius: 6,
+                    fontSize: 11, fontWeight: 700, background: '#0d6e6e', color: '#fff',
+                    border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                  }}>
+                  Apply
+                </button>
+              </div>
+            )}
             <Field label="Priority">
               <select style={inp} value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
                 {['Low', 'Medium', 'High', 'Critical'].map(p => <option key={p}>{p}</option>)}
@@ -275,7 +353,7 @@ export default function QualityEventsPage() {
               </Field>
             </div>
             {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowCreate(false)} label={`Create ${currentType.label}`} />
+            <ModalFooter saving={saving} onCancel={() => { setShowCreate(false); setClassification(null) }} label={`Create ${currentType.label}`} />
           </form>
         </Modal>
       )}

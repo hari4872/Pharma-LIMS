@@ -19,6 +19,14 @@ interface ReleaseDetail extends BatchRelease {
   checkItems: CheckItem[]
 }
 interface Sample { sampleId: number; sampleNumber: string; materialName: string; lotNumber: string; status: string }
+interface RiskScore { riskLevel: string; score: number; factors: { factor: string; count: number; impact: string }[]; recommendation: string }
+
+const RISK_COLORS: Record<string, { bg: string; color: string; border: string }> = {
+  Critical: { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' },
+  High:     { bg: '#ffedd5', color: '#9a3412', border: '#fdba74' },
+  Medium:   { bg: '#fef9c3', color: '#854d0e', border: '#fde047' },
+  Low:      { bg: '#d1fae5', color: '#065f46', border: '#6ee7b7' },
+}
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   PendingReview: { bg: '#dbeafe', color: '#1e40af' },
@@ -67,6 +75,8 @@ export default function BatchReleasePage() {
   const [saving,     setSaving]     = useState(false)
   const [error,      setError]      = useState('')
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
+  const [riskScore,    setRiskScore]    = useState<RiskScore | null>(null)
+  const [riskLoading,  setRiskLoading]  = useState(false)
 
   async function load() {
     setLoading(true)
@@ -88,7 +98,12 @@ export default function BatchReleasePage() {
 
   async function openDetail(id: number) {
     const r = await api.get(`/batch-releases/${id}`)
-    setDetail(r.data); setShowDetail(true)
+    setDetail(r.data); setRiskScore(null); setShowDetail(true)
+    setRiskLoading(true)
+    try {
+      const rs = await api.get(`/batch-releases/${id}/risk-score`)
+      setRiskScore(rs.data)
+    } catch { /* non-fatal */ } finally { setRiskLoading(false) }
   }
 
   async function openInitiate() {
@@ -223,6 +238,31 @@ export default function BatchReleasePage() {
       {/* ── Detail + Checklist Modal ── */}
       {showDetail && detail && (
         <Modal title={`Batch Release — ${detail.sampleNumber}`} onClose={() => setShowDetail(false)}>
+          {/* Risk Score */}
+          {riskLoading && (
+            <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12, fontSize: 12, color: '#6b7280' }}>
+              Calculating risk score…
+            </div>
+          )}
+          {!riskLoading && riskScore && (() => {
+            const rc = RISK_COLORS[riskScore.riskLevel] ?? RISK_COLORS.Low
+            return (
+              <div style={{ padding: '10px 14px', background: rc.bg, borderRadius: 8, border: `1px solid ${rc.border}`, marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <span style={{ fontWeight: 800, fontSize: 13, color: rc.color }}>{riskScore.riskLevel} Risk</span>
+                  <span style={{ fontSize: 12, color: rc.color, fontWeight: 700 }}>Score: {riskScore.score}/100</span>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginLeft: 'auto' }}>
+                    {riskScore.factors.map((f, i) => (
+                      <span key={i} style={{ fontSize: 10, padding: '1px 7px', borderRadius: 10, background: '#fff', color: rc.color, border: `1px solid ${rc.border}`, fontWeight: 600 }}>
+                        {f.factor} ({f.count})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: rc.color, fontStyle: 'italic' }}>{riskScore.recommendation}</div>
+              </div>
+            )
+          })()}
           {/* Checklist */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 8 }}>Release Checklist</div>
