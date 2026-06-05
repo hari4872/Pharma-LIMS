@@ -39,6 +39,10 @@ export default function InstrumentsPage() {
   const [error, setError] = useState('')
   const [editRow, setEditRow] = useState<Instrument | null>(null)
   const [editForm, setEditForm] = useState({ instrumentName: '', instrumentType: '', manufacturer: '', model: '', serialNumber: '', location: '', calibrationDue: '', lastCalibration: '' })
+  const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set())
+  const [showBulkRts, setShowBulkRts] = useState(false)
+  const [bulkRtsForm, setBulkRtsForm] = useState({ password: '', meaning: '', reason: '' })
+  const [bulkSaving, setBulkSaving] = useState(false)
 
   function openEdit(r: Instrument) {
     setEditRow(r)
@@ -145,10 +149,6 @@ export default function InstrumentsPage() {
   }
 
   const openBreakdowns = breakdowns.filter(b => b.status !== 'Resolved')
-  const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set())
-  const [showBulkRts, setShowBulkRts] = useState(false)
-  const [bulkRtsForm, setBulkRtsForm] = useState({ password: '', meaning: '', reason: '' })
-  const [bulkSaving, setBulkSaving] = useState(false)
 
   function daysOpen(raisedAt: string) {
     return Math.floor((Date.now() - new Date(raisedAt).getTime()) / 86400000)
@@ -160,13 +160,14 @@ export default function InstrumentsPage() {
 
   async function submitBulkRts(e: React.FormEvent) {
     e.preventDefault(); setBulkSaving(true)
+    const count = bulkSelected.size
     try {
       await Promise.all([...bulkSelected].map(id =>
         api.post(`/instruments/breakdowns/${id}/return-to-service`, bulkRtsForm)
       ))
       setBulkSelected(new Set()); setShowBulkRts(false)
       setBulkRtsForm({ password: '', meaning: '', reason: '' })
-      toast(`${bulkSelected.size} breakdown(s) returned to service`, 'success')
+      toast(`${count} breakdown(s) returned to service`, 'success')
       load()
     } catch (err) { toast(getErrorMessage(err, 'Bulk RTS failed'), 'error') }
     finally { setBulkSaving(false) }
@@ -262,7 +263,7 @@ export default function InstrumentsPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <PageHeader title="Instrument Breakdowns" onAdd={() => setShowBreakdownForm(true)} addLabel="Raise Breakdown" />
             {bulkSelected.size > 0 && (
-              <button onClick={() => setShowBulkRts(true)}
+              <button onClick={() => { setError(''); setShowBulkRts(true) }}
                 style={{ padding: '7px 16px', background: '#065f46', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                 ✓ Return {bulkSelected.size} to Service
               </button>
