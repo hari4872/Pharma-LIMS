@@ -54,6 +54,8 @@ public class WorkflowEngineService : IWorkflowEngineService
             "CoAApproved"        => await CheckCoaApproved(sampleId, ct),
             "FormTemplateFilled" => await CheckFormTemplateFilled(sampleId, ct),
             "CheckpointsSigned"  => await CheckCheckpointsSigned(sampleId, ct),
+            "SRFSigned"          => await CheckSrfSigned(sampleId, ct),
+            "SpecAssigned"       => await CheckSpecAssigned(sampleId, ct),
             _                    => new GateCheckResult(true, "No gate condition — auto-pass"),
         };
     }
@@ -115,5 +117,21 @@ public class WorkflowEngineService : IWorkflowEngineService
             openRows == 0
                 ? "All checkpoint process log rows are signed."
                 : $"{openRows} unsigned checkpoint row(s) must be signed before proceeding.");
+    }
+
+    private async Task<GateCheckResult> CheckSrfSigned(int sampleId, CancellationToken ct)
+    {
+        var sample = await _db.Samples.AsNoTracking().FirstOrDefaultAsync(s => s.SampleId == sampleId, ct);
+        var signed = sample?.SrfSignatureId is not null;
+        return new GateCheckResult(signed,
+            signed ? "Sample Request Form has been signed." : "Sample Request Form (SRF) has not been signed yet.");
+    }
+
+    private async Task<GateCheckResult> CheckSpecAssigned(int sampleId, CancellationToken ct)
+    {
+        var sample = await _db.Samples.AsNoTracking().FirstOrDefaultAsync(s => s.SampleId == sampleId, ct);
+        var assigned = sample?.SpecTemplateId is not null;
+        return new GateCheckResult(assigned,
+            assigned ? "Specification template is assigned." : "No specification template assigned to this sample.");
     }
 }
