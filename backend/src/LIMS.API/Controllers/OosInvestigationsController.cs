@@ -1,4 +1,4 @@
-﻿using LIMS.API.Pdf;
+using LIMS.API.Pdf;
 using LIMS.Application.Features.OosInvestigations;
 using LIMS.Application.Interfaces;
 using MediatR;
@@ -31,9 +31,9 @@ public class OosInvestigationsController : LimsControllerBase
         [FromQuery] string? status, [FromQuery] int? labId, [FromQuery] int? executionId)
         => Ok(await _mediator.Send(new GetOosInvestigationsQuery(status, labId, executionId)));
 
-    // POST api/v1/oos-investigations/{id}/close — QA closes investigation Â§11.50 e-sig (FDA OOS Guidance)
+    // POST api/v1/oos-investigations/{id}/close � QA closes investigation §11.50 e-sig (FDA OOS Guidance)
     [HttpPost("{id}/close")]
-    [Authorize(Roles = "Admin,QA,QCLead,LabManager")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Close(int id, [FromBody] CloseOosRequest request)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -48,9 +48,9 @@ public class OosInvestigationsController : LimsControllerBase
         return Ok(new { investigationId = result.Value, status = "Closed" });
     }
 
-    // POST api/v1/oos-investigations/{id}/escalate-phase2 — Sprint 1: FDA OOS Phase 2 escalation
+    // POST api/v1/oos-investigations/{id}/escalate-phase2 � Sprint 1: FDA OOS Phase 2 escalation
     [HttpPost("{id}/escalate-phase2")]
-    [Authorize(Roles = "Admin,QA,QCLead,LabManager")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> EscalateToPhase2(int id, [FromBody] EscalatePhase2Request request)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -66,7 +66,7 @@ public class OosInvestigationsController : LimsControllerBase
         return Ok(new { investigationId = result.Value, phase = "Phase2" });
     }
 
-    // GET api/v1/oos-investigations/{id}/pdf — OOS Investigation Report PDF (FDA OOS Guidance + 21 CFR Â§211.192)
+    // GET api/v1/oos-investigations/{id}/pdf � OOS Investigation Report PDF (FDA OOS Guidance + 21 CFR §211.192)
     [HttpGet("{id}/pdf")]
     public async Task<IActionResult> GetPdf(int id)
     {
@@ -85,7 +85,7 @@ public class OosInvestigationsController : LimsControllerBase
             MaterialName:    inv.Execution.Sample.Material.MaterialName,
             LotNumber:       inv.Execution.Sample.LotNumber,
             ParameterName:   inv.Parameter.ParameterName,
-            Uom:             inv.Parameter.Uom ?? "—",
+            Uom:             inv.Parameter.Uom ?? "�",
             FlagType:        inv.FlagType.ToString(),
             Phase:           inv.Phase.ToString(),
             Status:          inv.Status.ToString(),
@@ -110,7 +110,8 @@ public class OosInvestigationsController : LimsControllerBase
         return File(bytes, "application/pdf", fname);
     }
 
-    // POST api/v1/oos-investigations/{id}/suggest-root-cause — AI root cause suggestions (Groq llama-3.3-70b)
+    [Authorize(Roles = "Admin,QA,LabManager,Analyst")]
+    // POST api/v1/oos-investigations/{id}/suggest-root-cause � AI root cause suggestions (Groq llama-3.3-70b)
     [HttpPost("{id}/suggest-root-cause")]
     public async Task<IActionResult> SuggestRootCause(int id)
     {
@@ -172,7 +173,7 @@ Similar past investigations closed as:
 {pastRootCauses}
 
 Return JSON only:
-{{""suggestions"":[{{""cause"":""..."",""confidence"":""High|Medium|Low"",""reasoning"":""...""}}],""disclaimer"":""AI suggestion only — investigator must verify per 21 CFR 211.192""}}";
+{{""suggestions"":[{{""cause"":""..."",""confidence"":""High|Medium|Low"",""reasoning"":""...""}}],""disclaimer"":""AI suggestion only � investigator must verify per 21 CFR 211.192""}}";
 
         // 6. Call Groq API
         try
@@ -222,7 +223,7 @@ Return JSON only:
                     new { cause = "Instrument calibration drift or malfunction", confidence = "Medium", reasoning = $"Instrument {instrumentCode} (cal due: {calDue}) should be verified. Calibration drift is a frequent contributor to OOS results." },
                     new { cause = "Sample integrity or storage condition deviation", confidence = "Low", reasoning = "Sample degradation due to improper storage temperature, light exposure, or container closure failure can produce OOS results." }
                 },
-                disclaimer = "AI suggestion only — investigator must verify per 21 CFR 211.192"
+                disclaimer = "AI suggestion only � investigator must verify per 21 CFR 211.192"
             };
             return Ok(fallback);
         }

@@ -1,4 +1,4 @@
-﻿using LIMS.Application.Features.SampleInventory;
+using LIMS.Application.Features.SampleInventory;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,7 +21,7 @@ public class StabilityPullsController : LimsControllerBase
     // POST api/v1/stability-pulls
     // FR-02: due dates from T0 + time-points from DB (Contract 2)
     [HttpPost]
-    [Authorize(Roles = "Admin,QA,QCLead")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Schedule([FromBody] SchedulePullRequest request)
     {
         var result = await _mediator.Send(new ScheduleStabilityPullCommand(
@@ -32,9 +32,9 @@ public class StabilityPullsController : LimsControllerBase
     }
 
     // POST api/v1/stability-pulls/{id}/execute
-    // FR-05: pull Â§11.50 e-sig; FR-15: short pull deviation auto-logged
+    // FR-05: pull §11.50 e-sig; FR-15: short pull deviation auto-logged
     [HttpPost("{id:int}/execute")]
-    [Authorize(Roles = "Admin,Analyst,QCLead")]
+    [Authorize(Roles = "Admin,Analyst,LabManager")]
     public async Task<IActionResult> Execute(int id, [FromBody] ExecutePullRequest request)
     {
         if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });

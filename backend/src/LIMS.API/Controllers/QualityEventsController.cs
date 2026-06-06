@@ -138,7 +138,7 @@ public class QualityEventsController : ControllerBase
 
     // POST api/v1/quality-events — create CAPA / Deviation / Complaint
     [HttpPost]
-    [Authorize(Roles = "Admin,QA,QCLead,LabManager")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Create([FromBody] CreateQualityEventRequest req)
     {
         if (!Enum.TryParse<CdType>(req.CdType, true, out var cdType))
@@ -178,7 +178,7 @@ public class QualityEventsController : ControllerBase
 
     // PUT api/v1/quality-events/{id}
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin,QA,QCLead,LabManager")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateQualityEventRequest req)
     {
         var entity = await _db.ComplaintsDeviations.FindAsync(id);

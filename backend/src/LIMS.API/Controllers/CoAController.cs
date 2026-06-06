@@ -1,4 +1,4 @@
-﻿using LIMS.API.Pdf;
+using LIMS.API.Pdf;
 using LIMS.Application.Features.CoA;
 using LIMS.Application.Interfaces;
 using MediatR;
@@ -37,9 +37,9 @@ public class CoAController : LimsControllerBase
         return Ok(coa);
     }
 
-    // GET api/v1/coas/{id}/checklist — evaluate all 10 QA checklist items (vw_qa_checklist)
+    // GET api/v1/coas/{id}/checklist � evaluate all 10 QA checklist items (vw_qa_checklist)
     [HttpGet("{id}/checklist")]
-    [Authorize(Roles = "QA,Admin,QCLead")]
+    [Authorize(Roles = "QA,Admin,LabManager")]
     public async Task<IActionResult> GetChecklist(int id)
     {
         var result = await _mediator.Send(new GetCoAQuery(null, null, CoaId: id));
@@ -49,9 +49,9 @@ public class CoAController : LimsControllerBase
         return Ok(checklist);
     }
 
-    // POST api/v1/coas/generate — manual CoA generation trigger (auto-trigger is via QCLead verify)
+    // POST api/v1/coas/generate � manual CoA generation trigger (auto-trigger is via QCLead verify)
     [HttpPost("generate")]
-    [Authorize(Roles = "QCLead,QA,Admin")]
+    [Authorize(Roles = "LabManager,QA,Admin")]
     public async Task<IActionResult> Generate([FromBody] GenerateCoARequest request)
     {
         var result = await _mediator.Send(new GenerateCoACommand(request.SampleId, request.ExecutionId));
@@ -59,9 +59,9 @@ public class CoAController : LimsControllerBase
         return Ok(new { coaId = result.Value });
     }
 
-    // POST api/v1/coas/{id}/approve — QA Â§11.50 approval, locks PDF atomically
+    // POST api/v1/coas/{id}/approve � QA §11.50 approval, locks PDF atomically
     [HttpPost("{id}/approve")]
-    [Authorize(Roles = "QA,Admin,QCLead,LabManager")]
+    [Authorize(Roles = "QA,Admin,LabManager")]
     public async Task<IActionResult> Approve(int id, [FromBody] CoASignRequest request)
     {
         if (!TryGetUserId(out var qaUserId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -76,7 +76,7 @@ public class CoAController : LimsControllerBase
         return Ok(new { approvalId = result.Value, decision = "Approved" });
     }
 
-    // GET api/v1/coas/{id}/pdf — generate and download CoA PDF (on-the-fly, QuestPDF)
+    // GET api/v1/coas/{id}/pdf � generate and download CoA PDF (on-the-fly, QuestPDF)
     [HttpGet("{id}/pdf")]
     public async Task<IActionResult> GetPdf(int id)
     {
@@ -95,9 +95,9 @@ public class CoAController : LimsControllerBase
         return File(bytes, "application/pdf", $"CoA_{coa.CoaNumber}.pdf");
     }
 
-    // POST api/v1/coas/{id}/reissue — creates superseding CoA, sets SupersededById on original (FR-11)
+    // POST api/v1/coas/{id}/reissue � creates superseding CoA, sets SupersededById on original (FR-11)
     [HttpPost("{id}/reissue")]
-    [Authorize(Roles = "QA,Admin,QCLead,LabManager")]
+    [Authorize(Roles = "QA,Admin,LabManager")]
     public async Task<IActionResult> Reissue(int id, [FromBody] ReissueCoARequest request)
     {
         var result = await _mediator.Send(new ReissueCoACommand(id, request.Reason));
@@ -105,9 +105,9 @@ public class CoAController : LimsControllerBase
         return Ok(new { newCoaId = result.Value, supersededCoaId = id });
     }
 
-    // POST api/v1/coas/{id}/reject — QA rejection + justification, INSERT-only (EU Annex 11 Â§13)
+    // POST api/v1/coas/{id}/reject � QA rejection + justification, INSERT-only (EU Annex 11 §13)
     [HttpPost("{id}/reject")]
-    [Authorize(Roles = "QA,Admin,QCLead,LabManager")]
+    [Authorize(Roles = "QA,Admin,LabManager")]
     public async Task<IActionResult> Reject(int id, [FromBody] CoARejectRequest request)
     {
         if (!TryGetUserId(out var qaUserId)) return Unauthorized(new { error = "Invalid token claims." });

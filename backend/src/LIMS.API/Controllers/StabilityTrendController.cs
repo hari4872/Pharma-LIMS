@@ -42,7 +42,7 @@ public class StabilityTrendController : ControllerBase
     // POST api/v1/stability-trend/record-pull-results — called after a pull is signed off
     // Records trend points for each parameter result in the pull
     [HttpPost("record-pull-results")]
-    [Authorize(Roles = "Admin,QA,QCLead,Analyst")]
+    [Authorize(Roles = "Admin,QA,LabManager,Analyst")]
     public async Task<IActionResult> RecordPullResults([FromBody] RecordPullTrendRequest request)
     {
         var pull = await _db.StabilityPulls

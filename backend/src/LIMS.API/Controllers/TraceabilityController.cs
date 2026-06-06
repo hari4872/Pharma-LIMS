@@ -1,4 +1,4 @@
-﻿using LIMS.Application.Features.Traceability;
+using LIMS.Application.Features.Traceability;
 using LIMS.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -68,7 +68,7 @@ public class TraceabilityController : LimsControllerBase
     }
 
     // GET api/v1/traceability/recall?lotNumber=LOT001
-    // FR-12: recall scope query — all affected downstream batches from lot node
+    // FR-12: recall scope query � all affected downstream batches from lot node
     [HttpGet("recall")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> GetRecallScope(
@@ -135,7 +135,7 @@ public class TraceabilityController : LimsControllerBase
     // POST api/v1/traceability/complaints-deviations
     // FR-08: log complaint/deviation (downstream traceability node)
     [HttpPost("complaints-deviations")]
-    [Authorize(Roles = "Admin,QA,QCLead")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> CreateComplaintsDeviation([FromBody] CreateCdRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";

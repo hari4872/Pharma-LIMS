@@ -1,4 +1,4 @@
-﻿using LIMS.Application.Interfaces;
+using LIMS.Application.Interfaces;
 using LIMS.Domain.Entities;
 using LIMS.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LIMS.API.Controllers;
 
 /// <summary>
-/// Sprint 7 — Batch Release Workflow
+/// Sprint 7 � Batch Release Workflow
 /// 21 CFR 211.192: QA reviews each batch before release.
 /// Auto-evaluates release checklist, then QA makes final decision with e-signature.
 /// Route: api/v1/batch-releases
@@ -100,9 +100,9 @@ public class BatchReleaseController : LimsControllerBase
         });
     }
 
-    // POST api/v1/batch-releases — initiate review for a sample
+    // POST api/v1/batch-releases � initiate review for a sample
     [HttpPost]
-    [Authorize(Roles = "Admin,QA,LabManager,QCLead")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Initiate([FromBody] InitiateBatchReleaseRequest req)
     {
         var sample = await _db.Samples
@@ -158,9 +158,9 @@ public class BatchReleaseController : LimsControllerBase
         return Ok(new { release.BatchReleaseId, status = "InReview", checkItems });
     }
 
-    // POST api/v1/batch-releases/{id}/decide — QA final release/reject/hold with Â§11.50 e-sig
+    // POST api/v1/batch-releases/{id}/decide � QA final release/reject/hold with §11.50 e-sig
     [HttpPost("{id}/decide")]
-    [Authorize(Roles = "Admin,QA,QCLead,LabManager")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Decide(int id, [FromBody] BatchReleaseDecisionRequest req)
     {
         var release = await _db.BatchReleases
@@ -180,12 +180,12 @@ public class BatchReleaseController : LimsControllerBase
 
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
 
-        // Â§11.50 e-signature required for batch release decision (21 CFR 211.192)
+        // §11.50 e-signature required for batch release decision (21 CFR 211.192)
         var sig = await _esig.CreateSignatureAsync(
             userId, req.Password, req.Meaning, req.Reason,
             "BatchRelease.Decision", default);
         if (sig is null)
-            return Unauthorized(new { error = "ESIGN_AUTH_FAILED", message = "Password incorrect — e-signature rejected. (21 CFR Â§11.300)" });
+            return Unauthorized(new { error = "ESIGN_AUTH_FAILED", message = "Password incorrect � e-signature rejected. (21 CFR §11.300)" });
 
         // Update release
         release.Status         = Enum.Parse<BatchReleaseStatus>(req.Decision, true);
@@ -205,7 +205,7 @@ public class BatchReleaseController : LimsControllerBase
 
         await _db.SaveChangesAsync();
 
-        // Audit log — 21 CFR §11.10(e): INSERT-only record of batch release decision
+        // Audit log � 21 CFR �11.10(e): INSERT-only record of batch release decision
         var userName = User.Identity?.Name ?? "Unknown";
         await _db.MasterDataAuditLogs.AddAsync(new LIMS.Domain.Entities.MasterDataAuditLog
         {
@@ -252,7 +252,7 @@ public class BatchReleaseController : LimsControllerBase
         var ootCount = await _db.DigitalLogbookEntries
             .CountAsync(e => e.SampleId == sampleId && e.IsOot);
 
-        // 3. Retest count — executions beyond the first are retests
+        // 3. Retest count � executions beyond the first are retests
         var executionCount = await _db.TestExecutions
             .CountAsync(e => e.SampleId == sampleId);
         var retestCount = Math.Max(0, executionCount - 1);
@@ -289,7 +289,7 @@ public class BatchReleaseController : LimsControllerBase
             .AnyAsync(i => instrumentIds.Contains(i.InstrumentId) &&
                            i.CalibrationDue <= calibThreshold);
 
-        // ── Scoring ────────────────────────────────────────────────────────
+        // -- Scoring --------------------------------------------------------
         int score = 0;
         var factors = new List<object>();
 
@@ -332,16 +332,16 @@ public class BatchReleaseController : LimsControllerBase
 
         var recommendation = riskLevel switch
         {
-            "Critical" => "Multiple OOS results — full re-investigation required before release",
+            "Critical" => "Multiple OOS results � full re-investigation required before release",
             "High"     => "Review OOS/OOT findings and retest justification before approving",
             "Medium"   => "Verify retest rationale and check analyst/instrument compliance",
-            _          => "Standard QA review — no major risk factors identified",
+            _          => "Standard QA review � no major risk factors identified",
         };
 
         return Ok(new { riskLevel, score, factors, recommendation });
     }
 
-    // ── Private Helpers ────────────────────────────────────────────────────────
+    // -- Private Helpers --------------------------------------------------------
 
     private async Task<List<ChecklistItem>> EvaluateChecklistAsync(int sampleId)
     {

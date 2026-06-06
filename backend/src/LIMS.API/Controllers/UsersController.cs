@@ -128,7 +128,6 @@ public class UsersController : ControllerBase
     {
         "Admin"      => new() { ["masterData"]=true,  ["sampleRegistration"]=true,  ["workQueue"]=true,  ["resultsReview"]=true,  ["coaApproval"]=true,  ["batchRelease"]=true,  ["oosCapa"]=true,  ["compliance"]=true,  ["dispatchQc"]=true  },
         "QA"         => new() { ["masterData"]=true,  ["sampleRegistration"]=false, ["workQueue"]=false, ["resultsReview"]=true,  ["coaApproval"]=true,  ["batchRelease"]=true,  ["oosCapa"]=true,  ["compliance"]=true,  ["dispatchQc"]=true  },
-        "QCLead"     => new() { ["masterData"]=false, ["sampleRegistration"]=true,  ["workQueue"]=true,  ["resultsReview"]=true,  ["coaApproval"]=false, ["batchRelease"]=false, ["oosCapa"]=true,  ["compliance"]=false, ["dispatchQc"]=false },
         "Analyst"    => new() { ["masterData"]=false, ["sampleRegistration"]=true,  ["workQueue"]=true,  ["resultsReview"]=false, ["coaApproval"]=false, ["batchRelease"]=false, ["oosCapa"]=false, ["compliance"]=false, ["dispatchQc"]=false },
         "LabManager" => new() { ["masterData"]=false, ["sampleRegistration"]=true,  ["workQueue"]=true,  ["resultsReview"]=false, ["coaApproval"]=false, ["batchRelease"]=true,  ["oosCapa"]=true,  ["compliance"]=false, ["dispatchQc"]=false },
         _            => new() { ["masterData"]=false, ["sampleRegistration"]=false, ["workQueue"]=false, ["resultsReview"]=false, ["coaApproval"]=false, ["batchRelease"]=false, ["oosCapa"]=false, ["compliance"]=false, ["dispatchQc"]=false },

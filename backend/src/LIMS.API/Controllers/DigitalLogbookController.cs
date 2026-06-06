@@ -1,4 +1,4 @@
-﻿using LIMS.Application.Features.DigitalLogbook;
+using LIMS.Application.Features.DigitalLogbook;
 using LIMS.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -25,10 +25,10 @@ public class DigitalLogbookController : LimsControllerBase
         [FromQuery] DateTimeOffset? dateFrom, [FromQuery] DateTimeOffset? dateTo)
         => Ok(await _mediator.Send(new GetLogbookEntriesQuery(sampleId, executionId, labId, status, dateFrom, dateTo)));
 
-    // POST api/v1/digital-logbook/{id}/amend — post-sign amendment; original preserved as Superseded
-    // 21 CFR Â§11.10(e): original never deleted; amendment reason + e-sig mandatory
+    // POST api/v1/digital-logbook/{id}/amend � post-sign amendment; original preserved as Superseded
+    // 21 CFR §11.10(e): original never deleted; amendment reason + e-sig mandatory
     [HttpPost("{id}/amend")]
-    [Authorize(Roles = "Analyst,QCLead,QA,Admin")]
+    [Authorize(Roles = "Analyst,LabManager,QA,Admin")]
     public async Task<IActionResult> Amend(int id, [FromBody] AmendEntryRequest request)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -44,9 +44,9 @@ public class DigitalLogbookController : LimsControllerBase
         return Ok(new { newEntryId = result.Value, originalEntryId = id, status = "AmendmentCreated" });
     }
 
-    // GET api/v1/digital-logbook/export?format=csv — FR-09: export with all Â§11.50 manifestations
+    // GET api/v1/digital-logbook/export?format=csv � FR-09: export with all §11.50 manifestations
     [HttpGet("export")]
-    [Authorize(Roles = "QA,QCLead,Admin")]
+    [Authorize(Roles = "QA,LabManager,Admin")]
     public async Task<IActionResult> Export(
         [FromQuery] int? sampleId, [FromQuery] int? executionId, [FromQuery] int? labId,
         [FromQuery] string? status,
@@ -55,7 +55,7 @@ public class DigitalLogbookController : LimsControllerBase
     {
         var entries = await _mediator.Send(new GetLogbookEntriesQuery(sampleId, executionId, labId, status, dateFrom, dateTo));
 
-        // Build CSV with all Â§11.50 audit columns
+        // Build CSV with all §11.50 audit columns
         var lines = new System.Text.StringBuilder();
         lines.AppendLine("EntryId,SampleNumber,ParameterName,RawValue,CalculatedResult,PassFail,IsOos,IsOot,SpecMin,SpecMax,AnalystName,SignedBy,SignedAt,TriggerSource,Status,InstrumentName,EvidenceFileRef");
         foreach (var e in entries)
@@ -73,7 +73,7 @@ public class DigitalLogbookController : LimsControllerBase
 
     // POST api/v1/digital-logbook/entries/{id}/evidence
     [HttpPost("entries/{id}/evidence")]
-    [Authorize(Roles = "Admin,Analyst,QA,QCLead")]
+    [Authorize(Roles = "Admin,Analyst,QA,LabManager")]
     public async Task<IActionResult> UploadEvidence(int id, IFormFile file, [FromForm] int sampleId, [FromForm] string? description, CancellationToken ct)
     {
         if (file is null || file.Length == 0) return BadRequest(new { error = "NO_FILE", message = "No file provided." });

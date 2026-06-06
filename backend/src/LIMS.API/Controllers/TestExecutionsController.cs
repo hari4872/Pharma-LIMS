@@ -1,4 +1,4 @@
-ï»¿using LIMS.Application.Features.TestExecutions;
+using LIMS.Application.Features.TestExecutions;
 using LIMS.Application.Interfaces;
 using LIMS.Domain.Enums;
 using MediatR;
@@ -27,13 +27,13 @@ public class TestExecutionsController : LimsControllerBase
         _lab = lab;
     }
 
-    // GET api/v1/test-executions?analystId=1&labId=2&status=Assigned â€” Work Queue
+    // GET api/v1/test-executions?analystId=1&labId=2&status=Assigned — Work Queue
     [HttpGet]
     public async Task<IActionResult> GetWorkQueue(
         [FromQuery] int? analystId, [FromQuery] int? labId, [FromQuery] string? status)
         => Ok(await _mediator.Send(new GetWorkQueueQuery(analystId, labId, status)));
 
-    // GET api/v1/test-executions/{id} â€” fetch single execution by ID (avoids stale client-side find)
+    // GET api/v1/test-executions/{id} — fetch single execution by ID (avoids stale client-side find)
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
@@ -50,21 +50,21 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(new {
             execution.ExecutionId,
             execution.SampleId,
-            SampleNumber   = execution.Sample?.SampleNumber ?? "â€”",
-            MaterialName   = execution.Sample?.Material?.MaterialName ?? "â€”",
+            SampleNumber   = execution.Sample?.SampleNumber ?? "—",
+            MaterialName   = execution.Sample?.Material?.MaterialName ?? "—",
             MaterialId     = execution.Sample?.MaterialId ?? 0,
-            LotNumber      = execution.Sample?.LotNumber ?? "â€”",
-            AnalystName    = execution.Analyst?.FullName ?? "â€”",
-            InstrumentCode = execution.Instrument?.InstrumentCode ?? "â€”",
+            LotNumber      = execution.Sample?.LotNumber ?? "—",
+            AnalystName    = execution.Analyst?.FullName ?? "—",
+            InstrumentCode = execution.Instrument?.InstrumentCode ?? "—",
             Status         = execution.Status.ToString(),
             execution.StartedAt,
             DueDate        = execution.DueAt,
         });
     }
 
-    // POST api/v1/test-executions â€” Lab Manager assigns sample to analyst (WAP FR-13)
+    // POST api/v1/test-executions — Lab Manager assigns sample to analyst (WAP FR-13)
     [HttpPost]
-    [Authorize(Roles = "Admin,QA,LabManager,QCLead")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Assign([FromBody] AssignWorkQueueRequest request)
     {
         if (!TryGetUserId(out var assignedById)) return Unauthorized(new { error = "Invalid token claims." });
@@ -76,9 +76,9 @@ public class TestExecutionsController : LimsControllerBase
         return CreatedAtAction(nameof(GetWorkQueue), new { id = result.Value }, new { executionId = result.Value });
     }
 
-    // POST api/v1/test-executions/{id}/start â€” Analyst opens task / barcode scan (FR-22 started_at UTC)
+    // POST api/v1/test-executions/{id}/start — Analyst opens task / barcode scan (FR-22 started_at UTC)
     [HttpPost("{id}/start")]
-    [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
+    [Authorize(Roles = "Admin,Analyst,LabManager,QA")]
     public async Task<IActionResult> Start(int id)
     {
         if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -88,9 +88,9 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(new { executionId = result.Value, status = "InProgress" });
     }
 
-    // POST api/v1/test-executions/{id}/results â€” Step 4-5: submit raw values + OOS/OOT detection
+    // POST api/v1/test-executions/{id}/results — Step 4-5: submit raw values + OOS/OOT detection
     [HttpPost("{id}/results")]
-    [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
+    [Authorize(Roles = "Admin,Analyst,LabManager,QA")]
     public async Task<IActionResult> SubmitResults(int id, [FromBody] SubmitResultsRequest request)
     {
         if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -103,7 +103,7 @@ public class TestExecutionsController : LimsControllerBase
 
     // POST api/v1/test-executions/ad-hoc - add an ad-hoc single-parameter test
     [HttpPost("ad-hoc")]
-    [Authorize(Roles = "Admin,Analyst,QA,LabManager,QCLead")]
+    [Authorize(Roles = "Admin,Analyst,QA,LabManager")]
     public async Task<IActionResult> AddAdHoc([FromBody] AdHocTestRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
@@ -116,7 +116,7 @@ public class TestExecutionsController : LimsControllerBase
 
     // POST api/v1/test-executions/batch-results - batch result entry for multiple samples at once
     [HttpPost("batch-results")]
-    [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
+    [Authorize(Roles = "Admin,Analyst,LabManager,QA")]
     public async Task<IActionResult> BatchSubmit([FromBody] BatchSubmitRequest request)
     {
         if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -132,7 +132,7 @@ public class TestExecutionsController : LimsControllerBase
     public async Task<IActionResult> GetParameters(int id)
         => Ok(await _mediator.Send(new GetExecutionParametersQuery(id)));
 
-    // GET api/v1/test-executions/suggest-instrument â€” Phase D auto-suggest
+    // GET api/v1/test-executions/suggest-instrument — Phase D auto-suggest
     // Returns ranked list of instruments capable of running a given TestMethod or Parameter.
     // Filters to: IsActive=true, InstrumentStatus=Available, Calibration not overdue.
     [HttpGet("suggest-instrument")]
@@ -173,9 +173,9 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(suggestions);
     }
 
-    // POST api/v1/test-executions/{id}/sign-off â€” Step 7: Ã‚Â§11.50 e-sig, logbook rows finalized
+    // POST api/v1/test-executions/{id}/sign-off — Step 7: Â§11.50 e-sig, logbook rows finalized
     [HttpPost("{id}/sign-off")]
-    [Authorize(Roles = "Admin,Analyst,QCLead,QA")]
+    [Authorize(Roles = "Admin,Analyst,LabManager,QA")]
     public async Task<IActionResult> SignOff(int id, [FromBody] ApproveRequest request)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
@@ -189,7 +189,7 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(new { executionId = result.Value, status = "Signed" });
     }
 
-    // Ã¢"â‚¬Ã¢"â‚¬ Sprint 6 â€” Intelligent Workflow Endpoints Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬Ã¢"â‚¬
+    // â"€â"€ Sprint 6 — Intelligent Workflow Endpoints â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
     // GET api/v1/test-executions/queue-intelligence?labId=1
     [HttpGet("queue-intelligence")]
@@ -203,7 +203,7 @@ public class TestExecutionsController : LimsControllerBase
 
     // GET api/v1/test-executions/suggest-analyst?labId=1
     [HttpGet("suggest-analyst")]
-    [Authorize(Roles = "Admin,QA,LabManager,QCLead")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> SuggestAnalyst([FromQuery] int? labId)
     {
         var effectiveLabId = _lab.IsCrossLab ? (labId ?? 0) : (_lab.LabId ?? 0);
@@ -221,10 +221,10 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(new { executionId = id, priorityScore = score });
     }
 
-    // POST api/v1/test-executions/{id}/assign â€” per-test-method assignment (LabVantage parity)
-    // Different from POST / (sample-level) â€” this targets a specific execution row directly.
+    // POST api/v1/test-executions/{id}/assign — per-test-method assignment (LabVantage parity)
+    // Different from POST / (sample-level) — this targets a specific execution row directly.
     [HttpPost("{id}/assign")]
-    [Authorize(Roles = "Admin,QA,LabManager,QCLead")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> AssignTestMethod(int id, [FromBody] AssignTestMethodRequest request)
     {
         if (!TryGetUserId(out var assignedById)) return Unauthorized(new { error = "Invalid token claims." });

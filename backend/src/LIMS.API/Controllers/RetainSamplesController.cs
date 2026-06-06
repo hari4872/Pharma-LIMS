@@ -21,7 +21,7 @@ public class RetainSamplesController : ControllerBase
     // POST api/v1/retain-samples
     // FR-08: retention period from DB config (Contract 2)
     [HttpPost]
-    [Authorize(Roles = "Admin,QA,QCLead,Analyst")]
+    [Authorize(Roles = "Admin,QA,LabManager,Analyst")]
     public async Task<IActionResult> Register([FromBody] RegisterRetainRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";

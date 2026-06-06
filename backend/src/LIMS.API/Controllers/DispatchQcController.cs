@@ -1,4 +1,4 @@
-﻿using LIMS.API.Attributes;
+using LIMS.API.Attributes;
 using LIMS.Application.Features.DispatchQc;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -22,9 +22,9 @@ public class DispatchQcController : LimsControllerBase
         return Ok(result);
     }
 
-    // POST api/v1/dispatch-qc/delivery-orders/{doId}/block — QA hold, sets BLOCKED
+    // POST api/v1/dispatch-qc/delivery-orders/{doId}/block � QA hold, sets BLOCKED
     [HttpPost("delivery-orders/{doId}/block")]
-    [Authorize(Roles = "QA,Admin,QCLead,LabManager")]
+    [Authorize(Roles = "QA,Admin,LabManager")]
     [RequirePermission("dispatchQc")]
     public async Task<IActionResult> Block(int doId, [FromBody] BlockRequest request)
     {
@@ -34,9 +34,9 @@ public class DispatchQcController : LimsControllerBase
         return Ok(new { doId = result.Value, status = "Blocked" });
     }
 
-    // POST api/v1/dispatch-qc/delivery-orders/{doId}/unblock — re-enter QC flow after CAPA
+    // POST api/v1/dispatch-qc/delivery-orders/{doId}/unblock � re-enter QC flow after CAPA
     [HttpPost("delivery-orders/{doId}/unblock")]
-    [Authorize(Roles = "QA,Admin,QCLead,LabManager")]
+    [Authorize(Roles = "QA,Admin,LabManager")]
     [RequirePermission("dispatchQc")]
     public async Task<IActionResult> Unblock(int doId, [FromBody] BlockRequest request)
     {
@@ -46,9 +46,9 @@ public class DispatchQcController : LimsControllerBase
         return Ok(new { doId = result.Value, status = "InDispatchQC" });
     }
 
-    // POST api/v1/dispatch-qc/{taskId}/approve — QA Â§11.50 e-sig, sets CLEARED
+    // POST api/v1/dispatch-qc/{taskId}/approve � QA §11.50 e-sig, sets CLEARED
     [HttpPost("{taskId}/approve")]
-    [Authorize(Roles = "QA,Admin,QCLead,LabManager")]
+    [Authorize(Roles = "QA,Admin,LabManager")]
     [RequirePermission("dispatchQc")]
     public async Task<IActionResult> Approve(int taskId, [FromBody] DispatchQcApproveRequest request)
     {
