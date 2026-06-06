@@ -56,6 +56,7 @@ export default function CoaReviewPage() {
   const [selected, setSelected] = useState<CoaItem | null>(null)
   const [checklist, setChecklist] = useState<ChecklistItem[] | null>(null)
   const [checklistLoading, setChecklistLoading] = useState(false)
+  const [checklistExpanded, setChecklistExpanded] = useState(false)
   const [showApprove, setShowApprove] = useState(false)
   const [showConditional, setShowConditional] = useState(false)
   const [showReject, setShowReject] = useState(false)
@@ -500,16 +501,38 @@ export default function CoaReviewPage() {
             ))}
           </div>
 
-          {/* 10-item Checklist */}
+          {/* 10-item Checklist — auto-verified items collapsed by default */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>QA Validation Checklist (21 CFR 211.192)</div>
             {checklistLoading && <div style={{ fontSize: 13, color: '#6b7280' }}>Evaluating checklist…</div>}
-            {checklist && checklist.map(item => (
-              <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13, borderBottom: '1px solid #f3f4f6' }}>
-                <span style={{ fontSize: 16, color: item.pass ? '#16a34a' : '#dc2626' }}>{item.pass ? '✓' : '✗'}</span>
-                <span style={{ color: item.pass ? '#374151' : '#dc2626' }}>{item.label}</span>
-              </div>
-            ))}
+            {checklist && (() => {
+              const failed = checklist.filter(c => !c.pass)
+              const passed = checklist.filter(c => c.pass)
+              return (
+                <>
+                  {/* Failed items always visible */}
+                  {failed.map(item => (
+                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13, borderBottom: '1px solid #f3f4f6' }}>
+                      <span style={{ fontSize: 16, color: '#dc2626' }}>✗</span>
+                      <span style={{ color: '#dc2626' }}>{item.label}</span>
+                    </div>
+                  ))}
+                  {/* Passed items collapsed */}
+                  <button type="button" onClick={() => setChecklistExpanded(e => !e)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 0', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#16a34a', fontWeight: 600, fontFamily: 'inherit', textAlign: 'left' }}>
+                    <span>{checklistExpanded ? '▾' : '▸'}</span>
+                    <span>✓ {passed.length}/{checklist.length} system checks passed</span>
+                    <span style={{ marginLeft: 'auto', color: '#9ca3af', fontWeight: 400 }}>{checklistExpanded ? 'Hide' : 'Show all'}</span>
+                  </button>
+                  {checklistExpanded && passed.map(item => (
+                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13, borderBottom: '1px solid #f3f4f6' }}>
+                      <span style={{ fontSize: 16, color: '#16a34a' }}>✓</span>
+                      <span style={{ color: '#374151' }}>{item.label}</span>
+                    </div>
+                  ))}
+                </>
+              )
+            })()}
           </div>
 
           {/* CoA Lines */}

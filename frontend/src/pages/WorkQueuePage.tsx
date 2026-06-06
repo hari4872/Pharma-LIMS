@@ -595,13 +595,13 @@ export default function WorkQueuePage() {
         </div>
       )}
 
-      <DataTable loading={loading} data={data}
+      <DataTable loading={loading}
+        data={scanResults && scanResults.length > 0
+          ? data.filter(r => scanResults.some(s => s.executionId === r.executionId))
+          : data}
         rowStyle={r => {
           if (!scanResults || scanResults.length === 0) return {}
-          const isMatch = scanResults.some(s => s.executionId === r.executionId)
-          return isMatch
-            ? { background: '#fffbeb', outline: '2px solid #fcd34d', outlineOffset: '-2px' }
-            : { opacity: 0.4 }
+          return { background: '#fffbeb', outline: '2px solid #fcd34d', outlineOffset: '-2px' }
         }}
         columns={[
         { header: 'Sample No.', accessor: r => (

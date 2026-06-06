@@ -78,6 +78,7 @@ export default function BatchReleasePage() {
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
   const [riskScore,    setRiskScore]    = useState<RiskScore | null>(null)
   const [riskLoading,  setRiskLoading]  = useState(false)
+  const [riskExpanded, setRiskExpanded] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -248,19 +249,27 @@ export default function BatchReleasePage() {
           {!riskLoading && riskScore && (() => {
             const rc = RISK_COLORS[riskScore.riskLevel] ?? RISK_COLORS.Low
             return (
-              <div style={{ padding: '10px 14px', background: rc.bg, borderRadius: 8, border: `1px solid ${rc.border}`, marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontWeight: 800, fontSize: 13, color: rc.color }}>{riskScore.riskLevel} Risk</span>
+              <div style={{ borderRadius: 8, border: `1px solid ${rc.border}`, marginBottom: 14, overflow: 'hidden' }}>
+                {/* Collapsed summary row — always visible */}
+                <button type="button" onClick={() => setRiskExpanded(e => !e)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: rc.bg, border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: rc.color }}>{riskScore.riskLevel} Risk</span>
                   <span style={{ fontSize: 12, color: rc.color, fontWeight: 700 }}>Score: {riskScore.score}/100</span>
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginLeft: 'auto' }}>
-                    {riskScore.factors.map((f, i) => (
-                      <span key={i} style={{ fontSize: 10, padding: '1px 7px', borderRadius: 10, background: '#fff', color: rc.color, border: `1px solid ${rc.border}`, fontWeight: 600 }}>
-                        {f.factor} ({f.count})
-                      </span>
-                    ))}
+                  <span style={{ marginLeft: 'auto', fontSize: 11, color: rc.color, opacity: 0.7 }}>{riskExpanded ? '▾ Hide detail' : '▸ Show detail'}</span>
+                </button>
+                {/* Expanded detail */}
+                {riskExpanded && (
+                  <div style={{ padding: '10px 14px', background: rc.bg, borderTop: `1px solid ${rc.border}` }}>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+                      {riskScore.factors.map((f, i) => (
+                        <span key={i} style={{ fontSize: 10, padding: '1px 7px', borderRadius: 10, background: '#fff', color: rc.color, border: `1px solid ${rc.border}`, fontWeight: 600 }}>
+                          {f.factor} ({f.count})
+                        </span>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 11, color: rc.color, fontStyle: 'italic' }}>{riskScore.recommendation}</div>
                   </div>
-                </div>
-                <div style={{ fontSize: 11, color: rc.color, fontStyle: 'italic' }}>{riskScore.recommendation}</div>
+                )}
               </div>
             )
           })()}

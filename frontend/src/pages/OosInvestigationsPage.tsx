@@ -40,6 +40,9 @@ export default function OosInvestigationsPage() {
   const [rcSuggestions, setRcSuggestions] = useState<{cause:string,confidence:string,reasoning:string}[]>([])
   const [rcLoading, setRcLoading] = useState(false)
 
+  // Auto-fetch AI suggestions when Close modal opens — no button needed
+  useEffect(() => { if (showClose) fetchRcSuggestions() }, [showClose])
+
   async function load() {
     setLoading(true)
     try {
@@ -178,19 +181,12 @@ export default function OosInvestigationsPage() {
           </p>
           <form onSubmit={submitClose}>
             <Field label="Root Cause (mandatory)">
-              <div style={{ marginBottom: 6 }}>
-                <button type="button" onClick={fetchRcSuggestions} disabled={rcLoading}
-                  style={{
-                    background: rcLoading ? '#e0e7ff' : '#dbeafe',
-                    border: '1px solid #93c5fd', color: '#1d4ed8',
-                    cursor: rcLoading ? 'not-allowed' : 'pointer',
-                    fontSize: 12, fontWeight: 700,
-                    padding: '5px 12px', borderRadius: 6,
-                    display: 'inline-flex', alignItems: 'center', gap: 6,
-                  }}>
-                  {rcLoading ? '⏳ Analysing…' : '🤖 AI Suggest'}
-                </button>
-              </div>
+              {rcLoading && (
+                <div style={{ fontSize: 12, color: '#1d4ed8', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                  Analysing root cause…
+                </div>
+              )}
               {rcSuggestions.length > 0 && (
                 <div style={{
                   background: '#eff6ff', border: '1px solid #bfdbfe',
