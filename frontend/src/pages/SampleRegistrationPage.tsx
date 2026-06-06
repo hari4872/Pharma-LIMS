@@ -1359,8 +1359,14 @@ export default function SampleRegistrationPage() {
                 </div>
                 {specAssignData.candidates.length === 0 ? (
                   <div style={{ padding: '16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 13, color: '#92400e' }}>
-                    ⚠ No approved specification templates found for this material/sample type combination.
-                    Create and approve a Product Test Plan in Settings → Product Test Plans first.
+                    ⚠ No approved specification templates found for this material/sample type combination.{' '}
+                    <button
+                      type="button"
+                      onClick={() => { window.location.href = '/settings?tab=spec-templates' }}
+                      style={{ color: '#b45309', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontSize: 13, fontFamily: 'inherit', padding: 0 }}
+                    >
+                      Go to Settings → Product Test Plans
+                    </button>{' '}to create and approve one first.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

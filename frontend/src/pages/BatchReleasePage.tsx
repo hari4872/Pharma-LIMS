@@ -274,7 +274,15 @@ export default function BatchReleasePage() {
                 background: ci.passed ? '#f0fdf4' : '#fff1f2',
                 border: `1px solid ${ci.passed ? '#bbf7d0' : '#fecaca'}`,
               }}>
-                <span style={{ fontSize: 16, marginTop: 0, flexShrink: 0 }}>{ci.passed ? '✅' : '❌'}</span>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5, flexShrink: 0,
+                  background: ci.passed ? '#d1fae5' : '#fee2e2',
+                  color: ci.passed ? '#166534' : '#991b1b',
+                  border: `1px solid ${ci.passed ? '#6ee7b7' : '#fca5a5'}`,
+                  letterSpacing: '0.04em',
+                }}>
+                  {ci.passed ? 'PASS' : 'FAIL'}
+                </span>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: ci.passed ? '#166534' : '#991b1b' }}>
                     {CHECK_LABELS[ci.checkType] ?? ci.checkType}

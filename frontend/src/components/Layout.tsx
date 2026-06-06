@@ -272,7 +272,7 @@ export default function Layout() {
 
   const [collapsed,    setCollapsed]    = useState(false)
   const [paletteOpen,  setPaletteOpen]  = useState(false)
-  const [darkMode,     setDarkMode]     = useState(false)
+  const [darkMode,     setDarkMode]     = useState(() => localStorage.getItem('lims_dark_mode') === 'true')
   const [profileOpen,  setProfileOpen]  = useState(false)
   const [notifOpen,    setNotifOpen]    = useState(false)
   const [isMobile,     setIsMobile]     = useState(() => window.innerWidth < 768)
@@ -344,6 +344,8 @@ export default function Layout() {
   const crumb       = BREADCRUMB_MAP[location.pathname]
   const unreadCount = liveUnread
   const dm          = darkMode
+
+  useEffect(() => { localStorage.setItem('lims_dark_mode', String(darkMode)) }, [darkMode])
 
   function handleLogout() { dispatch(logout()); navigate('/login') }
 
@@ -527,15 +529,6 @@ export default function Layout() {
                 </div>
                 <div style={{ fontSize: 10, color: '#80868b', marginTop: 1 }}>Administrator</div>
               </div>
-              <button onClick={handleLogout} title="Sign out" style={{
-                background: dm ? '#1e293b' : '#fff',
-                border: `1px solid ${dm ? '#334155' : '#e0e0e0'}`,
-                borderRadius: 7, padding: '4px 10px', cursor: 'pointer',
-                color: dm ? '#94a3b8' : '#5f6368', fontSize: 11, fontWeight: 600,
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-              }}>
-                Sign out
-              </button>
             </>
           )}
         </div>
@@ -676,7 +669,7 @@ export default function Layout() {
                   </div>
                   {notifs.length === 0 && (
                     <div style={{ padding: '24px 16px', textAlign: 'center', color: dm ? '#64748b' : '#9ca3af', fontSize: 12 }}>
-                      No notifications yet — real-time alerts will appear here
+                      No notifications yet — system events such as OOS results, overdue samples, and calibration alerts will appear here
                     </div>
                   )}
                   {notifs.map(n => (

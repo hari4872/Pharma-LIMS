@@ -626,14 +626,16 @@ export default function DashboardPage() {
             {!spcLoading && spcData === null && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: '#9ca3af', fontSize: 13, gap: 8 }}>
                 <svg viewBox="0 0 24 24" fill="none" width="36" height="36"><path d="M3 3v18h18M7 16l4-4 4 4 4-7" stroke="#d1d5db" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                No data available for this parameter
+                <span>No test results found for this parameter</span>
+                <span style={{ fontSize: 12, color: '#d1d5db' }}>Select a different parameter above, or complete test executions in Work Queue</span>
               </div>
             )}
 
             {!spcLoading && spcData && spcData.n < 5 && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, color: '#9ca3af', fontSize: 13, gap: 8 }}>
                 <svg viewBox="0 0 24 24" fill="none" width="36" height="36"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#f59e0b" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                <span>Insufficient data — n = {spcData.n} (minimum 5 required for control limits)</span>
+                <span>Insufficient data — {spcData.n} of 5 results needed for control limits</span>
+                <span style={{ fontSize: 12, color: '#d1d5db' }}>Submit {5 - spcData.n} more test result{5 - spcData.n !== 1 ? 's' : ''} in Work Queue to enable this chart</span>
               </div>
             )}
 
@@ -880,7 +882,12 @@ export default function DashboardPage() {
                     </tr>
                   )
                 })}
-                {board.length === 0 && <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#80868b', padding: '32px 16px' }}>No active instruments</td></tr>}
+                {board.length === 0 && (
+                  <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#80868b', padding: '32px 16px' }}>
+                    No active instruments —{' '}
+                    <a href="/master-data/instruments" style={{ color: '#0d9488', textDecoration: 'underline', fontWeight: 600 }}>Go to Instruments setup</a>
+                  </td></tr>
+                )}
               </tbody>
             </table>
           </div>

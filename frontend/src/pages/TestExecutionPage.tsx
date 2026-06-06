@@ -629,7 +629,13 @@ export default function TestExecutionPage() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 0', gap: 10 }}>
               <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>✓</div>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#15803d' }}>Monitoring Form Submitted</div>
-              <div style={{ fontSize: 13, color: '#6b7280' }}>Form data recorded and signed. You can now sign off the test results.</div>
+              <div style={{ fontSize: 13, color: '#6b7280' }}>Form data recorded. You can now sign off the test results.</div>
+              <button
+                onClick={() => setActiveTab('results')}
+                style={{ marginTop: 4, padding: '8px 20px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                Continue to Sign-Off →
+              </button>
               <button onClick={() => setFormSubmitted(false)} style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
                 Re-submit form
               </button>
@@ -769,8 +775,16 @@ export default function TestExecutionPage() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => setGateBlocks([])} style={{ marginTop: 10, fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
-                Dismiss and sign off anyway
+              <button
+                onClick={() => {
+                  if (window.confirm('Gates are not fully cleared. Signing off without resolving all requirements may violate SOPs.\n\nAre you sure you want to proceed?')) {
+                    setGateBlocks([])
+                    setShowSignOff(true)
+                  }
+                }}
+                style={{ marginTop: 10, fontSize: 12, color: '#b91c1c', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}
+              >
+                Override and sign off anyway
               </button>
             </div>
           )}

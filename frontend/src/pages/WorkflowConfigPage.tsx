@@ -405,8 +405,15 @@ export default function WorkflowConfigPage() {
                             <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 6, lineHeight: 1.3 }}>{s.stepName}</div>
                             {/* Gate */}
                             {s.gateCondition && (
-                              <div style={{ fontSize: 10, padding: '2px 7px', borderRadius: 5, background: '#ede9fe', color: '#7c3aed', border: '1px solid #ddd6fe', marginBottom: 4 }}>
-                                🔒 {GATE_LABEL[s.gateCondition] ?? s.gateCondition}
+                              <div style={{ marginBottom: 4 }}>
+                                <div style={{ fontSize: 10, padding: '2px 7px', borderRadius: 5, background: '#ede9fe', color: '#7c3aed', border: '1px solid #ddd6fe', display: 'inline-block' }}>
+                                  🔒 {GATE_LABEL[s.gateCondition] ?? s.gateCondition}
+                                </div>
+                                {GATE_HELP[s.gateCondition] && (
+                                  <div style={{ fontSize: 10, color: '#6b7280', marginTop: 3, fontStyle: 'italic' }}>
+                                    {GATE_HELP[s.gateCondition]}
+                                  </div>
+                                )}
                               </div>
                             )}
                             {/* E-sign */}
