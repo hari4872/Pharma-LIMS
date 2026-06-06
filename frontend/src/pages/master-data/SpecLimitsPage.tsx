@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { getErrorMessage } from '@/utils/errors'
 const SPEC_STAGES = ['Incoming', 'InProcess', 'Finished', 'Stability']
 function stageLabel(s: string) { return s.replace(/([a-z])([A-Z])/g, '$1 $2') }
@@ -183,7 +183,7 @@ export default function SpecLimitsPage() {
                 <Field label="Regulatory Max"><input style={inp} type="number" step="any" value={form.regulatoryMax} onChange={e => setForm(f => ({ ...f, regulatoryMax: e.target.value }))} /></Field>
               </div>
             )}
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
         </Modal>
@@ -209,7 +209,7 @@ export default function SpecLimitsPage() {
                 <Field label="Regulatory Max"><input style={inp} type="number" step="any" value={editForm.regulatoryMax} onChange={e => setEditForm(f => ({ ...f, regulatoryMax: e.target.value }))} /></Field>
               </div>
             )}
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
         </Modal>
@@ -220,7 +220,7 @@ export default function SpecLimitsPage() {
             <Field label="Password (re-enter)"><input style={inp} type="password" value={approveForm.password} onChange={e => setApproveForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={approveForm.meaning} onChange={e => setApproveForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={approveForm.reason} onChange={e => setApproveForm(f => ({ ...f, reason: e.target.value }))} required /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowApprove(null)} />
           </form>
         </Modal>

@@ -368,7 +368,7 @@ export default function DataTable<T extends object>({
 
       {/* ── Table ── */}
       <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid #e0e0e0', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: d.fs }}>
+        <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', fontSize: d.fs }}>
           <thead>
             <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #e0e0e0' }}>
               {/* Select-all checkbox */}

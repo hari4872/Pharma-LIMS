@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
@@ -156,7 +156,7 @@ export default function RetainSamplesPage() {
             </div>
             <Field label="Retained On"><input style={inp} type="date" value={addForm.retainedOn} onChange={e => setAddForm(f => ({ ...f, retainedOn: e.target.value }))} required /></Field>
             <p style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>Retention period calculated from DB config (retain_period_months) — Contract 2.</p>
-            {error && <p style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowAdd(false)} />
           </form>
         </Modal>
@@ -171,7 +171,7 @@ export default function RetainSamplesPage() {
             <Field label="Password (re-enter)"><input style={inp} type="password" value={destroyForm.password} onChange={e => setDestroyForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={destroyForm.meaning} onChange={e => setDestroyForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason for Destruction"><textarea style={{ ...inp, height: 64, resize: 'vertical' }} value={destroyForm.reason} onChange={e => setDestroyForm(f => ({ ...f, reason: e.target.value }))} required /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowDestroy(null)} label="Confirm Destruction" />
           </form>
         </Modal>

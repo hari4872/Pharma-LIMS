@@ -1,4 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
+﻿// ─────────────────────────────────────────────────────────────────────────────
 // CheckpointExecutionPage.tsx — Analyst Execution View
 //
 // Analyst-focused page: shows all active checkpoints as cards with
@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
+import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import { inp, Modal, Field, ModalFooter } from './master-data/LaboratoriesPage'
 import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'
@@ -69,30 +70,42 @@ function slotStatus(slot: string): 'done' | 'overdue' | 'upcoming' {
 // ── Slot status pill ──────────────────────────────────────────────────────────
 function SlotPill({ slot, onExecute }: { slot: string; onExecute?: () => void }) {
   const s = slotStatus(slot)
-  const styles: Record<string, { bg: string; color: string; icon: string }> = {
-    done:     { bg: '#d1fae5', color: '#065f46', icon: '🟢' },
-    overdue:  { bg: '#fee2e2', color: '#991b1b', icon: '🔴' },
-    upcoming: { bg: '#f3f4f6', color: '#374151', icon: '⏳' },
+  const styles: Record<string, { bg: string; color: string; dot: string }> = {
+    done:     { bg: '#d1fae5', color: '#065f46', dot: '#16a34a' },
+    overdue:  { bg: '#fff7ed', color: '#9a3412', dot: '#f97316' },
+    upcoming: { bg: '#f1f5f9', color: '#475569', dot: '#94a3b8' },
   }
   const st = styles[s]
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 6, marginBottom: 4 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginRight: 6, marginBottom: 4 }}>
       <span style={{
-        padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600,
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600,
         background: st.bg, color: st.color,
+        border: `1px solid ${st.dot}33`,
       }}>
-        {st.icon} {slot}
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: st.dot, flexShrink: 0, display: 'inline-block' }} />
+        {slot}
       </span>
       {onExecute && (s === 'done' || s === 'overdue') && (
         <button
           onClick={onExecute}
           style={{
-            padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-            background: s === 'overdue' ? '#dc2626' : '#16a34a', color: '#fff',
-            border: 'none',
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '4px 11px', borderRadius: 7, fontSize: 12, fontWeight: 600,
+            cursor: 'pointer',
+            background: '#fff', color: '#0d9488',
+            border: '1.5px solid #0d9488',
+            fontFamily: 'inherit',
+            transition: 'background 0.12s',
           }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f0fdfa' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#fff' }}
         >
-          ✍️ Execute
+          <svg viewBox="0 0 16 16" fill="none" width="12" height="12">
+            <path d="M5.5 3.5L12 8l-6.5 4.5V3.5z" fill="currentColor"/>
+          </svg>
+          Record
         </button>
       )}
     </span>
@@ -160,7 +173,8 @@ export default function CheckpointExecutionPage() {
       const q = filterMode ? `?triggerMode=${filterMode}` : ''
       const r = await api.get(`/checkpoints${q}`)
       setCheckpoints(r.data.filter((c: Checkpoint) => c.isActive))
-    } finally { setLoading(false) }
+    } catch { toast('Failed to load checkpoints', 'error') }
+    finally { setLoading(false) }
   }
   useEffect(() => {
     let cancelled = false
@@ -243,8 +257,9 @@ export default function CheckpointExecutionPage() {
         reason:    execForm.reason,
         readings:  readingsList,
       })
-      toast(`✅ Checkpoint ${execFor.checkpoint.checkpointCode} (${execFor.slotLabel}) executed and signed`, 'success')
+      toast(`Checkpoint ${execFor.checkpoint.checkpointCode} @ ${execFor.slotLabel} recorded and signed`, 'success')
       setExecFor(null)
+      load()
     } catch (err) {
       const msg = getErrorMessage(err, 'Execution failed')
       setExecError(msg); toast(msg, 'error')
@@ -382,7 +397,7 @@ export default function CheckpointExecutionPage() {
                       fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 8,
                       background: '#fee2e2', color: '#991b1b',
                     }}>
-                      ⚠ {activeSlots.length} slot{activeSlots.length > 1 ? 's' : ''} need execution
+                      {activeSlots.length} slot{activeSlots.length > 1 ? 's' : ''} due
                     </span>
                   )}
                 </div>
@@ -409,7 +424,7 @@ export default function CheckpointExecutionPage() {
               {isAuto && slots.length > 0 && (
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Today's Schedule — click ✍️ Execute when you perform the check
+                    Today's Schedule
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {[...slots].sort().map(slot => (
@@ -418,7 +433,7 @@ export default function CheckpointExecutionPage() {
                   </div>
                   {activeSlots.length === 0 && (
                     <p style={{ margin: '6px 0 0', fontSize: 11, color: '#9ca3af' }}>
-                      ⏱ No slots due yet today — upcoming slots will show Execute when they fire
+                      No slots due yet — upcoming slots will activate at their scheduled time
                     </p>
                   )}
                 </div>
@@ -487,7 +502,7 @@ export default function CheckpointExecutionPage() {
       {/* ── Execute Time-Based Checkpoint Modal ──────────────────────────── */}
       {execFor && (
         <Modal
-          title={`✍️ Execute Checkpoint — ${execFor.checkpoint.checkpointCode} @ ${execFor.slotLabel}`}
+          title={`Record Check — ${execFor.checkpoint.checkpointCode} @ ${execFor.slotLabel}`}
           onClose={() => setExecFor(null)}
         >
           <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
@@ -550,7 +565,7 @@ export default function CheckpointExecutionPage() {
                 placeholder="e.g. All readings within acceptable range — no anomalies observed" />
             </Field>
             {execError && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>⚠ {execError}</p>}
-            <ModalFooter saving={execSaving} onCancel={() => setExecFor(null)} label="✅ Execute & Sign" />
+            <ModalFooter saving={execSaving} onCancel={() => setExecFor(null)} label="Submit & Sign" />
           </form>
         </Modal>
       )}
@@ -663,6 +678,7 @@ export default function CheckpointExecutionPage() {
               </div>
             )}
 
+            <div style={{ maxHeight: 360, overflowY: 'auto', marginBottom: 4 }}>
             {!logLoading && logRows.map(row => {
               const isOpen   = row.status === 'Open'
               const isLocked = row.status === 'Locked' || row.isSigned
@@ -683,7 +699,7 @@ export default function CheckpointExecutionPage() {
                       )}
                     </div>
                     <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-                      {new Date(row.slotTime).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+                      {fmtDateTime(row.slotTime)}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -708,6 +724,7 @@ export default function CheckpointExecutionPage() {
                 </div>
               )
             })}
+            </div>{/* end scroll container */}
 
             <div style={{ marginTop: 16, textAlign: 'right' }}>
               <button onClick={() => setLogFor(null)}
@@ -721,7 +738,7 @@ export default function CheckpointExecutionPage() {
 
       {/* ── E-Signature Modal (Process Log row) ──────────────────────────── */}
       {signRow && (
-        <Modal title="✍️ Sign Process Log Row" onClose={() => setSignRow(null)}>
+        <Modal title="Sign Process Log Row" onClose={() => setSignRow(null)}>
           <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
             21 CFR Part 11 — your signature will be permanently recorded.
           </p>

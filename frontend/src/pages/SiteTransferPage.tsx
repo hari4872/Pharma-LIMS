@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
@@ -248,7 +248,7 @@ export default function SiteTransferPage() {
             <div style={{ padding: '8px 12px', background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: 6, marginBottom: 12, fontSize: 12, color: '#0d6e6e' }}>
               ℹ The destination lab must Accept the transfer before the sample is dispatched.
             </div>
-            {initError && <p style={{ color: '#ef4444', fontSize: 13, margin: '0 0 10px' }}>{initError}</p>}
+            {initError && <p style={{ color: '#dc2626', fontSize: 13, margin: '0 0 10px' }}>{initError}</p>}
             <ModalFooter saving={initSaving} onCancel={() => setShowInitiate(false)} label="Submit Transfer Request" />
           </form>
         </Modal>
@@ -284,7 +284,7 @@ export default function SiteTransferPage() {
                 placeholder={showRespond.action === 'Reject' ? 'Why is this transfer being rejected?' : 'Optional note'} />
             </Field>
 
-            {respondError && <p style={{ color: '#ef4444', fontSize: 13, margin: '0 0 10px' }}>{respondError}</p>}
+            {respondError && <p style={{ color: '#dc2626', fontSize: 13, margin: '0 0 10px' }}>{respondError}</p>}
             <ModalFooter
               saving={respondSaving}
               onCancel={() => setShowRespond(null)}

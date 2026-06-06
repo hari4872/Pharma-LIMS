@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
@@ -247,7 +247,7 @@ export default function FormTemplatesPage() {
                 onChange={e => setForm(f => ({ ...f, evidenceMandatory: e.target.checked }))} />
               Evidence Mandatory
             </label>
-            {error && <p style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
         </Modal>
@@ -266,7 +266,7 @@ export default function FormTemplatesPage() {
             <Field label="Reason">
               <input style={inp} value={approveForm.reason} onChange={e => setApproveForm(f => ({ ...f, reason: e.target.value }))} required />
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowApprove(null)} />
           </form>
         </Modal>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
@@ -98,7 +98,7 @@ export default function TestMethodsPage() {
             <Field label="Version">
               <input style={inp} value={form.version} onChange={e => setForm(f => ({ ...f, version: e.target.value }))} placeholder="e.g. 1.0" />
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
         </Modal>
@@ -113,7 +113,7 @@ export default function TestMethodsPage() {
                 {['Chemical', 'Microbiological', 'Physical', 'Instrumental'].map(t => <option key={t}>{t}</option>)}
               </select>
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
         </Modal>
@@ -124,7 +124,7 @@ export default function TestMethodsPage() {
             <Field label="Password (re-enter)"><input style={inp} type="password" value={approveForm.password} onChange={e => setApproveForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={approveForm.meaning} onChange={e => setApproveForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason for Approval"><input style={inp} value={approveForm.reason} onChange={e => setApproveForm(f => ({ ...f, reason: e.target.value }))} required /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowApprove(null)} />
           </form>
         </Modal>

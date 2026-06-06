@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import api from '@/api/client'
 
 interface Props {
@@ -79,7 +79,7 @@ export default function IdleLockOverlay({ fullName, initials, username, onUnlock
             }}
           />
           {error && (
-            <div style={{ fontSize: 12, color: '#ef4444', marginTop: 6 }}>{error}</div>
+            <div style={{ fontSize: 12, color: '#dc2626', marginTop: 6 }}>{error}</div>
           )}
           <button
             type="submit"

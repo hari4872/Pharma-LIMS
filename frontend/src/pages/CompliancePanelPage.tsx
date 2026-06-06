@@ -327,7 +327,7 @@ export default function CompliancePanelPage() {
                 <Field label="Password (re-enter)"><input style={inp} type="password" value={reviewForm.password} onChange={e => setReviewForm(f => ({ ...f, password: e.target.value }))} required /></Field>
                 <Field label="Meaning"><input style={inp} value={reviewForm.meaning} onChange={e => setReviewForm(f => ({ ...f, meaning: e.target.value }))} required placeholder="e.g. Periodic re-validation approval" /></Field>
                 <Field label="Reason"><input style={inp} value={reviewForm.reason} onChange={e => setReviewForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Annual review cycle completed" /></Field>
-                {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+                {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
                 <ModalFooter saving={saving} onCancel={() => setShowReviewForm(false)} label="Record Review" />
               </form>
             </Modal>

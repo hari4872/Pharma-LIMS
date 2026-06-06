@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './LaboratoriesPage'
@@ -354,7 +354,7 @@ export default function InstrumentsPage() {
             <Field label="Location"><input style={inp} value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="e.g. QC Lab — Room 204" /></Field>
             <Field label="Calibration Due"><input style={inp} type="date" value={form.calibrationDue} onChange={e => setForm(f => ({ ...f, calibrationDue: e.target.value }))} required /></Field>
             <Field label="Last Calibration"><input style={inp} type="date" value={form.lastCalibration} onChange={e => setForm(f => ({ ...f, lastCalibration: e.target.value }))} /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
         </Modal>
@@ -373,7 +373,7 @@ export default function InstrumentsPage() {
             <Field label="Issue Description">
               <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={bdForm.issueDescription} onChange={e => setBdForm(f => ({ ...f, issueDescription: e.target.value }))} required />
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowBreakdownForm(false)} label="Raise Breakdown" />
           </form>
         </Modal>
@@ -389,7 +389,7 @@ export default function InstrumentsPage() {
               <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={repairForm.repairDescription} onChange={e => setRepairForm(f => ({ ...f, repairDescription: e.target.value }))} required />
             </Field>
             <Field label="Parts Used"><input style={inp} value={repairForm.partsUsed} onChange={e => setRepairForm(f => ({ ...f, partsUsed: e.target.value }))} /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowRepairForm(false)} label="Save Repair" />
           </form>
         </Modal>
@@ -406,7 +406,7 @@ export default function InstrumentsPage() {
             <Field label="Location"><input style={inp} value={editForm.location} onChange={e => setEditForm(f => ({ ...f, location: e.target.value }))} /></Field>
             <Field label="Calibration Due"><input style={inp} type="date" value={editForm.calibrationDue} onChange={e => setEditForm(f => ({ ...f, calibrationDue: e.target.value }))} required /></Field>
             <Field label="Last Calibration"><input style={inp} type="date" value={editForm.lastCalibration} onChange={e => setEditForm(f => ({ ...f, lastCalibration: e.target.value }))} /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
         </Modal>
@@ -422,7 +422,7 @@ export default function InstrumentsPage() {
             <Field label="Password (re-enter)"><input style={inp} type="password" value={bulkRtsForm.password} onChange={e => setBulkRtsForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning of Signature"><input style={inp} value={bulkRtsForm.meaning} onChange={e => setBulkRtsForm(f => ({ ...f, meaning: e.target.value }))} required placeholder="e.g. QA Batch Return-to-Service Approval" /></Field>
             <Field label="Reason for Signature"><input style={inp} value={bulkRtsForm.reason} onChange={e => setBulkRtsForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. All instruments verified in-spec post-maintenance" /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={bulkSaving} onCancel={() => setShowBulkRts(false)} label={`Approve & Return ${bulkSelected.size} to Service`} />
           </form>
         </Modal>
@@ -438,7 +438,7 @@ export default function InstrumentsPage() {
             <Field label="Password (re-enter)"><input style={inp} type="password" value={rtsForm.password} onChange={e => setRtsForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning of Signature"><input style={inp} value={rtsForm.meaning} onChange={e => setRtsForm(f => ({ ...f, meaning: e.target.value }))} required placeholder="e.g. QA Return-to-Service Approval" /></Field>
             <Field label="Reason for Signature"><input style={inp} value={rtsForm.reason} onChange={e => setRtsForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Instrument verified in-spec post-repair" /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowRtsForm(false)} label="Approve & Return to Service" />
           </form>
         </Modal>

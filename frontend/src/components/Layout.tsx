@@ -93,6 +93,20 @@ const stabilityItems: NavItem[] = [
   },
 ]
 
+// ── Analytics & Reports ───────────────────────────────────────────────────
+const analyticsItems: NavItem[] = [
+  {
+    label: 'Reports & Exports', path: '/reports',
+    iconBg: '#f0fdf4', iconColor: '#15803d',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 17v-2m3 2v-4m3 4v-6M5 21h14a2 2 0 002-2V7l-5-5H5a2 2 0 00-2 2v15a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+  {
+    label: 'Report Builder', path: '/report-builder',
+    iconBg: '#fef9c3', iconColor: '#a16207',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  },
+]
+
 // ── Traceability & Transfers ──────────────────────────────────────────────
 const traceabilityItems: NavItem[] = [
   {
@@ -144,7 +158,8 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/workflow-config':                  { section: 'Settings',    label: 'Workflow Config' },
   '/multi-site-dashboard':             { section: 'Multi-site',  label: 'Multi-site Dashboard' },
   '/site-transfers':                   { section: 'Multi-site',  label: 'Site Transfers' },
-  '/reports':                          { section: 'Operations', label: 'Reports & Exports' },
+  '/reports':                          { section: 'Analytics & Reports', label: 'Reports & Exports' },
+  '/report-builder':                   { section: 'Analytics & Reports', label: 'Report Builder' },
   '/traceability':                     { section: 'Inventory', label: 'Traceability' },
   '/stability-pulls':                  { section: 'Inventory', label: 'Stability Pulls' },
   '/retain-samples':                   { section: 'Inventory', label: 'Retain Samples' },
@@ -434,6 +449,9 @@ export default function Layout() {
 
           <SectionHead label="Stability & Retention" dm={dm} collapsed={collapsed} />
           <NavGroup items={stabilityItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
+
+          <SectionHead label="Analytics & Reports" dm={dm} collapsed={collapsed} />
+          <NavGroup items={analyticsItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
 
           <SectionHead label="Traceability & Transfers" dm={dm} collapsed={collapsed} />
           <NavGroup items={traceabilityItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />

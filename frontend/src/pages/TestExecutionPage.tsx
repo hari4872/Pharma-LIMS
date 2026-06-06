@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store'
 import api from '@/api/client'
+import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
-import { getErrorMessage } from '@/utils/errors'
+import { getErrorMessage, asApiError } from '@/utils/errors'
+import type { FieldDef } from './master-data/FormTemplatesPage'
+import { GATE_HELP } from './WorkflowConfigPage'
 
 interface Execution {
   executionId: number; sampleId: number; sampleNumber: string; materialName: string
@@ -30,6 +35,16 @@ interface ResultRow {
 }
 
 const DRAFT_KEY = (id: string) => `lims-draft-exec-${id}`
+
+const TAB_ST = (active: boolean): React.CSSProperties => ({
+  padding: '9px 20px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+  borderBottom: active ? '2px solid #0d9488' : '2px solid transparent',
+  background: 'transparent', marginBottom: -2,
+  color: active ? '#0d9488' : '#6b7280',
+  fontWeight: active ? 700 : 500, fontSize: 14,
+  display: 'flex', alignItems: 'center', gap: 7,
+  transition: 'all 0.15s',
+})
 
 function formatSpec(s: SpecLimit | undefined): string {
   if (!s) return '—'
@@ -64,6 +79,8 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }>
 export default function TestExecutionPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const currentRole     = useSelector((s: RootState) => s.auth.role) ?? ''
+  const currentFullName = useSelector((s: RootState) => s.auth.fullName) ?? ''
   // elapsed timer driven by tick state below
 
   const [execution,   setExecution]   = useState<Execution | null>(null)
@@ -83,6 +100,19 @@ export default function TestExecutionPage() {
   const [error,       setError]       = useState('')
   const [startedAt, setStartedAt] = useState<string | null>(null)
   const [elapsedDisplay, setElapsedDisplay] = useState('00:00:00')
+
+  // ── Step 4: Gate blocking ─────────────────────────────────────────────────
+  const [gateBlocks, setGateBlocks] = useState<{ gate: string; reason: string; help: string }[]>([])
+
+  // ── Monitoring Form (Tab 2) ────────────────────────────────────────────────
+  const [activeTab,        setActiveTab]        = useState<'results' | 'form'>('results')
+  const [formFields,       setFormFields]       = useState<FieldDef[]>([])
+  const [formName,         setFormName]         = useState('')
+  const [formTemplateId,   setFormTemplateId]   = useState<number | null>(null)
+  const [formValues,       setFormValues]       = useState<Record<string, string | boolean>>({})
+  const [formSubmitted,    setFormSubmitted]    = useState(false)
+  const [formSubmitting,   setFormSubmitting]   = useState(false)
+  const [formError,        setFormError]        = useState('')
 
   // Elapsed timer — recompute once per second from the start time. Kept inside
   // the effect (not during render) so the Date.now() read stays pure.
@@ -137,10 +167,34 @@ export default function TestExecutionPage() {
         }
       })
       .catch(() => setError('Failed to load execution.'))
+
+    // Load form template if sample has one assigned (non-blocking, cancelled on unmount)
+    let formCancelled = false
+    api.get(`/test-executions/${id}`)
+      .then(r => !formCancelled && r.data?.sampleId && api.get(`/samples/${r.data.sampleId}`))
+      .then((r: { data: { formTemplateId?: number } } | false | undefined) => {
+        if (formCancelled || !r || !r.data?.formTemplateId) return
+        const ftId = r.data.formTemplateId
+        return api.get(`/form-templates/${ftId}`).then(tpl => {
+          if (formCancelled) return
+          setFormTemplateId(ftId)
+          setFormName(tpl.data.formName ?? 'Monitoring Form')
+          let fields: FieldDef[] = []
+          try { fields = JSON.parse(tpl.data.fieldDefinitionsJson ?? '[]') } catch { fields = [] }
+          setFormFields(fields)
+          const init: Record<string, string | boolean> = {}
+          fields.forEach(f => { init[f.id] = f.fieldType === 'Checkbox' ? false : '' })
+          setFormValues(init)
+        })
+      })
+      .catch(() => { /* form template optional — non-blocking */ })
+
     // Load parameters
     api.get(`/test-executions/${id}/parameters`)
       .then(r => setParameters(r.data))
       .catch(() => setError('Failed to load parameters.'))
+
+    return () => { formCancelled = true }
   }, [id])
 
   // Load spec limits once we have materialId
@@ -215,8 +269,58 @@ export default function TestExecutionPage() {
       setHasOot(r.data.hasOot)
       // Clear draft on successful submit
       if (id) localStorage.removeItem(DRAFT_KEY(id))
-    } catch (err) { setError(getErrorMessage(err, 'Submit failed')) }
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Submit failed')
+      if (msg.toLowerCase().includes('not your task')) {
+        const isAdmin = ['Admin', 'QA', 'QCLead', 'LabManager'].includes(currentRole)
+        setError(
+          isAdmin
+            ? `This task is assigned to ${execution?.analystName ?? 'another analyst'}. Admin users cannot submit on behalf of an analyst — please reassign the task to yourself first in Work Queue.`
+            : `This task is assigned to ${execution?.analystName ?? 'another analyst'}. Only the assigned analyst can submit results.`
+        )
+      } else {
+        setError(msg)
+      }
+    }
     finally { setSubmitting(false) }
+  }
+
+  async function checkGatesBeforeSignOff() {
+    if (!execution) return
+    const blocks: { gate: string; reason: string; help: string }[] = []
+
+    // Check common gates client-side
+    const allComplete = results.length > 0 && !hasOos && !hasOot
+    if (!allComplete && results.length === 0) blocks.push({ gate: 'AllTestsComplete', reason: 'Results have not been submitted yet', help: GATE_HELP['AllTestsComplete'] ?? '' })
+    if (hasOos) blocks.push({ gate: 'NoOpenOOS', reason: 'OOS result detected — investigation must be resolved first', help: GATE_HELP['NoOpenOOS'] ?? '' })
+    if (formFields.length > 0 && !formSubmitted) blocks.push({ gate: 'FormTemplateFilled', reason: `Monitoring form "${formName}" has not been submitted`, help: GATE_HELP['FormTemplateFilled'] ?? '' })
+
+    setGateBlocks(blocks)
+    if (blocks.length === 0) { setShowSignOff(true); setError('') }
+  }
+
+  async function submitMonitoringForm(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formTemplateId || !execution) return
+    setFormSubmitting(true); setFormError('')
+    try {
+      const fieldValues: Record<string, string> = {}
+      for (const [k, v] of Object.entries(formValues)) {
+        fieldValues[k] = typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v)
+      }
+      await api.post(`/samples/${execution.sampleId}/form-entries`, {
+        formTemplateId, fieldValues,
+        password: '', meaning: 'I confirm this monitoring form entry is accurate', reason: 'Recorded during test execution',
+      })
+      setFormSubmitted(true)
+      setFormError('')
+    } catch (err) {
+      const ae = asApiError(err)
+      if (ae.response?.data?.error === 'ESIGN_AUTH_FAILED')
+        setFormError('Password incorrect')
+      else
+        setFormError(getErrorMessage(err, 'Form submission failed'))
+    } finally { setFormSubmitting(false) }
   }
 
   async function submitSignOff(e: React.FormEvent) {
@@ -230,7 +334,7 @@ export default function TestExecutionPage() {
 
   if (!execution) return (
     <div style={{ padding: 40, textAlign: 'center', color: '#6b7280' }}>
-      {error ? <p style={{ color: '#ef4444' }}>{error}</p> : 'Loading task…'}
+      {error ? <p style={{ color: '#dc2626' }}>{error}</p> : 'Loading task…'}
     </div>
   )
 
@@ -277,11 +381,11 @@ export default function TestExecutionPage() {
           <span>👤 Analyst: <strong>{execution.analystName}</strong></span>
           {execution.dueDate && (
             <span style={{ color: isOverdue ? '#fca5a5' : 'inherit' }}>
-              📅 Due: <strong>{new Date(execution.dueDate).toLocaleDateString()}</strong>
+              📅 Due: <strong>{fmtDate(execution.dueDate)}</strong>
             </span>
           )}
           {execution.startedAt && (
-            <span>🕐 Started: <strong>{new Date(execution.startedAt).toLocaleTimeString()}</strong></span>
+            <span>🕐 Started: <strong>{fmtTime(execution.startedAt)}</strong></span>
           )}
         </div>
       </div>
@@ -297,9 +401,33 @@ export default function TestExecutionPage() {
         </div>
       )}
 
+      {/* ── Tab strip ──────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid #e2e8f0', marginBottom: 0, background: '#fff', borderRadius: '12px 12px 0 0', paddingTop: 4, paddingLeft: 16, paddingRight: 16 }}>
+        <button style={TAB_ST(activeTab === 'results')} onClick={() => setActiveTab('results')}>
+          <svg viewBox="0 0 20 20" fill="none" width="14" height="14"><path d="M9 12l2 2 4-4M4 6h12M4 10h7M4 14h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+          Test Results
+          <span style={{ fontSize: 11, background: activeTab === 'results' ? '#f0fdfa' : '#f1f5f9', color: activeTab === 'results' ? '#0d9488' : '#9ca3af', padding: '1px 7px', borderRadius: 8, fontWeight: 700 }}>
+            {parameters.length}
+          </span>
+        </button>
+        {formFields.length > 0 && (
+          <button style={TAB_ST(activeTab === 'form')} onClick={() => setActiveTab('form')}>
+            <svg viewBox="0 0 20 20" fill="none" width="14" height="14"><path d="M4 4h12v12H4V4zm3 4h6M7 10h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
+            {formName}
+            {formSubmitted && (
+              <span style={{ fontSize: 10, background: '#d1fae5', color: '#065f46', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>✓ Done</span>
+            )}
+            {!formSubmitted && (
+              <span style={{ fontSize: 10, background: '#fef3c7', color: '#92400e', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>Required</span>
+            )}
+          </button>
+        )}
+      </div>
+
       {/* ── Result Entry Form ──────────────────────────────────────────── */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '24px 28px', marginBottom: 20,
-        opacity: execution.status === 'Completed' ? 0.6 : 1, pointerEvents: execution.status === 'Completed' ? 'none' : 'auto' }}>
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderTopWidth: 0, borderRadius: '0 0 12px 12px', padding: '24px 28px', marginBottom: 20,
+        opacity: execution.status === 'Completed' ? 0.6 : 1, pointerEvents: execution.status === 'Completed' ? 'none' : 'auto',
+        display: activeTab === 'results' ? 'block' : 'none' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>
             📋 Enter Results
@@ -313,6 +441,16 @@ export default function TestExecutionPage() {
             </span>
           )}
         </div>
+
+        {/* Ownership warning for non-assigned users */}
+        {execution.analystName && execution.analystName !== currentFullName && (
+          <div style={{ marginBottom: 14, padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14 }}>⚠</span>
+            <span style={{ fontSize: 13, color: '#92400e' }}>
+              This task is assigned to <strong>{execution.analystName}</strong>. You can view and save drafts, but only the assigned analyst can submit results.
+            </span>
+          </div>
+        )}
 
         <form onSubmit={submitResults}>
           {/* Column headers */}
@@ -456,7 +594,7 @@ export default function TestExecutionPage() {
                             <span>📎</span>
                             <a href={`/uploads/${f.fileRef}`} target="_blank" rel="noreferrer" style={{ color: '#0d9488' }}>{f.fileRef.split('/').pop()}</a>
                             {f.description && <span style={{ color: '#6b7280' }}>— {f.description}</span>}
-                            <span style={{ color: '#9ca3af' }}>{new Date(f.uploadedAt).toLocaleString()}</span>
+                            <span style={{ color: '#9ca3af' }}>{fmtDateTime(f.uploadedAt)}</span>
                           </div>
                         ))}
                       </div>
@@ -467,7 +605,7 @@ export default function TestExecutionPage() {
             })}
           </div>
 
-          {error && <p style={{ color: '#ef4444', fontSize: 13, marginTop: 12 }}>{error}</p>}
+          {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 12 }}>{error}</p>}
 
           <div style={{ display: 'flex', gap: 10, marginTop: 20, alignItems: 'center' }}>
             <button type="button" onClick={saveDraft}
@@ -482,6 +620,81 @@ export default function TestExecutionPage() {
           </div>
         </form>
       </div>
+
+      {/* ── Monitoring Form Tab ────────────────────────────────────────── */}
+      {formFields.length > 0 && activeTab === 'form' && (
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderTopWidth: 0, borderRadius: '0 0 12px 12px', padding: '24px 28px', marginBottom: 20 }}>
+
+          {formSubmitted ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 0', gap: 10 }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>✓</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#15803d' }}>Monitoring Form Submitted</div>
+              <div style={{ fontSize: 13, color: '#6b7280' }}>Form data recorded and signed. You can now sign off the test results.</div>
+              <button onClick={() => setFormSubmitted(false)} style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
+                Re-submit form
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={submitMonitoringForm}>
+              <div style={{ marginBottom: 20 }}>
+                {formFields.map((field, idx) => (
+                  <div key={field.id} style={{ marginBottom: idx < formFields.length - 1 ? 18 : 0 }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
+                      {field.label}
+                      {field.required && <span style={{ color: '#dc2626', marginLeft: 3 }}>*</span>}
+                      {field.fieldType === 'Parameter' && field.parameterCode && (
+                        <span style={{ marginLeft: 6, fontSize: 10, color: '#9ca3af', fontFamily: 'monospace', textTransform: 'none', fontWeight: 400 }}>{field.parameterCode}</span>
+                      )}
+                    </label>
+
+                    {field.fieldType === 'Checkbox' ? (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '9px 14px', borderRadius: 8, border: `1.5px solid ${formValues[field.id] ? '#99f6e4' : '#e5e7eb'}`, background: formValues[field.id] ? '#f0fdfa' : '#fafafa' }}>
+                        <input type="checkbox" checked={!!formValues[field.id]} onChange={e => setFormValues(p => ({ ...p, [field.id]: e.target.checked }))} style={{ width: 16, height: 16, accentColor: '#0d9488', cursor: 'pointer' }} />
+                        <span style={{ fontSize: 13, color: formValues[field.id] ? '#0f766e' : '#374151', fontWeight: formValues[field.id] ? 700 : 500 }}>
+                          {formValues[field.id] ? 'Yes — confirmed' : 'Not yet confirmed'}
+                        </span>
+                      </label>
+                    ) : field.fieldType === 'Dropdown' ? (
+                      <select style={inp} value={formValues[field.id] as string ?? ''} onChange={e => setFormValues(p => ({ ...p, [field.id]: e.target.value }))}>
+                        <option value="">— Select —</option>
+                        {(field.options ?? '').split(',').map(o => o.trim()).filter(Boolean).map(o => <option key={o}>{o}</option>)}
+                      </select>
+                    ) : field.fieldType === 'Date' ? (
+                      <input type="date" style={inp} value={formValues[field.id] as string ?? ''} onChange={e => setFormValues(p => ({ ...p, [field.id]: e.target.value }))} />
+                    ) : field.fieldType === 'Textarea' ? (
+                      <textarea rows={3} style={{ ...inp, resize: 'vertical' as const }} value={formValues[field.id] as string ?? ''} onChange={e => setFormValues(p => ({ ...p, [field.id]: e.target.value }))} placeholder={`Enter ${field.label.toLowerCase()}…`} />
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input
+                          type={field.fieldType === 'Number' ? 'number' : field.fieldType === 'Decimal' || field.fieldType === 'Parameter' ? 'number' : 'text'}
+                          step={field.fieldType === 'Decimal' || field.fieldType === 'Parameter' ? 'any' : field.fieldType === 'Number' ? '1' : undefined}
+                          style={{ ...inp, flex: 1 }}
+                          value={formValues[field.id] as string ?? ''}
+                          onChange={e => setFormValues(p => ({ ...p, [field.id]: e.target.value }))}
+                          placeholder={field.fieldType === 'Parameter' ? `Enter ${field.parameterName ?? field.label}` : ''}
+                          required={field.required}
+                        />
+                        {(field.unit || field.parameterUom) && (
+                          <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap', flexShrink: 0 }}>{field.unit || field.parameterUom}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {formError && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 12 }}>⚠ {formError}</p>}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button type="submit" disabled={formSubmitting}
+                  style={{ padding: '9px 24px', background: formSubmitting ? '#9ca3af' : '#0d9488', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: formSubmitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                  {formSubmitting ? 'Saving…' : '✓ Submit Monitoring Form'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
 
       {/* ── OOS/OOT Results ────────────────────────────────────────────── */}
       {results.length > 0 && (
@@ -542,8 +755,28 @@ export default function TestExecutionPage() {
             </table>
           </div>
 
+          {/* Step 4: Gate blocking panel */}
+          {gateBlocks.length > 0 && (
+            <div style={{ marginTop: 16, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '14px 16px' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#dc2626', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                ⛔ Cannot sign off — the following must be resolved first:
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {gateBlocks.map((b, i) => (
+                  <div key={i} style={{ background: '#fff', border: '1px solid #fca5a5', borderRadius: 7, padding: '9px 12px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#991b1b' }}>🔒 {b.reason}</div>
+                    <div style={{ fontSize: 12, color: '#0369a1', marginTop: 3 }}>→ {b.help}</div>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => setGateBlocks([])} style={{ marginTop: 10, fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                Dismiss and sign off anyway
+              </button>
+            </div>
+          )}
+
           <div style={{ marginTop: 18, paddingTop: 18, borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end' }}>
-            <button onClick={() => { setShowSignOff(true); setError('') }}
+            <button onClick={checkGatesBeforeSignOff}
               style={{ padding: '10px 24px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
               ✍ Sign Off (E-Signature) →
             </button>
@@ -558,6 +791,12 @@ export default function TestExecutionPage() {
             Your name, timestamp (UTC), meaning and reason are immutably recorded.
             {hasOos && <span style={{ color: '#dc2626', fontWeight: 600 }}> OOS investigations will be auto-raised.</span>}
           </div>
+          {formFields.length > 0 && !formSubmitted && (
+            <div style={{ marginBottom: 14, padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 13, color: '#92400e', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>⚠</span>
+              <span>The <strong>{formName}</strong> monitoring form has not been submitted yet. You can still sign off, but it is recommended to fill the form first.</span>
+            </div>
+          )}
           <form onSubmit={submitSignOff}>
             <Field label="Password (re-enter to confirm identity)">
               <input style={inp} type="password" value={signForm.password} onChange={e => setSignForm(f => ({ ...f, password: e.target.value }))} required autoFocus />
@@ -568,7 +807,7 @@ export default function TestExecutionPage() {
             <Field label="Reason">
               <input style={inp} value={signForm.reason} onChange={e => setSignForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. All parameters verified and results confirmed" />
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowSignOff(false)} label="✍ Sign & Submit" />
           </form>
         </Modal>

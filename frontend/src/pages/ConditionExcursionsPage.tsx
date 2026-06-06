@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
@@ -127,7 +127,7 @@ export default function ConditionExcursionsPage() {
                 <input style={inp} type="datetime-local" value={logForm.excursionEnd} onChange={e => setLogForm(f => ({ ...f, excursionEnd: e.target.value }))} />
               </Field>
             </div>
-            {error && <p style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowLog(false)} />
           </form>
         </Modal>
@@ -145,7 +145,7 @@ export default function ConditionExcursionsPage() {
               <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={impactOutcome} onChange={e => setImpactOutcome(e.target.value)} required
                 placeholder="Describe impact assessment outcome and any actions taken…" />
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowImpact(null)} label="Submit Assessment" />
           </form>
         </Modal>

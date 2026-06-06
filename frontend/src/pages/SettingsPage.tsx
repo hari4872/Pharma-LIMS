@@ -129,14 +129,14 @@ export default function SettingsPage() {
             onClick={() => selectGroup(g.id)}
             style={{
               display: 'flex', alignItems: 'center', gap: 7,
-              padding: '9px 18px',
+              padding: '10px 20px',
               borderRadius: '10px 10px 0 0',
               border: `1.5px solid ${activeGroup === g.id ? g.color : '#e2e8f0'}`,
               borderBottom: activeGroup === g.id ? `1.5px solid ${g.bg}` : '1.5px solid #e2e8f0',
               background: activeGroup === g.id ? g.bg : '#fff',
               color: activeGroup === g.id ? g.color : '#6b7280',
               fontWeight: activeGroup === g.id ? 800 : 600,
-              fontSize: 13, cursor: 'pointer',
+              fontSize: 15, cursor: 'pointer',
               fontFamily: 'inherit',
               transition: 'all 0.15s',
               marginBottom: activeGroup === g.id ? -1 : 0,
@@ -178,14 +178,14 @@ export default function SettingsPage() {
               onClick={() => setActiveSub(s.id)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 5,
-                padding: '6px 14px',
+                padding: '7px 16px',
                 borderRadius: '7px 7px 0 0',
                 border: `1px solid ${activeSub === s.id ? '#e2e8f0' : 'transparent'}`,
                 borderBottom: activeSub === s.id ? '1px solid #fff' : '1px solid transparent',
                 background: activeSub === s.id ? '#fff' : 'transparent',
                 color: activeSub === s.id ? group.color : '#6b7280',
                 fontWeight: activeSub === s.id ? 700 : 600,
-                fontSize: 12, cursor: 'pointer',
+                fontSize: 14, cursor: 'pointer',
                 fontFamily: 'inherit',
                 transition: 'all 0.12s',
                 marginBottom: activeSub === s.id ? -1 : 0,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import {
@@ -232,7 +232,7 @@ export default function SpcPage() {
                           <div style={{ fontWeight: 700, marginBottom: 4 }}>{d.sampleNumber}</div>
                           <div>Value: <strong>{d.value}</strong> {result.unit}</div>
                           <div>Mean: {d.mean}</div>
-                          {d.isOos && <div style={{ color: '#ef4444', fontWeight: 700 }}>● OOS</div>}
+                          {d.isOos && <div style={{ color: '#dc2626', fontWeight: 700 }}>● OOS</div>}
                           {d.isOot && <div style={{ color: '#f59e0b', fontWeight: 700 }}>● OOT</div>}
                         </div>
                       )
@@ -281,7 +281,7 @@ export default function SpcPage() {
                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
                 OOT
               </span>
-              <span style={{ fontSize: 11, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 11, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
                 OOS
               </span>
@@ -311,7 +311,7 @@ export default function SpcPage() {
                         <td style={{ padding: '6px 12px', color: '#374151' }}>{new Date(p.measuredAt).toLocaleDateString()}</td>
                         <td style={{ padding: '6px 12px', fontWeight: 700 }}>{p.value} {result.unit}</td>
                         <td style={{ padding: '6px 12px' }}>
-                          {p.isOos ? <span style={{ color: '#ef4444', fontWeight: 700 }}>OOS</span>
+                          {p.isOos ? <span style={{ color: '#dc2626', fontWeight: 700 }}>OOS</span>
                             : p.isOot ? <span style={{ color: '#f59e0b', fontWeight: 700 }}>OOT</span>
                               : <span style={{ color: '#16a34a' }}>OK</span>}
                         </td>

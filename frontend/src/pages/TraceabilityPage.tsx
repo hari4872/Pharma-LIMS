@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
@@ -832,7 +832,7 @@ export default function TraceabilityPage() {
             subtitle="From a lot number, instantly determine all affected downstream samples — for regulatory inspection (21 CFR 211.192).">
             <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <div style={{ flex: '0 0 280px' }}>
-                <label style={lbl}>Lot Number <span style={{ color: '#ef4444' }}>*</span></label>
+                <label style={lbl}>Lot Number <span style={{ color: '#dc2626' }}>*</span></label>
                 <input style={{ ...inp, width: '100%' }} value={recallLot}
                   onChange={e => setRecallLot(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleRecall()}
@@ -953,12 +953,12 @@ export default function TraceabilityPage() {
               subtitle="Submit a new record linked to a sample. All fields are permanently audit-logged.">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div>
-                  <label style={lbl}>Sample ID <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label style={lbl}>Sample ID <span style={{ color: '#dc2626' }}>*</span></label>
                   <input style={{ ...inp, width: '100%' }} type="number" placeholder="Numeric sample ID"
                     value={cdForm.sampleId} onChange={e => setCdForm(f => ({ ...f, sampleId: e.target.value }))} />
                 </div>
                 <div>
-                  <label style={lbl}>Type <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label style={lbl}>Type <span style={{ color: '#dc2626' }}>*</span></label>
                   <select style={{ ...inp, width: '100%' }} value={cdForm.cdType}
                     onChange={e => setCdForm(f => ({ ...f, cdType: e.target.value }))}>
                     <option value="">— Select type —</option>
@@ -968,7 +968,7 @@ export default function TraceabilityPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={lbl}>Reference <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label style={lbl}>Reference <span style={{ color: '#dc2626' }}>*</span></label>
                   <input style={{ ...inp, width: '100%' }} placeholder="e.g. CD-2026-001"
                     value={cdForm.cdReference} onChange={e => setCdForm(f => ({ ...f, cdReference: e.target.value }))} />
                 </div>

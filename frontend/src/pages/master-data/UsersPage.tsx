@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { getErrorMessage } from '@/utils/errors'
 import type { RootState } from '@/store'
@@ -37,13 +37,13 @@ export default function UsersPage() {
   const [labs, setLabs] = useState<Lab[]>([])
   const [loading, setLoading] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
-  const [roleConfirm, setRoleConfirm] = useState<{ from: string; to: string } | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ username: '', password: '', fullName: '', email: '', userType: 'RegularUser', role: 'Analyst', labId: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [editRow, setEditRow] = useState<UserRow | null>(null)
+  const [editRow, setEditRow]   = useState<UserRow | null>(null)
   const [editForm, setEditForm] = useState({ fullName: '', email: '', role: 'Analyst', labId: '' })
+  const roleChanged = editRow !== null && editForm.role !== editRow.role
   const [permUser, setPermUser] = useState<UserRow | null>(null)
   const [perms, setPerms] = useState<Record<string, boolean>>({})
   const [permSaving, setPermSaving] = useState(false)
@@ -78,10 +78,6 @@ export default function UsersPage() {
 
   async function submitEdit(e: React.FormEvent) {
     e.preventDefault()
-    if (editRow && editForm.role !== editRow.role) {
-      setRoleConfirm({ from: editRow.role, to: editForm.role })
-      return
-    }
     await doSaveEdit()
   }
 
@@ -89,7 +85,7 @@ export default function UsersPage() {
     setSaving(true); setError('')
     try {
       await api.put(`/users/${editRow!.userId}`, { ...editForm, labId: editForm.labId ? Number(editForm.labId) : null })
-      setEditRow(null); setRoleConfirm(null); load()
+      setEditRow(null); load()
       toast(`User "${editRow!.username}" updated successfully`, 'success')
     } catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
@@ -228,22 +224,6 @@ export default function UsersPage() {
           onClose={() => setAuditUser(null)}
         />
       )}
-      {roleConfirm && editRow && (
-        <Modal title="Confirm Role Change" onClose={() => setRoleConfirm(null)}>
-          <p style={{ fontSize: 13, color: '#374151', marginBottom: 8 }}>
-            You are changing <strong>{editRow.fullName}</strong>'s role from{' '}
-            <strong style={{ color: '#b45309' }}>{roleConfirm.from}</strong> →{' '}
-            <strong style={{ color: '#1d4ed8' }}>{roleConfirm.to}</strong>.
-          </p>
-          <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 4px' }}>
-            This updates their permissions on next login.
-          </p>
-          <form onSubmit={e => { e.preventDefault(); doSaveEdit() }}>
-            <ModalFooter saving={saving} onCancel={() => setRoleConfirm(null)} label="Yes, Change Role" />
-          </form>
-        </Modal>
-      )}
-
       {editRow && (
         <Modal title={`Edit User — ${editRow.username}`} onClose={() => setEditRow(null)}>
           <form onSubmit={submitEdit}>
@@ -254,13 +234,19 @@ export default function UsersPage() {
                 {['Admin', 'QA', 'QCLead', 'Analyst', 'LabManager', 'Viewer'].map(r => <option key={r}>{r}</option>)}
               </select>
             </Field>
+            {roleChanged && (
+              <div style={{ marginBottom: 12, padding: '9px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 7, fontSize: 12, color: '#92400e', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>⚠</span>
+                <span>Role changing from <strong>{editRow.role}</strong> → <strong>{editForm.role}</strong>. Permissions update on next login.</span>
+              </div>
+            )}
             <Field label="Laboratory (optional)">
               <select style={inp} value={editForm.labId} onChange={e => setEditForm(f => ({ ...f, labId: e.target.value }))}>
                 <option value="">None</option>
                 {labs.map(l => <option key={l.labId} value={l.labId}>{l.labName}</option>)}
               </select>
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
         </Modal>
@@ -289,7 +275,7 @@ export default function UsersPage() {
                 {labs.map(l => <option key={l.labId} value={l.labId}>{l.labName}</option>)}
               </select>
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
         </Modal>

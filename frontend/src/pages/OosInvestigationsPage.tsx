@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
+import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
@@ -137,8 +138,8 @@ export default function OosInvestigationsPage() {
         )},
         { header: 'Root Cause', accessor: r => r.rootCause ? <span style={{ fontSize: 12 }}>{r.rootCause}</span> : <span style={{ color: '#9ca3af', fontSize: 12 }}>Pending investigation</span> },
         { header: 'CAPA Ref', accessor: r => r.capaRef || '—' },
-        { header: 'Opened', accessor: r => new Date(r.openedAt).toLocaleDateString() },
-        { header: 'Closed', accessor: r => r.closedAt ? new Date(r.closedAt).toLocaleDateString() : '—' },
+        { header: 'Opened', accessor: r => fmtDate(r.openedAt) },
+        { header: 'Closed', accessor: r => r.closedAt ? fmtDate(r.closedAt) : '—' },
         { header: 'Actions', accessor: r => (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             {r.status === 'Open' && (
@@ -168,7 +169,7 @@ export default function OosInvestigationsPage() {
         )},
       ]} />
 
-      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />}
+      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="qa" />}
 
       {showClose && (
         <Modal title={`Close ${showClose.flagType} Investigation — ${showClose.sampleNumber}`} onClose={() => setShowClose(null)}>
@@ -240,7 +241,7 @@ export default function OosInvestigationsPage() {
             <Field label="Password (re-enter)"><input style={inp} type="password" value={closeForm.password} onChange={e => setCloseForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={closeForm.meaning} onChange={e => setCloseForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={closeForm.reason} onChange={e => setCloseForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Phase 1 investigation complete, root cause identified" /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowClose(null)} label="Close & Sign" />
           </form>
         </Modal>

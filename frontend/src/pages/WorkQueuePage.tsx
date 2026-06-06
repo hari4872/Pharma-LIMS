@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+﻿import { useEffect, useState, useRef, useCallback } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import { useNavigate } from 'react-router-dom'
 import api from '@/api/client'
+import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
@@ -390,7 +391,7 @@ export default function WorkQueuePage() {
                     <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
                       <span>👤 {r.analystName || '—'}</span>
                       <span>🔬 {r.instrumentCode || '—'}</span>
-                      {r.dueDate && <span style={{ color: overdue ? '#dc2626' : '#6b7280' }}>📅 Due: {new Date(r.dueDate).toLocaleDateString()}</span>}
+                      {r.dueDate && <span style={{ color: overdue ? '#dc2626' : '#6b7280' }}>📅 Due: {fmtDate(r.dueDate)}</span>}
                     </div>
                   </div>
 
@@ -627,8 +628,8 @@ export default function WorkQueuePage() {
           const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
           return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{r.status}</span>
         }},
-        { header: 'Due', accessor: r => r.dueDate ? <span style={{ color: isOverdue(r) ? '#dc2626' : '#374151' }}>{new Date(r.dueDate).toLocaleDateString()}</span> : '—' },
-        { header: 'Started', accessor: r => r.startedAt ? new Date(r.startedAt).toLocaleString() : '—' },
+        { header: 'Due', accessor: r => r.dueDate ? <span style={{ color: isOverdue(r) ? '#dc2626' : '#374151' }}>{fmtDate(r.dueDate)}</span> : '—' },
+        { header: 'Started', accessor: r => r.startedAt ? fmtDateTime(r.startedAt) : '—' },
         { header: 'Actions', accessor: r => (
           <div style={{ display: 'flex', gap: 6 }}>
             {r.status === 'Assigned' && (
@@ -677,7 +678,7 @@ export default function WorkQueuePage() {
               <input style={inp} type="number" min="1" max="100" value={reassignForm.priorityScore}
                 onChange={e => setReassignForm(f => ({ ...f, priorityScore: e.target.value }))} placeholder="1–100 (lower = higher priority)" />
             </Field>
-            {reassignError && <p style={{ color: '#ef4444', fontSize: 13, margin: '4px 0' }}>{reassignError}</p>}
+            {reassignError && <p style={{ color: '#dc2626', fontSize: 13, margin: '4px 0' }}>{reassignError}</p>}
             <ModalFooter saving={reassignSaving} onCancel={() => setReassignItem(null)} label="Re-assign" />
           </form>
         </Modal>
@@ -734,7 +735,7 @@ export default function WorkQueuePage() {
                         </div>
                         <div style={{ fontSize: 11, color: '#6b7280', textAlign: 'right' }}>
                           <div>{s.labName}</div>
-                          <div>Cal. due: {new Date(s.calibrationDue).toLocaleDateString()}</div>
+                          <div>Cal. due: {fmtDate(s.calibrationDue)}</div>
                         </div>
                         <span style={{
                           minWidth: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -756,7 +757,7 @@ export default function WorkQueuePage() {
             <Field label="Priority Score (lower = higher priority)">
               <input style={inp} type="number" min="1" max="100" value={form.priorityScore} onChange={e => setForm(f => ({ ...f, priorityScore: e.target.value }))} placeholder="e.g. 1 (urgent)" />
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowAssign(false)} label="Assign" />
           </form>
         </Modal>
@@ -766,6 +767,7 @@ export default function WorkQueuePage() {
           sampleId={detailSampleId}
           onClose={() => setDetailSampleId(null)}
           onStartTask={startTask}
+          context="workqueue"
         />
       )}
 
@@ -780,7 +782,7 @@ export default function WorkQueuePage() {
           {!handoverLoading && handoverData && (
             <>
               <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
-                Generated at: {new Date(handoverData.generatedAt).toLocaleString()}
+                Generated at: {fmtDateTime(handoverData.generatedAt)}
               </p>
               <div style={{
                 background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8,

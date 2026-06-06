@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
@@ -152,7 +152,7 @@ export default function StabilityPullsPage() {
                 <input style={inp} value={schedForm.requiredQtyUom} onChange={e => setSchedForm(f => ({ ...f, requiredQtyUom: e.target.value }))} required placeholder="g, mL, units" />
               </Field>
             </div>
-            {error && <p style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowSchedule(false)} />
           </form>
         </Modal>
@@ -183,7 +183,7 @@ export default function StabilityPullsPage() {
             <Field label="Meaning">
               <input style={inp} value={execForm.meaning} onChange={e => setExecForm(f => ({ ...f, meaning: e.target.value }))} required />
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowExecute(null)} label="Confirm Pull" />
           </form>
         </Modal>

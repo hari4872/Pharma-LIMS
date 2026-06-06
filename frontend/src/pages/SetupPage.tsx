@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '@/api/client'
 
@@ -37,7 +37,7 @@ export default function SetupPage() {
                 value={form[k]} onChange={set(k)} required />
             </div>
           ))}
-          {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+          {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
           <button style={{ width: '100%', padding: '10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, fontSize: 15, fontWeight: 600, cursor: 'pointer', marginTop: 8 }} disabled={loading}>
             {loading ? 'Creating…' : 'Create Admin'}
           </button>

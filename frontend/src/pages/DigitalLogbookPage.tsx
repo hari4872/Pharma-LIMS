@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
+import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
@@ -114,17 +115,18 @@ export default function DigitalLogbookPage() {
   // ── Check for overdue slots from past 7 days ──────────────────────────────
   async function checkOverdueSlots() {
     const today = new Date()
-    const found: { date: string; count: number }[] = []
-    for (let d = 1; d <= 7; d++) {
-      const past = new Date(today)
-      past.setDate(today.getDate() - d)
-      const dateStr = past.toISOString().slice(0, 10)
-      try {
-        const r = await api.get(`/checkpoints/process-log?date=${dateStr}`)
-        const openCount = (r.data as ProcessLogRow[]).filter(row => row.status === 'Open').length
-        if (openCount > 0) found.push({ date: dateStr, count: openCount })
-      } catch { /* ignore */ }
-    }
+    const dates = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today)
+      d.setDate(today.getDate() - (i + 1))
+      return d.toISOString().slice(0, 10)
+    })
+    const results = await Promise.allSettled(
+      dates.map(dateStr => api.get(`/checkpoints/process-log?date=${dateStr}`).then(r => ({ dateStr, data: r.data as ProcessLogRow[] })))
+    )
+    const found = results
+      .filter((r): r is PromiseFulfilledResult<{ dateStr: string; data: ProcessLogRow[] }> => r.status === 'fulfilled')
+      .map(r => ({ date: r.value.dateStr, count: r.value.data.filter(row => row.status === 'Open').length }))
+      .filter(r => r.count > 0)
     setOverdueSlots(found)
   }
   useEffect(() => { const t = setTimeout(() => { if (tab === 'processlog') checkOverdueSlots() }, 0); return () => clearTimeout(t) }, [tab])
@@ -192,7 +194,7 @@ export default function DigitalLogbookPage() {
     <div>
       {/* ── Page header ────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#111827' }}>Digital Logbook</h1>
+        <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#111827' }}>Digital Logbook</h1>
         {tab === 'processlog' && openCount > 0 && (
           <span style={{ padding: '4px 12px', background: '#fef9c3', color: '#854d0e', borderRadius: 20, fontSize: 13, fontWeight: 700, border: '1px solid #fde68a' }}>
             🔔 {openCount} row{openCount > 1 ? 's' : ''} pending sign-off
@@ -293,7 +295,7 @@ export default function DigitalLogbookPage() {
                 color: r.status === 'Signed' ? '#065f46' : r.status === 'Superseded' ? '#6b7280' : '#854d0e' }}>{r.status}</span>
             )},
             { header: 'Signed By / At', accessor: r => r.signedByFullName
-              ? <span style={{ fontSize: 12 }}>{r.signedByFullName}<br /><span style={{ color: '#6b7280' }}>{new Date(r.signedAt!).toLocaleString()}</span></span>
+              ? <span style={{ fontSize: 12 }}>{r.signedByFullName}<br /><span style={{ color: '#6b7280' }}>{fmtDateTime(r.signedAt!)}</span></span>
               : '—' },
             { header: 'Actions', accessor: r => r.status === 'Signed' && canAmend ? (
               <button onClick={() => { setAmendEntry(r); setAmendForm({ newRawValue: r.rawValue, amendmentReason: '', password: '', meaning: 'I attest the amendment is accurate and complete', reason: '' }); setAmendError('') }}
@@ -389,7 +391,7 @@ export default function DigitalLogbookPage() {
               <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 15 }}>{r.slotLabel}</span>
             )},
             { header: 'Date / Time (UTC)', accessor: r => (
-              <span style={{ fontSize: 13, color: '#374151' }}>{new Date(r.slotTime).toLocaleString()}</span>
+              <span style={{ fontSize: 13, color: '#374151' }}>{fmtDateTime(r.slotTime)}</span>
             )},
             { header: 'Status', accessor: r => (
               <span style={{
@@ -420,7 +422,7 @@ export default function DigitalLogbookPage() {
                   border: 'none', borderRadius: 6, cursor: signLoading ? 'not-allowed' : 'pointer',
                   fontSize: 13, fontWeight: 700,
                 }}>
-                {signLoading ? '…' : '✍ Sign & Lock'}
+                {signLoading ? '…' : 'Sign & Lock'}
               </button>
             ) : (
               <span style={{ fontSize: 12, color: '#9ca3af' }}>— Signed —</span>
@@ -437,7 +439,7 @@ export default function DigitalLogbookPage() {
         </>
       )}
 
-      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />}
+      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="qa" />}
 
       {/* ── Amendment Modal ───────────────────────────────────────────────── */}
       {amendEntry && (
@@ -473,7 +475,7 @@ export default function DigitalLogbookPage() {
               <input style={inp} value={amendForm.reason} onChange={e => setAmendForm(f => ({ ...f, reason: e.target.value }))} required
                 placeholder="e.g. Correcting data entry error per SOP-LAB-012" />
             </Field>
-            {amendError && <p style={{ color: '#ef4444', fontSize: 13, margin: '4px 0' }}>{amendError}</p>}
+            {amendError && <p style={{ color: '#dc2626', fontSize: 13, margin: '4px 0' }}>{amendError}</p>}
             <ModalFooter saving={amendSaving} onCancel={() => setAmendEntry(null)} label="Submit Amendment" />
           </form>
         </Modal>
@@ -487,7 +489,7 @@ export default function DigitalLogbookPage() {
               {signRow.checkpointCode} — Shift Slot {signRow.slotLabel}
             </div>
             <div style={{ fontSize: 12, color: '#374151' }}>
-              {new Date(signRow.slotTime).toLocaleString()} UTC
+              {fmtDateTime(signRow.slotTime)} UTC
             </div>
           </div>
           <form onSubmit={handleSign}>
@@ -543,8 +545,8 @@ export default function DigitalLogbookPage() {
                 onChange={e => setSignForm(f => ({ ...f, reason: e.target.value }))} required
                 placeholder="e.g. End of shift — all parameters within range" />
             </Field>
-            {signError && <p style={{ color: '#ef4444', fontSize: 13, margin: '4px 0' }}>{signError}</p>}
-            <ModalFooter saving={signSaving} onCancel={() => setSignRow(null)} label="✍ Sign & Lock Row" />
+            {signError && <p style={{ color: '#dc2626', fontSize: 13, margin: '4px 0' }}>{signError}</p>}
+            <ModalFooter saving={signSaving} onCancel={() => setSignRow(null)} label="Sign & Lock Row" />
           </form>
         </Modal>
       )}

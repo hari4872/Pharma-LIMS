@@ -820,8 +820,8 @@ export default function DashboardPage() {
                     {[
                       { color: '#22c55e', label: 'In Control' },
                       { color: '#f59e0b', label: 'OOT (Out of Trend)' },
-                      { color: '#ef4444', label: 'OOS / Out of Control' },
-                      { color: '#ef4444', label: '── UCL / LCL', dashed: true },
+                      { color: '#dc2626', label: 'OOS / Out of Control' },
+                      { color: '#dc2626', label: '── UCL / LCL', dashed: true },
                       { color: '#22c55e', label: '── Mean (μ)', dashed: true },
                     ].map((l, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>

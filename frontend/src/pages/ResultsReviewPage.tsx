@@ -1,7 +1,8 @@
-import { useEffect, useState, useMemo } from 'react'
+﻿import { useEffect, useState, useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
+import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
@@ -320,7 +321,7 @@ export default function ResultsReviewPage() {
 
                     {/* Completed date */}
                     <td style={{ padding: '10px 16px', fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>
-                      {r.completedAt ? new Date(r.completedAt).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—'}
+                      {r.completedAt ? fmtDate(r.completedAt) : '—'}
                     </td>
 
                     {/* Actions — link-style like the screenshot */}
@@ -417,6 +418,7 @@ export default function ResultsReviewPage() {
         <SampleDetailSheet
           sampleId={detailSampleId}
           onClose={() => setDetailSampleId(null)}
+          context="qa"
         />
       )}
     </div>

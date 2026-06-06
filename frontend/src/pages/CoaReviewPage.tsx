@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
+import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
@@ -234,51 +235,167 @@ export default function CoaReviewPage() {
   function handlePrint(coa: CoaItem) {
     const win = window.open('', '_blank', 'width=900,height=700')
     if (!win) return
-    const lines = coa.lines.map(l =>
-      `<tr><td>${l.parameterName}</td><td style="font-family:monospace">${l.methodCode}</td><td>${l.specMin ?? '—'} – ${l.specMax ?? '—'}</td><td style="font-family:monospace">${l.calculatedResult ?? '—'}</td><td style="font-weight:600;color:${l.passFail === 'PASS' ? '#065f46' : '#991b1b'}">${l.passFail}</td><td>${l.analystName}</td></tr>`
-    ).join('')
-    win.document.write(`<!DOCTYPE html><html><head><title>CoA ${coa.coaNumber}</title>
+
+    const allPass    = coa.lines.every(l => l.passFail === 'PASS')
+    const conclusion = allPass ? 'CONFORMS TO SPECIFICATION' : 'DOES NOT CONFORM TO SPECIFICATION'
+    const conclusionColor = allPass ? '#065f46' : '#991b1b'
+    const conclusionBg    = allPass ? '#d1fae5' : '#fee2e2'
+    const issuedDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+
+    const lineRows = coa.lines.map((l, i) => {
+      const specText = l.specMin !== null && l.specMax !== null
+        ? `${l.specMin} – ${l.specMax}`
+        : l.specMin !== null ? `NLT ${l.specMin}`
+        : l.specMax !== null ? `NMT ${l.specMax}`
+        : '—'
+      const passColor = l.passFail === 'PASS' ? '#065f46' : '#991b1b'
+      const passBg    = l.passFail === 'PASS' ? '#d1fae5' : '#fee2e2'
+      return `<tr>
+        <td style="text-align:center;color:#6b7280">${i + 1}</td>
+        <td>${l.parameterName}</td>
+        <td style="font-family:monospace;font-size:11px">${l.methodCode}</td>
+        <td>${specText}</td>
+        <td style="font-family:monospace;font-weight:600">${l.calculatedResult ?? '—'}</td>
+        <td><span style="background:${passBg};color:${passColor};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${l.passFail}</span></td>
+        <td style="font-size:11px;color:#6b7280">${l.analystName}</td>
+      </tr>`
+    }).join('')
+
+    win.document.write(`<!DOCTYPE html><html><head>
+    <title>CoA ${coa.coaNumber}</title>
     <style>
-      body{font-family:'Segoe UI',system-ui,sans-serif;padding:32px;color:#111827;font-size:13px}
-      h1{font-size:20px;font-weight:700;margin:0 0 4px}
-      h2{font-size:14px;font-weight:700;margin:20px 0 8px;padding-bottom:4px;border-bottom:2px solid #e5e7eb}
-      .meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 32px;margin-bottom:16px}
-      .meta span{color:#6b7280}
-      table{width:100%;border-collapse:collapse;font-size:12px}
-      th{padding:7px 10px;text-align:left;background:#f8fafc;border-bottom:2px solid #e5e7eb;font-weight:600;color:#374151;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
-      td{padding:6px 10px;border-bottom:1px solid #f1f5f9}
-      .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
-      .pass{background:#d1fae5;color:#065f46}.fail{background:#fee2e2;color:#991b1b}
-      .footer{margin-top:32px;padding-top:16px;border-top:2px solid #e5e7eb;display:flex;justify-content:space-between;font-size:12px;color:#6b7280}
-      @media print{body{padding:16px}}
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Segoe UI',Arial,sans-serif;padding:28px 36px;color:#111827;font-size:13px;line-height:1.5}
+      .header-bar{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0d9488;padding-bottom:14px;margin-bottom:16px}
+      .company{font-size:18px;font-weight:800;color:#0d9488;letter-spacing:.02em}
+      .company-sub{font-size:11px;color:#6b7280;margin-top:2px}
+      .doc-title{text-align:right}
+      .doc-title h1{font-size:17px;font-weight:800;color:#0f172a}
+      .doc-title .doc-meta{font-size:11px;color:#6b7280;margin-top:3px}
+      .section{margin-bottom:14px}
+      .section-head{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#6b7280;background:#f8fafc;padding:4px 10px;border-left:3px solid #0d9488;margin-bottom:8px}
+      .grid2{display:grid;grid-template-columns:1fr 1fr;gap:5px 32px;padding:0 4px}
+      .grid2 .row{display:flex;gap:6px;font-size:12.5px}
+      .grid2 .lbl{color:#6b7280;min-width:110px;flex-shrink:0}
+      .grid2 .val{font-weight:600;color:#0f172a}
+      table{width:100%;border-collapse:collapse;font-size:12px;margin-top:2px}
+      thead tr{background:#f1f5f9}
+      th{padding:7px 10px;text-align:left;font-weight:700;color:#374151;font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #e2e8f0}
+      td{padding:6px 10px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+      tbody tr:nth-child(even){background:#fafafa}
+      .conclusion{margin:14px 0;padding:12px 18px;border-radius:8px;border:2px solid ${conclusionColor};background:${conclusionBg};display:flex;align-items:center;gap:12px}
+      .conclusion-text{font-size:14px;font-weight:800;color:${conclusionColor};letter-spacing:.02em}
+      .sig-box{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+      .sig-line{border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;background:#fafafa}
+      .sig-line .sig-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;margin-bottom:6px}
+      .sig-line .sig-name{font-size:13px;font-weight:700;color:#0f172a}
+      .sig-line .sig-date{font-size:11px;color:#6b7280;margin-top:2px}
+      .sig-line .sig-esig{font-size:10px;color:#0d9488;margin-top:4px}
+      .footer{margin-top:20px;padding-top:10px;border-top:2px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#9ca3af}
+      .status-badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;background:${coa.status === 'Released' ? '#d1fae5' : '#fef9c3'};color:${coa.status === 'Released' ? '#065f46' : '#854d0e'}}
+      @media print{body{padding:16px 20px}@page{margin:12mm}}
     </style>
     </head><body>
-    <h1>Certificate of Analysis</h1>
-    <p style="color:#6b7280;margin:0 0 16px">Generated by Pharma-LIMS — 21 CFR Part 11 Compliant</p>
-    <h2>Header</h2>
-    <div class="meta">
-      <div><span>CoA Number:</span> <strong>${coa.coaNumber}</strong></div>
-      <div><span>Status:</span> <strong>${coa.status}</strong></div>
-      <div><span>Sample No.:</span> <strong>${coa.sampleNumber}</strong></div>
-      <div><span>Material / Lot:</span> <strong>${coa.materialName} / ${coa.lotNumber}</strong></div>
-      <div><span>Customer:</span> <strong>${coa.customerName ?? '—'}</strong></div>
-      <div><span>DO Number:</span> <strong>${coa.doNumber ?? '—'}</strong></div>
-      <div><span>Despatch Date:</span> <strong>${coa.despatchDate ?? '—'}</strong></div>
-      <div><span>QA Signed By:</span> <strong>${coa.qaSignedBy ?? 'Pending'}</strong></div>
+
+    <!-- ── Letterhead ── -->
+    <div class="header-bar">
+      <div>
+        <div class="company">Pharma LIMS</div>
+        <div class="company-sub">Quality Control Laboratory · GMP Certified</div>
+        <div class="company-sub" style="margin-top:8px;font-size:12px;color:#374151">
+          <strong>CERTIFICATE OF ANALYSIS</strong>
+        </div>
+      </div>
+      <div class="doc-title">
+        <div style="font-size:13px;font-weight:700;color:#0f172a">${coa.coaNumber}</div>
+        <div class="doc-meta">Date of Issue: ${issuedDate}</div>
+        <div class="doc-meta">Status: <span class="status-badge">${coa.status}</span></div>
+      </div>
     </div>
-    <h2>Test Results</h2>
-    <table>
-      <thead><tr><th>Parameter</th><th>Method</th><th>Spec Range</th><th>Result</th><th>Pass/Fail</th><th>Analyst</th></tr></thead>
-      <tbody>${lines}</tbody>
-    </table>
+
+    <!-- ── Product Information ── -->
+    <div class="section">
+      <div class="section-head">Product Information</div>
+      <div class="grid2">
+        <div class="row"><span class="lbl">Product Name</span><span class="val">${coa.materialName}</span></div>
+        <div class="row"><span class="lbl">Sample No.</span><span class="val">${coa.sampleNumber}</span></div>
+        <div class="row"><span class="lbl">Batch / Lot No.</span><span class="val">${coa.lotNumber}</span></div>
+        <div class="row"><span class="lbl">CoA Number</span><span class="val">${coa.coaNumber}</span></div>
+      </div>
+    </div>
+
+    <!-- ── Customer / Dispatch ── -->
+    <div class="section">
+      <div class="section-head">Customer &amp; Dispatch</div>
+      <div class="grid2">
+        <div class="row"><span class="lbl">Customer</span><span class="val">${coa.customerName ?? '—'}</span></div>
+        <div class="row"><span class="lbl">DO Number</span><span class="val">${coa.doNumber ?? '—'}</span></div>
+        <div class="row"><span class="lbl">Despatch Date</span><span class="val">${coa.despatchDate ?? '—'}</span></div>
+        <div class="row"><span class="lbl">Date of Analysis</span><span class="val">${coa.lockedAt ? fmtDate(coa.lockedAt) : issuedDate}</span></div>
+      </div>
+    </div>
+
+    <!-- ── Test Results ── -->
+    <div class="section">
+      <div class="section-head">Test Results</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:30px">#</th>
+            <th>Parameter</th>
+            <th>Method Code</th>
+            <th>Specification</th>
+            <th>Result</th>
+            <th>Pass / Fail</th>
+            <th>Analyst</th>
+          </tr>
+        </thead>
+        <tbody>${lineRows}</tbody>
+      </table>
+    </div>
+
+    <!-- ── Conclusion ── -->
+    <div class="conclusion">
+      <span style="font-size:20px">${allPass ? '✓' : '✗'}</span>
+      <div>
+        <div class="conclusion-text">${conclusion}</div>
+        <div style="font-size:11px;color:${conclusionColor};margin-top:2px">
+          ${coa.lines.length} parameter${coa.lines.length !== 1 ? 's' : ''} tested ·
+          ${coa.lines.filter(l => l.passFail === 'PASS').length} pass ·
+          ${coa.lines.filter(l => l.passFail !== 'PASS').length} fail
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Signatures ── -->
+    <div class="section">
+      <div class="section-head">Authorisation &amp; E-Signatures (21 CFR Part 11)</div>
+      <div class="sig-box">
+        <div class="sig-line">
+          <div class="sig-title">QA Released By</div>
+          <div class="sig-name">${coa.qaSignedBy ?? 'Pending'}</div>
+          <div class="sig-date">${coa.qaSignedAt ? fmtDateTime(coa.qaSignedAt) : '—'}</div>
+          <div class="sig-esig">⚡ Electronic signature — 21 CFR Part 11</div>
+        </div>
+        <div class="sig-line">
+          <div class="sig-title">Document Status</div>
+          <div class="sig-name">${coa.status}</div>
+          <div class="sig-date">Issued: ${issuedDate}</div>
+          <div class="sig-esig">CoA Ref: ${coa.coaNumber}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Footer ── -->
     <div class="footer">
-      <span>Pharma-LIMS — ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-      <span>21 CFR Part 11 Electronic Signature</span>
+      <span>This document is an electronic record generated by Pharma LIMS · 21 CFR Part 11 compliant · Do not alter</span>
+      <span>${coa.coaNumber} · Page 1 of 1</span>
     </div>
+
     </body></html>`)
     win.document.close()
     win.focus()
-    setTimeout(() => win.print(), 400)
+    setTimeout(() => win.print(), 500)
   }
 
   const allChecklistPassed = checklist?.every(c => c.pass) ?? false
@@ -332,7 +449,7 @@ export default function CoaReviewPage() {
           return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 500, background: c.bg, color: c.color }}>{r.status}</span>
         }},
         { header: 'QA Signed By', accessor: r => r.qaSignedBy
-          ? <span style={{ fontSize: 12 }}>{r.qaSignedBy}<br /><span style={{ color: '#6b7280' }}>{new Date(r.qaSignedAt!).toLocaleString()}</span></span>
+          ? <span style={{ fontSize: 12 }}>{r.qaSignedBy}<br /><span style={{ color: '#6b7280' }}>{fmtDateTime(r.qaSignedAt!)}</span></span>
           : '—' },
         { header: 'Actions', accessor: r => (
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -474,7 +591,7 @@ export default function CoaReviewPage() {
             <Field label="Password (re-enter)"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={form.meaning} onChange={e => setForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. All results reviewed and meet specification" /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowApprove(false)} label="Sign & Approve CoA" />
           </form>
         </Modal>
@@ -501,7 +618,7 @@ export default function CoaReviewPage() {
             <Field label="Password (re-enter)"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={form.meaning} onChange={e => setForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Batch required for urgent supply — evidence pending" /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowConditional(false)} label="Sign & Conditionally Release" />
           </form>
         </Modal>
@@ -520,7 +637,7 @@ export default function CoaReviewPage() {
             <Field label="Password (re-enter)"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={form.meaning} onChange={e => setForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowReject(false)} label="Sign & Reject CoA" />
           </form>
         </Modal>
@@ -549,7 +666,7 @@ export default function CoaReviewPage() {
                 </select>
               )}
             </Field>
-            {generateError && <p style={{ color: '#ef4444', fontSize: 13, margin: '6px 0 0' }}>{generateError}</p>}
+            {generateError && <p style={{ color: '#dc2626', fontSize: 13, margin: '6px 0 0' }}>{generateError}</p>}
             <ModalFooter saving={generateSaving} onCancel={() => setShowGenerate(false)} label="Generate CoA" />
           </form>
         </Modal>
@@ -557,7 +674,7 @@ export default function CoaReviewPage() {
 
       {/* ── Sample Detail Sheet ──────────────────────────────────────────── */}
       {detailSampleId && (
-        <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />
+        <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="release" />
       )}
 
       {/* ── Reissue CoA Modal ─────────────────────────────────────────────── */}
@@ -578,7 +695,7 @@ export default function CoaReviewPage() {
                 placeholder="e.g. Customer name correction / Updated spec version applied / Transcription error in lot number"
               />
             </Field>
-            {reissueError && <p style={{ color: '#ef4444', fontSize: 13, margin: '6px 0 0' }}>{reissueError}</p>}
+            {reissueError && <p style={{ color: '#dc2626', fontSize: 13, margin: '6px 0 0' }}>{reissueError}</p>}
             <ModalFooter saving={reissueSaving} onCancel={() => { setShowReissue(false); setReissueTarget(null) }} label="🔄 Reissue CoA" />
           </form>
         </Modal>

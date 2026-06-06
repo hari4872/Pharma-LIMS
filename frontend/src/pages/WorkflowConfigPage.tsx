@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import { toast } from '@/components/Toast'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+
+interface Material   { materialId: number; materialName: string }
+interface SampleType { sampleTypeId: number; typeName: string; typeCode: string }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface WorkflowStep {
@@ -33,17 +36,37 @@ interface WorkflowTemplate {
   steps: WorkflowStep[]
 }
 
-const ROLES    = ['Analyst', 'LabManager', 'QA', 'Admin']
-const GATES    = ['', 'AllTestsComplete', 'NoOpenOOS', 'LogbookSigned', 'CoAApproved']
+const ROLES    = ['Analyst', 'QCLead', 'LabManager', 'QA', 'Admin']
+
+// ── Step 1: Full gate list ────────────────────────────────────────────────────
+const GATES = [
+  '', 'AllTestsComplete', 'NoOpenOOS', 'LogbookSigned', 'CoAApproved',
+  'SRFSigned', 'FormTemplateFilled', 'CheckpointsSigned', 'SpecAssigned',
+]
 const GATE_LABEL: Record<string, string> = {
-  AllTestsComplete: 'All Tests Complete',
-  NoOpenOOS:        'No Open OOS',
-  LogbookSigned:    'Logbook Signed',
-  CoAApproved:      'CoA Approved',
+  AllTestsComplete:   'All Tests Complete',
+  NoOpenOOS:          'No Open OOS',
+  LogbookSigned:      'Logbook Signed',
+  CoAApproved:        'CoA Approved',
+  SRFSigned:          'SRF Signed',
+  FormTemplateFilled: 'Form Template Filled',
+  CheckpointsSigned:  'Checkpoints Signed Today',
+  SpecAssigned:       'Spec Template Assigned',
+}
+export const GATE_HELP: Record<string, string> = {
+  AllTestsComplete:   'Complete all test executions in Work Queue',
+  NoOpenOOS:          'Close open OOS investigations in QA → OOS Investigations',
+  LogbookSigned:      'Sign all logbook entries in Digital Logbook',
+  CoAApproved:        'Approve the CoA in Release → CoA Review',
+  SRFSigned:          'Sign the SRF in Sample Registration',
+  FormTemplateFilled: 'Fill the monitoring form in Work Queue → Test Execution',
+  CheckpointsSigned:  'Sign pending checkpoint slots in Digital Logbook → Process Log',
+  SpecAssigned:       'Assign a spec template via 📋 Plan in Sample Registration',
 }
 
 const ROLE_COLOR: Record<string, { bg: string; color: string }> = {
   Analyst:    { bg: '#dbeafe', color: '#1d4ed8' },
+  QCLead:     { bg: '#e0f2fe', color: '#0369a1' },
   LabManager: { bg: '#fef3c7', color: '#92400e' },
   QA:         { bg: '#ede9fe', color: '#7c3aed' },
   Admin:      { bg: '#fee2e2', color: '#b91c1c' },
@@ -64,6 +87,19 @@ export default function WorkflowConfigPage() {
   const [templates, setTemplates]       = useState<WorkflowTemplate[]>([])
   const [selected, setSelected]         = useState<WorkflowTemplate | null>(null)
   const [loading, setLoading]           = useState(false)
+  const [materials,    setMaterials]    = useState<Material[]>([])
+  const [sampleTypes,  setSampleTypes]  = useState<SampleType[]>([])
+
+  // Inline confirm state
+  const [confirmMsg,  setConfirmMsg]   = useState('')
+  const [confirmFn,   setConfirmFn]    = useState<(() => void) | null>(null)
+
+  function askConfirm(msg: string, fn: () => void) {
+    setConfirmMsg(msg); setConfirmFn(() => fn)
+  }
+
+  // Step 2: view toggle + reorder
+  const [flowView, setFlowView] = useState(false)
 
   // Template modal state
   const [showTplModal, setShowTplModal] = useState(false)
@@ -82,9 +118,14 @@ export default function WorkflowConfigPage() {
   async function load() {
     setLoading(true)
     try {
-      const r = await api.get('/workflow-templates')
+      const [r, mr, str] = await Promise.all([
+        api.get('/workflow-templates'),
+        api.get('/materials').catch(() => ({ data: [] })),
+        api.get('/sample-types').catch(() => ({ data: [] })),
+      ])
       setTemplates(r.data)
-      // Refresh selected if it exists
+      setMaterials(mr.data)
+      setSampleTypes(str.data)
       if (selected) {
         const fresh = r.data.find((t: WorkflowTemplate) => t.workflowTemplateId === selected.workflowTemplateId)
         setSelected(fresh ?? null)
@@ -142,13 +183,14 @@ export default function WorkflowConfigPage() {
   }
 
   async function deleteTpl(t: WorkflowTemplate) {
-    if (!window.confirm(`Delete workflow template "${t.name}"? This will also delete all its steps.`)) return
-    try {
-      await api.delete(`/workflow-templates/${t.workflowTemplateId}`)
-      toast('Template deleted', 'success')
-      if (selected?.workflowTemplateId === t.workflowTemplateId) setSelected(null)
-      load()
-    } catch { toast('Delete failed', 'error') }
+    askConfirm(`Delete "${t.name}"? All steps will also be removed.`, async () => {
+      try {
+        await api.delete(`/workflow-templates/${t.workflowTemplateId}`)
+        toast('Template deleted', 'success')
+        if (selected?.workflowTemplateId === t.workflowTemplateId) setSelected(null)
+        load()
+      } catch (err) { toast(getErrorMessage(err, 'Delete failed'), 'error') }
+    })
   }
 
   // ── Step CRUD ────────────────────────────────────────────────────────────
@@ -200,13 +242,32 @@ export default function WorkflowConfigPage() {
 
   async function deleteStep(s: WorkflowStep) {
     if (!selected) return
-    if (!window.confirm(`Delete step "${s.stepName}"?`)) return
+    askConfirm(`Delete step "${s.stepName}"?`, async () => {
+      try {
+        await api.delete(`/workflow-templates/${selected.workflowTemplateId}/steps/${s.workflowStepId}`)
+        toast('Step deleted', 'success')
+        const r = await api.get(`/workflow-templates/${selected.workflowTemplateId}`)
+        setSelected(r.data)
+      } catch (err) { toast(getErrorMessage(err, 'Delete failed'), 'error') }
+    })
+  }
+
+  // ── Step 2: Reorder steps ────────────────────────────────────────────────
+  async function reorderStep(s: WorkflowStep, direction: 'up' | 'down') {
+    if (!selected) return
+    const sorted = [...selected.steps].sort((a, b) => a.stepOrder - b.stepOrder)
+    const idx = sorted.findIndex(x => x.workflowStepId === s.workflowStepId)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= sorted.length) return
+    const other = sorted[swapIdx]
     try {
-      await api.delete(`/workflow-templates/${selected.workflowTemplateId}/steps/${s.workflowStepId}`)
-      toast('Step deleted', 'success')
+      await Promise.all([
+        api.put(`/workflow-templates/${selected.workflowTemplateId}/steps/${s.workflowStepId}`,     { ...s, stepOrder: other.stepOrder }),
+        api.put(`/workflow-templates/${selected.workflowTemplateId}/steps/${other.workflowStepId}`, { ...other, stepOrder: s.stepOrder }),
+      ])
       const r = await api.get(`/workflow-templates/${selected.workflowTemplateId}`)
       setSelected(r.data)
-    } catch { toast('Delete failed', 'error') }
+    } catch { toast('Reorder failed', 'error') }
   }
 
   const scopeLabel = (t: WorkflowTemplate) => {
@@ -221,7 +282,7 @@ export default function WorkflowConfigPage() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>Configurable Workflow Engine</h2>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>Configurable Workflow Engine</h2>
           <p style={{ margin: '2px 0 0', fontSize: 13, color: '#6b7280' }}>
             Define step-by-step quality workflows per material/sample type · Gate conditions enforce 21 CFR compliance
           </p>
@@ -293,27 +354,96 @@ export default function WorkflowConfigPage() {
             </div>
           ) : (
             <div>
+              {/* Steps header with view toggle */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div>
                   <span style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>Steps: {selected.name}</span>
                   <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 10 }}>{scopeLabel(selected)}</span>
                 </div>
-                <button onClick={openNewStep}
-                  style={{ padding: '6px 14px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-                  + Add Step
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {/* Step 5: View toggle */}
+                  <div style={{ display: 'flex', border: '1px solid #e2e8f0', borderRadius: 7, overflow: 'hidden' }}>
+                    <button onClick={() => setFlowView(false)}
+                      style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none', background: !flowView ? '#0d9488' : '#fff', color: !flowView ? '#fff' : '#6b7280', fontFamily: 'inherit' }}>
+                      ☰ List
+                    </button>
+                    <button onClick={() => setFlowView(true)}
+                      style={{ padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', border: 'none', background: flowView ? '#0d9488' : '#fff', color: flowView ? '#fff' : '#6b7280', fontFamily: 'inherit' }}>
+                      ⟶ Flow
+                    </button>
+                  </div>
+                  <button onClick={openNewStep}
+                    style={{ padding: '6px 14px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                    + Add Step
+                  </button>
+                </div>
               </div>
 
               {selected.steps.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center', color: '#9ca3af', fontSize: 13, border: '1px dashed #e5e7eb', borderRadius: 8 }}>
                   No steps yet. Click "+ Add Step" to build the workflow.
                 </div>
+              ) : flowView ? (
+
+                /* ── Step 5: Visual flow view ─────────────────────────── */
+                <div style={{ overflowX: 'auto', paddingBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, minWidth: 'max-content' }}>
+                    {[...selected.steps].sort((a, b) => a.stepOrder - b.stepOrder).map((s, idx, arr) => {
+                      const rc = ROLE_COLOR[s.requiredRole] ?? { bg: '#f3f4f6', color: '#374151' }
+                      return (
+                        <div key={s.workflowStepId} style={{ display: 'flex', alignItems: 'center' }}>
+                          {/* Step box */}
+                          <div style={{ width: 160, border: '1.5px solid #e2e8f0', borderRadius: 10, background: '#fff', padding: '12px 14px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                            {/* Step number + role */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                              <div style={{ width: 22, height: 22, borderRadius: '50%', background: '#0d6e6e', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
+                                {s.stepOrder}
+                              </div>
+                              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 6, background: rc.bg, color: rc.color, fontWeight: 700 }}>{s.requiredRole}</span>
+                            </div>
+                            {/* Step name */}
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', marginBottom: 6, lineHeight: 1.3 }}>{s.stepName}</div>
+                            {/* Gate */}
+                            {s.gateCondition && (
+                              <div style={{ fontSize: 10, padding: '2px 7px', borderRadius: 5, background: '#ede9fe', color: '#7c3aed', border: '1px solid #ddd6fe', marginBottom: 4 }}>
+                                🔒 {GATE_LABEL[s.gateCondition] ?? s.gateCondition}
+                              </div>
+                            )}
+                            {/* E-sign */}
+                            {s.requiresESignature && (
+                              <div style={{ fontSize: 10, color: '#854d0e', fontWeight: 600 }}>🔏 E-Sign required</div>
+                            )}
+                            {/* Edit/Del */}
+                            <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                              <button onClick={() => openEditStep(s)} style={{ flex: 1, padding: '3px 0', fontSize: 10, background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', color: '#374151' }}>Edit</button>
+                              <button onClick={() => deleteStep(s)} style={{ flex: 1, padding: '3px 0', fontSize: 10, background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 4, cursor: 'pointer', color: '#dc2626' }}>Del</button>
+                            </div>
+                          </div>
+                          {/* Arrow connector */}
+                          {idx < arr.length - 1 && (
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '0 4px', color: '#94a3b8', fontSize: 20, fontWeight: 300 }}>→</div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
               ) : (
+
+                /* ── List view with ▲▼ reorder ────────────────────────── */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {[...selected.steps].sort((a, b) => a.stepOrder - b.stepOrder).map((s) => {
+                  {[...selected.steps].sort((a, b) => a.stepOrder - b.stepOrder).map((s, idx, arr) => {
                     const rc = ROLE_COLOR[s.requiredRole] ?? { bg: '#f3f4f6', color: '#374151' }
                     return (
-                      <div key={s.workflowStepId} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <div key={s.workflowStepId} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                        {/* Step 2: ▲▼ reorder buttons */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 2 }}>
+                          <button onClick={() => reorderStep(s, 'up')} disabled={idx === 0}
+                            style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid #e2e8f0', background: idx === 0 ? '#f8fafc' : '#fff', color: idx === 0 ? '#d1d5db' : '#374151', cursor: idx === 0 ? 'not-allowed' : 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>▲</button>
+                          <button onClick={() => reorderStep(s, 'down')} disabled={idx === arr.length - 1}
+                            style={{ width: 22, height: 22, borderRadius: 4, border: '1px solid #e2e8f0', background: idx === arr.length - 1 ? '#f8fafc' : '#fff', color: idx === arr.length - 1 ? '#d1d5db' : '#374151', cursor: idx === arr.length - 1 ? 'not-allowed' : 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>▼</button>
+                        </div>
                         {/* Step number circle */}
                         <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#0d6e6e', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                           {s.stepOrder}
@@ -322,22 +452,14 @@ export default function WorkflowConfigPage() {
                         <div style={{ flex: 1, padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                             <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{s.stepName}</span>
-                            <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 8, background: rc.bg, color: rc.color, fontWeight: 600 }}>
-                              {s.requiredRole}
-                            </span>
-                            {s.requiresESignature && (
-                              <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 8, background: '#fef9c3', color: '#854d0e', fontWeight: 600 }}>
-                                🔏 E-Sign
-                              </span>
-                            )}
-                            {s.isOptional && (
-                              <span style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>optional</span>
-                            )}
+                            <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 8, background: rc.bg, color: rc.color, fontWeight: 600 }}>{s.requiredRole}</span>
+                            {s.requiresESignature && <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 8, background: '#fef9c3', color: '#854d0e', fontWeight: 600 }}>🔏 E-Sign</span>}
+                            {s.isOptional && <span style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>optional</span>}
                           </div>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
                             {s.gateCondition && (
                               <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: 6, background: '#ede9fe', color: '#7c3aed', border: '1px solid #ddd6fe' }}>
-                                Gate: {GATE_LABEL[s.gateCondition] ?? s.gateCondition}
+                                🔒 Gate: {GATE_LABEL[s.gateCondition] ?? s.gateCondition}
                               </span>
                             )}
                             {s.minTestsRequired != null && (
@@ -345,17 +467,13 @@ export default function WorkflowConfigPage() {
                                 Min {s.minTestsRequired} test(s)
                               </span>
                             )}
-                            {s.notes && (
-                              <span style={{ fontSize: 11, color: '#6b7280', fontStyle: 'italic' }}>{s.notes}</span>
-                            )}
+                            {s.notes && <span style={{ fontSize: 11, color: '#6b7280', fontStyle: 'italic' }}>{s.notes}</span>}
                           </div>
                         </div>
                         {/* Actions */}
                         <div style={{ display: 'flex', gap: 4, paddingTop: 4 }}>
-                          <button onClick={() => openEditStep(s)}
-                            style={{ padding: '3px 8px', fontSize: 11, background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', color: '#374151' }}>Edit</button>
-                          <button onClick={() => deleteStep(s)}
-                            style={{ padding: '3px 8px', fontSize: 11, background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 4, cursor: 'pointer', color: '#dc2626' }}>Del</button>
+                          <button onClick={() => openEditStep(s)} style={{ padding: '3px 8px', fontSize: 11, background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', color: '#374151' }}>Edit</button>
+                          <button onClick={() => deleteStep(s)} style={{ padding: '3px 8px', fontSize: 11, background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 4, cursor: 'pointer', color: '#dc2626' }}>Del</button>
                         </div>
                       </div>
                     )
@@ -378,11 +496,17 @@ export default function WorkflowConfigPage() {
               <input style={inp} value={tplForm.description} onChange={e => setTplForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional description" />
             </Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <Field label="Material ID (optional)">
-                <input style={inp} type="number" value={tplForm.materialId} onChange={e => setTplForm(f => ({ ...f, materialId: e.target.value }))} placeholder="Leave blank = all materials" />
+              <Field label="Material (optional)">
+                <select style={inp} value={tplForm.materialId} onChange={e => setTplForm(f => ({ ...f, materialId: e.target.value }))}>
+                  <option value="">All Materials</option>
+                  {materials.map(m => <option key={m.materialId} value={m.materialId}>{m.materialName}</option>)}
+                </select>
               </Field>
-              <Field label="Sample Type ID (optional)">
-                <input style={inp} type="number" value={tplForm.sampleTypeId} onChange={e => setTplForm(f => ({ ...f, sampleTypeId: e.target.value }))} placeholder="Leave blank = all types" />
+              <Field label="Sample Type (optional)">
+                <select style={inp} value={tplForm.sampleTypeId} onChange={e => setTplForm(f => ({ ...f, sampleTypeId: e.target.value }))}>
+                  <option value="">All Sample Types</option>
+                  {sampleTypes.map(s => <option key={s.sampleTypeId} value={s.sampleTypeId}>{s.typeName} ({s.typeCode})</option>)}
+                </select>
               </Field>
             </div>
             <div style={{ display: 'flex', gap: 20, marginBottom: 12 }}>
@@ -398,9 +522,26 @@ export default function WorkflowConfigPage() {
             <p style={{ fontSize: 11, color: '#9ca3af', margin: '0 0 12px' }}>
               Matching priority: Material + SampleType → Material only → SampleType only → Default (global)
             </p>
-            {tplError && <p style={{ color: '#ef4444', fontSize: 13, margin: '0 0 10px' }}>{tplError}</p>}
+            {tplError && <p style={{ color: '#dc2626', fontSize: 13, margin: '0 0 10px' }}>{tplError}</p>}
             <ModalFooter saving={tplSaving} onCancel={() => setShowTplModal(false)} label={editTpl ? 'Save Changes' : 'Create Template'} />
           </form>
+        </Modal>
+      )}
+
+      {/* ── Inline Confirm Modal ─────────────────────────────────────────────── */}
+      {confirmFn && (
+        <Modal title="Confirm Delete" onClose={() => { setConfirmFn(null); setConfirmMsg('') }}>
+          <p style={{ fontSize: 14, color: '#374151', marginBottom: 20 }}>{confirmMsg}</p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={() => { setConfirmFn(null); setConfirmMsg('') }}
+              style={{ padding: '8px 18px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
+              Cancel
+            </button>
+            <button onClick={() => { confirmFn(); setConfirmFn(null); setConfirmMsg('') }}
+              style={{ padding: '8px 18px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit' }}>
+              Delete
+            </button>
+          </div>
         </Modal>
       )}
 
@@ -450,7 +591,7 @@ export default function WorkflowConfigPage() {
                 Optional Step
               </label>
             </div>
-            {stepError && <p style={{ color: '#ef4444', fontSize: 13, margin: '0 0 10px' }}>{stepError}</p>}
+            {stepError && <p style={{ color: '#dc2626', fontSize: 13, margin: '0 0 10px' }}>{stepError}</p>}
             <ModalFooter saving={stepSaving} onCancel={() => setShowStepModal(false)} label={editStep ? 'Save Step' : 'Add Step'} />
           </form>
         </Modal>

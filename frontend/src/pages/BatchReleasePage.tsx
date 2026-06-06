@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
+import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
@@ -198,7 +199,7 @@ export default function BatchReleasePage() {
         }},
         { header: 'Initiated By', accessor: r => <span style={{ fontSize: 12 }}>{r.initiatedBy}</span> },
         { header: 'Reviewed By', accessor: r => <span style={{ fontSize: 12 }}>{r.reviewedBy ?? '—'}</span> },
-        { header: 'Date', accessor: r => <span style={{ fontSize: 11, color: '#6b7280' }}>{new Date(r.initiatedAt).toLocaleDateString()}</span> },
+        { header: 'Date', accessor: r => <span style={{ fontSize: 11, color: '#6b7280' }}>{fmtDate(r.initiatedAt)}</span> },
         { header: 'Actions', accessor: r => (
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={() => openDetail(r.batchReleaseId)}
@@ -229,7 +230,7 @@ export default function BatchReleasePage() {
               </select>
             </Field>
             {samples.length === 0 && <p style={{ fontSize: 12, color: '#d97706' }}>⚠ No samples in PendingQAReview status.</p>}
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowInitiate(false)} label="Initiate Review" />
           </form>
         </Modal>
@@ -294,7 +295,7 @@ export default function BatchReleasePage() {
             <div style={{ padding: '12px 16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>Decision: <span style={{ color: detail.decision === 'Released' ? '#166534' : '#991b1b' }}>{detail.decision}</span></div>
               <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>{detail.decisionReason}</div>
-              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>Reviewed by: {detail.reviewedBy} on {detail.decidedAt ? new Date(detail.decidedAt).toLocaleString() : '—'}</div>
+              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>Reviewed by: {detail.reviewedBy} on {detail.decidedAt ? fmtDateTime(detail.decidedAt) : '—'}</div>
             </div>
           )}
 
@@ -307,7 +308,7 @@ export default function BatchReleasePage() {
         </Modal>
       )}
 
-      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />}
+      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="release" />}
 
       {/* ── Decision Modal ── */}
       {showDecide && (
@@ -343,7 +344,7 @@ export default function BatchReleasePage() {
                 <input style={inp} value={decideForm.reason} onChange={e => setDecideForm(f => ({ ...f, reason: e.target.value }))} placeholder="e.g. Batch review complete — all criteria met" required />
               </Field>
             </div>
-            {error && <p style={{ color: '#ef4444', fontSize: 13, marginTop: 8 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowDecide(false)} label="Submit Decision" />
           </form>
         </Modal>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
@@ -120,7 +120,7 @@ export default function UserTrainingRecordsPage() {
               <input style={inp} type="date" value={form.validUntil} onChange={set('validUntil')} />
               <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>Leave blank for permanent (no expiry) training.</p>
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
         </Modal>

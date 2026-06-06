@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
@@ -222,7 +222,7 @@ export default function CheckpointsPage() {
       {/* ── Toolbar ──────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>Checkpoints</h2>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>Checkpoints</h2>
           <p style={{ margin: '2px 0 0', fontSize: 13, color: '#6b7280' }}>All 4 trigger modes — time-based, operator scan, process log, dispatch event</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -331,7 +331,7 @@ export default function CheckpointsPage() {
           }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
                 {editTarget ? 'Edit Checkpoint' : 'Add Checkpoint'}
               </h2>
               <button type="button" onClick={() => setShowForm(false)}
@@ -440,7 +440,7 @@ export default function CheckpointsPage() {
                         maxLength={5}
                       />
                       {manualSlotError && (
-                        <p style={{ margin: '4px 0 0', fontSize: 11, color: '#ef4444' }}>{manualSlotError}</p>
+                        <p style={{ margin: '4px 0 0', fontSize: 11, color: '#dc2626' }}>{manualSlotError}</p>
                       )}
                     </div>
                     <button type="button" onClick={addManualSlot}
@@ -587,7 +587,7 @@ export default function CheckpointsPage() {
               <input style={inp} value={signForm.reason}
                 onChange={e => setSignForm(f => ({ ...f, reason: e.target.value }))} required />
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowSignRow(null)} label="Sign & Lock Row" />
           </form>
         </Modal>

@@ -121,7 +121,7 @@ export default function LaboratoriesPage() {
                 {[['QC','QC'],['RD','R&D'],['Microbiology','Microbiology'],['Stability','Stability']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
         </Modal>
@@ -130,7 +130,7 @@ export default function LaboratoriesPage() {
         <Modal title="Add Laboratory" onClose={() => { setShowForm(false); setTouched({}) }}>
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8f9fa', color: '#80868b', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
-            <Field label={<>Name {fieldErr('labName', form.labName) && <span style={{ color: '#ef4444', fontSize: 11, fontWeight: 400, marginLeft: 4 }}>Required</span>}</>}>
+            <Field label={<>Name {fieldErr('labName', form.labName) && <span style={{ color: '#dc2626', fontSize: 11, fontWeight: 400, marginLeft: 4 }}>Required</span>}</>}>
               <input style={inpV('labName', form.labName)}
                 value={form.labName}
                 onChange={e => setForm(f => ({ ...f, labName: e.target.value }))}
@@ -138,7 +138,7 @@ export default function LaboratoriesPage() {
                 required />
             </Field>
             <Field label="Site / Facility"><input style={inp} value={form.site} onChange={e => setForm(f => ({ ...f, site: e.target.value }))} placeholder="e.g. Petaling Jaya Plant" /></Field>
-            <Field label={<>Location {fieldErr('location', form.location) && <span style={{ color: '#ef4444', fontSize: 11, fontWeight: 400, marginLeft: 4 }}>Required</span>}</>}>
+            <Field label={<>Location {fieldErr('location', form.location) && <span style={{ color: '#dc2626', fontSize: 11, fontWeight: 400, marginLeft: 4 }}>Required</span>}</>}>
               <input style={inpV('location', form.location)}
                 value={form.location}
                 onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
@@ -150,7 +150,7 @@ export default function LaboratoriesPage() {
                 {[['QC','QC'],['RD','R&D'],['Microbiology','Microbiology'],['Stability','Stability']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
         </Modal>

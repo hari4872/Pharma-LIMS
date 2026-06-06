@@ -1,4 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
+﻿// ─────────────────────────────────────────────────────────────────────────────
 // InstrumentMappingPage.tsx — Two-panel explorer layout
 //
 // Left  : scrollable instrument list (filterable by lab + status)
@@ -195,7 +195,7 @@ export default function InstrumentMappingPage() {
 
         {/* Page title + info banner */}
         <div style={{ marginBottom: 14 }}>
-          <h2 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#111827' }}>
+          <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
             Instrument ↔ Test Mapping
           </h2>
           <div style={{ padding: '9px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 12, color: '#1e40af' }}>

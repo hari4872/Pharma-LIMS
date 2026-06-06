@@ -4,11 +4,13 @@ import Barcode from 'react-barcode'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
+import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 import BatchSampleRegistrationPage from './BatchSampleRegistrationPage'
+import DynamicFormRenderer from '@/components/DynamicFormRenderer'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Sample {
@@ -20,11 +22,6 @@ interface Sample {
 interface Parameter  { parameterId: number; parameterName: string; uom: string }
 interface Material   { materialId: number; materialName: string; productType: string }
 interface SampleType { sampleTypeId: number; typeName: string; typeCode: string; stage: string }
-interface Checkpoint {
-  checkpointId: number; checkpointCode: string; triggerMode: string
-  checkpointType: string; shiftIntervalHrs: number; isActive: boolean
-}
-
 // Container management
 interface SampleContainer {
   sampleContainerId: number; containerLabel: string; containerType: string
@@ -57,13 +54,6 @@ interface PrintSample {
   sampleTypeName: string
   registeredAt: string   // YYYY-MM-DD
   testsCreated: number
-}
-
-const TRIGGER_LABEL: Record<string, string> = {
-  TimeBased:     'Time-Based schedule',
-  OperatorScan:  'Per-batch (operator scan)',
-  ProcessLog:    'Process log entry',
-  DispatchEvent: 'Dispatch event trigger',
 }
 
 // ── Section card wrapper ──────────────────────────────────────────────────────
@@ -114,7 +104,6 @@ export default function SampleRegistrationPage() {
   const [data, setData]               = useState<Sample[]>([])
   const [materials, setMaterials]     = useState<Material[]>([])
   const [sampleTypes, setSampleTypes] = useState<SampleType[]>([])
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
   const [loading, setLoading]         = useState(false)
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm]       = useState(false)
@@ -155,9 +144,6 @@ export default function SampleRegistrationPage() {
   const [overrideSpecId, setOverrideSpecId] = useState<number | null>(null)
   const [, setLastSpecResult] = useState<{ outcome: string; message: string; testsCreated: number } | null>(null)
 
-  // Checkpoint section expand/collapse
-  const [cpExpanded, setCpExpanded] = useState(false)
-
   // Container management state
   const [containerSample, setContainerSample] = useState<Sample | null>(null)
   const [containers, setContainers]           = useState<SampleContainer[]>([])
@@ -170,6 +156,8 @@ export default function SampleRegistrationPage() {
   const [printSample, setPrintSample]         = useState<PrintSample | null>(null)
   const labelRef = useRef<HTMLDivElement>(null)
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
+  const [fillFormSample, setFillFormSample] = useState<Sample | null>(null)
+  const [moreMenuRow,   setMoreMenuRow]    = useState<number | null>(null)
 
   async function loadContainers(sampleId: number) {
     setContainersLoading(true)
@@ -283,16 +271,14 @@ export default function SampleRegistrationPage() {
     setLoading(true)
     try {
       const params = statusFilter ? `?status=${statusFilter}` : ''
-      const [r, mr, str, cpr] = await Promise.all([
+      const [r, mr, str] = await Promise.all([
         api.get(`/samples${params}`),
         api.get('/materials'),
         api.get('/sample-types'),
-        api.get('/checkpoints'),
       ])
       setData(r.data)
       setMaterials(mr.data)
       setSampleTypes(str.data.filter((t: SampleType) => t.typeCode !== 'DSPQC'))
-      setCheckpoints(cpr.data.filter((c: Checkpoint) => c.isActive))
     } catch (err) {
       toast(getErrorMessage(err, 'Failed to load sample data'), 'error')
     } finally {
@@ -300,21 +286,6 @@ export default function SampleRegistrationPage() {
     }
   }
   useEffect(() => { load() }, [statusFilter])
-
-  // Do NOT pre-select checkpoints — analyst must deliberately choose which are
-  // relevant for this sample type. Pre-selecting all causes every checkpoint's
-  // parameters (HPLC, pH, Dissolution, Conductivity) to appear across all pages.
-  // Checkpoint section starts expanded so the user sees their options clearly.
-  useEffect(() => {
-    const t = setTimeout(() => { if (showForm) setCpExpanded(true) }, 0)
-    return () => clearTimeout(t)
-  }, [showForm])
-
-  function toggleCheckpoint(id: number) {
-    setSelectedCps(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    )
-  }
 
   // ── Phase A: spec engine preview ─────────────────────────────────────────
   const fetchSpecPreview = useCallback(async (matId: string, stId: string) => {
@@ -345,6 +316,13 @@ export default function SampleRegistrationPage() {
       .catch(() => {})
   }, [sampleTypeId])
 
+  // Close ⋯ More menu on outside click
+  useEffect(() => {
+    function close() { setMoreMenuRow(null) }
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [])
+
   // ── Reset form ──────────────────────────────────────────────────────────────
   function resetForm() {
     setMaterialId(''); setSampleTypeId('')
@@ -354,7 +332,7 @@ export default function SampleRegistrationPage() {
     // Phase A
     setReceivedTemp(''); setSampleCondition('OK'); setIsRush(false)
     setExternalBatchId(''); setSpecPreview(null); setOverrideSpecId(null)
-    setLastSpecResult(null); setCpExpanded(false)
+    setLastSpecResult(null)
   }
 
   // ── Submit registration ─────────────────────────────────────────────────────
@@ -554,7 +532,7 @@ export default function SampleRegistrationPage() {
       {/* ── Toolbar ──────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>Sample Registration</h2>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>Sample Registration</h2>
           <p style={{ margin: '2px 0 0', fontSize: 13, color: '#6b7280' }}>Register incoming samples and route to the testing work queue</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -687,7 +665,7 @@ export default function SampleRegistrationPage() {
                 ⚠ No Spec
               </span>
         },
-        { header: 'Due', accessor: r => r.dueDate ? new Date(r.dueDate).toLocaleDateString() : '—' },
+        { header: 'Due', accessor: r => r.dueDate ? fmtDate(r.dueDate) : '—' },
         { header: 'Analyst', accessor: 'analystName' },
         {
           header: 'Actions', accessor: r => (
@@ -705,6 +683,13 @@ export default function SampleRegistrationPage() {
                   <button onClick={() => openAssignForm(r.sampleId)}
                     style={{ padding: '4px 10px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
                     📄 Form
+                  </button>
+                )}
+                {(r as any).formTemplateName && (
+                  <button onClick={() => setFillFormSample(r)}
+                    title={`Fill: ${(r as any).formTemplateName}`}
+                    style={{ padding: '4px 10px', background: '#0369a1', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                    📝 Fill Form
                   </button>
                 )}
                 {!r.specTemplateName && (
@@ -728,26 +713,35 @@ export default function SampleRegistrationPage() {
                 )}
               </div>
 
-              {/* ── Secondary actions: compact icon buttons with tooltips ── */}
-              <div style={{ display: 'flex', gap: 3 }}>
-                <button onClick={() => { setShowReprint(r.sampleId); setError('') }} title="Reprint barcode label"
-                  style={{ padding: '3px 8px', background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>
-                  🖨
+              {/* ── ⋯ More dropdown ── */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={e => { e.stopPropagation(); setMoreMenuRow(moreMenuRow === r.sampleId ? null : r.sampleId) }}
+                  style={{ padding: '4px 10px', background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>
+                  ⋯ More
                 </button>
-                <button onClick={() => duplicateSample(r.sampleId)} disabled={duplicating} title="Duplicate this sample"
-                  style={{ padding: '3px 8px', background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: 4, cursor: duplicating ? 'not-allowed' : 'pointer', fontSize: 12 }}>
-                  {duplicating ? '…' : '⧉'}
-                </button>
-                {r.status !== 'Rejected' && (
-                  <button onClick={() => openAddTest(r)} title="Add ad-hoc test"
-                    style={{ padding: '3px 8px', background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>
-                    ＋
-                  </button>
+                {moreMenuRow === r.sampleId && (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 4px)', right: 0,
+                    background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 50,
+                    minWidth: 170, overflow: 'hidden',
+                  }}>
+                    {[
+                      { label: '🖨  Reprint Label',    onClick: () => { setShowReprint(r.sampleId); setError(''); setMoreMenuRow(null) } },
+                      { label: '⧉  Duplicate',         onClick: () => { duplicateSample(r.sampleId); setMoreMenuRow(null) } },
+                      ...(r.status !== 'Rejected' ? [{ label: '＋  Add Ad-hoc Test', onClick: () => { openAddTest(r); setMoreMenuRow(null) } }] : []),
+                      { label: '🧪  Containers',       onClick: () => { setContainerSample(r); loadContainers(r.sampleId); setMoreMenuRow(null) } },
+                    ].map(item => (
+                      <button key={item.label} onClick={item.onClick}
+                        style={{ display: 'block', width: '100%', padding: '9px 14px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontSize: 12, color: '#374151', fontFamily: 'inherit' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
                 )}
-                <button onClick={() => { setContainerSample(r); loadContainers(r.sampleId) }} title="Manage sample containers"
-                  style={{ padding: '3px 8px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>
-                  🧪
-                </button>
               </div>
 
             </div>
@@ -755,27 +749,40 @@ export default function SampleRegistrationPage() {
         },
       ]} />
 
-      {/* ── Registration form — 4-section stepped layout ──────────────────── */}
+      {/* ── Registration form — contained modal with sticky header + footer ── */}
       {showForm && (
         <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100,
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-          padding: '32px 16px', overflowY: 'auto'
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.50)', zIndex: 100,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px 16px',
         }}>
-          <div style={{ width: '100%', maxWidth: 760, position: 'relative' }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{
+            width: '100%', maxWidth: 760,
+            maxHeight: 'calc(100vh - 40px)',
+            display: 'flex', flexDirection: 'column',
+            background: '#fff', borderRadius: 14,
+            boxShadow: '0 24px 64px rgba(0,0,0,0.30)',
+            overflow: 'hidden',
+          }}>
+            {/* Sticky modal header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 24px', borderBottom: '1px solid #e5e7eb',
+              flexShrink: 0,
+            }}>
               <div>
-                <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#fff' }}>New Sample Registration</h2>
-                <p style={{ margin: '3px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Complete all sections · Barcode auto-printed on submit</p>
+                <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#0f172a' }}>New Sample Registration</h2>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: '#6b7280' }}>Complete all sections · Barcode auto-printed on submit</p>
               </div>
               <button onClick={() => setShowForm(false)}
-                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 6, color: '#fff', fontSize: 20, width: 34, height: 34, cursor: 'pointer', lineHeight: '34px', textAlign: 'center' }}>
+                style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, color: '#374151', fontSize: 18, width: 32, height: 32, cursor: 'pointer', lineHeight: '32px', textAlign: 'center', flexShrink: 0 }}>
                 ×
               </button>
             </div>
 
-            <form onSubmit={submitRegister}>
+            {/* Scrollable body */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
+            <form id="sample-reg-form" onSubmit={submitRegister}>
 
               {/* ── Section 1: Product & Type ──────────────────────────── */}
               <Section num={1} title="Product & Type" subtitle="Requestor is auto-filled from your login.">
@@ -791,7 +798,7 @@ export default function SampleRegistrationPage() {
 
                   {/* Product / Material */}
                   <div>
-                    <span style={label}>Product / Test Type <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span style={label}>Product / Test Type <span style={{ color: '#dc2626' }}>*</span></span>
                     <select style={inp} value={materialId} onChange={e => setMaterialId(e.target.value)} required>
                       <option value="">— Select a product —</option>
                       {materials.map(m => (
@@ -806,7 +813,7 @@ export default function SampleRegistrationPage() {
                 {/* Sample Type — shown after product selected */}
                 {materialId && (
                   <div style={{ marginTop: 16 }}>
-                    <span style={label}>Sample Type <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span style={label}>Sample Type <span style={{ color: '#dc2626' }}>*</span></span>
                     <select style={inp} value={sampleTypeId} onChange={e => setSampleTypeId(e.target.value)} required>
                       <option value="">— Select sample type —</option>
                       {sampleTypes.map(t => (
@@ -837,7 +844,7 @@ export default function SampleRegistrationPage() {
                       return (
                         <div style={{ padding: '10px 14px', background: bs.bg, border: `1px solid ${bs.border}`, borderRadius: 8 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: bs.color, marginBottom: specPreview.outcome === 'MultipleMatches' ? 8 : 0 }}>
-                            {bs.icon} {specPreview.message}
+                            {bs.icon} {specPreview.message.replace(/^[✓⚠✗]\s*/, '')}
                           </div>
                           {/* Multiple match picker */}
                           {specPreview.outcome === 'MultipleMatches' && (
@@ -871,12 +878,12 @@ export default function SampleRegistrationPage() {
               <Section num={2} title="Sample Details" subtitle="Physical sample identification and receipt condition.">
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                   <div>
-                    <span style={label}>D.O. / Batch / Lot No. <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span style={label}>D.O. / Batch / Lot No. <span style={{ color: '#dc2626' }}>*</span></span>
                     <input style={inp} value={lotNumber} onChange={e => setLotNumber(e.target.value)}
                       required placeholder="e.g. B-20260422-03" />
                   </div>
                   <div>
-                    <span style={label}>Sample Condition <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span style={label}>Sample Condition <span style={{ color: '#dc2626' }}>*</span></span>
                     <select style={inp} value={sampleCondition} onChange={e => setSampleCondition(e.target.value)}>
                       <option value="OK">✓ OK — Acceptable condition</option>
                       <option value="Damaged">⚠ Damaged — Physical damage noted</option>
@@ -884,11 +891,11 @@ export default function SampleRegistrationPage() {
                     </select>
                   </div>
                   <div>
-                    <span style={label}>Manufacturing Date <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span style={label}>Manufacturing Date <span style={{ color: '#dc2626' }}>*</span></span>
                     <input style={inp} type="date" value={mfgDate} onChange={e => setMfgDate(e.target.value)} required />
                   </div>
                   <div>
-                    <span style={label}>Expiry Date <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span style={label}>Expiry Date <span style={{ color: '#dc2626' }}>*</span></span>
                     <input style={inp} type="date" value={expDate} onChange={e => setExpDate(e.target.value)} required />
                   </div>
                   <div>
@@ -923,123 +930,31 @@ export default function SampleRegistrationPage() {
                 <p style={{ fontSize: 11, color: '#9ca3af', margin: '10px 0 0' }}>ℹ Sample ID is server-generated · Barcode auto-printed · 5 GMP checks run server-side</p>
               </Section>
 
-              {/* ── Section 3: Checkpoints ──────────────────────────────── */}
-              <Section num={3} title="Checkpoints" subtitle="Select only the checkpoints relevant to this sample type. e.g. HPLC samples → TimeBased/OperatorScan only · Water samples → ProcessLog only.">
-                {checkpoints.length === 0 ? (
-                  <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>No active checkpoints configured. Please add checkpoints in master data first.</p>
-                ) : (() => {
-                  const allSelected  = selectedCps.length === checkpoints.length
-                  const noneSelected = selectedCps.length === 0
-                  const summaryBg    = noneSelected ? '#fef2f2' : allSelected ? '#f0fdf4' : '#fffbeb'
-                  const summaryBorder = noneSelected ? '#fca5a5' : allSelected ? '#86efac' : '#fcd34d'
-                  const summaryColor  = noneSelected ? '#991b1b' : allSelected ? '#166534' : '#92400e'
-                  const summaryIcon   = noneSelected ? '✗' : allSelected ? '✓' : '⚠'
-                  const summaryText   = noneSelected
-                    ? 'No checkpoints selected — sample will not be tested'
-                    : allSelected
-                    ? `All ${checkpoints.length} checkpoint${checkpoints.length > 1 ? 's' : ''} will be applied`
-                    : `${selectedCps.length} of ${checkpoints.length} checkpoints selected`
-
-                  return (
-                    <>
-                      {/* Collapsed summary bar */}
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 12,
-                        padding: '10px 14px', borderRadius: 8,
-                        background: summaryBg, border: `1px solid ${summaryBorder}`,
-                        marginBottom: cpExpanded ? 14 : 0
-                      }}>
-                        <span style={{ fontSize: 16, color: summaryColor, fontWeight: 700, lineHeight: 1 }}>{summaryIcon}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: summaryColor, flex: 1 }}>{summaryText}</span>
-                        <button type="button" onClick={() => setCpExpanded(v => !v)}
-                          style={{
-                            fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 6,
-                            border: `1px solid ${summaryBorder}`, background: '#fff',
-                            color: summaryColor, cursor: 'pointer', whiteSpace: 'nowrap'
-                          }}>
-                          {cpExpanded ? '▲ Collapse' : '▼ Customize'}
-                        </button>
-                      </div>
-
-                      {/* Expanded full list */}
-                      {cpExpanded && (
-                        <>
-                          <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
-                            <button type="button"
-                              onClick={() => setSelectedCps(checkpoints.map(c => c.checkpointId))}
-                              style={{ fontSize: 12, color: '#1e3a5f', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}>
-                              ✓ Select All
-                            </button>
-                            <span style={{ color: '#d1d5db' }}>|</span>
-                            <button type="button"
-                              onClick={() => setSelectedCps([])}
-                              style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                              ✗ Clear All
-                            </button>
-                            <span style={{ fontSize: 12, color: '#9ca3af', marginLeft: 'auto' }}>
-                              {selectedCps.length} / {checkpoints.length} selected
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto', paddingRight: 4 }}>
-                            {checkpoints.map(cp => {
-                              const checked = selectedCps.includes(cp.checkpointId)
-                              return (
-                                <label key={cp.checkpointId}
-                                  style={{
-                                    display: 'flex', alignItems: 'center', gap: 12,
-                                    padding: '8px 12px', borderRadius: 7, cursor: 'pointer',
-                                    background: checked ? '#eff6ff' : '#f9fafb',
-                                    border: `1px solid ${checked ? '#bfdbfe' : '#e5e7eb'}`,
-                                    transition: 'all 0.15s'
-                                  }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() => toggleCheckpoint(cp.checkpointId)}
-                                    style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#1e3a5f' }}
-                                  />
-                                  <div style={{ flex: 1 }}>
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{cp.checkpointCode}</span>
-                                    <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 8 }}>{cp.checkpointType}</span>
-                                  </div>
-                                  <span style={{
-                                    fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 10,
-                                    background: checked ? '#dbeafe' : '#f3f4f6',
-                                    color: checked ? '#1e40af' : '#9ca3af'
-                                  }}>
-                                    {TRIGGER_LABEL[cp.triggerMode] ?? cp.triggerMode}
-                                  </span>
-                                </label>
-                              )
-                            })}
-                          </div>
-                        </>
-                      )}
-                    </>
-                  )
-                })()}
-              </Section>
-
-
-              {/* ── Submit ──────────────────────────────────────────────── */}
-              {error && (
-                <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
-                  <p style={{ margin: 0, fontSize: 13, color: '#dc2626' }}>⚠ {error}</p>
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowForm(false)}
-                  style={{ padding: '10px 22px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, color: '#374151', cursor: 'pointer' }}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={saving}
-                  style={{ padding: '10px 24px', background: saving ? '#9ca3af' : '#1e3a5f', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
-                  {saving ? 'Registering…' : 'Register + Print Barcode'}
-                </button>
-              </div>
-
             </form>
-          </div>
+            </div>{/* end scrollable body */}
+
+            {/* Sticky footer */}
+            <div style={{
+              display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center',
+              padding: '14px 24px', borderTop: '1px solid #e5e7eb',
+              background: '#f8fafc', flexShrink: 0,
+            }}>
+              <div style={{ flex: 1 }}>
+                {error && (
+                  <p style={{ margin: 0, fontSize: 12, color: '#dc2626' }}>⚠ {error}</p>
+                )}
+              </div>
+              <button type="button" onClick={() => setShowForm(false)}
+                style={{ padding: '9px 20px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 7, fontSize: 13, color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>
+                Cancel
+              </button>
+              <button form="sample-reg-form" type="submit" disabled={saving}
+                style={{ padding: '9px 22px', background: saving ? '#9ca3af' : '#1e3a5f', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+                {saving ? 'Registering…' : 'Register + Print Barcode'}
+              </button>
+            </div>
+
+          </div>{/* end modal panel */}
         </div>
       )}
 
@@ -1063,7 +978,7 @@ export default function SampleRegistrationPage() {
                 onChange={e => setSrfForm(f => ({ ...f, reason: e.target.value }))} required
                 placeholder="e.g. Sample verified and ready for testing" />
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowSRF(null)} label="Sign & Submit to Work Queue" />
           </form>
         </Modal>
@@ -1206,7 +1121,7 @@ export default function SampleRegistrationPage() {
               <input style={inp} value={reprintReason} onChange={e => setReprintReason(e.target.value)}
                 required placeholder="e.g. Label damaged during storage" />
             </Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowReprint(null)} label="Reprint Label" />
           </form>
         </Modal>
@@ -1463,7 +1378,7 @@ export default function SampleRegistrationPage() {
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{c.templateName}</div>
                           <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
-                            Version {c.version} · {c.testCount} test(s) · Approved {new Date(c.approvedAt).toLocaleDateString()}
+                            Version {c.version} · {c.testCount} test(s) · Approved {fmtDate(c.approvedAt)}
                           </div>
                         </div>
                         {selectedNewSpecId === c.templateId && (
@@ -1476,7 +1391,7 @@ export default function SampleRegistrationPage() {
               </div>
 
               {assignError && (
-                <p style={{ color: '#ef4444', fontSize: 13, margin: '0 0 12px' }}>{assignError}</p>
+                <p style={{ color: '#dc2626', fontSize: 13, margin: '0 0 12px' }}>{assignError}</p>
               )}
 
               {specAssignData.candidates.length > 0 && (
@@ -1492,7 +1407,7 @@ export default function SampleRegistrationPage() {
               )}
             </form>
           ) : (
-            <div style={{ padding: '16px', color: '#ef4444', fontSize: 13 }}>{assignError || 'Failed to load data.'}</div>
+            <div style={{ padding: '16px', color: '#dc2626', fontSize: 13 }}>{assignError || 'Failed to load data.'}</div>
           )}
         </Modal>
       )}
@@ -1514,11 +1429,22 @@ export default function SampleRegistrationPage() {
                 ))}
               </select>
             </Field>
-            {formAssignError && <p style={{ color: '#ef4444', fontSize: 13 }}>{formAssignError}</p>}
+            {formAssignError && <p style={{ color: '#dc2626', fontSize: 13 }}>{formAssignError}</p>}
             <ModalFooter saving={formAssignSaving} onCancel={() => setShowAssignForm(null)} label="Assign Form Template" />
           </form>
         </Modal>
       )}
+
+      {/* ── Dynamic Form Renderer ────────────────────────────────────────────── */}
+      {fillFormSample && (
+        <DynamicFormRenderer
+          sampleId={fillFormSample.sampleId}
+          sampleNumber={fillFormSample.sampleNumber}
+          onClose={() => setFillFormSample(null)}
+          onSubmitted={() => { setFillFormSample(null); load() }}
+        />
+      )}
+
     </div>}
     </div>
   )

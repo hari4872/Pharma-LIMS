@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+﻿import { useEffect, useState, useCallback } from 'react'
 import api from '@/api/client'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -216,7 +216,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<
       <div style={{ fontWeight: 600, marginBottom: 2 }}>{d.timePointLabel}</div>
       <div>Value: <strong>{d.value}</strong></div>
       <div style={{ color: '#6b7280' }}>Sample: {d.sampleNumber}</div>
-      {d.isOos && <div style={{ color: '#ef4444', fontWeight: 600 }}>⚠ OOS</div>}
+      {d.isOos && <div style={{ color: '#dc2626', fontWeight: 600 }}>⚠ OOS</div>}
     </div>
   )
 }
@@ -342,7 +342,7 @@ export default function StabilityStudyPage() {
           <>
             {/* Protocol header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>{trendResult.protocolName}</h2>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>{trendResult.protocolName}</h2>
               <Badge label={trendResult.storageCondition} style={storageColor(trendResult.storageCondition)} />
               <span style={{ fontSize: 13, color: '#6b7280' }}>
                 Intended Shelf Life: <strong style={{ color: '#1f2937' }}>

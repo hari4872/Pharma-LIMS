@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
+import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
@@ -236,11 +237,11 @@ export default function DispatchQcPage() {
             return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color }}>{r.status}</span>
           }},
           { header: 'QC Tasks', accessor: r => <span style={{ fontSize: 12 }}>{r.tasks.length} task(s)</span> },
-          { header: 'Created', accessor: r => new Date(r.createdAt).toLocaleDateString() },
+          { header: 'Created', accessor: r => fmtDate(r.createdAt) },
         ]} />
       )}
 
-      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />}
+      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="release" />}
 
       {/* Create Delivery Order Modal */}
       {showCreateDO && (
@@ -259,7 +260,7 @@ export default function DispatchQcPage() {
             <Field label="Customer Name"><input style={inp} value={doForm.customerName} onChange={e => setDoForm(f => ({ ...f, customerName: e.target.value }))} /></Field>
             <Field label="Despatch Date"><input style={inp} type="date" value={doForm.despatchDate} onChange={e => setDoForm(f => ({ ...f, despatchDate: e.target.value }))} /></Field>
             <Field label="Packing Type"><input style={inp} value={doForm.packingType} onChange={e => setDoForm(f => ({ ...f, packingType: e.target.value }))} placeholder="e.g. Carton, Pallet…" /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowCreateDO(false)} label="Create DO" />
           </form>
         </Modal>
@@ -276,7 +277,7 @@ export default function DispatchQcPage() {
             <Field label="Password (re-enter)"><input style={inp} type="password" value={approveForm.password} onChange={e => setApproveForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={approveForm.meaning} onChange={e => setApproveForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={approveForm.reason} onChange={e => setApproveForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. All Dispatch QC tests passed, product cleared" /></Field>
-            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={saving} onCancel={() => setShowApprove(null)} label="Sign & Set CLEARED" />
           </form>
         </Modal>

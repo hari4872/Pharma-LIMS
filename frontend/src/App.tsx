@@ -48,6 +48,7 @@ import SpcPage from '@/pages/SpcPage'
 import BatchReleasePage from '@/pages/BatchReleasePage'
 // Sprint 9 — Reports
 import ReportsPage from '@/pages/ReportsPage'
+import ReportBuilderPage from '@/pages/ReportBuilderPage'
 // Sprint 10 — Stability Study & Workflow Config
 import StabilityStudyPage from '@/pages/StabilityStudyPage'
 import WorkflowConfigPage from '@/pages/WorkflowConfigPage'
@@ -112,6 +113,7 @@ export default function App() {
         <Route path="batch-register"    element={<Navigate to="/samples" replace />} />
         <Route path="batch-release"     element={<BatchReleasePage />} />
         <Route path="reports"             element={<ReportsPage />} />
+        <Route path="report-builder"      element={<ReportBuilderPage />} />
         <Route path="stability-study"      element={<StabilityStudyPage />} />
         <Route path="workflow-config"      element={<WorkflowConfigPage />} />
         <Route path="multi-site-dashboard" element={<MultiSiteDashboardPage />} />
