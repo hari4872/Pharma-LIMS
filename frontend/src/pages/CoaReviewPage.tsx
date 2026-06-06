@@ -149,7 +149,7 @@ export default function CoaReviewPage() {
   }, [data, statusFilter, dateFrom, dateTo])
 
   async function openDetail(coa: CoaItem) {
-    setSelected(coa); setChecklistLoading(true); setError('')
+    setSelected(coa); setChecklistLoading(true); setError(''); setChecklistExpanded(false)
     try {
       const r = await api.get(`/coas/${coa.coaId}/checklist`)
       const cl = r.data

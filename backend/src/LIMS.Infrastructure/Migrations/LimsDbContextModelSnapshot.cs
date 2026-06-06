@@ -2186,7 +2186,7 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("SampleId");
 
-                    b.ToTable("SampleFormEntries");
+                    b.ToTable("sample_form_entries");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.SampleTransfer", b =>

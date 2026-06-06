@@ -96,10 +96,13 @@ public class WorkflowEngineService : IWorkflowEngineService
             hasCoa ? "Certificate of Analysis approved." : "No approved CoA found for this sample.");
     }
 
+    // Single load shared by all sample-dependent gate checks
+    private async Task<Domain.Entities.Sample?> LoadSampleAsync(int sampleId, CancellationToken ct)
+        => await _db.Samples.AsNoTracking().FirstOrDefaultAsync(s => s.SampleId == sampleId, ct);
+
     private async Task<GateCheckResult> CheckFormTemplateFilled(int sampleId, CancellationToken ct)
     {
-        var sample = await _db.Samples.AsNoTracking().FirstOrDefaultAsync(s => s.SampleId == sampleId, ct);
-        // If no form template is assigned, no form is required — auto-pass
+        var sample = await LoadSampleAsync(sampleId, ct);
         if (sample is null || sample.FormTemplateId is null)
             return new GateCheckResult(true, "No monitoring form required for this sample.");
 
@@ -121,7 +124,7 @@ public class WorkflowEngineService : IWorkflowEngineService
 
     private async Task<GateCheckResult> CheckSrfSigned(int sampleId, CancellationToken ct)
     {
-        var sample = await _db.Samples.AsNoTracking().FirstOrDefaultAsync(s => s.SampleId == sampleId, ct);
+        var sample = await LoadSampleAsync(sampleId, ct);
         var signed = sample?.SrfSignatureId is not null;
         return new GateCheckResult(signed,
             signed ? "Sample Request Form has been signed." : "Sample Request Form (SRF) has not been signed yet.");
@@ -129,7 +132,7 @@ public class WorkflowEngineService : IWorkflowEngineService
 
     private async Task<GateCheckResult> CheckSpecAssigned(int sampleId, CancellationToken ct)
     {
-        var sample = await _db.Samples.AsNoTracking().FirstOrDefaultAsync(s => s.SampleId == sampleId, ct);
+        var sample = await LoadSampleAsync(sampleId, ct);
         var assigned = sample?.SpecTemplateId is not null;
         return new GateCheckResult(assigned,
             assigned ? "Specification template is assigned." : "No specification template assigned to this sample.");
