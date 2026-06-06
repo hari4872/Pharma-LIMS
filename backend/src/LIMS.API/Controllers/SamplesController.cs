@@ -1,6 +1,7 @@
 ﻿using LIMS.API.Attributes;
 using LIMS.Application.Features.Samples;
 using LIMS.Application.Interfaces;
+using LIMS.Domain.Entities;
 using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -256,9 +257,36 @@ public class SamplesController : LimsControllerBase
 
         return Ok(new { formTemplateId = req.FormTemplateId, formTemplateName = template.FormName });
     }
+
+    // POST api/v1/samples/{id}/form-entries — record that the monitoring form has been filled (INSERT-only, 21 CFR §11)
+    [HttpPost("{id}/form-entries")]
+    [Authorize(Roles = "Admin,QA,LabManager,Analyst")]
+    public async Task<IActionResult> SubmitFormEntry(int id, [FromBody] SubmitFormEntryRequest req, CancellationToken ct)
+    {
+        var sample = await _db.Samples.FindAsync([id], ct);
+        if (sample is null) return NotFound(new { error = "Sample not found." });
+
+        var template = await _db.FormTemplates.FindAsync([req.FormTemplateId], ct);
+        if (template is null) return NotFound(new { error = "Form template not found." });
+
+        var userName = User.Identity?.Name ?? "Unknown";
+        var entry = new SampleFormEntry
+        {
+            SampleId        = id,
+            FormTemplateId  = req.FormTemplateId,
+            FieldValuesJson = System.Text.Json.JsonSerializer.Serialize(req.FieldValues),
+            SubmittedBy     = userName,
+            SubmittedAt     = DateTimeOffset.UtcNow,
+        };
+        _db.SampleFormEntries.Add(entry);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new { sampleFormEntryId = entry.SampleFormEntryId, submittedBy = userName, submittedAt = entry.SubmittedAt });
+    }
 }
 
 public record AssignFormTemplateRequest(int FormTemplateId);
+public record SubmitFormEntryRequest(int FormTemplateId, Dictionary<string, string> FieldValues);
 
 public record RegisterSampleRequest(
     int     LabId, int MaterialId, string LotNumber,

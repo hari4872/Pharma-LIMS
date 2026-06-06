@@ -48,11 +48,13 @@ public class WorkflowEngineService : IWorkflowEngineService
     {
         return gateCondition switch
         {
-            "AllTestsComplete" => await CheckAllTestsComplete(sampleId, ct),
-            "NoOpenOOS"        => await CheckNoOpenOos(sampleId, ct),
-            "LogbookSigned"    => await CheckLogbookSigned(sampleId, ct),
-            "CoAApproved"      => await CheckCoaApproved(sampleId, ct),
-            _                  => new GateCheckResult(true, "No gate condition — auto-pass"),
+            "AllTestsComplete"   => await CheckAllTestsComplete(sampleId, ct),
+            "NoOpenOOS"          => await CheckNoOpenOos(sampleId, ct),
+            "LogbookSigned"      => await CheckLogbookSigned(sampleId, ct),
+            "CoAApproved"        => await CheckCoaApproved(sampleId, ct),
+            "FormTemplateFilled" => await CheckFormTemplateFilled(sampleId, ct),
+            "CheckpointsSigned"  => await CheckCheckpointsSigned(sampleId, ct),
+            _                    => new GateCheckResult(true, "No gate condition — auto-pass"),
         };
     }
 
@@ -90,5 +92,28 @@ public class WorkflowEngineService : IWorkflowEngineService
         var hasCoa = await _db.Coas.AnyAsync(c => c.SampleId == sampleId && c.Status == CoaStatus.Released, ct);
         return new GateCheckResult(hasCoa,
             hasCoa ? "Certificate of Analysis approved." : "No approved CoA found for this sample.");
+    }
+
+    private async Task<GateCheckResult> CheckFormTemplateFilled(int sampleId, CancellationToken ct)
+    {
+        var sample = await _db.Samples.AsNoTracking().FirstOrDefaultAsync(s => s.SampleId == sampleId, ct);
+        // If no form template is assigned, no form is required — auto-pass
+        if (sample is null || sample.FormTemplateId is null)
+            return new GateCheckResult(true, "No monitoring form required for this sample.");
+
+        var submitted = await _db.SampleFormEntries
+            .AnyAsync(e => e.SampleId == sampleId && e.FormTemplateId == sample.FormTemplateId, ct);
+        return new GateCheckResult(submitted,
+            submitted ? "Monitoring form has been submitted." : "Monitoring form has not been submitted yet.");
+    }
+
+    private async Task<GateCheckResult> CheckCheckpointsSigned(int sampleId, CancellationToken ct)
+    {
+        var openRows = await _db.ProcessLogRows
+            .CountAsync(r => r.SampleId == sampleId && r.Status == "Open", ct);
+        return new GateCheckResult(openRows == 0,
+            openRows == 0
+                ? "All checkpoint process log rows are signed."
+                : $"{openRows} unsigned checkpoint row(s) must be signed before proceeding.");
     }
 }

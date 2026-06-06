@@ -39,6 +39,7 @@ public interface ILimsDbContext
     DbSet<CheckpointParameter> CheckpointParameters { get; }
     // Phase 2: Sample Registration — join tables
     DbSet<SampleCheckpoint> SampleCheckpoints { get; }
+    DbSet<SampleFormEntry> SampleFormEntries { get; }
     // Phase 3: Testing Execution + Digital Logbook
     DbSet<TestExecution> TestExecutions { get; }
     DbSet<DigitalLogbookEntry> DigitalLogbookEntries { get; }

@@ -44,6 +44,7 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<CheckpointParameter> CheckpointParameters => Set<CheckpointParameter>();
     // Phase 2 join tables
     public DbSet<SampleCheckpoint> SampleCheckpoints => Set<SampleCheckpoint>();
+    public DbSet<SampleFormEntry> SampleFormEntries => Set<SampleFormEntry>();
     // Phase 3: Testing Execution + Digital Logbook
     public DbSet<TestExecution> TestExecutions => Set<TestExecution>();
     public DbSet<DigitalLogbookEntry> DigitalLogbookEntries => Set<DigitalLogbookEntry>();
