@@ -93,6 +93,8 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<WorkflowStep> WorkflowSteps => Set<WorkflowStep>();
     // MS-2: Inter-site Sample Transfer
     public DbSet<SampleTransfer> SampleTransfers => Set<SampleTransfer>();
+    // Capacity Booking
+    public DbSet<CapacityBooking> CapacityBookings => Set<CapacityBooking>();
     // LabVantage Parity
     public DbSet<LoginAuditLog> LoginAuditLogs => Set<LoginAuditLog>();
     public DbSet<StabilityTrendPoint> StabilityTrendPoints => Set<StabilityTrendPoint>();

@@ -18,6 +18,7 @@ import SampleRegistrationPage from '@/pages/SampleRegistrationPage'
 import CheckpointsPage from '@/pages/CheckpointsPage'
 import CheckpointExecutionPage from '@/pages/CheckpointExecutionPage'
 import WorkQueuePage from '@/pages/WorkQueuePage'
+import CapacityBookingPage from '@/pages/CapacityBookingPage'
 import TestExecutionPage from '@/pages/TestExecutionPage'
 import OosInvestigationsPage from '@/pages/OosInvestigationsPage'
 import DigitalLogbookPage from '@/pages/DigitalLogbookPage'
@@ -105,6 +106,7 @@ export default function App() {
         <Route path="checkpoints"       element={<CheckpointsPage />} />
         <Route path="checkpoint-tasks"  element={<CheckpointExecutionPage />} />
         <Route path="work-queue"        element={<WorkQueuePage />} />
+        <Route path="capacity-booking" element={<CapacityBookingPage />} />
         <Route path="test-execution/:id" element={<TestExecutionPage />} />
         <Route path="oos-investigations" element={<OosInvestigationsPage />} />
         <Route path="quality-events"    element={<QualityEventsPage />} />

@@ -55,6 +55,11 @@ const labOpsItems: NavItem[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M4 6h16M4 10h16M4 14h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
   },
   {
+    label: 'Capacity Booking', path: '/capacity-booking',
+    iconBg: '#e0f2fe', iconColor: '#0284c7',
+    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>,
+  },
+  {
     label: 'Checkpoints', path: '/checkpoint-tasks',
     iconBg: '#fce7f3', iconColor: '#be185d',
     icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8"/></svg>,
@@ -146,6 +151,7 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/checkpoints':                      { section: 'Operations', label: 'Checkpoints' },
   '/checkpoint-tasks':                 { section: 'Operations', label: 'Checkpoint Execution' },
   '/work-queue':                       { section: 'Operations', label: 'Work Queue' },
+  '/capacity-booking':                 { section: 'Operations', label: 'Capacity Booking' },
   '/oos-investigations':               { section: 'Operations', label: 'OOS Investigations' },
   '/quality-events':                   { section: 'Operations', label: 'CAPA / Quality Events' },
   '/spc':                              { section: 'Operations', label: 'SPC / Trending' },
