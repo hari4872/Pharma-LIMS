@@ -52,11 +52,22 @@ interface WfStatus {
   currentStepOrder: number
 }
 
+export interface SampleDetailExtraInfo {
+  sampleType?:          string | null
+  formTemplateName?:    string | null
+  isCheckpointLinked?:  boolean
+  checkpointCount?:     number
+  specVersion?:         string | null
+  specStage?:           string | null
+  barcodePrinted?:      boolean
+}
+
 interface Props {
   sampleId:     number
   onClose:      () => void
   onStartTask?: (executionId: number) => void
   context?:     SheetContext
+  extraInfo?:   SampleDetailExtraInfo
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -104,7 +115,7 @@ function SectionHead({ title, count }: { title: string; count?: number | string 
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function SampleDetailSheet({ sampleId, onClose, onStartTask, context = 'default' }: Props) {
+export default function SampleDetailSheet({ sampleId, onClose, onStartTask, context = 'default', extraInfo }: Props) {
   const [detail,      setDetail]      = useState<SampleDetail | null>(null)
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
@@ -215,7 +226,7 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
             const { materialId, sampleTypeId } = sr.data
             const tplRes = await api.get(`/workflow-templates?materialId=${materialId}&sampleTypeId=${sampleTypeId}`)
               .catch(() => ({ data: [] }))
-            const tpls: { workflowTemplateId: number; name: string; steps: WfStep[]; isDefault: boolean; isActive: boolean }[] = tplRes.data ?? []
+            const tpls: { workflowTemplateId: number; name: string; steps: WfStep[]; isDefault: boolean; isActive: boolean; materialId?: number; sampleTypeId?: number }[] = tplRes.data ?? []
             const tpl = tpls.find(t => t.isActive && t.materialId === materialId && t.sampleTypeId === sampleTypeId)
                       ?? tpls.find(t => t.isActive && t.isDefault)
                       ?? tpls.find(t => t.isActive)
@@ -367,6 +378,62 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                   <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 7, padding: '10px 14px' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>🚨 RUSH SAMPLE</div>
                     <div style={{ fontSize: 11, color: '#92400e' }}>Priority processing required</div>
+                  </div>
+                )}
+                {/* Extra fields from table row (Type, Barcode, Source, Log Form, Test Plan) */}
+                {extraInfo?.sampleType && (
+                  <div style={{ background: '#f8fafc', borderRadius: 7, padding: '10px 14px' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Sample Type</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{extraInfo.sampleType}</div>
+                  </div>
+                )}
+                {extraInfo && extraInfo.barcodePrinted !== undefined && (
+                  <div style={{ background: '#f8fafc', borderRadius: 7, padding: '10px 14px' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Barcode Label</div>
+                    <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 8,
+                      background: extraInfo.barcodePrinted ? '#d1fae5' : '#fee2e2',
+                      color: extraInfo.barcodePrinted ? '#065f46' : '#991b1b' }}>
+                      {extraInfo.barcodePrinted ? '✓ Printed' : '⚠ Not yet printed'}
+                    </span>
+                  </div>
+                )}
+                {extraInfo && (extraInfo.isCheckpointLinked !== undefined) && (
+                  <div style={{ background: '#f8fafc', borderRadius: 7, padding: '10px 14px' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Source</div>
+                    {extraInfo.isCheckpointLinked
+                      ? <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 8, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
+                          📍 Checkpoint ({extraInfo.checkpointCount ?? 0})
+                        </span>
+                      : <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>
+                          🧪 Lab
+                        </span>
+                    }
+                  </div>
+                )}
+                {extraInfo && (extraInfo.formTemplateName !== undefined) && (
+                  <div style={{ background: '#f8fafc', borderRadius: 7, padding: '10px 14px' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Log Form</div>
+                    {extraInfo.formTemplateName
+                      ? <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 8, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
+                          ✓ {extraInfo.formTemplateName}
+                        </span>
+                      : <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 8, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>
+                          ⚠ No form assigned
+                        </span>
+                    }
+                  </div>
+                )}
+                {extraInfo && (extraInfo.specVersion !== undefined) && (
+                  <div style={{ background: '#f8fafc', borderRadius: 7, padding: '10px 14px' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Test Plan</div>
+                    {extraInfo.specVersion
+                      ? <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 8, background: '#f0fdfa', color: '#0d6e6e', border: '1px solid #99f6e4' }}>
+                          v{extraInfo.specVersion} — {extraInfo.specStage}
+                        </span>
+                      : <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 8, background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' }}>
+                          ⚠ No spec assigned
+                        </span>
+                    }
                   </div>
                 )}
               </div>

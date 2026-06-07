@@ -4,11 +4,11 @@ import Barcode from 'react-barcode'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
-import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
+import { fmtDate } from '@/utils/dateFormat'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
-import SampleDetailSheet from '@/components/SampleDetailSheet'
+import SampleDetailSheet, { type SampleDetailExtraInfo } from '@/components/SampleDetailSheet'
 import BatchSampleRegistrationPage from './BatchSampleRegistrationPage'
 import DynamicFormRenderer from '@/components/DynamicFormRenderer'
 
@@ -156,6 +156,7 @@ export default function SampleRegistrationPage() {
   const [printSample, setPrintSample]         = useState<PrintSample | null>(null)
   const labelRef = useRef<HTMLDivElement>(null)
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
+  const [detailExtraInfo, setDetailExtraInfo] = useState<SampleDetailExtraInfo | undefined>(undefined)
   const [fillFormSample, setFillFormSample] = useState<Sample | null>(null)
   const [moreMenuRow,   setMoreMenuRow]    = useState<number | null>(null)
 
@@ -600,70 +601,43 @@ export default function SampleRegistrationPage() {
       {/* ── Sample list table ─────────────────────────────────────────────── */}
       <DataTable loading={loading} data={data} columns={[
         { header: 'Sample No.', accessor: r => (
-          <button onClick={() => setDetailSampleId(r.sampleId)}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f', fontSize: 13, textDecoration: 'underline dotted' }}
-            title="Click to view sample details">
-            {r.sampleNumber}
-            {r.isRush && <span style={{ marginLeft: 6, fontSize: 10, background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4 }}>RUSH</span>}
-            {r.sampleCondition && r.sampleCondition !== 'OK' && (
-              <span style={{ marginLeft: 4, fontSize: 10, background: '#fef2f2', color: '#991b1b', padding: '1px 5px', borderRadius: 4 }}>
-                {r.sampleCondition === 'Damaged' ? 'DAMAGED' : 'COMPROMISED'}
-              </span>
-            )}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <button onClick={() => {
+              setDetailSampleId(r.sampleId)
+              setDetailExtraInfo({
+                sampleType:         r.sampleType,
+                formTemplateName:   (r as any).formTemplateName ?? null,
+                isCheckpointLinked: (r as any).isCheckpointLinked ?? false,
+                checkpointCount:    (r as any).checkpointCount ?? 0,
+                specVersion:        (r as any).specVersion ?? null,
+                specStage:          (r as any).specStage ?? null,
+                barcodePrinted:     r.barcodePrinted,
+              })
+            }}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f', fontSize: 13, textDecoration: 'underline dotted', textAlign: 'left' }}
+              title="Click to view sample details">
+              {r.sampleNumber}
+            </button>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {r.isRush && <span style={{ fontSize: 9, background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>RUSH</span>}
+              {r.sampleCondition && r.sampleCondition !== 'OK' && (
+                <span style={{ fontSize: 9, background: '#fef2f2', color: '#991b1b', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>
+                  {r.sampleCondition === 'Damaged' ? 'DAMAGED' : 'COMPROMISED'}
+                </span>
+              )}
+              {r.barcodePrinted
+                ? <span style={{ fontSize: 9, color: '#16a34a' }}>🖨 Printed</span>
+                : <span style={{ fontSize: 9, color: '#dc2626' }}>🖨 Pending</span>}
+            </div>
+          </div>
         ) },
         { header: 'Material', accessor: 'materialName' },
         { header: 'Lot / Batch', accessor: 'lotNumber' },
-        { header: 'Type', accessor: 'sampleType' },
         {
           header: 'Status', accessor: r => {
             const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
             return <span style={{ padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: c.bg, color: c.color }}>{r.status}</span>
           }
-        },
-        { header: 'Label', accessor: r => (
-          <button onClick={() => openPrintLabel(r)}
-            title="View / Print barcode label"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              padding: '3px 9px', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600,
-              background: r.barcodePrinted ? '#f0fdf4' : '#fef2f2',
-              color: r.barcodePrinted ? '#16a34a' : '#dc2626',
-              border: `1px solid ${r.barcodePrinted ? '#bbf7d0' : '#fecaca'}`,
-            }}>
-            🖨 {r.barcodePrinted ? 'Print' : 'Pending'}
-          </button>
-        )},
-        {
-          header: 'Source', accessor: r => (r as any).isCheckpointLinked
-            ? <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#fef3c7', color: '#92400e', fontWeight: 600, border: '1px solid #fde68a', whiteSpace: 'nowrap' }}>
-                📍 CP ({(r as any).checkpointCount})
-              </span>
-            : <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#f1f5f9', color: '#475569', fontWeight: 600, border: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
-                🧪 Lab
-              </span>
-        },
-        {
-          header: 'Log Form', accessor: r => {
-            const name = (r as any).formTemplateName
-            const short = name ? (name.length > 22 ? name.slice(0, 20) + '…' : name) : null
-            return short
-              ? <span title={name} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#eff6ff', color: '#1d4ed8', fontWeight: 600, border: '1px solid #bfdbfe', whiteSpace: 'nowrap' }}>
-                  ✓ {short}
-                </span>
-              : <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#fef2f2', color: '#dc2626', fontWeight: 600, border: '1px solid #fecaca' }}>
-                  ⚠ No Form
-                </span>
-          }
-        },
-        {
-          header: 'Test Plan', accessor: r => (r as any).specVersion
-            ? <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#f0fdfa', color: '#0d6e6e', fontWeight: 600, border: '1px solid #99f6e4', whiteSpace: 'nowrap' }}>
-                v{(r as any).specVersion} — {(r as any).specStage}
-              </span>
-            : <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: '#fffbeb', color: '#92400e', fontWeight: 600, border: '1px solid #fde68a' }}>
-                ⚠ No Spec
-              </span>
         },
         { header: 'Due', accessor: r => r.dueDate ? fmtDate(r.dueDate) : '—' },
         { header: 'Analyst', accessor: 'analystName' },
@@ -1327,7 +1301,8 @@ export default function SampleRegistrationPage() {
       {detailSampleId !== null && (
         <SampleDetailSheet
           sampleId={detailSampleId}
-          onClose={() => setDetailSampleId(null)}
+          onClose={() => { setDetailSampleId(null); setDetailExtraInfo(undefined) }}
+          extraInfo={detailExtraInfo}
         />
       )}
 
