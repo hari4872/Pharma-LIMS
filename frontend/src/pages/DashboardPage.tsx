@@ -17,7 +17,7 @@ import {
 interface WipSummary {
   registeredToday: number; inTesting: number; completedToday: number
   testsPending: number; testsInProgress: number; testsCompleted: number; overdue: number
-  analystWorkloads: { analystId: number; fullName: string; assignedCount: number }[]
+  analystWorkloads: { analystId: number; analystName: string; openTasks: number }[]
 }
 interface TatSummary {
   avgTatHours: number; targetHours: number; breachCount: number; periodDays: number
@@ -421,8 +421,8 @@ export default function DashboardPage() {
                     style={{ cursor: 'pointer' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#f8f9fa')}
                     onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                    <td style={td}>{a.fullName}</td>
-                    <td style={{ ...td, fontWeight: 600 }}>{a.assignedCount}</td>
+                    <td style={td}>{a.analystName}</td>
+                    <td style={{ ...td, fontWeight: 600 }}>{a.openTasks}</td>
                     <td style={{ ...td, color: T.primary, fontSize: 12 }}>View queue →</td>
                   </tr>
                 ))}</tbody>
