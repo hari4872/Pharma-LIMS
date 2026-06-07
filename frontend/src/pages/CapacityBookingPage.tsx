@@ -36,6 +36,11 @@ interface Instrument {
   instrumentType: string
   status: string
 }
+interface PendingExecution {
+  executionId: number
+  sampleNumber: string
+  status: string
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function dateToLocal(d: Date) {
@@ -68,19 +73,21 @@ function isPast(hour: number, dateStr: string) {
 // ═══════════════════════════════════════════════════════════════════════════
 export default function CapacityBookingPage() {
   const [dateStr, setDateStr] = useState(() => dateToLocal(new Date()))
-  const [instruments, setInstruments] = useState<Instrument[]>([])
-  const [bookings,    setBookings]    = useState<Booking[]>([])
-  const [loading,     setLoading]     = useState(false)
-  const [error,       setError]       = useState('')
+  const [instruments,      setInstruments]      = useState<Instrument[]>([])
+  const [bookings,         setBookings]         = useState<Booking[]>([])
+  const [pendingExecs,     setPendingExecs]     = useState<PendingExecution[]>([])
+  const [loading,          setLoading]          = useState(false)
+  const [error,            setError]            = useState('')
 
   // Modal state
-  const [showModal,  setShowModal]   = useState(false)
-  const [modalInstr, setModalInstr]  = useState<number | ''>('')
-  const [modalHour,  setModalHour]   = useState<number>(9)
-  const [modalDur,   setModalDur]    = useState<number>(1)
-  const [modalNotes, setModalNotes]  = useState('')
-  const [saving,     setSaving]      = useState(false)
-  const [modalErr,   setModalErr]    = useState('')
+  const [showModal,    setShowModal]    = useState(false)
+  const [modalInstr,   setModalInstr]   = useState<number | ''>('')
+  const [modalHour,    setModalHour]    = useState<number>(9)
+  const [modalDur,     setModalDur]     = useState<number>(1)
+  const [modalExecId,  setModalExecId]  = useState<number | ''>('')
+  const [modalNotes,   setModalNotes]   = useState('')
+  const [saving,       setSaving]       = useState(false)
+  const [modalErr,     setModalErr]     = useState('')
 
   // Detail popover
   const [detail, setDetail] = useState<Booking | null>(null)
@@ -89,12 +96,14 @@ export default function CapacityBookingPage() {
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const [instrRes, bookRes] = await Promise.all([
+      const [instrRes, bookRes, execRes] = await Promise.all([
         api.get('/capacity-bookings/instruments'),
         api.get(`/capacity-bookings?date=${dateStr}`),
+        api.get('/capacity-bookings/pending-executions'),
       ])
       setInstruments(instrRes.data)
       setBookings(bookRes.data)
+      setPendingExecs(execRes.data)
     } catch (e) { setError(getErrorMessage(e)) }
     finally { setLoading(false) }
   }, [dateStr])
@@ -110,7 +119,7 @@ export default function CapacityBookingPage() {
 
   function openBookModal(instrumentId: number, hour: number) {
     setModalInstr(instrumentId); setModalHour(hour); setModalDur(1)
-    setModalNotes(''); setModalErr(''); setShowModal(true)
+    setModalExecId(''); setModalNotes(''); setModalErr(''); setShowModal(true)
   }
 
   async function submitBooking(e: React.FormEvent) {
@@ -122,6 +131,7 @@ export default function CapacityBookingPage() {
         instrumentId: modalInstr,
         startTime:    startTime.toISOString(),
         endTime:      endTime.toISOString(),
+        executionId:  modalExecId !== '' ? modalExecId : null,
         notes:        modalNotes || null,
       })
       toast('Slot booked successfully', 'success')
@@ -404,6 +414,20 @@ export default function CapacityBookingPage() {
                     {DURATIONS.filter(d => modalHour + d <= 19).map(d => <option key={d} value={d}>{d} hour{d > 1 ? 's' : ''}</option>)}
                   </select>
                 </div>
+              </div>
+              <div>
+                <label style={lbl}>Linked Test (optional)</label>
+                <select value={modalExecId} onChange={e => setModalExecId(e.target.value !== '' ? Number(e.target.value) : '')} style={inp}>
+                  <option value="">— No linked test execution —</option>
+                  {pendingExecs.map(e => (
+                    <option key={e.executionId} value={e.executionId}>
+                      {e.sampleNumber} ({e.status})
+                    </option>
+                  ))}
+                </select>
+                {pendingExecs.length === 0 && (
+                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>No unbooked test executions currently in queue</div>
+                )}
               </div>
               <div>
                 <label style={lbl}>Notes (optional)</label>

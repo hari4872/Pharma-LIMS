@@ -33,9 +33,9 @@ public class CapacityBookingController : LimsControllerBase
         return Ok(bookings.Select(b => new {
             b.CapacityBookingId,
             b.InstrumentId,
-            InstrumentCode = b.Instrument.InstrumentCode,
-            InstrumentName = b.Instrument.InstrumentName,
-            BookedBy       = b.BookedByUser.FullName,
+            InstrumentCode = b.Instrument?.InstrumentCode ?? "[Deleted]",
+            InstrumentName = b.Instrument?.InstrumentName ?? "[Deleted]",
+            BookedBy       = b.BookedByUser?.FullName ?? "[Unknown]",
             b.ExecutionId,
             SampleNumber   = b.Execution?.Sample?.SampleNumber,
             StartTime      = b.StartTime,
@@ -60,6 +60,32 @@ public class CapacityBookingController : LimsControllerBase
         }));
     }
 
+    // GET api/v1/capacity-bookings/pending-executions — work queue items not yet booked
+    [HttpGet("pending-executions")]
+    public async Task<IActionResult> GetPendingExecutions(CancellationToken ct)
+    {
+        // Already-booked execution IDs
+        var bookedIds = await _db.CapacityBookings
+            .Where(b => b.ExecutionId != null && b.Status != "Cancelled" && b.Status != "Released")
+            .Select(b => b.ExecutionId!.Value)
+            .ToListAsync(ct);
+
+        var pending = await _db.TestExecutions
+            .Where(e => (e.Status == Domain.Enums.TestExecutionStatus.Assigned ||
+                         e.Status == Domain.Enums.TestExecutionStatus.InProgress)
+                        && !bookedIds.Contains(e.ExecutionId))
+            .Include(e => e.Sample)
+            .AsNoTracking()
+            .Select(e => new {
+                e.ExecutionId,
+                SampleNumber = e.Sample != null ? e.Sample.SampleNumber : "—",
+                e.Status,
+            })
+            .Take(50)
+            .ToListAsync(ct);
+        return Ok(pending);
+    }
+
     // POST api/v1/capacity-bookings
     [HttpPost]
     [Authorize(Roles = "Admin,QA,LabManager,Analyst")]
@@ -67,6 +93,19 @@ public class CapacityBookingController : LimsControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         if (req.EndTime <= req.StartTime) return BadRequest(new { error = "END_BEFORE_START", message = "End time must be after start time." });
+
+        // Validate ExecutionId if provided
+        if (req.ExecutionId.HasValue)
+        {
+            var exec = await _db.TestExecutions.FindAsync([req.ExecutionId.Value], ct);
+            if (exec is null) return BadRequest(new { error = "INVALID_EXECUTION", message = "Test execution not found." });
+
+            // Prevent same execution being booked twice
+            var execAlreadyBooked = await _db.CapacityBookings.AnyAsync(b =>
+                b.ExecutionId == req.ExecutionId && b.Status != "Cancelled", ct);
+            if (execAlreadyBooked)
+                return Conflict(new { error = "EXECUTION_ALREADY_BOOKED", message = "This test execution already has an active booking." });
+        }
 
         // Conflict check — no overlapping booking for same instrument
         var conflict = await _db.CapacityBookings.AnyAsync(b =>
