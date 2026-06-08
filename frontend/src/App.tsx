@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
@@ -82,16 +82,6 @@ function RequireRole({ roles, children }: { roles: string[]; children: React.Rea
   return roles.includes(role) ? <>{children}</> : <Navigate to="/dashboard" replace />
 }
 
-// ─── Loading fallback ─────────────────────────────────────────────────────────
-function PageLoader() {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
-      <div style={{ width: 32, height: 32, border: '3px solid #e5e7eb', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  )
-}
-
 export default function App() {
   return (
     <Routes>
@@ -99,7 +89,6 @@ export default function App() {
       <Route path="/setup" element={<SetupPage />} />
       <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Suspense fallback={<PageLoader />}>
           {/* Dashboard & Compliance */}
           <Route path="dashboard"  element={<DashboardPage />} />
           <Route path="compliance" element={<CompliancePanelPage />} />
@@ -167,7 +156,6 @@ export default function App() {
           <Route path="quality-assurance"  element={<QualityAssurancePage />} />
           <Route path="release-dispatch"   element={<ReleaseDispatchPage />} />
           <Route path="stability-retention" element={<StabilityRetentionPage />} />
-        </Suspense>
       </Route>
     </Routes>
   )

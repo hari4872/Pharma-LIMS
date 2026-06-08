@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef, Suspense } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import type { AppDispatch, RootState } from '@/store'
@@ -12,6 +12,16 @@ import { useOfflineSync } from '@/hooks/useOfflineSync'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useIdleLock } from '@/hooks/useIdleLock'
 import IdleLockOverlay from '@/components/IdleLockOverlay'
+
+// ── Lazy-page loading spinner ─────────────────────────────────────────────
+function PageLoader() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 220 }}>
+      <div style={{ width: 32, height: 32, border: '3px solid #e5e7eb', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}
 
 // ── Nav item type ─────────────────────────────────────────────────────────
 type NavItem = {
@@ -796,7 +806,9 @@ export default function Layout() {
           {/* Page-level boundary: catches crashes in individual pages without
               taking down the sidebar / topbar navigation */}
           <ErrorBoundary label="Page">
-            <Outlet />
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
           </ErrorBoundary>
         </main>
       </div>
