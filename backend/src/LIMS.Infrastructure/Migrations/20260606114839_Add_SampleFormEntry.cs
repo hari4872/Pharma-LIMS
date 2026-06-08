@@ -43,12 +43,12 @@ namespace LIMS.Infrastructure.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_sample_form_entries_FormTemplateId",
-                table: "SampleFormEntries",
+                table: "sample_form_entries",
                 column: "FormTemplateId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_sample_form_entries_SampleId",
-                table: "SampleFormEntries",
+                table: "sample_form_entries",
                 column: "SampleId");
         }
 

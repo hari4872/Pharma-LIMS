@@ -21,19 +21,19 @@ public class SiteAnalyticsController : ControllerBase
 
     // GET api/v1/site-analytics/kpis?periodDays=30
     [HttpGet("kpis")]
-    [Authorize(Roles = "Admin,SuperAdmin,CorporateQA")]
+    [Authorize(Roles = "Admin,LabManager")]
     public async Task<IActionResult> GetKpis([FromQuery] int? periodDays, CancellationToken ct)
         => Ok(await _svc.GetSiteKpisAsync(periodDays ?? 30, ct));
 
     // GET api/v1/site-analytics/tat?periodDays=30
     [HttpGet("tat")]
-    [Authorize(Roles = "Admin,SuperAdmin,CorporateQA")]
+    [Authorize(Roles = "Admin,LabManager")]
     public async Task<IActionResult> GetTat([FromQuery] int? periodDays, CancellationToken ct)
         => Ok(await _svc.GetTatBreakdownAsync(periodDays ?? 30, ct));
 
     // GET api/v1/site-analytics/oos-trend?weeks=8
     [HttpGet("oos-trend")]
-    [Authorize(Roles = "Admin,SuperAdmin,CorporateQA")]
+    [Authorize(Roles = "Admin,LabManager")]
     public async Task<IActionResult> GetOosTrend([FromQuery] int? weeks, CancellationToken ct)
         => Ok(await _svc.GetOosTrendAsync(weeks ?? 8, ct));
 }

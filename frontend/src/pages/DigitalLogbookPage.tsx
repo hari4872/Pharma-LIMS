@@ -2,7 +2,7 @@
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
-import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
+import { fmtDateTime } from '@/utils/dateFormat'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'

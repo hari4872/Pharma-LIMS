@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
-import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
+import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'

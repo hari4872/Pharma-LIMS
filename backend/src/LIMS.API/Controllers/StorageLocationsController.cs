@@ -48,6 +48,7 @@ public class StorageLocationsController : ControllerBase
     // POST api/v1/storage-locations/transfers
     // FR-12: INSERT-only location transfer log (21 CFR 211.170 chain of custody)
     [HttpPost("transfers")]
+    [Authorize(Roles = "Admin,LabManager,QCLead,QA")]
     public async Task<IActionResult> Transfer([FromBody] TransferSampleRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
@@ -89,6 +90,7 @@ public class ConditionExcursionsController : ControllerBase
         => Ok(await _mediator.Send(new GetConditionExcursionsQuery(locationId)));
 
     [HttpPost]
+    [Authorize(Roles = "Admin,LabManager,QCLead,QA,Analyst")]
     public async Task<IActionResult> LogExcursion(int locationId, [FromBody] LogExcursionRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";

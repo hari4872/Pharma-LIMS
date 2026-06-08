@@ -20,15 +20,15 @@ public class ResultsReviewController : LimsControllerBase
     private readonly ILimsDbContext _db;
     public ResultsReviewController(IMediator mediator, ILimsDbContext db) { _mediator = mediator; _db = db; }
 
-    // POST api/v1/results-review/{executionId}/peer-review — 2nd analyst Â§11.50 e-sig (FR-02, FR-03)
+    // POST api/v1/results-review/{executionId}/peer-review ï¿½ 2nd analyst Â§11.50 e-sig (FR-02, FR-03)
     [HttpPost("{executionId}/peer-review")]
-    [Authorize(Roles = "Admin,Analyst,LabManager,QA,LabManager")]
+    [Authorize(Roles = "Admin,Analyst,LabManager,QA,QCLead")]
     public async Task<IActionResult> PeerReview(int executionId, [FromBody] ReviewRequest request)
     {
         int reviewerId;
         if (!string.IsNullOrWhiteSpace(request.ReviewerUsername))
         {
-            // Reviewer is a different person — resolve by username
+            // Reviewer is a different person ï¿½ resolve by username
             var reviewer = await _db.Users
                 .FirstOrDefaultAsync(u => u.Username.ToLower() == request.ReviewerUsername.ToLower() && u.IsActive);
             if (reviewer is null)
@@ -49,9 +49,9 @@ public class ResultsReviewController : LimsControllerBase
         return Ok(new { reviewId = result.Value, reviewType = "PeerReview" });
     }
 
-    // POST api/v1/results-review/{executionId}/qc-lead-verify — QC Lead Â§11.50 e-sig + OOS gate (FR-04, FR-07)
+    // POST api/v1/results-review/{executionId}/qc-lead-verify ï¿½ QC Lead Â§11.50 e-sig + OOS gate (FR-04, FR-07)
     [HttpPost("{executionId}/qc-lead-verify")]
-    [Authorize(Roles = "LabManager,QA,Admin")]
+    [Authorize(Roles = "Admin,QA,LabManager,QCLead")]
     public async Task<IActionResult> QCLeadVerify(int executionId, [FromBody] ReviewRequest request)
     {
         int qcLeadId;
@@ -77,7 +77,7 @@ public class ResultsReviewController : LimsControllerBase
         return Ok(new { reviewId = result.Value, reviewType = "QCLeadVerification" });
     }
 
-    // GET api/v1/results-review/{executionId}/pdf — Batch Analysis Summary PDF
+    // GET api/v1/results-review/{executionId}/pdf ï¿½ Batch Analysis Summary PDF
     [HttpGet("{executionId}/pdf")]
     public async Task<IActionResult> GetPdf(int executionId)
     {
@@ -97,17 +97,17 @@ public class ResultsReviewController : LimsControllerBase
         var data = new BatchAnalysisPdfDocument.BatchAnalysisData(
             ExecutionId:   exec.ExecutionId,
             SampleNumber:  exec.Sample.SampleNumber,
-            MaterialName:  exec.Sample.Material?.MaterialName ?? "—",
+            MaterialName:  exec.Sample.Material?.MaterialName ?? "ï¿½",
             LotNumber:     exec.Sample.LotNumber,
-            LabName:       exec.Sample.Lab?.LabName ?? "—",
+            LabName:       exec.Sample.Lab?.LabName ?? "ï¿½",
             AnalystName:   exec.Analyst?.FullName ?? "Unknown",
-            InstrumentCode: exec.Instrument?.InstrumentCode ?? "—",
-            InstrumentType: exec.Instrument?.InstrumentType ?? "—",
+            InstrumentCode: exec.Instrument?.InstrumentCode ?? "ï¿½",
+            InstrumentType: exec.Instrument?.InstrumentType ?? "ï¿½",
             Status:        exec.Status.ToString(),
             StartedAt:     exec.StartedAt,
             CompletedAt:   exec.CompletedAt,
             Results: exec.LogbookEntries.Select(le => new BatchAnalysisPdfDocument.TestResultRow(
-                le.Parameter?.ParameterName ?? "—",
+                le.Parameter?.ParameterName ?? "ï¿½",
                 le.RawValue,
                 le.CalculatedResult,
                 le.SpecMinSnapshot,
@@ -118,7 +118,7 @@ public class ResultsReviewController : LimsControllerBase
             )).ToList(),
             Reviews: exec.ResultsReviews.Select(r => new BatchAnalysisPdfDocument.ReviewRow(
                 r.ReviewType.ToString(),
-                r.Reviewer?.FullName ?? "—",
+                r.Reviewer?.FullName ?? "ï¿½",
                 r.ReviewedAt,
                 r.Notes
             )).ToList(),
@@ -133,9 +133,9 @@ public class ResultsReviewController : LimsControllerBase
         return File(bytes, "application/pdf", fname);
     }
 
-    // POST api/v1/results-review/evidence — FR-14: attach evidence file reference (audit-logged)
+    // POST api/v1/results-review/evidence ï¿½ FR-14: attach evidence file reference (audit-logged)
     [HttpPost("evidence")]
-    [Authorize(Roles = "Admin,Analyst,LabManager,QA,LabManager")]
+    [Authorize(Roles = "Admin,Analyst,LabManager,QA,QCLead")]
     public async Task<IActionResult> AttachEvidence([FromBody] AttachEvidenceRequest request)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });

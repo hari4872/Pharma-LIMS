@@ -208,9 +208,9 @@ public class ReportsController : ControllerBase
     }
 
     // GET api/v1/reports/multi-site-summary?periodDays=30
-    // MS-3: Consolidated cross-site Excel report — SuperAdmin / CorporateQA only
+    // MS-3: Consolidated cross-site Excel report — Admin / LabManager only
     [HttpGet("multi-site-summary")]
-    [Authorize(Roles = "Admin,SuperAdmin,CorporateQA")]
+    [Authorize(Roles = "Admin,LabManager")]
     public async Task<IActionResult> ExportMultiSiteSummary([FromQuery] int? periodDays, CancellationToken ct)
     {
         var kpis = await _siteAnalytics.GetSiteKpisAsync(periodDays ?? 30, ct);

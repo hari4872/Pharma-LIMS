@@ -8,8 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // SEC-2: Validate JWT key length at startup — prevents weak/missing key silently signing tokens
 var jwtKey = builder.Configuration["Jwt:Key"];
-if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
-    throw new InvalidOperationException("Jwt:Key must be at least 32 characters. Check appsettings or environment variables.");
+if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 48 || jwtKey == "SET_VIA_ENV_JWT__KEY_MIN_32_CHARS")
+    throw new InvalidOperationException("Jwt:Key must be at least 48 characters and not the default placeholder. Set via environment variable Jwt__Key.");
 
 
 // Background jobs must NOT crash the host when DB is temporarily unreachable
@@ -159,16 +159,16 @@ if (!app.Environment.IsDevelopment())
 
 app.UseCors("LimsFrontend");
 
-// Serve uploaded evidence files at /uploads/*
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Serve uploaded evidence files at /uploads/* — must be AFTER auth so files are protected
 var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
 Directory.CreateDirectory(uploadsPath);
 app.UseStaticFiles(new StaticFileOptions {
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
     RequestPath  = "/uploads"
 });
-
-app.UseAuthentication();
-app.UseAuthorization();
 app.MapControllers();
 app.MapHub<LimsHub>("/hubs/lims");  // Contract 2: single SignalR endpoint
 

@@ -4,7 +4,7 @@ import type { RootState } from '@/store'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import { useNavigate } from 'react-router-dom'
 import api from '@/api/client'
-import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
+import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { toast } from '@/components/Toast'
@@ -599,7 +599,7 @@ export default function WorkQueuePage() {
         data={scanResults && scanResults.length > 0
           ? data.filter(r => scanResults.some(s => s.executionId === r.executionId))
           : data}
-        rowStyle={r => {
+        rowStyle={() => {
           if (!scanResults || scanResults.length === 0) return {}
           return { background: '#fffbeb', outline: '2px solid #fcd34d', outlineOffset: '-2px' }
         }}

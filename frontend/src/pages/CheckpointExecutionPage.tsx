@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
-import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
+import { fmtDateTime } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import { inp, Modal, Field, ModalFooter } from './master-data/LaboratoriesPage'
 import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'

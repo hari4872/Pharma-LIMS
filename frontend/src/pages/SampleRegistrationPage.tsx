@@ -484,17 +484,6 @@ export default function SampleRegistrationPage() {
     finally { setSaving(false) }
   }
 
-  function openPrintLabel(row: Sample) {
-    setPrintSample({
-      sampleNumber:   row.sampleNumber,
-      materialName:   row.materialName,
-      lotNumber:      row.lotNumber,
-      sampleTypeName: row.sampleType,
-      registeredAt:   row.createdAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
-      testsCreated:   0,
-    })
-  }
-
   function doPrint() {
     const el = labelRef.current
     if (!el) return
