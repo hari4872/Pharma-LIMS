@@ -17,14 +17,15 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/specification-templates")]
 [Authorize]
-public class SpecificationTemplatesController : ControllerBase
+public class SpecificationTemplatesController : LimsControllerBase
 {
     private readonly ILimsDbContext _db;
     private readonly ISpecificationEngineService _engine;
+    private readonly IElectronicSignatureService _esig;
 
-    public SpecificationTemplatesController(ILimsDbContext db, ISpecificationEngineService engine)
+    public SpecificationTemplatesController(ILimsDbContext db, ISpecificationEngineService engine, IElectronicSignatureService esig)
     {
-        _db = db; _engine = engine;
+        _db = db; _engine = engine; _esig = esig;
     }
 
     // â"€â"€ GET /specification-templates â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -171,8 +172,10 @@ public class SpecificationTemplatesController : ControllerBase
     // â"€â"€ POST /specification-templates/:id/approve â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
     [HttpPost("{id:int}/approve")]
     [Authorize(Roles = "Admin,QA")]
-    public async Task<IActionResult> Approve(int id)
+    public async Task<IActionResult> Approve(int id, [FromBody] SpecTemplateApproveRequest request)
     {
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
+
         var template = await _db.SpecificationTemplates
             .Include(t => t.Items)
             .FirstOrDefaultAsync(t => t.SpecTemplateId == id);
@@ -193,6 +196,10 @@ public class SpecificationTemplatesController : ControllerBase
         if (existingApproved)
             return Conflict(new { error = "An Approved specification already exists for this Material / Sample Type / Stage combination. Obsolete it first before approving a replacement." });
 
+        // 21 CFR §11.50: e-signature required for specification template approval
+        var sig = await _esig.CreateSignatureAsync(userId, request.Password, request.Meaning, request.Reason, "SpecificationTemplate.Approve");
+        if (sig is null) return Unauthorized(new { error = "ESIGN_AUTH_FAILED", message = "Password incorrect — e-signature rejected. (21 CFR §11.300)" });
+
         var user = User.Identity?.Name ?? "system";
         template.Status     = SpecTemplateStatus.Approved;
         template.ApprovedBy = user;
@@ -201,7 +208,7 @@ public class SpecificationTemplatesController : ControllerBase
         template.UpdatedAt  = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync();
-        return Ok(new { template.SpecTemplateId, template.Status, template.ApprovedAt });
+        return Ok(new { template.SpecTemplateId, template.Status, template.ApprovedAt, signatureId = sig.SignatureId });
     }
 
     // â"€â"€ POST /specification-templates/:id/obsolete â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -266,4 +273,7 @@ public record SaveSpecItemRequest(
     int? TestMethodId,
     int  TurnaroundHours,
     bool IsMandatory);
+
+// 21 CFR §11.50: e-signature required for specification template approval
+public record SpecTemplateApproveRequest(string Password, string Meaning, string Reason);
 

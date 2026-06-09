@@ -19,6 +19,7 @@ public class CoAController : LimsControllerBase
     public CoAController(IMediator mediator, IQAReviewGateService qaGate)
     { _mediator = mediator; _qaGate = qaGate; }
 
+
     // GET api/v1/coas?sampleId=&status=
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] int? sampleId, [FromQuery] string? status)
@@ -37,7 +38,7 @@ public class CoAController : LimsControllerBase
         return Ok(coa);
     }
 
-    // GET api/v1/coas/{id}/checklist — evaluate all 10 QA checklist items (vw_qa_checklist)
+    // GET api/v1/coas/{id}/checklist ï¿½ evaluate all 10 QA checklist items (vw_qa_checklist)
     [HttpGet("{id}/checklist")]
     [Authorize(Roles = "QA,Admin,LabManager")]
     public async Task<IActionResult> GetChecklist(int id)
@@ -49,7 +50,7 @@ public class CoAController : LimsControllerBase
         return Ok(checklist);
     }
 
-    // POST api/v1/coas/generate — manual CoA generation trigger (auto-trigger is via QCLead verify)
+    // POST api/v1/coas/generate ï¿½ manual CoA generation trigger (auto-trigger is via QCLead verify)
     [HttpPost("generate")]
     [Authorize(Roles = "LabManager,QA,Admin")]
     public async Task<IActionResult> Generate([FromBody] GenerateCoARequest request)
@@ -59,7 +60,7 @@ public class CoAController : LimsControllerBase
         return Ok(new { coaId = result.Value });
     }
 
-    // POST api/v1/coas/{id}/approve — QA Â§11.50 approval, locks PDF atomically
+    // POST api/v1/coas/{id}/approve ï¿½ QA Â§11.50 approval, locks PDF atomically
     [HttpPost("{id}/approve")]
     [Authorize(Roles = "QA,Admin,LabManager")]
     public async Task<IActionResult> Approve(int id, [FromBody] CoASignRequest request)
@@ -76,7 +77,7 @@ public class CoAController : LimsControllerBase
         return Ok(new { approvalId = result.Value, decision = "Approved" });
     }
 
-    // GET api/v1/coas/{id}/pdf — generate and download CoA PDF (on-the-fly, QuestPDF)
+    // GET api/v1/coas/{id}/pdf ï¿½ generate and download CoA PDF (on-the-fly, QuestPDF)
     [HttpGet("{id}/pdf")]
     public async Task<IActionResult> GetPdf(int id)
     {
@@ -95,17 +96,23 @@ public class CoAController : LimsControllerBase
         return File(bytes, "application/pdf", $"CoA_{coa.CoaNumber}.pdf");
     }
 
-    // POST api/v1/coas/{id}/reissue — creates superseding CoA, sets SupersededById on original (FR-11)
+    // POST api/v1/coas/{id}/reissue â€” creates superseding CoA (FR-11)
+    // 21 CFR Â§11.50: e-signature required â€” superseding a Released record is a regulated action
     [HttpPost("{id}/reissue")]
-    [Authorize(Roles = "QA,Admin,LabManager")]
+    [Authorize(Roles = "QA,Admin")]
     public async Task<IActionResult> Reissue(int id, [FromBody] ReissueCoARequest request)
     {
-        var result = await _mediator.Send(new ReissueCoACommand(id, request.Reason));
-        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
+        var result = await _mediator.Send(new ReissueCoACommand(id, userId, request.Password, request.Meaning, request.Reason));
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
+            return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        }
         return Ok(new { newCoaId = result.Value, supersededCoaId = id });
     }
 
-    // POST api/v1/coas/{id}/reject — QA rejection + justification, INSERT-only (EU Annex 11 Â§13)
+    // POST api/v1/coas/{id}/reject ï¿½ QA rejection + justification, INSERT-only (EU Annex 11 Â§13)
     [HttpPost("{id}/reject")]
     [Authorize(Roles = "QA,Admin,LabManager")]
     public async Task<IActionResult> Reject(int id, [FromBody] CoARejectRequest request)
@@ -126,5 +133,5 @@ public record GenerateCoARequest(int SampleId, int ExecutionId);
 public record CoASignRequest(string Password, string Meaning, string Reason,
     bool IsConditionalRelease = false, string? ConditionalJustification = null);
 public record CoARejectRequest(string Justification, string Password, string Meaning, string Reason);
-public record ReissueCoARequest(string Reason);
+public record ReissueCoARequest(string Password, string Meaning, string Reason);
 

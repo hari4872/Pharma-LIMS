@@ -137,9 +137,23 @@ if (app.Environment.IsDevelopment())
 app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
 {
     var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+    var isDev = app.Environment.IsDevelopment();
+
+    // FluentValidation failures → 400 Bad Request with field-level errors
+    if (ex is FluentValidation.ValidationException valEx)
+    {
+        ctx.Response.StatusCode  = 400;
+        ctx.Response.ContentType = "application/json";
+        await ctx.Response.WriteAsJsonAsync(new
+        {
+            error  = "VALIDATION_ERROR",
+            errors = valEx.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage })
+        });
+        return;
+    }
+
     ctx.Response.StatusCode  = 500;
     ctx.Response.ContentType = "application/json";
-    var isDev = app.Environment.IsDevelopment();
     await ctx.Response.WriteAsJsonAsync(new
     {
         error   = "INTERNAL_ERROR",

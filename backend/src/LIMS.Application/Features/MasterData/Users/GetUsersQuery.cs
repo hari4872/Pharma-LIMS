@@ -30,8 +30,8 @@ public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, List<UserDto>
             u.UserType.ToString(), u.Role.ToString(),
             u.LabId, u.Lab?.LabName,
             u.IsActive, u.IsTenantAdmin, u.CreatedBy, u.CreatedAt,
-            // Substitute role defaults when no custom permissions saved yet — ensures ticks show correctly
-            u.CustomPermissionsJson ?? GetDefaultPermissionsJson(u.Role.ToString())
+            // CustomPermissionsJson omitted from list — fetch via GET /users/{id}/permissions (Admin only)
+            null
         )).ToList();
     }
 

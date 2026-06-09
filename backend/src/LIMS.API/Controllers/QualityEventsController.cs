@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -320,28 +321,28 @@ public class QualityEventsController : ControllerBase
 }
 
 public record CreateQualityEventRequest(
-    string CdType,
-    string Title,
-    string? Description,
-    string? Priority,
-    string? RootCause,
-    string? CorrectiveAction,
-    string? PreventiveAction,
-    int? SampleId,
-    int? AssignedToUserId,
-    int? LabId,
-    int? LinkedOosId,
+    [Required][MaxLength(50)]  string  CdType,
+    [Required][MaxLength(500)] string  Title,
+    [MaxLength(4000)]          string? Description,
+    [MaxLength(50)]            string? Priority,
+    [MaxLength(2000)]          string? RootCause,
+    [MaxLength(2000)]          string? CorrectiveAction,
+    [MaxLength(2000)]          string? PreventiveAction,
+    int?      SampleId,
+    int?      AssignedToUserId,
+    int?      LabId,
+    int?      LinkedOosId,
     DateTime? DueDate);
 
 public record UpdateQualityEventRequest(
-    string? Title,
-    string? Description,
-    string? Status,
-    string? Priority,
-    string? RootCause,
-    string? CorrectiveAction,
-    string? PreventiveAction,
-    int? AssignedToUserId,
+    [MaxLength(500)]  string? Title,
+    [MaxLength(4000)] string? Description,
+    [MaxLength(50)]   string? Status,
+    [MaxLength(50)]   string? Priority,
+    [MaxLength(2000)] string? RootCause,
+    [MaxLength(2000)] string? CorrectiveAction,
+    [MaxLength(2000)] string? PreventiveAction,
+    int?      AssignedToUserId,
     DateTime? DueDate);
 
 public record ClassifyQualityEventRequest(string Title, string? Description);

@@ -42,6 +42,14 @@ api.interceptors.request.use(async config => {
   const isWrite = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
 
   // ── Offline handling ──────────────────────────────────────────────────────
+  // E-signature endpoints MUST NOT be queued offline — plain-text passwords
+  // must never be persisted to IndexedDB (21 CFR §11.300 / security requirement).
+  const ESIG_ENDPOINTS = [
+    '/peer-review', '/qc-lead-verify', '/coas/', '/approve', '/reject',
+    '/reissue', '/batch-releases', '/specification-templates',
+  ]
+  const isEsigEndpoint = ESIG_ENDPOINTS.some(e => (config.url ?? '').includes(e))
+
   if (!navigator.onLine) {
     if (method === 'GET') {
       // Serve from cache
@@ -51,6 +59,11 @@ api.interceptors.request.use(async config => {
         return Promise.reject({ __offlineCancel: true, __cachedData: JSON.parse(cached) })
       }
       return config
+    }
+
+    // Block e-signature submissions when offline — never queue passwords to IndexedDB
+    if (isWrite && isEsigEndpoint) {
+      return Promise.reject(new Error('E-signatures require an active network connection. Please reconnect and try again.'))
     }
 
     if (isWrite) {
