@@ -7,8 +7,11 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // SEC-2: Validate JWT key length at startup — prevents weak/missing key silently signing tokens
+// Only enforced in non-Development so local dotnet run works without env vars.
+// Production deployments MUST set Jwt__Key via environment variable (≥48 chars).
 var jwtKey = builder.Configuration["Jwt:Key"];
-if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 48 || jwtKey == "SET_VIA_ENV_JWT__KEY_MIN_32_CHARS")
+if (!builder.Environment.IsDevelopment() &&
+    (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 48 || jwtKey == "SET_VIA_ENV_JWT__KEY_MIN_32_CHARS"))
     throw new InvalidOperationException("Jwt:Key must be at least 48 characters and not the default placeholder. Set via environment variable Jwt__Key.");
 
 
