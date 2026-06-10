@@ -74,7 +74,9 @@ public class QCLeadVerifyHandler : IRequestHandler<QCLeadVerifyCommand, Result<i
         // Execution moves to QCVerified — removes it from Results Review queue
         execution.Status = TestExecutionStatus.QCVerified;
         // Sample goes to PendingQAReview — Released only after QA CoA approval (Phase 4)
-        execution.Sample.Status = SampleStatus.PendingQAReview;
+        // Guard: Sample may be null if Include didn't resolve (data integrity edge case)
+        if (execution.Sample is not null)
+            execution.Sample.Status = SampleStatus.PendingQAReview;
 
         await _db.SaveChangesAsync(ct);
 
@@ -83,8 +85,13 @@ public class QCLeadVerifyHandler : IRequestHandler<QCLeadVerifyCommand, Result<i
         try { await _coaGen.GenerateDraftAsync(execution.SampleId, cmd.ExecutionId, ct); }
         catch { /* CoA generation is non-critical — verification is already committed */ }
 
-        await _notify.PushToGroupAsync("QA", "QCLeadVerified",
-            new { executionId = cmd.ExecutionId, sampleId = execution.SampleId }, ct);
+        // Notification is best-effort — never block verification if SignalR/push fails
+        try
+        {
+            await _notify.PushToGroupAsync("QA", "QCLeadVerified",
+                new { executionId = cmd.ExecutionId, sampleId = execution.SampleId }, ct);
+        }
+        catch { /* non-critical */ }
 
         return Result<int>.Success(review.ReviewId);
     }

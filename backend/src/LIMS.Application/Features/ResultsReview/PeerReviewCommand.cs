@@ -75,13 +75,21 @@ public class PeerReviewHandler : IRequestHandler<PeerReviewCommand, Result<int>>
         execution.Status = TestExecutionStatus.PeerReviewed;
         await _db.SaveChangesAsync(ct);
 
-        await _audit.LogAsync("ResultsReview", cmd.ExecutionId, "PeerReviewed",
-            null,
-            new { ReviewType = "PeerReview", ReviewerId = cmd.ReviewerId },
-            "Reviewer");
-
-        await _notify.PushToGroupAsync("QCLead", "PeerReviewCompleted",
-            new { executionId = cmd.ExecutionId, sampleId = execution.SampleId }, ct);
+        // Audit + notification are best-effort — never block peer review if these fail
+        try
+        {
+            await _audit.LogAsync("ResultsReview", cmd.ExecutionId, "PeerReviewed",
+                null,
+                new { ReviewType = "PeerReview", ReviewerId = cmd.ReviewerId },
+                "Reviewer");
+        }
+        catch { /* non-critical */ }
+        try
+        {
+            await _notify.PushToGroupAsync("QCLead", "PeerReviewCompleted",
+                new { executionId = cmd.ExecutionId, sampleId = execution.SampleId }, ct);
+        }
+        catch { /* non-critical */ }
 
         return Result<int>.Success(review.ReviewId);
     }
