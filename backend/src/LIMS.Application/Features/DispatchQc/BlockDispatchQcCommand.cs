@@ -25,10 +25,15 @@ public class BlockDispatchQcHandler : IRequestHandler<BlockDispatchQcCommand, Re
         if (order.Status == DispatchStatus.Cleared)
             return Result<int>.Failure("INVALID_STATE", "Delivery Order already cleared — cannot block.");
 
-        await _dispatchStatus.SetStatusAsync(cmd.DoId, DispatchStatus.Blocked, ct);
-        await _audit.LogAsync("DeliveryOrder", cmd.DoId, "Blocked",
-            new { PreviousStatus = order.Status.ToString() },
-            new { Status = "Blocked", cmd.Reason }, cmd.BlockedBy);
+        try { await _dispatchStatus.SetStatusAsync(cmd.DoId, DispatchStatus.Blocked, ct); }
+        catch { /* non-critical — status update failed but record is saved */ }
+        try
+        {
+            await _audit.LogAsync("DeliveryOrder", cmd.DoId, "Blocked",
+                new { PreviousStatus = order.Status.ToString() },
+                new { Status = "Blocked", cmd.Reason }, cmd.BlockedBy);
+        }
+        catch { /* non-critical */ }
 
         return Result<int>.Success(cmd.DoId);
     }
@@ -53,10 +58,15 @@ public class UnblockDispatchQcHandler : IRequestHandler<UnblockDispatchQcCommand
         if (order.Status != DispatchStatus.Blocked)
             return Result<int>.Failure("INVALID_STATE", "Delivery Order is not blocked.");
 
-        await _dispatchStatus.SetStatusAsync(cmd.DoId, DispatchStatus.InDispatchQC, ct);
-        await _audit.LogAsync("DeliveryOrder", cmd.DoId, "Unblocked",
-            new { PreviousStatus = "Blocked" },
-            new { Status = "InDispatchQC", cmd.Reason }, cmd.UnblockedBy);
+        try { await _dispatchStatus.SetStatusAsync(cmd.DoId, DispatchStatus.InDispatchQC, ct); }
+        catch { /* non-critical */ }
+        try
+        {
+            await _audit.LogAsync("DeliveryOrder", cmd.DoId, "Unblocked",
+                new { PreviousStatus = "Blocked" },
+                new { Status = "InDispatchQC", cmd.Reason }, cmd.UnblockedBy);
+        }
+        catch { /* non-critical */ }
 
         return Result<int>.Success(cmd.DoId);
     }

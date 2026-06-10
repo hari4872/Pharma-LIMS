@@ -52,11 +52,18 @@ public class RejectCoAHandler : IRequestHandler<RejectCoACommand, Result<int>>
         _db.CoaApprovals.Add(approval);
 
         coa.Status = CoaStatus.Rejected;          // prevent re-approval of rejected CoA
-        coa.Sample.Status = SampleStatus.Rejected;
+        // Guard: Sample may be null if Include didn't resolve
+        if (coa.Sample is not null)
+            coa.Sample.Status = SampleStatus.Rejected;
         await _db.SaveChangesAsync(ct);
 
-        await _notify.PushToGroupAsync("QCLead", "CoARejected",
-            new { coaId = cmd.CoaId, sampleId = coa.SampleId, justification = cmd.Justification }, ct);
+        // Notification is best-effort — never block CoA rejection if SignalR fails
+        try
+        {
+            await _notify.PushToGroupAsync("QCLead", "CoARejected",
+                new { coaId = cmd.CoaId, sampleId = coa.SampleId, justification = cmd.Justification }, ct);
+        }
+        catch { /* non-critical */ }
 
         return Result<int>.Success(approval.ApprovalId);
     }

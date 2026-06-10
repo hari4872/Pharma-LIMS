@@ -82,9 +82,16 @@ public class AssignTestMethodHandler : IRequestHandler<AssignTestMethodCommand, 
                 && e.Status == TestExecutionStatus.Assigned
                 && e.AnalystId == 0, ct);   // AnalystId=0 = unassigned default
 
+        // Notification is best-effort — assignment is already committed
         if (allAssigned)
-            await _notify.PushToGroupAsync("QA", "WorkplanFullyAssigned",
-                new { sampleId = execution.SampleId, executionId = cmd.ExecutionId }, ct);
+        {
+            try
+            {
+                await _notify.PushToGroupAsync("QA", "WorkplanFullyAssigned",
+                    new { sampleId = execution.SampleId, executionId = cmd.ExecutionId }, ct);
+            }
+            catch { /* non-critical */ }
+        }
 
         return Result<int>.Success(execution.ExecutionId);
     }

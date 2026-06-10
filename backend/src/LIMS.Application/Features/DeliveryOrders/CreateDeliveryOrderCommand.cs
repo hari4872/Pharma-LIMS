@@ -44,11 +44,15 @@ public class CreateDeliveryOrderHandler : IRequestHandler<CreateDeliveryOrderCom
         _db.DeliveryOrders.Add(do_);
         await _db.SaveChangesAsync(ct);
 
-        // DispatchEventService (Contract 1): auto-creates Dispatch QC task
-        await _dispatchEvent.CreateTaskAsync(do_.DoId, ct);
-
-        await _notify.PushToGroupAsync("Analyst", "DOReceived",
-            new { doId = do_.DoId, doNumber = do_.DoNumber, customer = do_.CustomerName }, ct);
+        // DispatchEventService + notification are best-effort — DO creation is already committed
+        try { await _dispatchEvent.CreateTaskAsync(do_.DoId, ct); }
+        catch { /* non-critical — task can be created manually if this fails */ }
+        try
+        {
+            await _notify.PushToGroupAsync("Analyst", "DOReceived",
+                new { doId = do_.DoId, doNumber = do_.DoNumber, customer = do_.CustomerName }, ct);
+        }
+        catch { /* non-critical */ }
 
         return Result<int>.Success(do_.DoId);
     }

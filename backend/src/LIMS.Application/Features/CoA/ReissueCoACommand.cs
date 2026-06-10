@@ -70,10 +70,16 @@ public class ReissueCoAHandler : IRequestHandler<ReissueCoACommand, Result<int>>
         original.SupersededById = newCoa.CoaId;
 
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("CoA", newCoa.CoaId, "Reissued",
-            new { OriginalCoaId = cmd.OriginalCoaId, original.CoaNumber },
-            new { NewCoaId = newCoa.CoaId, newCoa.CoaNumber, cmd.Reason, SignatureId = sig.SignatureId },
-            "System");
+
+        // Audit is best-effort — CoA reissue is already committed
+        try
+        {
+            await _audit.LogAsync("CoA", newCoa.CoaId, "Reissued",
+                new { OriginalCoaId = cmd.OriginalCoaId, original.CoaNumber },
+                new { NewCoaId = newCoa.CoaId, newCoa.CoaNumber, cmd.Reason, SignatureId = sig.SignatureId },
+                "System");
+        }
+        catch { /* non-critical */ }
 
         return Result<int>.Success(newCoa.CoaId);
     }

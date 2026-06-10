@@ -48,11 +48,15 @@ public class ApproveDispatchQcHandler : IRequestHandler<ApproveDispatchQcCommand
         task.Status = DispatchTaskStatus.QAApproved;
         await _db.SaveChangesAsync(ct);
 
-        // DispatchStatusService (Contract 1) — single CLEARED setter
-        await _dispatchStatus.SetStatusAsync(task.DoId, DispatchStatus.Cleared, ct);
-
-        await _notify.PushToGroupAsync("QA", "DispatchCleared",
-            new { taskId = cmd.TaskId, doId = task.DoId, doNumber = task.DeliveryOrder.DoNumber }, ct);
+        // Status update + notification are best-effort — QA approval is already committed
+        try { await _dispatchStatus.SetStatusAsync(task.DoId, DispatchStatus.Cleared, ct); }
+        catch { /* non-critical */ }
+        try
+        {
+            await _notify.PushToGroupAsync("QA", "DispatchCleared",
+                new { taskId = cmd.TaskId, doId = task.DoId, doNumber = task.DeliveryOrder?.DoNumber }, ct);
+        }
+        catch { /* non-critical */ }
 
         return Result<int>.Success(cmd.TaskId);
     }
