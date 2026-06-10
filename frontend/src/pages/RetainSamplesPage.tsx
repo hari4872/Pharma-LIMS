@@ -15,6 +15,7 @@ interface RetainSample {
 }
 
 interface StorageLocation { locationId: number; locationCode: string; locationName: string }
+interface SampleOption    { sampleId: number; sampleNumber: string; materialName: string; lotNumber: string }
 
 const STAGES = [
   { key: 'Active',      label: 'Active',      color: '#065f46', bg: '#d1fae5' },
@@ -25,6 +26,7 @@ const STAGES = [
 export default function RetainSamplesPage() {
   const [data, setData]       = useState<RetainSample[]>([])
   const [locations, setLocations] = useState<StorageLocation[]>([])
+  const [samples, setSamples]     = useState<SampleOption[]>([])
   const [loading, setLoading] = useState(false)
   const [filterStatus, setFilter] = useState('Active')
   const [dateFrom, setDateFrom] = useState('')
@@ -32,6 +34,8 @@ export default function RetainSamplesPage() {
   const [showAdd, setShowAdd]     = useState(false)
   const [showDestroy, setShowDestroy] = useState<RetainSample | null>(null)
   const [addForm, setAddForm] = useState({ sampleId: '', locationId: '', quantity: '', quantityUom: 'g', retainedOn: '' })
+  const [sampleSearch, setSampleSearch] = useState('')
+  const [sampleDropOpen, setSampleDropOpen] = useState(false)
   const [destroyForm, setDestroyForm] = useState({ password: '', meaning: 'I authorize destruction of this retain sample', reason: '' })
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
@@ -40,8 +44,12 @@ export default function RetainSamplesPage() {
   async function load() {
     setLoading(true)
     try {
-      const [r, lr] = await Promise.all([api.get('/retain-samples').catch(() => ({ data: [] })), api.get('/storage-locations').catch(() => ({ data: [] }))])
-      setData(r.data); setLocations(lr.data)
+      const [r, lr, sr] = await Promise.all([
+        api.get('/retain-samples').catch(() => ({ data: [] })),
+        api.get('/storage-locations').catch(() => ({ data: [] })),
+        api.get('/samples').catch(() => ({ data: [] })),
+      ])
+      setData(r.data); setLocations(lr.data); setSamples(sr.data)
     } finally {
       setLoading(false)
     }
@@ -97,7 +105,7 @@ export default function RetainSamplesPage() {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ fontSize: 12, color: '#6b7280' }}>{filtered.length} record{filtered.length !== 1 ? 's' : ''}</span>
           <button
-            onClick={() => { setAddForm({ sampleId: '', locationId: '', quantity: '', quantityUom: 'g', retainedOn: '' }); setError(''); setShowAdd(true) }}
+            onClick={() => { setAddForm({ sampleId: '', locationId: '', quantity: '', quantityUom: 'g', retainedOn: '' }); setSampleSearch(''); setSampleDropOpen(false); setError(''); setShowAdd(true) }}
             style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}>
             <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
             Register
@@ -143,7 +151,61 @@ export default function RetainSamplesPage() {
       {showAdd && (
         <Modal title="Register Retain Sample" onClose={() => setShowAdd(false)}>
           <form onSubmit={submitAdd}>
-            <Field label="Sample ID"><input style={inp} type="number" value={addForm.sampleId} onChange={e => setAddForm(f => ({ ...f, sampleId: e.target.value }))} required /></Field>
+            {/* Sample picker — searchable by sample number (alphanumeric like APEX-A-1-20260608-0002) */}
+            <Field label="Sample Number">
+              <div style={{ position: 'relative' }}>
+                <input
+                  style={inp}
+                  type="text"
+                  placeholder="Type sample number e.g. APEX-A-1-..."
+                  value={sampleSearch}
+                  onChange={e => { setSampleSearch(e.target.value); setAddForm(f => ({ ...f, sampleId: '' })); setSampleDropOpen(true) }}
+                  onFocus={() => setSampleDropOpen(true)}
+                  autoComplete="off"
+                  required={!addForm.sampleId}
+                />
+                {/* Hidden validation — ensures a sample was actually selected */}
+                <input type="hidden" value={addForm.sampleId} required />
+                {sampleDropOpen && sampleSearch.length > 0 && (() => {
+                  const q = sampleSearch.toLowerCase()
+                  const hits = samples.filter(s =>
+                    s.sampleNumber.toLowerCase().includes(q) ||
+                    (s.materialName ?? '').toLowerCase().includes(q) ||
+                    (s.lotNumber ?? '').toLowerCase().includes(q)
+                  ).slice(0, 10)
+                  return hits.length > 0 ? (
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                      background: '#fff', border: '1px solid #d1d5db', borderRadius: 6,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 220, overflowY: 'auto',
+                    }}>
+                      {hits.map(s => (
+                        <div key={s.sampleId}
+                          onMouseDown={() => {
+                            setAddForm(f => ({ ...f, sampleId: String(s.sampleId) }))
+                            setSampleSearch(s.sampleNumber)
+                            setSampleDropOpen(false)
+                          }}
+                          style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#f0f9ff')}
+                          onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                        >
+                          <div style={{ fontWeight: 700, fontSize: 13, fontFamily: 'monospace', color: '#1d4ed8' }}>{s.sampleNumber}</div>
+                          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{s.materialName} · Lot: {s.lotNumber}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: '#fff', border: '1px solid #d1d5db', borderRadius: 6, padding: '10px 12px', fontSize: 12, color: '#6b7280' }}>
+                      No samples found for "{sampleSearch}"
+                    </div>
+                  )
+                })()}
+                {addForm.sampleId && (
+                  <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#16a34a', fontWeight: 700 }}>✓ Selected</span>
+                )}
+              </div>
+            </Field>
             <Field label="Storage Location">
               <select style={inp} value={addForm.locationId} onChange={e => setAddForm(f => ({ ...f, locationId: e.target.value }))} required>
                 <option value="">Select…</option>
