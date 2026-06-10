@@ -244,8 +244,8 @@ export default function ResultsReviewPage() {
       </div>
 
       {/* Table */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
           <thead>
             <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
               {['SAMPLE NUMBER', 'MATERIAL', 'LOT', 'ANALYST', 'REVIEW STAGE', 'STATUS', 'COMPLETED', 'ACTIONS'].map(h => (

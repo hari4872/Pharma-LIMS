@@ -64,6 +64,13 @@ export default function DigitalLogbookPage() {
   const [amendSaving, setAmendSaving] = useState(false)
   const [amendError, setAmendError]   = useState('')
 
+  // ── Evidence upload state ──────────────────────────────────────────────────
+  const [uploadEvidenceEntry, setUploadEvidenceEntry] = useState<LogbookEntry | null>(null)
+  const [uploadFile, setUploadFile]   = useState<File | null>(null)
+  const [uploadDesc, setUploadDesc]   = useState('')
+  const [uploadSaving, setUploadSaving] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+
   // ── Process Log tab state ──────────────────────────────────────────────────
   const [plRows, setPlRows]           = useState<ProcessLogRow[]>([])
   const [plLoading, setPlLoading]     = useState(false)
@@ -143,6 +150,27 @@ export default function DigitalLogbookPage() {
       if (e.response?.data?.error === 'ESIGN_AUTH_FAILED') setAmendError('Password incorrect')
       else setAmendError(getErrorMessage(err, 'Amendment failed'))
     } finally { setAmendSaving(false) }
+  }
+
+  // ── Evidence upload submit ────────────────────────────────────────────────
+  async function handleUploadEvidence(e: React.FormEvent) {
+    e.preventDefault()
+    if (!uploadFile || !uploadEvidenceEntry) return
+    setUploadSaving(true); setUploadError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', uploadFile)
+      fd.append('sampleId', String(uploadEvidenceEntry.sampleId))
+      if (uploadDesc) fd.append('description', uploadDesc)
+      await api.post(`/digital-logbook/entries/${uploadEvidenceEntry.entryId}/evidence`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      toast('Evidence uploaded successfully ✓', 'success')
+      setUploadEvidenceEntry(null); setUploadFile(null); setUploadDesc('')
+      loadLogbook()
+    } catch (err) {
+      setUploadError(getErrorMessage(err, 'Upload failed'))
+    } finally { setUploadSaving(false) }
   }
 
   // ── Sign process log row ───────────────────────────────────────────────────
@@ -297,12 +325,22 @@ export default function DigitalLogbookPage() {
             { header: 'Signed By / At', accessor: r => r.signedByFullName
               ? <span style={{ fontSize: 12 }}>{r.signedByFullName}<br /><span style={{ color: '#6b7280' }}>{fmtDateTime(r.signedAt!)}</span></span>
               : '—' },
-            { header: 'Actions', accessor: r => r.status === 'Signed' && canAmend ? (
-              <button onClick={() => { setAmendEntry(r); setAmendForm({ newRawValue: r.rawValue, amendmentReason: '', password: '', meaning: 'I attest the amendment is accurate and complete', reason: '' }); setAmendError('') }}
-                style={{ padding: '3px 8px', background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                Amend
-              </button>
-            ) : null },
+            { header: 'Actions', accessor: r => (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                {r.status === 'Signed' && canAmend && (
+                  <button onClick={() => { setAmendEntry(r); setAmendForm({ newRawValue: r.rawValue, amendmentReason: '', password: '', meaning: 'I attest the amendment is accurate and complete', reason: '' }); setAmendError('') }}
+                    style={{ padding: '3px 8px', background: '#fef9c3', color: '#92400e', border: '1px solid #fde68a', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                    Amend
+                  </button>
+                )}
+                {r.isCritical && !r.evidenceFileRef && canAmend && (
+                  <button onClick={() => { setUploadEvidenceEntry(r); setUploadFile(null); setUploadDesc(''); setUploadError('') }}
+                    style={{ padding: '3px 8px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                    📎 Evidence
+                  </button>
+                )}
+              </div>
+            ) },
           ]} />
         </>
       )}
@@ -547,6 +585,40 @@ export default function DigitalLogbookPage() {
             </Field>
             {signError && <p style={{ color: '#dc2626', fontSize: 13, margin: '4px 0' }}>{signError}</p>}
             <ModalFooter saving={signSaving} onCancel={() => setSignRow(null)} label="Sign & Lock Row" />
+          </form>
+        </Modal>
+      )}
+
+      {/* ── Evidence Upload Modal ───────────────────────────────────────────── */}
+      {uploadEvidenceEntry && (
+        <Modal title="Upload Evidence" onClose={() => setUploadEvidenceEntry(null)}>
+          <div style={{ marginBottom: 14, padding: '10px 14px', background: '#eff6ff',
+            borderRadius: 6, fontSize: 13, color: '#1e40af' }}>
+            <strong>Critical Parameter:</strong> {uploadEvidenceEntry.parameterName}<br />
+            <span style={{ color: '#6b7280' }}>Sample: {uploadEvidenceEntry.sampleNumber} · Exec #{uploadEvidenceEntry.executionId}</span>
+          </div>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 14, lineHeight: 1.6 }}>
+            Upload supporting evidence (HPLC chromatogram, instrument printout, PDF report, etc.)
+            for this critical parameter. Required to pass QA checklist Item 8.
+          </p>
+          <form onSubmit={handleUploadEvidence}>
+            <Field label="Evidence File (PDF / image / report)">
+              <input type="file" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.csv,.txt"
+                style={{ ...inp, padding: '4px 8px' }}
+                onChange={e => setUploadFile(e.target.files?.[0] ?? null)} required />
+            </Field>
+            <Field label="Description (optional)">
+              <input style={inp} value={uploadDesc}
+                onChange={e => setUploadDesc(e.target.value)}
+                placeholder="e.g. HPLC chromatogram — assay result 98.7%" />
+            </Field>
+            {uploadError && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6,
+                padding: '8px 12px', fontSize: 13, color: '#dc2626', marginBottom: 8 }}>
+                ⚠ {uploadError}
+              </div>
+            )}
+            <ModalFooter saving={uploadSaving} onCancel={() => setUploadEvidenceEntry(null)} label="Upload Evidence" />
           </form>
         </Modal>
       )}
