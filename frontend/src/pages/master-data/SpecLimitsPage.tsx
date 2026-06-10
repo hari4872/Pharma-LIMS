@@ -119,7 +119,7 @@ export default function SpecLimitsPage() {
 
   return (
     <div>
-      <PageHeader title="Spec Limits" onAdd={() => setShowForm(true)} />
+      <PageHeader title="Spec Limits" onAdd={() => { setForm({ parameterId: '', materialId: '', stage: 'InProcess', minValue: '', maxValue: '', ootMinValue: '', ootMaxValue: '', regulatoryTier: '', regulatoryMin: '', regulatoryMax: '' }); setError(''); setShowForm(true) }} />
       <DataTable loading={loading} data={data} exportFilename="SpecLimits" columns={[
         { header: 'Parameter', accessor: 'parameterName' },
         { header: 'Material', accessor: 'materialName' },

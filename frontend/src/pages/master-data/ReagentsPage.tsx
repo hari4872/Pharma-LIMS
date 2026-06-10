@@ -81,7 +81,7 @@ export default function ReagentsPage() {
 
   return (
     <div>
-      <PageHeader title="Reagents & Standards" onAdd={() => setShowForm(true)} />
+      <PageHeader title="Reagents & Standards" onAdd={() => { setForm(emptyForm); setError(''); setShowForm(true) }} />
       <DataTable loading={loading} data={data} exportFilename="Reagents" columns={[
         { header: 'Code',        accessor: 'reagentCode' },
         { header: 'Name',        accessor: 'reagentName' },

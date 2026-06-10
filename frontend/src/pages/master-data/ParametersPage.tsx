@@ -73,7 +73,7 @@ export default function ParametersPage() {
 
   return (
     <div>
-      <PageHeader title="Parameters" onAdd={() => setShowForm(true)} />
+      <PageHeader title="Parameters" onAdd={() => { setForm({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true }); setError(''); setShowForm(true) }} />
       <DataTable loading={loading} data={data} exportFilename="Parameters" columns={[
         { header: 'Code', accessor: 'parameterCode' },
         { header: 'Name', accessor: 'parameterName' },

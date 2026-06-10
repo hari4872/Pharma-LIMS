@@ -71,7 +71,7 @@ export default function LaboratoriesPage() {
 
   return (
     <div>
-      <PageHeader title="Laboratories" onAdd={() => { setShowForm(true); setTouched({}) }} />
+      <PageHeader title="Laboratories" onAdd={() => { setForm({ labName: '', site: '', location: '', labType: 'QC' }); setError(''); setTouched({}); setShowForm(true) }} />
       <DataTable loading={loading} data={data} exportFilename="Laboratories" columns={[
         { header: 'ID', accessor: 'labId' },
         { header: 'Name', accessor: 'labName' },

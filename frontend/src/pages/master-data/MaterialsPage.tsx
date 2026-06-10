@@ -40,6 +40,9 @@ export default function MaterialsPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
+    // Duplicate check — prevent same materialName being added twice
+    const nameExists = data.some(m => m.materialName.toLowerCase().trim() === form.materialName.toLowerCase().trim())
+    if (nameExists) { setError(`Material "${form.materialName}" already exists.`); setSaving(false); return }
     try {
       await api.post('/materials', { ...form, shelfLifeDays: Number(form.shelfLifeDays) })
       setShowForm(false)
@@ -51,7 +54,7 @@ export default function MaterialsPage() {
 
   return (
     <div>
-      <PageHeader title="Materials" onAdd={() => setShowForm(true)} />
+      <PageHeader title="Materials" onAdd={() => { setForm({ materialName: '', uom: '', materialType: 'RawMaterial', productType: '', shelfLifeDays: '365' }); setError(''); setShowForm(true) }} />
       <DataTable loading={loading} data={data} exportFilename="Materials" columns={[
         { header: 'ID', accessor: 'materialId' },
         { header: 'Name', accessor: 'materialName' },

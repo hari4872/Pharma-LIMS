@@ -129,7 +129,7 @@ export default function UsersPage() {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-        <PageHeader title="Users" onAdd={isAdmin ? () => setShowForm(true) : undefined} />
+        <PageHeader title="Users" onAdd={isAdmin ? () => { setForm({ username: '', password: '', fullName: '', email: '', userType: 'RegularUser', role: 'Analyst', labId: '' }); setError(''); setShowForm(true) } : undefined} />
         <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: '#6b7280', cursor: 'pointer', userSelect: 'none' }}>
           <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)}
             style={{ accentColor: '#6b7280', width: 14, height: 14 }} />

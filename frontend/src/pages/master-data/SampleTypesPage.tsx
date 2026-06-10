@@ -72,7 +72,7 @@ export default function SampleTypesPage() {
 
   return (
     <div>
-      <PageHeader title="Sample Types" onAdd={() => setShowForm(true)} />
+      <PageHeader title="Sample Types" onAdd={() => { setForm({ typeName: '', typeCode: '', matrix: 'Liquid', stage: 'InProcess', description: '' }); setError(''); setShowForm(true) }} />
       <DataTable loading={loading} data={data} exportFilename="SampleTypes" columns={[
         { header: 'Code', accessor: 'typeCode' },
         { header: 'Name', accessor: 'typeName' },

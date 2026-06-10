@@ -164,7 +164,7 @@ export default function FormTemplatesPage() {
 
   return (
     <div>
-      <PageHeader title="Monitoring & Log Forms" onAdd={() => setShowForm(true)} />
+      <PageHeader title="Monitoring & Log Forms" onAdd={() => { setForm({ formCode: '', formName: '', labId: '', formType: 'Single', triggerType: 'TimeBased', regulatoryTier: '', evidenceMandatory: false, sampleTypeId: '' }); setError(''); setShowForm(true) }} />
 
       <DataTable loading={loading} data={data} exportFilename="FormTemplates" columns={[
         { header: 'Code',       accessor: 'formCode' },

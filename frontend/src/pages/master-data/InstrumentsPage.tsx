@@ -186,7 +186,7 @@ export default function InstrumentsPage() {
 
       {tab === 'instruments' && (
         <>
-          <PageHeader title="Instruments" onAdd={() => setShowForm(true)} />
+          <PageHeader title="Instruments" onAdd={() => { setForm({ labId: '', instrumentCode: '', instrumentName: '', instrumentType: '', manufacturer: '', model: '', serialNumber: '', location: '', calibrationDue: '', lastCalibration: '' }); setError(''); setShowForm(true) }} />
           <DataTable loading={loading} data={data} exportFilename="Instruments" columns={[
             { header: 'Code', accessor: r => (
               <div>

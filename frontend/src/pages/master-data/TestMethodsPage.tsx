@@ -63,7 +63,7 @@ export default function TestMethodsPage() {
 
   return (
     <div>
-      <PageHeader title="Test Methods" onAdd={() => setShowForm(true)} />
+      <PageHeader title="Test Methods" onAdd={() => { setForm({ methodCode: '', methodName: '', sopReference: '', methodType: 'Chemical', version: '1.0' }); setError(''); setShowForm(true) }} />
       <DataTable loading={loading} data={data} exportFilename="TestMethods" columns={[
         { header: 'Code', accessor: 'methodCode' },
         { header: 'Name', accessor: 'methodName' },
