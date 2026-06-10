@@ -90,9 +90,13 @@ public class SignOffTestExecutionHandler : IRequestHandler<SignOffTestExecutionC
 
         await _db.SaveChangesAsync(ct);
 
-        // SignalR push — notify QA/LabManager (Contract 2: no polling)
-        await _notify.PushToGroupAsync("QA", "TestExecutionSigned",
-            new { executionId = cmd.ExecutionId, sampleId = execution.SampleId, hasOos = hasOpenOos }, ct);
+        // SignalR push — best-effort: never block sign-off if notification fails
+        try
+        {
+            await _notify.PushToGroupAsync("QA", "TestExecutionSigned",
+                new { executionId = cmd.ExecutionId, sampleId = execution.SampleId, hasOos = hasOpenOos }, ct);
+        }
+        catch { /* non-critical */ }
 
         return Result<int>.Success(execution.ExecutionId);
     }
