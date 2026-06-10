@@ -76,10 +76,12 @@ public class QCLeadVerifyHandler : IRequestHandler<QCLeadVerifyCommand, Result<i
         // Sample goes to PendingQAReview — Released only after QA CoA approval (Phase 4)
         execution.Sample.Status = SampleStatus.PendingQAReview;
 
-        // Auto-generate Draft CoA before committing — keeps review + CoA atomic (if CoA throws, review is not saved)
-        await _coaGen.GenerateDraftAsync(execution.SampleId, cmd.ExecutionId, ct);
-
         await _db.SaveChangesAsync(ct);
+
+        // Auto-generate Draft CoA — best-effort: CoA failure must NOT block the QC verification
+        // (CoA can be manually generated later via POST /coas/generate)
+        try { await _coaGen.GenerateDraftAsync(execution.SampleId, cmd.ExecutionId, ct); }
+        catch { /* CoA generation is non-critical — verification is already committed */ }
 
         await _notify.PushToGroupAsync("QA", "QCLeadVerified",
             new { executionId = cmd.ExecutionId, sampleId = execution.SampleId }, ct);

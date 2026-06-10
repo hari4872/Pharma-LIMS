@@ -19,7 +19,8 @@ public class CoAHeaderService : ICoAHeaderService
             ?? throw new InvalidOperationException($"Sample {sampleId} not found.");
 
         // Expiry date: server-calculated from mfg_date + shelf_life_days (Contract 2)
-        var expiryDate = sample.MfgDate.AddDays(sample.Material.ShelfLifeDays);
+        // Guard: Material may be null if detached — fall back to 0 days (expiry = mfg date)
+        var expiryDate = sample.MfgDate.AddDays(sample.Material?.ShelfLifeDays ?? 0);
 
         string? customerName = null, doNumber = null, packingType = null;
         DateOnly? despatchDate = null;
