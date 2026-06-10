@@ -40,7 +40,7 @@ public class CoAHeaderService : ICoAHeaderService
         var coaNumber = await GenerateCoANumberAsync(sample.LabId, ct);
 
         return new CoAHeaderDto(
-            ProductName:  sample.Material.MaterialName,
+            ProductName:  sample.Material?.MaterialName ?? "Unknown",
             LotNumber:    sample.LotNumber,
             MfgDate:      sample.MfgDate,
             ExpiryDate:   expiryDate,

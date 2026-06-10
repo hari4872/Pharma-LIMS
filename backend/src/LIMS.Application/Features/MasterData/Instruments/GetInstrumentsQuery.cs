@@ -26,7 +26,7 @@ public class GetInstrumentsQueryHandler : IRequestHandler<GetInstrumentsQuery, L
             query = query.Where(i => i.Status == st);
 
         return await query.Select(i => new InstrumentDto(
-            i.InstrumentId, i.LabId, i.Lab.LabName, i.InstrumentCode,
+            i.InstrumentId, i.LabId, i.Lab != null ? i.Lab.LabName : "Unknown", i.InstrumentCode,
             i.InstrumentName, i.InstrumentType, i.Manufacturer, i.Model,
             i.SerialNumber, i.Location, i.CalibrationDue, i.LastCalibration,
             i.Status.ToString(), i.IsActive, i.CreatedBy, i.CreatedAt)).ToListAsync(ct);

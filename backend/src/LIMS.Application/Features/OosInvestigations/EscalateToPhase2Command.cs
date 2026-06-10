@@ -62,15 +62,23 @@ public class EscalateToPhase2Handler : IRequestHandler<EscalateToPhase2Command, 
         var sampleNo = inv.Execution.Sample.SampleNumber;
         await _db.SaveChangesAsync(ct);
 
-        // Push real-time alerts after successful save — prevents phantom notifications on DB failure
-        await _notify.PushToGroupAsync("LabManager", "OosPhase2Escalated",
-            new { investigationId = inv.InvestigationId, sampleNumber = sampleNo, reason = cmd.EscalationReason }, ct);
-        await _notify.PushToGroupAsync("QA", "OosPhase2Escalated",
-            new { investigationId = inv.InvestigationId, sampleNumber = sampleNo, reason = cmd.EscalationReason }, ct);
-        await _audit.LogAsync("OosInvestigation", inv.InvestigationId, "EscalatedToPhase2",
-            new { Phase = "Phase1", Status = inv.Status.ToString() },
-            new { Phase = "Phase2", EscalationReason = cmd.EscalationReason, inv.CapaRef },
-            inv.Execution?.Sample?.SampleNumber ?? "Unknown");
+        // Push real-time alerts after successful save — best-effort, never block action
+        try
+        {
+            await _notify.PushToGroupAsync("LabManager", "OosPhase2Escalated",
+                new { investigationId = inv.InvestigationId, sampleNumber = sampleNo, reason = cmd.EscalationReason }, ct);
+            await _notify.PushToGroupAsync("QA", "OosPhase2Escalated",
+                new { investigationId = inv.InvestigationId, sampleNumber = sampleNo, reason = cmd.EscalationReason }, ct);
+        }
+        catch { /* non-critical */ }
+        try
+        {
+            await _audit.LogAsync("OosInvestigation", inv.InvestigationId, "EscalatedToPhase2",
+                new { Phase = "Phase1", Status = inv.Status.ToString() },
+                new { Phase = "Phase2", EscalationReason = cmd.EscalationReason, inv.CapaRef },
+                inv.Execution?.Sample?.SampleNumber ?? "Unknown");
+        }
+        catch { /* non-critical */ }
         return Result<int>.Success(inv.InvestigationId);
     }
 }

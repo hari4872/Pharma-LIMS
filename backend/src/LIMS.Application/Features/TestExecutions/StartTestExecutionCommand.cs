@@ -48,10 +48,14 @@ public class StartTestExecutionHandler : IRequestHandler<StartTestExecutionComma
         execution.Status = TestExecutionStatus.InProgress;
         execution.StartedAt = DateTimeOffset.UtcNow; // ALCOA+ Contemporaneous — server-side UTC only
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("TestExecution", cmd.ExecutionId, "Started",
-            new { Status = "Assigned" },
-            new { Status = "InProgress", StartedAt = execution.StartedAt },
-            "Analyst");
+        try
+        {
+            await _audit.LogAsync("TestExecution", cmd.ExecutionId, "Started",
+                new { Status = "Assigned" },
+                new { Status = "InProgress", StartedAt = execution.StartedAt },
+                "Analyst");
+        }
+        catch { /* audit failure must not block test start */ }
         return Result<int>.Success(execution.ExecutionId);
     }
 }

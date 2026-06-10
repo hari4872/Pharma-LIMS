@@ -109,11 +109,14 @@ public class ApproveCoAHandler : IRequestHandler<ApproveCoACommand, Result<int>>
             return Result<int>.Failure("DB_SAVE_FAILED", $"Save failed: {inner}");
         }
 
-        // Distribution: ERP + Archive (Contract 1 — CoADistributionService single sender)
-        await _distribution.DistributeAsync(cmd.CoaId, ct);
-
-        await _notify.PushToGroupAsync("Dispatch", "CoAReady",
-            new { coaId = cmd.CoaId, sampleId = coa.SampleId, coaNumber = coa.CoaNumber }, ct);
+        // Distribution + notification: best-effort — never block approval if these fail
+        try { await _distribution.DistributeAsync(cmd.CoaId, ct); } catch { /* non-critical */ }
+        try
+        {
+            await _notify.PushToGroupAsync("Dispatch", "CoAReady",
+                new { coaId = cmd.CoaId, sampleId = coa.SampleId, coaNumber = coa.CoaNumber }, ct);
+        }
+        catch { /* non-critical */ }
 
         return Result<int>.Success(approval.ApprovalId);
     }

@@ -120,7 +120,7 @@ public class GetRetainSamplesHandler : IRequestHandler<GetRetainSamplesQuery, IR
         return await query.Select(r => (object)new
         {
             r.RetainId, r.SampleId, SampleNumber = r.Sample.SampleNumber,
-            MaterialName = r.Sample.Material.MaterialName,
+            MaterialName = r.Sample.Material != null ? r.Sample.Material.MaterialName : "Unknown",
             r.LotNumber, r.Quantity, r.QuantityUom,
             r.LocationId, LocationName = r.Location.LocationName, LocationCode = r.Location.LocationCode,
             r.RetainedOn, r.RetentionDueDate, r.Status,

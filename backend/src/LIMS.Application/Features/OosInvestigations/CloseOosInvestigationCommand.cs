@@ -53,16 +53,25 @@ public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigatio
         if (allClosed)
         {
             inv.Execution.Status = TestExecutionStatus.Completed;
-            inv.Execution.Sample.Status = SampleStatus.PendingQAReview;
-            await _notify.PushToGroupAsync("QA", "OosClosedAllClear",
-                new { executionId = inv.ExecutionId, sampleId = inv.Execution.SampleId }, ct);
+            if (inv.Execution.Sample is not null)
+                inv.Execution.Sample.Status = SampleStatus.PendingQAReview;
+            try
+            {
+                await _notify.PushToGroupAsync("QA", "OosClosedAllClear",
+                    new { executionId = inv.ExecutionId, sampleId = inv.Execution.SampleId }, ct);
+            }
+            catch { /* non-critical */ }
         }
 
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("OosInvestigation", inv.InvestigationId, "Closed",
-            new { inv.Phase, Status = "Open" },
-            new { inv.RootCause, inv.CapaRef, Status = "Closed" },
-            inv.Execution?.Sample?.SampleNumber ?? "Unknown");
+        try
+        {
+            await _audit.LogAsync("OosInvestigation", inv.InvestigationId, "Closed",
+                new { inv.Phase, Status = "Open" },
+                new { inv.RootCause, inv.CapaRef, Status = "Closed" },
+                inv.Execution?.Sample?.SampleNumber ?? "Unknown");
+        }
+        catch { /* audit failure must not block the close action */ }
         return Result<int>.Success(inv.InvestigationId);
     }
 }
