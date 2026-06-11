@@ -256,7 +256,12 @@ export default function UsersPage() {
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Username"><input style={inp} value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} required /></Field>
-            <Field label="Password"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+            <Field label="Password">
+              <input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required />
+              <div style={{ marginTop: 4, fontSize: 11, color: '#6b7280', lineHeight: 1.6 }}>
+                Min 8 chars · uppercase · lowercase · digit · special character (e.g. <code style={{ fontSize: 11 }}>!@#$</code>)
+              </div>
+            </Field>
             <Field label="Full Name"><input style={inp} value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} required /></Field>
             <Field label="Email"><input style={inp} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required /></Field>
             <Field label="User Type">

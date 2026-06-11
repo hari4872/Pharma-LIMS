@@ -17,7 +17,7 @@ export interface ApiError {
     data?: {
       message?: string
       error?: string
-      errors?: unknown
+      errors?: Array<{ field?: string; message?: string }> | unknown
     }
   }
 }
@@ -28,11 +28,23 @@ export function asApiError(err: unknown): ApiError {
 }
 
 /**
- * Extract a human-readable message from a caught value, mirroring the chain the
- * codebase used inline: friendlyMessage → server `message` → server `error` →
- * the supplied fallback.
+ * Extract a human-readable message from a caught value.
+ * Priority: friendlyMessage → server message → validation errors array → server error code → fallback.
+ * For VALIDATION_ERROR responses the individual field messages are joined so the user
+ * sees exactly what failed (e.g. "Password must contain at least one uppercase letter.")
+ * instead of the raw "VALIDATION_ERROR" code.
  */
 export function getErrorMessage(err: unknown, fallback = 'Something went wrong'): string {
   const e = asApiError(err)
-  return e.friendlyMessage ?? e.response?.data?.message ?? e.response?.data?.error ?? fallback
+  if (e.friendlyMessage) return e.friendlyMessage
+  if (e.response?.data?.message) return e.response.data.message
+  // Surface FluentValidation field messages when the server returns { error: "VALIDATION_ERROR", errors: [...] }
+  const data = e.response?.data
+  if (data?.error === 'VALIDATION_ERROR' && Array.isArray(data.errors) && data.errors.length > 0) {
+    const msgs = (data.errors as Array<{ field?: string; message?: string }>)
+      .map(ve => ve.message ?? ve.field ?? '')
+      .filter(Boolean)
+    if (msgs.length > 0) return msgs.join(' · ')
+  }
+  return data?.error ?? fallback
 }
