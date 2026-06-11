@@ -102,7 +102,8 @@ public class BreakdownRepairService : IBreakdownRepairService
         var sig = new ElectronicSignature
         {
             UserId = qaUserId, FullName = qaUser.FullName,
-            SignedAt = DateTimeOffset.UtcNow, Meaning = meaning, Reason = reason
+            SignedAt = DateTimeOffset.UtcNow, Meaning = meaning, Reason = reason,
+            ActionType = "InstrumentReturnToService"
         };
         _db.ElectronicSignatures.Add(sig);
         await _db.SaveChangesAsync(ct);

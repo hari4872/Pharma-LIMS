@@ -84,7 +84,8 @@ public class DestroyRetainSampleHandler : IRequestHandler<DestroyRetainSampleCom
             FullName = user.FullName,
             SignedAt = DateTimeOffset.UtcNow,
             Meaning = req.Meaning,
-            Reason = req.Reason
+            Reason = req.Reason,
+            ActionType = "RetainSampleDestroy"
         };
         _db.ElectronicSignatures.Add(sig);
         await _db.SaveChangesAsync(ct);

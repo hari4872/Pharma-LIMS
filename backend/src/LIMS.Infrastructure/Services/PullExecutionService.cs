@@ -38,7 +38,8 @@ public class PullExecutionService : IPullExecutionService
             FullName = user.FullName,
             SignedAt = DateTimeOffset.UtcNow,
             Meaning = meaning,
-            Reason = !string.IsNullOrWhiteSpace(reason) ? reason : $"Stability pull executed for pull #{pullId}"
+            Reason = !string.IsNullOrWhiteSpace(reason) ? reason : $"Stability pull executed for pull #{pullId}",
+            ActionType = "StabilityPullExecute"
         };
         _db.ElectronicSignatures.Add(sig);
         await _db.SaveChangesAsync(ct);
