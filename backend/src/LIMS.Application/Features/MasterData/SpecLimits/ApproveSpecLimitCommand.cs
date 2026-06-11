@@ -45,8 +45,8 @@ public class ApproveSpecLimitHandler : IRequestHandler<ApproveSpecLimitCommand, 
         spec.SignatureId = sig.SignatureId;
 
         await _db.SaveChangesAsync(cancellationToken);
-        await _audit.LogAsync("SpecLimit", spec.SpecLimitId, "Approved", new { Status = "Draft" }, new { Status = "Approved", sig.FullName, sig.SignedAt }, sig.FullName, cancellationToken);
-        await _notifications.PushToGroupAsync("QA", "SpecLimitApproved", new { spec.SpecLimitId }, cancellationToken);
+        try { await _audit.LogAsync("SpecLimit", spec.SpecLimitId, "Approved", new { Status = "Draft" }, new { Status = "Approved", sig.FullName, sig.SignedAt }, sig.FullName, cancellationToken); } catch { /* non-critical */ }
+        try { await _notifications.PushToGroupAsync("QA", "SpecLimitApproved", new { spec.SpecLimitId }, cancellationToken); } catch { /* non-critical */ }
 
         return Result<int>.Success(spec.SpecLimitId);
     }

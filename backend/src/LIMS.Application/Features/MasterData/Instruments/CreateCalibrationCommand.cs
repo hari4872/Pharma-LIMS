@@ -50,9 +50,9 @@ public class CreateCalibrationCommandHandler : IRequestHandler<CreateCalibration
         instrument.Status = InstrumentStatus.Available;
 
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("CalibrationRecord", record.CalibrationId, "Created",
+        try { await _audit.LogAsync("CalibrationRecord", record.CalibrationId, "Created",
             null, new { record.InstrumentId, record.CalibrationDate, record.NextCalibrationDue, record.CertificateRef },
-            request.CreatedBy);
+            request.CreatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(record.CalibrationId);
     }
 }
@@ -93,8 +93,8 @@ public class ApproveCalibrationCommandHandler : IRequestHandler<ApproveCalibrati
 
         record.SignatureId = sig.SignatureId;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("CalibrationRecord", record.CalibrationId, "Approved",
-            new { SignatureId = (int?)null }, new { record.SignatureId, sig.FullName, sig.SignedAt }, sig.FullName);
+        try { await _audit.LogAsync("CalibrationRecord", record.CalibrationId, "Approved",
+            new { SignatureId = (int?)null }, new { record.SignatureId, sig.FullName, sig.SignedAt }, sig.FullName); } catch { /* non-critical */ }
         return Result<int>.Success(record.CalibrationId);
     }
 }

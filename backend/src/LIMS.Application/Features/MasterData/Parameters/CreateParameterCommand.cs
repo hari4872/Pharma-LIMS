@@ -50,7 +50,7 @@ public class CreateParameterCommandHandler : IRequestHandler<CreateParameterComm
         };
         _db.TestMethodParameters.Add(param);
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("Parameter", param.ParameterId, "Created", null, param, request.CreatedBy);
+        try { await _audit.LogAsync("Parameter", param.ParameterId, "Created", null, param, request.CreatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(param.ParameterId);
     }
 }

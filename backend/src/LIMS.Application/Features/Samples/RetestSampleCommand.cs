@@ -117,13 +117,11 @@ public class RetestSampleCommandHandler : IRequestHandler<RetestSampleCommand, R
 
         await _db.SaveChangesAsync(ct);
 
-        await _audit.LogAsync("Sample", retest.SampleId, "Retest",
-            null,
-            new { retest.SampleNumber, OriginalSampleId = request.OriginalSampleId, OriginalSampleNumber = src.SampleNumber, request.RetestReason, SelectiveParameters = request.ParameterIds },
-            request.CreatedBy);
-
-        await _notifications.PushToGroupAsync("LabManager", "RetestRegistered",
-            new { retest.SampleId, retest.SampleNumber, OriginalSampleNumber = src.SampleNumber, request.RetestReason, testsCreated }, ct);
+        try { await _audit.LogAsync("Sample", retest.SampleId, "Retest",
+            null, new { retest.SampleNumber, OriginalSampleId = request.OriginalSampleId, OriginalSampleNumber = src.SampleNumber, request.RetestReason, SelectiveParameters = request.ParameterIds },
+            request.CreatedBy); } catch { /* non-critical */ }
+        try { await _notifications.PushToGroupAsync("LabManager", "RetestRegistered",
+            new { retest.SampleId, retest.SampleNumber, OriginalSampleNumber = src.SampleNumber, request.RetestReason, testsCreated }, ct); } catch { /* non-critical */ }
 
         var message = request.ParameterIds is { Count: > 0 }
             ? $"Selective retest of {src.SampleNumber} — {testsCreated} parameter(s): {request.RetestReason}"

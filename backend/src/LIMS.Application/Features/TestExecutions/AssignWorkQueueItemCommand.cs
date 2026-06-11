@@ -79,10 +79,8 @@ public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCom
 
         sample.Status = SampleStatus.InTesting;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("WorkQueue", cmd.SampleId, "Assigned",
-            null,
-            new { cmd.AnalystId, cmd.InstrumentId, cmd.PriorityScore },
-            "System");
+        try { await _audit.LogAsync("WorkQueue", cmd.SampleId, "Assigned",
+            null, new { cmd.AnalystId, cmd.InstrumentId, cmd.PriorityScore }, "System"); } catch { /* non-critical */ }
         return Result<int>.Success(execution.ExecutionId);
     }
 }

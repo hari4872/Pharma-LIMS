@@ -33,8 +33,8 @@ public class UpdateTestMethodCommandHandler : IRequestHandler<UpdateTestMethodCo
         method.Status = ApprovalStatus.Draft;   // must be re-approved after edit
         method.SignatureId = null; method.ApprovedBy = null; method.ApprovedAt = null;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("TestMethod", method.MethodId, "Updated", old,
-            new { method.MethodName, method.Version, status = "Draft" }, request.UpdatedBy);
+        try { await _audit.LogAsync("TestMethod", method.MethodId, "Updated", old,
+            new { method.MethodName, method.Version, status = "Draft" }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(method.MethodId);
     }
 }
@@ -53,8 +53,8 @@ public class DeactivateTestMethodCommandHandler : IRequestHandler<DeactivateTest
         if (method is null) return Result<int>.Failure("NOT_FOUND", "Test method not found.");
         method.IsActive = false; method.Status = ApprovalStatus.Retired;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("TestMethod", method.MethodId, "Deactivated",
-            new { IsActive = true }, new { IsActive = false, request.Reason }, request.UpdatedBy);
+        try { await _audit.LogAsync("TestMethod", method.MethodId, "Deactivated",
+            new { IsActive = true }, new { IsActive = false, request.Reason }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(method.MethodId);
     }
 }

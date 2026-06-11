@@ -36,7 +36,7 @@ public class UpdateMaterialCommandHandler : IRequestHandler<UpdateMaterialComman
         mat.MaterialType = Enum.Parse<MaterialType>(request.MaterialType);
         mat.ProductType = request.ProductType; mat.ShelfLifeDays = request.ShelfLifeDays;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("Material", mat.MaterialId, "Updated", old, new { mat.MaterialName, mat.Uom, mat.MaterialType, mat.ShelfLifeDays }, request.UpdatedBy);
+        try { await _audit.LogAsync("Material", mat.MaterialId, "Updated", old, new { mat.MaterialName, mat.Uom, mat.MaterialType, mat.ShelfLifeDays }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(mat.MaterialId);
     }
 }
@@ -55,7 +55,7 @@ public class DeactivateMaterialCommandHandler : IRequestHandler<DeactivateMateri
         if (mat is null) return Result<int>.Failure("NOT_FOUND", "Material not found.");
         mat.IsActive = false;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("Material", mat.MaterialId, "Deactivated", new { IsActive = true }, new { IsActive = false, request.Reason }, request.UpdatedBy);
+        try { await _audit.LogAsync("Material", mat.MaterialId, "Deactivated", new { IsActive = true }, new { IsActive = false, request.Reason }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(mat.MaterialId);
     }
 }

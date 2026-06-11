@@ -40,7 +40,7 @@ public class UpsertLabConfigCommandHandler : IRequestHandler<UpsertLabConfigComm
             };
             _db.LabConfigs.Add(config);
             await _db.SaveChangesAsync(ct);
-            await _audit.LogAsync("LabConfig", config.ConfigId, "Created", null, config, request.UpdatedBy);
+            try { await _audit.LogAsync("LabConfig", config.ConfigId, "Created", null, config, request.UpdatedBy); } catch { /* non-critical */ }
             return Result<int>.Success(config.ConfigId);
         }
 
@@ -49,7 +49,7 @@ public class UpsertLabConfigCommandHandler : IRequestHandler<UpsertLabConfigComm
         existing.UpdatedBy = request.UpdatedBy;
         existing.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("LabConfig", existing.ConfigId, "Updated", oldValue, new { existing.ConfigValue }, request.UpdatedBy);
+        try { await _audit.LogAsync("LabConfig", existing.ConfigId, "Updated", oldValue, new { existing.ConfigValue }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(existing.ConfigId);
     }
 }

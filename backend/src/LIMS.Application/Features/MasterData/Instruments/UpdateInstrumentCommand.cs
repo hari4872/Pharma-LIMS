@@ -25,8 +25,8 @@ public class UpdateInstrumentCommandHandler : IRequestHandler<UpdateInstrumentCo
         inst.SerialNumber = request.SerialNumber; inst.Location = request.Location;
         inst.CalibrationDue = request.CalibrationDue; inst.LastCalibration = request.LastCalibration;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("Instrument", inst.InstrumentId, "Updated", old,
-            new { inst.InstrumentName, inst.InstrumentType, inst.Manufacturer, inst.Model, inst.Location, inst.CalibrationDue, inst.LastCalibration }, request.UpdatedBy);
+        try { await _audit.LogAsync("Instrument", inst.InstrumentId, "Updated", old,
+            new { inst.InstrumentName, inst.InstrumentType, inst.Manufacturer, inst.Model, inst.Location, inst.CalibrationDue, inst.LastCalibration }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(inst.InstrumentId);
     }
 }
@@ -45,8 +45,8 @@ public class DeactivateInstrumentCommandHandler : IRequestHandler<DeactivateInst
         if (inst is null) return Result<int>.Failure("NOT_FOUND", "Instrument not found.");
         inst.IsActive = false;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("Instrument", inst.InstrumentId, "Deactivated",
-            new { IsActive = true }, new { IsActive = false, request.Reason }, request.UpdatedBy);
+        try { await _audit.LogAsync("Instrument", inst.InstrumentId, "Deactivated",
+            new { IsActive = true }, new { IsActive = false, request.Reason }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(inst.InstrumentId);
     }
 }

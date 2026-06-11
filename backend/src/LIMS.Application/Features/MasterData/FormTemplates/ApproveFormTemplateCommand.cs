@@ -47,8 +47,8 @@ public class ApproveFormTemplateHandler : IRequestHandler<ApproveFormTemplateCom
         template.SignatureId = sig.SignatureId;
 
         await _db.SaveChangesAsync(cancellationToken);
-        await _audit.LogAsync("FormTemplate", template.FormTemplateId, "Approved", new { Status = "Draft" }, new { Status = "Active", sig.FullName, sig.SignedAt }, sig.FullName, cancellationToken);
-        await _notifications.PushToGroupAsync("QA", "FormTemplateApproved", new { template.FormTemplateId, template.FormCode }, cancellationToken);
+        try { await _audit.LogAsync("FormTemplate", template.FormTemplateId, "Approved", new { Status = "Draft" }, new { Status = "Active", sig.FullName, sig.SignedAt }, sig.FullName, cancellationToken); } catch { /* non-critical */ }
+        try { await _notifications.PushToGroupAsync("QA", "FormTemplateApproved", new { template.FormTemplateId, template.FormCode }, cancellationToken); } catch { /* non-critical */ }
 
         return Result<int>.Success(template.FormTemplateId);
     }

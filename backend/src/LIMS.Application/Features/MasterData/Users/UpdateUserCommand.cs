@@ -43,8 +43,8 @@ public class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand, Resul
             return Result<int>.Failure("INVALID_ROLE", $"'{request.Role}' is not a valid role.");
         user.Role = parsedRole; user.LabId = request.LabId;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("User", user.UserId, "Updated", old,
-            new { user.FullName, user.Email, user.Role }, request.UpdatedBy);
+        try { await _audit.LogAsync("User", user.UserId, "Updated", old,
+            new { user.FullName, user.Email, user.Role }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(user.UserId);
     }
 }
@@ -64,8 +64,8 @@ public class DeactivateUserCommandHandler : IRequestHandler<DeactivateUserComman
         if (user.IsTenantAdmin) return Result<int>.Failure("FORBIDDEN", "Cannot deactivate Tenant Admin.");
         user.IsActive = false;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("User", user.UserId, "Deactivated",
-            new { IsActive = true }, new { IsActive = false, request.Reason }, request.UpdatedBy);
+        try { await _audit.LogAsync("User", user.UserId, "Deactivated",
+            new { IsActive = true }, new { IsActive = false, request.Reason }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(user.UserId);
     }
 }

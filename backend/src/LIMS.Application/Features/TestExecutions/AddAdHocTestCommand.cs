@@ -74,13 +74,10 @@ public class AddAdHocTestHandler : IRequestHandler<AddAdHocTestCommand, Result<A
         _db.TestExecutions.Add(execution);
         await _db.SaveChangesAsync(ct);
 
-        await _audit.LogAsync("TestExecution", execution.ExecutionId, "AdHocTestAdded",
-            null,
-            new { sample.SampleNumber, param.ParameterName, cmd.Reason },
-            cmd.CreatedBy);
-
-        await _notifications.PushToGroupAsync("LabManager", "AdHocTestRequested",
-            new { execution.ExecutionId, sample.SampleNumber, param.ParameterName, cmd.Reason }, ct);
+        try { await _audit.LogAsync("TestExecution", execution.ExecutionId, "AdHocTestAdded",
+            null, new { sample.SampleNumber, param.ParameterName, cmd.Reason }, cmd.CreatedBy); } catch { /* non-critical */ }
+        try { await _notifications.PushToGroupAsync("LabManager", "AdHocTestRequested",
+            new { execution.ExecutionId, sample.SampleNumber, param.ParameterName, cmd.Reason }, ct); } catch { /* non-critical */ }
 
         return Result<AdHocTestResult>.Success(new AdHocTestResult(
             execution.ExecutionId, sample.SampleNumber, param.ParameterName, "Assigned"));

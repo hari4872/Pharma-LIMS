@@ -46,7 +46,7 @@ public class CreateLaboratoryHandler : IRequestHandler<CreateLaboratoryCommand, 
         _db.Laboratories.Add(lab);
         await _db.SaveChangesAsync(cancellationToken);
 
-        await _audit.LogAsync("Laboratory", lab.LabId, "Created", null, new { lab.LabName, lab.Location, lab.LabType }, request.CreatedBy, cancellationToken);
+        try { await _audit.LogAsync("Laboratory", lab.LabId, "Created", null, new { lab.LabName, lab.Location, lab.LabType }, request.CreatedBy, cancellationToken); } catch { /* non-critical */ }
 
         return Result<int>.Success(lab.LabId);
     }

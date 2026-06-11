@@ -33,8 +33,8 @@ public class UpdateFormTemplateCommandHandler : IRequestHandler<UpdateFormTempla
         ft.Version = newVersion; ft.Status = FormTemplateStatus.Draft;
         ft.SignatureId = null; ft.ApprovedBy = null; ft.ApprovedAt = null;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("FormTemplate", ft.FormTemplateId, "Updated", old,
-            new { ft.FormName, ft.Version, status = "Draft" }, request.UpdatedBy);
+        try { await _audit.LogAsync("FormTemplate", ft.FormTemplateId, "Updated", old,
+            new { ft.FormName, ft.Version, status = "Draft" }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(ft.FormTemplateId);
     }
 }
@@ -53,8 +53,8 @@ public class DeactivateFormTemplateCommandHandler : IRequestHandler<DeactivateFo
         if (ft is null) return Result<int>.Failure("NOT_FOUND", "Form template not found.");
         ft.IsActive = false; ft.Status = FormTemplateStatus.Retired;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("FormTemplate", ft.FormTemplateId, "Deactivated",
-            new { IsActive = true }, new { IsActive = false, request.Reason }, request.UpdatedBy);
+        try { await _audit.LogAsync("FormTemplate", ft.FormTemplateId, "Deactivated",
+            new { IsActive = true }, new { IsActive = false, request.Reason }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(ft.FormTemplateId);
     }
 }

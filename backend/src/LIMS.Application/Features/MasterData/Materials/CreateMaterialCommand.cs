@@ -42,7 +42,7 @@ public class CreateMaterialCommandHandler : IRequestHandler<CreateMaterialComman
         };
         _db.Materials.Add(material);
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("Material", material.MaterialId, "Created", null, material, request.CreatedBy);
+        try { await _audit.LogAsync("Material", material.MaterialId, "Created", null, material, request.CreatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(material.MaterialId);
     }
 }

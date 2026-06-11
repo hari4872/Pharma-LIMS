@@ -33,8 +33,8 @@ public class UpdateSpecLimitCommandHandler : IRequestHandler<UpdateSpecLimitComm
         spec.Version = newVersion; spec.Status = ApprovalStatus.Draft;
         spec.SignatureId = null; spec.ApprovedBy = null; spec.ApprovedAt = null;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("SpecLimit", spec.SpecLimitId, "Updated", old,
-            new { spec.MinValue, spec.MaxValue, spec.Version, status = "Draft" }, request.UpdatedBy);
+        try { await _audit.LogAsync("SpecLimit", spec.SpecLimitId, "Updated", old,
+            new { spec.MinValue, spec.MaxValue, spec.Version, status = "Draft" }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(spec.SpecLimitId);
     }
 }
@@ -53,8 +53,8 @@ public class DeactivateSpecLimitCommandHandler : IRequestHandler<DeactivateSpecL
         if (spec is null) return Result<int>.Failure("NOT_FOUND", "Spec limit not found.");
         spec.IsActive = false; spec.Status = ApprovalStatus.Retired;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("SpecLimit", spec.SpecLimitId, "Deactivated",
-            new { IsActive = true }, new { IsActive = false, request.Reason }, request.UpdatedBy);
+        try { await _audit.LogAsync("SpecLimit", spec.SpecLimitId, "Deactivated",
+            new { IsActive = true }, new { IsActive = false, request.Reason }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(spec.SpecLimitId);
     }
 }

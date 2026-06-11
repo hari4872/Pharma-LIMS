@@ -51,7 +51,7 @@ public class UpdateParameterCommandHandler : IRequestHandler<UpdateParameterComm
         param.ColumnFrequency = request.ColumnFrequency is not null ? Enum.Parse<ColumnFrequency>(request.ColumnFrequency) : null;
         param.DecimalPlaces = request.DecimalPlaces;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("Parameter", param.ParameterId, "Updated", old, new { param.ParameterName, param.ParameterCode, param.Uom, param.DataType, param.FormulaType, param.IsCritical, param.IsMandatory }, request.UpdatedBy);
+        try { await _audit.LogAsync("Parameter", param.ParameterId, "Updated", old, new { param.ParameterName, param.ParameterCode, param.Uom, param.DataType, param.FormulaType, param.IsCritical, param.IsMandatory }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(param.ParameterId);
     }
 }

@@ -72,9 +72,9 @@ public class SplitSampleContainersHandler : IRequestHandler<SplitSampleContainer
 
         await _db.SaveChangesAsync(ct);
 
-        await _audit.LogAsync("Sample", cmd.SampleId, "ContainersSplit", null,
+        try { await _audit.LogAsync("Sample", cmd.SampleId, "ContainersSplit", null,
             new { ContainerCount = cmd.Count, ContainerType = cmd.ContainerType.ToString(), cmd.CreatedBy },
-            cmd.CreatedBy);
+            cmd.CreatedBy); } catch { /* non-critical */ }
 
         return Result<List<int>>.Success(containers.Select(c => c.SampleContainerId).ToList());
     }

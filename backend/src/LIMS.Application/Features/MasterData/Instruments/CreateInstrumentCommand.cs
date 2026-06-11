@@ -44,7 +44,7 @@ public class CreateInstrumentCommandHandler : IRequestHandler<CreateInstrumentCo
         };
         _db.Instruments.Add(instrument);
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("Instrument", instrument.InstrumentId, "Created", null, instrument, request.CreatedBy);
+        try { await _audit.LogAsync("Instrument", instrument.InstrumentId, "Created", null, instrument, request.CreatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(instrument.InstrumentId);
     }
 }

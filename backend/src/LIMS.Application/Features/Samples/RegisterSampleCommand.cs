@@ -152,18 +152,17 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
 
         // ── Step 9: Audit + notification ─────────────────────────────────
         // Spec engine runs in SignSRFCommand — tests created only after SRF is signed (21 CFR GMP)
-        await _audit.LogAsync("Sample", sample.SampleId, "Registered", null,
+        try { await _audit.LogAsync("Sample", sample.SampleId, "Registered", null,
             new { sample.SampleNumber, sample.LotNumber, SampleType = sampleType.TypeCode,
                   Status = "Registered",
                   FormTemplateId = sample.FormTemplateId,
                   FormTemplateSelectionMethod = sample.FormTemplateId.HasValue ? "AutoMatch" : "NoTemplateFound",
                   SpecTemplateId = sample.SpecTemplateId,
                   SpecAssignmentReason = sample.SpecAssignmentReason?.ToString() ?? "Pending" },
-            request.CreatedBy);
-
-        await _notifications.PushToGroupAsync("LabManager", "SampleRegistered",
+            request.CreatedBy); } catch { /* non-critical */ }
+        try { await _notifications.PushToGroupAsync("LabManager", "SampleRegistered",
             new { sample.SampleId, sample.SampleNumber, sample.LotNumber,
-                  material.MaterialName }, ct);
+                  material.MaterialName }, ct); } catch { /* non-critical */ }
 
         return Result<RegisterSampleResult>.Success(new RegisterSampleResult(
             sample.SampleId, sample.SampleNumber,

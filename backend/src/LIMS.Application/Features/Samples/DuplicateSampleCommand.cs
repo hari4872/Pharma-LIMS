@@ -69,10 +69,9 @@ public class DuplicateSampleCommandHandler : IRequestHandler<DuplicateSampleComm
 
         await _db.SaveChangesAsync(ct);
 
-        await _audit.LogAsync("Sample", duplicate.SampleId, "Duplicated",
-            null,
-            new { duplicate.SampleNumber, SourceSampleId = request.SourceSampleId, src.LotNumber },
-            request.CreatedBy);
+        try { await _audit.LogAsync("Sample", duplicate.SampleId, "Duplicated",
+            null, new { duplicate.SampleNumber, SourceSampleId = request.SourceSampleId, src.LotNumber },
+            request.CreatedBy); } catch { /* non-critical */ }
 
         return Result<RegisterSampleResult>.Success(new RegisterSampleResult(
             duplicate.SampleId, duplicate.SampleNumber,

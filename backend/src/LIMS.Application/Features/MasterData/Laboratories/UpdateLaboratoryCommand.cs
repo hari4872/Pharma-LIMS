@@ -34,7 +34,7 @@ public class UpdateLaboratoryCommandHandler : IRequestHandler<UpdateLaboratoryCo
         lab.LabName = request.LabName; lab.Location = request.Location;
         lab.LabType = Enum.Parse<LabType>(request.LabType);
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("Laboratory", lab.LabId, "Updated", old, new { lab.LabName, lab.Location, lab.LabType }, request.UpdatedBy);
+        try { await _audit.LogAsync("Laboratory", lab.LabId, "Updated", old, new { lab.LabName, lab.Location, lab.LabType }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(lab.LabId);
     }
 }
@@ -54,7 +54,7 @@ public class DeactivateLaboratoryCommandHandler : IRequestHandler<DeactivateLabo
         var old = new { lab.IsActive };
         lab.IsActive = false;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("Laboratory", lab.LabId, "Deactivated", old, new { IsActive = false, request.Reason }, request.UpdatedBy);
+        try { await _audit.LogAsync("Laboratory", lab.LabId, "Deactivated", old, new { IsActive = false, request.Reason }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(lab.LabId);
     }
 }

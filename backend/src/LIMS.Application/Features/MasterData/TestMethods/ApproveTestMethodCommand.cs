@@ -51,10 +51,8 @@ public class ApproveTestMethodHandler : IRequestHandler<ApproveTestMethodCommand
         method.SignatureId = sig.SignatureId;
 
         await _db.SaveChangesAsync(cancellationToken);
-        await _audit.LogAsync("TestMethod", method.MethodId, "Approved", new { Status = oldStatus.ToString() }, new { Status = "Approved", sig.FullName, sig.SignedAt }, sig.FullName, cancellationToken);
-
-        // Contract 2: push via SignalR — no polling
-        await _notifications.PushToGroupAsync("QA", "TestMethodApproved", new { method.MethodId, method.MethodCode, method.MethodName }, cancellationToken);
+        try { await _audit.LogAsync("TestMethod", method.MethodId, "Approved", new { Status = oldStatus.ToString() }, new { Status = "Approved", sig.FullName, sig.SignedAt }, sig.FullName, cancellationToken); } catch { /* non-critical */ }
+        try { await _notifications.PushToGroupAsync("QA", "TestMethodApproved", new { method.MethodId, method.MethodCode, method.MethodName }, cancellationToken); } catch { /* non-critical */ }
 
         return Result<int>.Success(method.MethodId);
     }

@@ -41,8 +41,8 @@ public class ReprintBarcodeCommandHandler : IRequestHandler<ReprintBarcodeComman
         });
         await _db.SaveChangesAsync(ct);
 
-        await _audit.LogAsync("Sample", request.SampleId, "BarcodeReprinted",
-            null, new { PrintType = "Reprint", request.Reason }, request.PrintedBy);
+        try { await _audit.LogAsync("Sample", request.SampleId, "BarcodeReprinted",
+            null, new { PrintType = "Reprint", request.Reason }, request.PrintedBy); } catch { /* non-critical */ }
 
         return Result<int>.Success(request.SampleId);
     }

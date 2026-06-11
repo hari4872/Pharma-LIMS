@@ -45,7 +45,7 @@ public class CreateSampleTypeCommandHandler : IRequestHandler<CreateSampleTypeCo
         };
         _db.SampleTypes.Add(sampleType);
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("SampleType", sampleType.SampleTypeId, "Created", null, sampleType, request.CreatedBy);
+        try { await _audit.LogAsync("SampleType", sampleType.SampleTypeId, "Created", null, sampleType, request.CreatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(sampleType.SampleTypeId);
     }
 }

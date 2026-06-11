@@ -87,8 +87,8 @@ public class CreateReagentHandler : IRequestHandler<CreateReagentCommand, Result
         };
         _db.ReagentStandards.Add(reagent);
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("ReagentStandard", reagent.ReagentId, "Created", null,
-            new { reagent.ReagentCode, reagent.ReagentName, reagent.LotNumber }, cmd.CreatedBy);
+        try { await _audit.LogAsync("ReagentStandard", reagent.ReagentId, "Created", null,
+            new { reagent.ReagentCode, reagent.ReagentName, reagent.LotNumber }, cmd.CreatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(reagent.ReagentId);
     }
 }
@@ -108,8 +108,8 @@ public class DeactivateReagentHandler : IRequestHandler<DeactivateReagentCommand
         if (reagent is null) return Result<int>.Failure("NOT_FOUND", "Reagent not found.");
         reagent.IsActive = false;
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("ReagentStandard", reagent.ReagentId, "Deactivated",
-            new { IsActive = true }, new { IsActive = false, cmd.Reason }, cmd.UpdatedBy);
+        try { await _audit.LogAsync("ReagentStandard", reagent.ReagentId, "Deactivated",
+            new { IsActive = true }, new { IsActive = false, cmd.Reason }, cmd.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(reagent.ReagentId);
     }
 }

@@ -55,7 +55,7 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, Resul
         };
         _db.Users.Add(user);
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("User", user.UserId, "Created", null, new { user.UserId, user.Username, user.FullName, user.Role }, request.CreatedBy);
+        try { await _audit.LogAsync("User", user.UserId, "Created", null, new { user.UserId, user.Username, user.FullName, user.Role }, request.CreatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(user.UserId);
     }
 }

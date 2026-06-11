@@ -37,7 +37,7 @@ public class CreateUserTrainingRecordCommandHandler : IRequestHandler<CreateUser
         };
         _db.UserTrainingRecords.Add(record);
         await _db.SaveChangesAsync(ct);
-        await _audit.LogAsync("UserTrainingRecord", record.TrainingId, "Created", null, record, request.RecordedBy);
+        try { await _audit.LogAsync("UserTrainingRecord", record.TrainingId, "Created", null, record, request.RecordedBy); } catch { /* non-critical */ }
         return Result<int>.Success(record.TrainingId);
     }
 }

@@ -44,7 +44,7 @@ public class CreateTestMethodHandler : IRequestHandler<CreateTestMethodCommand, 
 
         _db.TestMethods.Add(method);
         await _db.SaveChangesAsync(cancellationToken);
-        await _audit.LogAsync("TestMethod", method.MethodId, "Created", null, new { method.MethodCode, method.MethodName }, request.CreatedBy, cancellationToken);
+        try { await _audit.LogAsync("TestMethod", method.MethodId, "Created", null, new { method.MethodCode, method.MethodName }, request.CreatedBy, cancellationToken); } catch { /* non-critical */ }
 
         return Result<int>.Success(method.MethodId);
     }
