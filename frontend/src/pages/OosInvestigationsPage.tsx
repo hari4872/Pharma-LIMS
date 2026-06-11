@@ -46,6 +46,12 @@ export default function OosInvestigationsPage() {
   const [rcSuggestions, setRcSuggestions] = useState<{cause:string,confidence:string,reasoning:string}[]>([])
   const [rcLoading, setRcLoading] = useState(false)
 
+  // Phase 2 escalation modal
+  const [showEscalate, setShowEscalate] = useState<OosItem | null>(null)
+  const [escalateForm, setEscalateForm] = useState({ escalationReason: '', capaRef: '', password: '', meaning: 'I authorise escalation of this investigation to Phase 2', reason: '' })
+  const [escalateSaving, setEscalateSaving] = useState(false)
+  const [escalateError, setEscalateError] = useState('')
+
   // Add Record modal
   const [showAdd, setShowAdd] = useState(false)
   const [addSampleNumber, setAddSampleNumber] = useState('')
@@ -105,6 +111,18 @@ export default function OosInvestigationsPage() {
         { cause: 'Sample integrity deviation', confidence: 'Low', reasoning: 'Check storage conditions and sample container closure.' },
       ])
     } finally { setRcLoading(false) }
+  }
+
+  async function submitEscalate(e: React.FormEvent) {
+    e.preventDefault(); setEscalateSaving(true); setEscalateError('')
+    try {
+      await api.post(`/oos-investigations/${showEscalate!.investigationId}/escalate-phase2`, escalateForm)
+      setShowEscalate(null)
+      setEscalateForm({ escalationReason: '', capaRef: '', password: '', meaning: 'I authorise escalation of this investigation to Phase 2', reason: '' })
+      await load()
+      toast(`Investigation escalated to Phase 2`, 'success')
+    } catch (err) { setEscalateError(getErrorMessage(err, 'Escalation failed')) }
+    finally { setEscalateSaving(false) }
   }
 
   async function searchEligibleEntries(e: React.FormEvent) {
@@ -200,7 +218,20 @@ export default function OosInvestigationsPage() {
         { header: 'Opened', accessor: r => fmtDate(r.openedAt) },
         { header: 'Closed', accessor: r => r.closedAt ? fmtDate(r.closedAt) : '—' },
         { header: 'Actions', accessor: r => (
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'nowrap' }}>
+            {r.status === 'Open' && r.phase === 'Phase1' && (
+              <button
+                onClick={() => { setShowEscalate(r); setEscalateForm({ escalationReason: '', capaRef: '', password: '', meaning: 'I authorise escalation of this investigation to Phase 2', reason: '' }); setEscalateError('') }}
+                title="Escalate to Phase 2 — FDA OOS Guidance"
+                style={{
+                  background: '#fef3c7', border: '1px solid #fcd34d',
+                  color: '#92400e', cursor: 'pointer', fontSize: 12,
+                  fontWeight: 700, padding: '4px 10px', borderRadius: 6,
+                  whiteSpace: 'nowrap',
+                }}>
+                ↑ Phase 2
+              </button>
+            )}
             {r.status === 'Open' && (
               <button
                 onClick={() => { setShowClose(r); setCloseForm({ rootCause: '', capaRef: '', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' }); setError(''); setRcSuggestions([]) }}
@@ -211,7 +242,7 @@ export default function OosInvestigationsPage() {
                   whiteSpace: 'nowrap',
                   boxShadow: '0 1px 3px rgba(22,163,74,0.15)',
                 }}>
-                ✓ Close Investigation
+                ✓ Close
               </button>
             )}
             <button
@@ -287,6 +318,46 @@ export default function OosInvestigationsPage() {
               <ModalFooter saving={addSaving} onCancel={() => setShowAdd(false)} label="Create Investigation" />
             </form>
           )}
+        </Modal>
+      )}
+
+      {showEscalate && (
+        <Modal title={`Escalate to Phase 2 — ${showEscalate.sampleNumber}`} onClose={() => setShowEscalate(null)}>
+          <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#92400e', fontWeight: 600 }}>FDA OOS Guidance — Phase 2 Escalation</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#78350f' }}>
+              Phase 2 investigation involves laboratory investigation by a second analyst and/or supervisor review. E-signature required (21 CFR §11.50).
+            </p>
+          </div>
+          <form onSubmit={submitEscalate}>
+            <Field label="Escalation Reason (mandatory)">
+              <textarea style={{ ...inp, height: 80, resize: 'vertical' }}
+                value={escalateForm.escalationReason}
+                onChange={e => setEscalateForm(f => ({ ...f, escalationReason: e.target.value }))}
+                required placeholder="Describe why Phase 1 investigation is insufficient and Phase 2 escalation is required…" />
+            </Field>
+            <Field label="CAPA Reference">
+              <input style={inp} value={escalateForm.capaRef}
+                onChange={e => setEscalateForm(f => ({ ...f, capaRef: e.target.value }))}
+                placeholder="e.g. CAPA-2026-007" />
+            </Field>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginTop: 16, marginBottom: 4 }}>E-Signature (21 CFR §11.300)</p>
+            <Field label="Password (re-enter)">
+              <input style={inp} type="password" value={escalateForm.password}
+                onChange={e => setEscalateForm(f => ({ ...f, password: e.target.value }))} required />
+            </Field>
+            <Field label="Meaning">
+              <input style={inp} value={escalateForm.meaning}
+                onChange={e => setEscalateForm(f => ({ ...f, meaning: e.target.value }))} required />
+            </Field>
+            <Field label="Reason">
+              <input style={inp} value={escalateForm.reason}
+                onChange={e => setEscalateForm(f => ({ ...f, reason: e.target.value }))} required
+                placeholder="e.g. Phase 1 inconclusive — lab error not confirmed, phase 2 required per SOP" />
+            </Field>
+            {escalateError && <p style={{ color: '#dc2626', fontSize: 13 }}>{escalateError}</p>}
+            <ModalFooter saving={escalateSaving} onCancel={() => setShowEscalate(null)} label="Escalate & Sign" />
+          </form>
         </Modal>
       )}
 
