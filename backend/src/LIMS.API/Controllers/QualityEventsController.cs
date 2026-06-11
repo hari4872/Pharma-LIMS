@@ -44,9 +44,12 @@ public class QualityEventsController : ControllerBase
             .Include(e => e.Lab)
             .AsQueryable();
 
-        // Lab isolation (MS-1): lab users see only their lab
+        // Lab isolation (MS-1): lab users see their lab, OR records assigned to them
         if (!_lab.IsCrossLab && _lab.LabId.HasValue)
-            q = q.Where(e => e.LabId == _lab.LabId || e.LabId == null);
+        {
+            var myUserId = _lab.UserId;
+            q = q.Where(e => e.LabId == _lab.LabId || e.LabId == null || e.AssignedToUserId == myUserId);
+        }
 
         if (!string.IsNullOrWhiteSpace(type) && Enum.TryParse<CdType>(type, true, out var cdType))
             q = q.Where(e => e.CdType == cdType);
