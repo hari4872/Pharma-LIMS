@@ -71,6 +71,9 @@ const QualityAssurancePage      = lazy(() => import('@/pages/QualityAssurancePag
 const ReleaseDispatchPage       = lazy(() => import('@/pages/ReleaseDispatchPage'))
 const StabilityRetentionPage    = lazy(() => import('@/pages/StabilityRetentionPage'))
 
+// Standalone full-page views (no sidebar — for direct linking / printing)
+const CoaDetailPage             = lazy(() => import('@/pages/CoaDetailPage'))
+
 // ─── Auth guards ──────────────────────────────────────────────────────────────
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useSelector((s: RootState) => s.auth.token)
@@ -87,6 +90,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup" element={<SetupPage />} />
+      {/* Standalone authenticated pages — no sidebar layout */}
+      <Route path="/release-dispatch/coa/:coaId" element={<RequireAuth><CoaDetailPage /></RequireAuth>} />
       <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
           {/* Dashboard & Compliance */}

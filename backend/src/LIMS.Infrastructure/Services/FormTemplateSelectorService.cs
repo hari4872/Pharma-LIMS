@@ -41,6 +41,16 @@ public class FormTemplateSelectorService : IFormTemplateSelectorService
             .OrderByDescending(f => f.FormTemplateId)
             .FirstOrDefaultAsync(ct);
 
-        return fallback?.FormTemplateId;
+        if (fallback != null) return fallback.FormTemplateId;
+
+        // Step 3: Cross-lab fallback — use any active template from any lab (handles new labs with no templates yet)
+        var crossLabFallback = await _db.FormTemplates
+            .Where(f => f.IsActive
+                && f.Status == FormTemplateStatus.Active
+                && f.TriggerType != TriggerType.DispatchEvent)
+            .OrderByDescending(f => f.FormTemplateId)
+            .FirstOrDefaultAsync(ct);
+
+        return crossLabFallback?.FormTemplateId;
     }
 }

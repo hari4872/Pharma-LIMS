@@ -141,7 +141,7 @@ export default function DynamicFormRenderer({ sampleId, sampleNumber, onClose, o
       // Step 1: get sample detail to find formTemplateId
       const sampleRes = await api.get(`/samples/${sampleId}`)
       const ftId: number | undefined = sampleRes.data.formTemplateId
-      if (!ftId) { setLoadError('No form template is assigned to this sample.'); return }
+      if (!ftId) { setLoadError('No form template assigned. Go to Sample Registration → select this sample → "Assign Form Template".'); return }
       setFormTemplateId(ftId)
 
       // Step 2: get form template fields
