@@ -414,7 +414,7 @@ export default function SampleRegistrationPage() {
     if (duplicating) return
     setDuplicating(true)
     try {
-      const r = await api.post(`/samples/${sampleId}/duplicate`)
+      const r = await api.post(`/samples/${sampleId}/duplicate`, {})
       toast(`✓ Duplicate created: ${r.data.sampleNumber}`, 'success')
       load()
     } catch (err) {

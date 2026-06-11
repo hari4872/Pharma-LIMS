@@ -127,7 +127,7 @@ export default function FormTemplatesPage() {
     openManage(manageRow!)
   }
   async function linkLoc(locationId: number) {
-    await api.post(`/form-templates/${manageRow!.formTemplateId}/locations/${locationId}`)
+    await api.post(`/form-templates/${manageRow!.formTemplateId}/locations/${locationId}`, {})
     setAddLocId('')
     openManage(manageRow!)
   }
