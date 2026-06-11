@@ -113,7 +113,7 @@ export default function SpecificationTemplatesPage() {
 
   async function handleApprove(id: number, name: string) {
     try {
-      await api.post(`/specification-templates/${id}/approve`)
+      await api.post(`/specification-templates/${id}/approve`, {})
       toast(`✓ ${name} approved — spec engine will now auto-apply this template`, 'success')
       loadAll()
     } catch (e) {
@@ -124,7 +124,7 @@ export default function SpecificationTemplatesPage() {
   async function handleObsolete(id: number, name: string) {
     if (!confirm(`Mark "${name}" as Obsolete? This cannot be undone.`)) return
     try {
-      await api.post(`/specification-templates/${id}/obsolete`)
+      await api.post(`/specification-templates/${id}/obsolete`, {})
       toast(`${name} marked Obsolete`, 'success')
       loadAll()
     } catch (e) {
