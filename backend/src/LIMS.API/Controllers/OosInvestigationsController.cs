@@ -31,6 +31,56 @@ public class OosInvestigationsController : LimsControllerBase
         [FromQuery] string? status, [FromQuery] int? labId, [FromQuery] int? executionId)
         => Ok(await _mediator.Send(new GetOosInvestigationsQuery(status, labId, executionId)));
 
+    // GET api/v1/oos-investigations/eligible-entries?sampleNumber=XXX
+    // Returns logbook entries for a sample that don't already have an OOS investigation — used by Add Record modal
+    [HttpGet("eligible-entries")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
+    public async Task<IActionResult> GetEligibleEntries([FromQuery] string sampleNumber)
+    {
+        if (string.IsNullOrWhiteSpace(sampleNumber))
+            return BadRequest(new { error = "sampleNumber is required." });
+
+        var sample = await _db.Samples
+            .FirstOrDefaultAsync(s => s.SampleNumber == sampleNumber.Trim());
+        if (sample is null)
+            return NotFound(new { error = $"Sample '{sampleNumber}' not found." });
+
+        var existingEntryIds = await _db.OosInvestigations
+            .Select(i => i.EntryId)
+            .ToListAsync();
+
+        var entries = await _db.DigitalLogbookEntries
+            .Include(e => e.Parameter)
+            .Include(e => e.Execution)
+            .Where(e => e.SampleId == sample.SampleId && !existingEntryIds.Contains(e.EntryId))
+            .OrderByDescending(e => e.CreatedAt)
+            .Select(e => new {
+                e.EntryId, e.ExecutionId,
+                e.Parameter.ParameterName,
+                e.RawValue, e.CalculatedResult, e.PassFail,
+                e.IsOos, e.IsOot,
+                CreatedAt = e.CreatedAt
+            })
+            .ToListAsync();
+
+        return Ok(new { sampleId = sample.SampleId, sampleNumber = sample.SampleNumber, entries });
+    }
+
+    // POST api/v1/oos-investigations — manual creation by QA
+    [HttpPost]
+    [Authorize(Roles = "Admin,QA,LabManager")]
+    public async Task<IActionResult> Create([FromBody] CreateOosRequest request)
+    {
+        var userName = User.Identity?.Name ?? "QA";
+        var result = await _mediator.Send(new CreateOosInvestigationCommand(request.EntryId, request.FlagType, userName));
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "NOT_FOUND") return NotFound(new { error = result.ErrorCode, message = result.ErrorMessage });
+            return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        }
+        return Ok(new { investigationId = result.Value });
+    }
+
     // POST api/v1/oos-investigations/{id}/close � QA closes investigation §11.50 e-sig (FDA OOS Guidance)
     [HttpPost("{id}/close")]
     [Authorize(Roles = "Admin,QA,LabManager")]
@@ -232,4 +282,5 @@ Return JSON only:
 
 public record CloseOosRequest(string RootCause, string? CapaRef, string Password, string Meaning, string Reason);
 public record EscalatePhase2Request(string EscalationReason, string? CapaRef, string Password, string Meaning, string Reason);
+public record CreateOosRequest(int EntryId, string FlagType);
 

@@ -26,6 +26,12 @@ const STAGES = [
   { key: 'Closed', label: 'Closed', color: '#065f46', bg: '#d1fae5' },
 ]
 
+interface EligibleEntry {
+  entryId: number; executionId: number; parameterName: string
+  rawValue: string; calculatedResult: number | null; passFail: string
+  isOos: boolean; isOot: boolean; createdAt: string
+}
+
 export default function OosInvestigationsPage() {
   const [data, setData] = useState<OosItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -39,6 +45,16 @@ export default function OosInvestigationsPage() {
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
   const [rcSuggestions, setRcSuggestions] = useState<{cause:string,confidence:string,reasoning:string}[]>([])
   const [rcLoading, setRcLoading] = useState(false)
+
+  // Add Record modal
+  const [showAdd, setShowAdd] = useState(false)
+  const [addSampleNumber, setAddSampleNumber] = useState('')
+  const [addSearching, setAddSearching] = useState(false)
+  const [addEntries, setAddEntries] = useState<EligibleEntry[]>([])
+  const [addSearchError, setAddSearchError] = useState('')
+  const [addForm, setAddForm] = useState({ entryId: '', flagType: 'OOS' })
+  const [addSaving, setAddSaving] = useState(false)
+  const [addError, setAddError] = useState('')
 
   // Auto-fetch AI suggestions when Close modal opens — no button needed
   useEffect(() => { if (showClose) fetchRcSuggestions() }, [showClose])
@@ -91,6 +107,35 @@ export default function OosInvestigationsPage() {
     } finally { setRcLoading(false) }
   }
 
+  async function searchEligibleEntries(e: React.FormEvent) {
+    e.preventDefault()
+    setAddSearching(true); setAddSearchError(''); setAddEntries([]); setAddForm(f => ({ ...f, entryId: '' }))
+    try {
+      const r = await api.get(`/oos-investigations/eligible-entries?sampleNumber=${encodeURIComponent(addSampleNumber.trim())}`)
+      if (r.data.entries.length === 0) {
+        setAddSearchError('No eligible logbook entries found for this sample (all may already have investigations).')
+      } else {
+        setAddEntries(r.data.entries)
+        setAddForm(f => ({ ...f, entryId: String(r.data.entries[0].entryId) }))
+      }
+    } catch (err) { setAddSearchError(getErrorMessage(err, 'Sample not found')) }
+    finally { setAddSearching(false) }
+  }
+
+  async function submitAdd(e: React.FormEvent) {
+    e.preventDefault(); setAddSaving(true); setAddError('')
+    try {
+      await api.post('/oos-investigations', { entryId: Number(addForm.entryId), flagType: addForm.flagType })
+      setShowAdd(false)
+      setAddSampleNumber(''); setAddEntries([]); setAddForm({ entryId: '', flagType: 'OOS' })
+      setAddSearchError(''); setAddError('')
+      await load()
+      setStatusFilter('Open')
+      toast('Investigation created successfully', 'success')
+    } catch (err) { setAddError(getErrorMessage(err, 'Failed to create investigation')) }
+    finally { setAddSaving(false) }
+  }
+
   async function submitClose(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
     try {
@@ -116,8 +161,19 @@ export default function OosInvestigationsPage() {
         <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
           style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, outline: 'none' }} />
 
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontSize: 12, color: '#6b7280' }}>{filtered.length} record{filtered.length !== 1 ? 's' : ''}</span>
+          <button
+            onClick={() => { setShowAdd(true); setAddSampleNumber(''); setAddEntries([]); setAddForm({ entryId: '', flagType: 'OOS' }); setAddSearchError(''); setAddError('') }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: '#dc2626', color: '#fff', border: 'none',
+              borderRadius: 8, padding: '7px 14px', fontWeight: 700,
+              fontSize: 13, cursor: 'pointer',
+              boxShadow: '0 1px 4px rgba(220,38,38,0.25)',
+            }}>
+            + Add Record
+          </button>
         </div>
       </div>
 
@@ -173,6 +229,66 @@ export default function OosInvestigationsPage() {
       ]} />
 
       {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="qa" />}
+
+      {showAdd && (
+        <Modal title="Add OOS / OOT Investigation" onClose={() => setShowAdd(false)}>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+            Manually open an investigation for a logbook entry that was not automatically flagged.
+          </p>
+
+          {/* Step 1: sample search */}
+          <Field label="Sample Number">
+            <form onSubmit={searchEligibleEntries} style={{ display: 'flex', gap: 8 }}>
+              <input style={{ ...inp, flex: 1 }}
+                value={addSampleNumber}
+                onChange={e => { setAddSampleNumber(e.target.value); setAddEntries([]); setAddSearchError('') }}
+                placeholder="e.g. LAB-001-2026-001"
+                required />
+              <button type="submit" disabled={addSearching}
+                style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, padding: '0 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {addSearching ? 'Searching…' : 'Search'}
+              </button>
+            </form>
+            {addSearchError && <p style={{ margin: '4px 0 0', color: '#dc2626', fontSize: 12 }}>{addSearchError}</p>}
+          </Field>
+
+          {/* Step 2: entry + flag selection, shown after successful search */}
+          {addEntries.length > 0 && (
+            <form onSubmit={submitAdd}>
+              <Field label="Logbook Entry / Parameter">
+                <select style={inp} value={addForm.entryId} onChange={e => setAddForm(f => ({ ...f, entryId: e.target.value }))} required>
+                  {addEntries.map(en => (
+                    <option key={en.entryId} value={en.entryId}>
+                      {en.parameterName} — result: {en.calculatedResult ?? en.rawValue} ({en.passFail})
+                      {en.isOos ? ' ⚠ OOS' : ''}{en.isOot ? ' ⚠ OOT' : ''}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Investigation Type">
+                <div style={{ display: 'flex', gap: 12 }}>
+                  {['OOS', 'OOT'].map(type => (
+                    <label key={type} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14, fontWeight: addForm.flagType === type ? 700 : 400 }}>
+                      <input type="radio" name="flagType" value={type}
+                        checked={addForm.flagType === type}
+                        onChange={() => setAddForm(f => ({ ...f, flagType: type }))} />
+                      <span style={{
+                        padding: '2px 10px', borderRadius: 10, fontSize: 12, fontWeight: 600,
+                        background: type === 'OOS' ? '#fee2e2' : '#fef9c3',
+                        color: type === 'OOS' ? '#991b1b' : '#854d0e',
+                      }}>{type}</span>
+                    </label>
+                  ))}
+                </div>
+              </Field>
+
+              {addError && <p style={{ color: '#dc2626', fontSize: 13, margin: '4px 0' }}>{addError}</p>}
+              <ModalFooter saving={addSaving} onCancel={() => setShowAdd(false)} label="Create Investigation" />
+            </form>
+          )}
+        </Modal>
+      )}
 
       {showClose && (
         <Modal title={`Close ${showClose.flagType} Investigation — ${showClose.sampleNumber}`} onClose={() => setShowClose(null)}>
