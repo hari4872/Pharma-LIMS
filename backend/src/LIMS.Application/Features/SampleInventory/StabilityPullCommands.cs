@@ -52,10 +52,21 @@ public class ExecutePullHandler : IRequestHandler<ExecutePullCommand, Result<Pul
 
     public async Task<Result<PullExecutionResult>> Handle(ExecutePullCommand req, CancellationToken ct)
     {
-        var result = await _pullService.ExecuteAsync(
-            req.PullId, req.ActualQty, req.ShortReason ?? string.Empty,
-            req.AnalystId, req.Password, req.Meaning, ct);
-        return Result<PullExecutionResult>.Success(result);
+        try
+        {
+            var result = await _pullService.ExecuteAsync(
+                req.PullId, req.ActualQty, req.ShortReason ?? string.Empty,
+                req.AnalystId, req.Password, req.Meaning, ct);
+            return Result<PullExecutionResult>.Success(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Result<PullExecutionResult>.Failure("ESIGN_AUTH_FAILED", ex.Message);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Result<PullExecutionResult>.Failure("INVALID_STATE", ex.Message);
+        }
     }
 }
 

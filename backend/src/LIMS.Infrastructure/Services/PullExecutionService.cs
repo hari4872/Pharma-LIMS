@@ -31,14 +31,14 @@ public class PullExecutionService : IPullExecutionService
         if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
             throw new UnauthorizedAccessException("E-signature authentication failed.");
 
-        // §11.50: full_name + signed_at UTC + meaning + reason
+        // §11.50: full_name + signed_at UTC + meaning + reason (reason defaults to pull context if no shortfall reason)
         var sig = new ElectronicSignature
         {
             UserId = analystId,
             FullName = user.FullName,
             SignedAt = DateTimeOffset.UtcNow,
             Meaning = meaning,
-            Reason = reason
+            Reason = !string.IsNullOrWhiteSpace(reason) ? reason : $"Stability pull executed for pull #{pullId}"
         };
         _db.ElectronicSignatures.Add(sig);
         await _db.SaveChangesAsync(ct);
