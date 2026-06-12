@@ -29,7 +29,14 @@ public class GenerateCoAHandler : IRequestHandler<GenerateCoACommand, Result<int
         if (existing)
             return Result<int>.Failure("COA_EXISTS", "An active CoA already exists for this sample.");
 
-        var coaId = await _coaGen.GenerateDraftAsync(cmd.SampleId, cmd.ExecutionId, ct);
-        return Result<int>.Success(coaId);
+        try
+        {
+            var coaId = await _coaGen.GenerateDraftAsync(cmd.SampleId, cmd.ExecutionId, ct);
+            return Result<int>.Success(coaId);
+        }
+        catch (Exception ex)
+        {
+            return Result<int>.Failure("COA_GEN_FAILED", ex.Message);
+        }
     }
 }

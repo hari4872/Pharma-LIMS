@@ -562,6 +562,9 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<int?>("AssignedToUserId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("CAPARef")
+                        .HasColumnType("text");
+
                     b.Property<string>("CdReference")
                         .IsRequired()
                         .HasMaxLength(100)

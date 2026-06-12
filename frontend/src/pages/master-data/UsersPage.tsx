@@ -8,7 +8,7 @@ import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './Labor
 import { toast } from '@/components/Toast'
 import AuditTrailPanel from '@/components/AuditTrailPanel'
 
-interface UserRow { userId: number; username: string; fullName: string; email: string; userType: string; role: string; labName: string; isActive: boolean; isTenantAdmin: boolean; customPermissionsJson: string | null }
+interface UserRow { userId: number; username: string; fullName: string; email: string; userType: string; role: string; labName: string; isActive: boolean; isTenantAdmin: boolean; customPermissionsJson: string | null; lockedUntil: string | null }
 interface Lab { labId: number; labName: string }
 
 const PERMISSIONS = [
@@ -176,10 +176,10 @@ export default function UsersPage() {
                 Edit
               </button>
             )}
-            {isAdmin && (
+            {isAdmin && r.lockedUntil && new Date(r.lockedUntil) > new Date() && (
               <button onClick={() => unlockUser(r.userId, r.fullName)}
                 style={{ padding: '3px 8px', background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                🔓
+                🔓 Unlock
               </button>
             )}
           </div>

@@ -43,10 +43,12 @@ public class PeerReviewHandler : IRequestHandler<PeerReviewCommand, Result<int>>
             return Result<int>.Failure("OOS_OPEN",
                 "Open OOS/OOT investigation(s) must be closed before peer review. (FDA OOS Guidance)");
 
-        // BL-016: Phase 2 CAPA gate — block peer review if any Phase 2 investigation has no CAPA reference
+        // BL-016: Phase 2 CAPA gate — block peer review if any open Phase 2 investigation has no CAPA reference.
+        // Closed Phase 2 investigations are exempt: they were signed off by QA and may have CAPA tracked externally.
         var unresolvedPhase2 = await _db.OosInvestigations
             .AnyAsync(i => i.ExecutionId == cmd.ExecutionId
                 && i.Phase == OosPhase.Phase2
+                && i.Status != OosStatus.Closed
                 && string.IsNullOrWhiteSpace(i.CapaRef), ct);
         if (unresolvedPhase2)
             return Result<int>.Failure("PHASE2_UNRESOLVED",

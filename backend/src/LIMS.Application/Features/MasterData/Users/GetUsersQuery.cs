@@ -9,7 +9,7 @@ public record GetUsersQuery(int? LabId, bool IncludeInactive = false) : IRequest
 public record UserDto(int UserId, string Username, string FullName, string Email,
     string UserType, string Role, int? LabId, string? LabName, bool IsActive,
     bool IsTenantAdmin, string CreatedBy, DateTimeOffset CreatedAt,
-    string? CustomPermissionsJson);
+    string? CustomPermissionsJson, DateTimeOffset? LockedUntil = null);
 
 public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, List<UserDto>>
 {
@@ -31,7 +31,8 @@ public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, List<UserDto>
             u.LabId, u.Lab?.LabName,
             u.IsActive, u.IsTenantAdmin, u.CreatedBy, u.CreatedAt,
             // CustomPermissionsJson omitted from list — fetch via GET /users/{id}/permissions (Admin only)
-            null
+            null,
+            u.LockedUntil
         )).ToList();
     }
 

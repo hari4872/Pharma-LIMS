@@ -52,6 +52,7 @@ public class ComplaintsDeviation
     public DateTimeOffset? UpdatedAt { get; set; }
     public int? LinkedOosId { get; set; }
     public OosInvestigation? LinkedOos { get; set; }
+    public string? CAPARef { get; set; }
 }
 
 // FR-07: Trace query log — INSERT-only (21 CFR §11.10(e))

@@ -61,7 +61,8 @@ public class CoAHeaderService : ICoAHeaderService
             .FirstOrDefaultAsync(c => c.LabId == labId && c.ConfigKey == "coa_number_format", ct);
 
         var format = config?.ConfigValue ?? "COA-{YYYY}-{SEQ5}";
-        var count  = await _db.Coas.CountAsync(c => c.Sample.LabId == labId, ct) + 1;
+        var sampleIds = _db.Samples.Where(s => s.LabId == labId).Select(s => s.SampleId);
+        var count  = await _db.Coas.CountAsync(c => sampleIds.Contains(c.SampleId), ct) + 1;
         var year   = DateTime.UtcNow.Year.ToString();
         var yearShort = year.Substring(2);
 

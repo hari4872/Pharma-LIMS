@@ -60,7 +60,10 @@ public class QAReviewGateService : IQAReviewGateService
                       e.SpecMinSnapshot == null && e.SpecMaxSnapshot == null, ct);
 
         // Item 8: Evidence present for all is_critical parameters (GAMP 5)
-        var evidencePresent = !await _db.DigitalLogbookEntries
+        // Only evaluated when evidence_gate_enabled = true in lab_config; otherwise defaults to passing
+        var evidenceGateEnabled = await _db.LabConfigs
+            .AnyAsync(c => c.LabId == labId && c.ConfigKey == "evidence_gate_enabled" && c.ConfigValue == "true", ct);
+        var evidencePresent = !evidenceGateEnabled || !await _db.DigitalLogbookEntries
             .AnyAsync(e => e.SampleId == sampleId &&
                       e.Parameter.IsCritical &&
                       e.EvidenceFileRef == null, ct);

@@ -92,6 +92,7 @@ public class QualityEventsController : ControllerBase
                 e.OpenedAt,
                 e.ResolvedAt,
                 e.ResolvedBy,
+                e.CAPARef,
             })
             .ToListAsync();
 
@@ -137,6 +138,7 @@ public class QualityEventsController : ControllerBase
             e.ResolvedBy,
             e.UpdatedBy,
             e.UpdatedAt,
+            e.CAPARef,
         });
     }
 
@@ -199,6 +201,7 @@ public class QualityEventsController : ControllerBase
         if (req.PreventiveAction != null)                     entity.PreventiveAction = req.PreventiveAction;
         if (req.AssignedToUserId.HasValue)                    entity.AssignedToUserId = req.AssignedToUserId;
         if (req.DueDate.HasValue)                             entity.DueDate          = DateOnly.FromDateTime(req.DueDate.Value);
+        if (req.CAPARef != null)                              entity.CAPARef          = req.CAPARef;
 
         // Close event
         if (req.Status is "Closed" or "Verified")
@@ -210,6 +213,25 @@ public class QualityEventsController : ControllerBase
         entity.UpdatedBy = User.Identity?.Name ?? "Unknown";
         entity.UpdatedAt = DateTimeOffset.UtcNow;
 
+        await _db.SaveChangesAsync();
+        return Ok(new { entity.CdId, entity.Status });
+    }
+
+    // POST api/v1/quality-events/{id}/reopen — Admin/QA only, re-opens a Closed event
+    [HttpPost("{id}/reopen")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> Reopen(int id)
+    {
+        var entity = await _db.ComplaintsDeviations.FindAsync(id);
+        if (entity is null) return NotFound();
+        if (entity.Status != "Closed")
+            return BadRequest(new { error = "Only Closed quality events can be reopened." });
+
+        entity.Status    = "Open";
+        entity.ResolvedAt = null;
+        entity.ResolvedBy = null;
+        entity.UpdatedBy = User.Identity?.Name ?? "Unknown";
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync();
         return Ok(new { entity.CdId, entity.Status });
     }
@@ -346,6 +368,7 @@ public record UpdateQualityEventRequest(
     [MaxLength(2000)] string? CorrectiveAction,
     [MaxLength(2000)] string? PreventiveAction,
     int?      AssignedToUserId,
-    DateTime? DueDate);
+    DateTime? DueDate,
+    [MaxLength(200)]  string? CAPARef);
 
 public record ClassifyQualityEventRequest(string Title, string? Description);

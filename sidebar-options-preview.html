@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LIMS Sidebar — 4 Design Options</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #f0f4f8;
+    padding: 24px;
+  }
+  h1 {
+    font-size: 20px; font-weight: 800; color: #0f172a;
+    margin-bottom: 6px;
+  }
+  .subtitle { font-size: 13px; color: #6b7280; margin-bottom: 28px; }
+
+  /* ── Option grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .option-card {
+    background: #fff;
+    border-radius: 14px;
+    border: 2px solid #e2e8f0;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+  }
+  .option-card:hover { border-color: #0d9488; box-shadow: 0 4px 20px rgba(13,110,110,0.12); }
+  .option-card.selected { border-color: #0d6e6e; box-shadow: 0 4px 24px rgba(13,110,110,0.2); }
+
+  .card-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid #f1f3f4;
+  }
+  .option-num {
+    display: inline-block;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #0d6e6e; color: #fff;
+    font-size: 11px; font-weight: 800;
+    text-align: center; line-height: 22px;
+    margin-bottom: 6px;
+  }
+  .option-title { font-size: 13px; font-weight: 800; color: #0f172a; }
+  .option-desc  { font-size: 11px; color: #6b7280; margin-top: 4px; line-height: 1.5; }
+  .rec-badge {
+    display: inline-block;
+    background: #d1fae5; color: #065f46;
+    font-size: 9px; font-weight: 800;
+    padding: 2px 6px; border-radius: 8px;
+    letter-spacing: 0.04em; margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* ── Shared sidebar chrome ── */
+  .sidebar-demo {
+    background: #fff;
+    border-right: 1px solid #e0e0e0;
+    height: 540px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .brand {
+    padding: 14px 14px 12px;
+    border-bottom: 1px solid #f1f3f4;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .brand-icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg,#0d9488,#0f766e);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brand-icon svg { width: 14px; height: 14px; }
+  .brand-name { font-size: 14px; font-weight: 800; color: #0f172a; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 5px #22c55e; margin-left: auto; }
+
+  /* nav item */
+  .nav-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    margin: 1px 8px;
+    border-radius: 8px;
+    font-size: 12px; font-weight: 600;
+    color: #111827;
+    border: 1px solid #f1f3f4;
+    cursor: pointer;
+    transition: background 0.1s;
+    text-decoration: none;
+  }
+  .nav-item:hover { background: #f0fdfa; border-color: #99f6e4; color: #0d6e6e; }
+  .nav-item.active { background: #f0fdfa; border-color: #99f6e4; color: #0d6e6e; font-weight: 700; }
+  .nav-icon {
+    width: 26px; height: 26px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 12px;
+  }
+
+  /* section label */
+  .sec-label {
+    padding: 10px 16px 4px;
+    font-size: 10px; font-weight: 800;
+    color: #111827; letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+  .sec-divider {
+    height: 1px; background: #f1f3f4;
+    margin: 8px 12px 4px;
+  }
+
+  /* ── Option 1: Collapsible sections ── */
+  .sec-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px 4px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .sec-toggle-label {
+    font-size: 10px; font-weight: 800;
+    color: #374151; letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+  .sec-toggle-arrow {
+    font-size: 10px; color: #9ca3af;
+    transition: transform 0.2s;
+  }
+  .sec-toggle-arrow.open { transform: rotate(180deg); }
+  .sec-body { overflow: hidden; transition: max-height 0.25s ease; }
+  .sec-body.closed { max-height: 0 !important; }
+
+  /* ── Option 2: Two-level (icon rail + panel) ── */
+  .two-level {
+    display: flex;
+    height: 540px;
+  }
+  .icon-rail {
+    width: 56px; min-width: 56px;
+    background: #fff;
+    border-right: 1px solid #e0e0e0;
+    display: flex; flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+    gap: 4px;
+  }
+  .rail-item {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.1s, border-color 0.1s;
+    position: relative;
+  }
+  .rail-item:hover { background: #f0fdfa; border-color: #99f6e4; }
+  .rail-item.rail-active { background: #f0fdfa; border-color: #99f6e4; }
+  .rail-item .tooltip {
+    position: absolute; left: 50px; top: 50%; transform: translateY(-50%);
+    background: #0f172a; color: #fff;
+    font-size: 10px; font-weight: 700;
+    padding: 3px 8px; border-radius: 5px;
+    white-space: nowrap; pointer-events: none;
+    opacity: 0; transition: opacity 0.15s;
+    z-index: 10;
+  }
+  .rail-item:hover .tooltip { opacity: 1; }
+  .rail-divider { width: 28px; height: 1px; background: #f1f3f4; margin: 2px 0; }
+
+  .slide-panel {
+    width: 194px;
+    background: #fff;
+    border-right: 1px solid #e0e0e0;
+    overflow-y: auto;
+    padding-bottom: 10px;
+  }
+  .panel-header {
+    padding: 12px 14px 8px;
+    font-size: 12px; font-weight: 800;
+    color: #0d6e6e; border-bottom: 1px solid #f1f3f4;
+    margin-bottom: 6px;
+  }
+
+  /* ── Option 3: Settings page ── */
+  .settings-entry {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    margin: 2px 8px 2px;
+    border-radius: 8px;
+    font-size: 12px; font-weight: 600;
+    color: #5f6368; border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .settings-entry:hover { background: #f8f9fa; }
+  .sidebar-footer-gear {
+    margin-top: auto;
+    border-top: 1px solid #f1f3f4;
+    padding: 8px;
+  }
+  .gear-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    background: #fef3c7;
+    border: 1px solid #fde68a;
+    font-size: 12px; font-weight: 700;
+    color: #92400e; cursor: pointer;
+    width: 100%;
+  }
+  .option3-sidebar {
+    display: flex; flex-direction: column;
+    background: #fff;
+    border-right: 1px solid #e0e0e0;
+    height: 540px;
+    overflow: hidden;
+  }
+  .option3-main { flex: 1; overflow-y: auto; }
+
+  /* ── Option 4: Merged sections ── */
+
+  /* ── Select button ── */
+  .select-btn {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 0 16px 16px;
+    padding: 9px;
+    background: #0d6e6e;
+    color: #fff;
+    border: none; border-radius: 9px;
+    font-size: 12px; font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  .select-btn:hover { background: #0f766e; }
+  .selected .select-btn { background: #065f46; }
+
+  .selected-label {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px; font-weight: 700; color: #0d6e6e;
+    display: none;
+  }
+  .selected-label.visible { display: block; }
+
+  /* scrollbar */
+  .sidebar-demo::-webkit-scrollbar,
+  .slide-panel::-webkit-scrollbar,
+  .option3-main::-webkit-scrollbar { width: 4px; }
+  .sidebar-demo::-webkit-scrollbar-thumb,
+  .slide-panel::-webkit-scrollbar-thumb,
+  .option3-main::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 4px; }
+
+  @media (max-width: 1200px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<h1>Pharma LIMS — Sidebar Redesign Options</h1>
+<p class="subtitle">Click any option to select it. All options keep the same routes and pages — only the navigation UX changes.</p>
+
+<div class="grid">
+
+  <!-- ══════════════════════════════════════════════
+       OPTION 1 — Collapsible accordion sections
+  ══════════════════════════════════════════════ -->
+  <div class="option-card" id="card1" onclick="selectCard(1)">
+    <div class="card-header">
+      <div class="option-num">1</div>
+      <div class="option-title">Collapsible Sections <span class="rec-badge">RECOMMENDED</span></div>
+      <div class="option-desc">Each section header has a toggle arrow. Master Data collapses by default. One click to expand. Nothing is removed.</div>
+    </div>
+
+    <div class="sidebar-demo">
+      <!-- Brand -->
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M9 3h6M10 3v6L5 19a2 2 0 002 3h10a2 2 0 002-3l-5-10V3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="brand-name">LIMS</span>
+        <div class="live-dot"></div>
+      </div>
+
+      <!-- OVERVIEW — open by default, no toggle (always visible) -->
+      <div class="sec-label">Overview</div>
+      <a class="nav-item active">
+        <div class="nav-icon" style="background:#dbeafe;color:#2563eb">🏠</div> Dashboard
+      </a>
+      <a class="nav-item">
+        <div class="nav-icon" style="background:#dcfce7;color:#16a34a">🛡</div> Compliance
+      </a>
+
+      <!-- MASTER DATA — collapsed by default -->
+      <div class="sec-divider"></div>
+      <div class="sec-toggle" onclick="toggleSec('md1',this)">
+        <span class="sec-toggle-label">Master Data</span>
+        <span class="sec-toggle-arrow" id="arr-md1">▼</span>
+      </div>
+      <div class="sec-body closed" id="md1" style="max-height:320px">
+        <a class="nav-item"><div class="nav-icon" style="background:#f0fdfa;color:#0d9488">🏛</div> Laboratories</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0284c7">⏱</div> Instruments</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">📦</div> Materials</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f3e8ff;color:#7c3aed">📋</div> Test Methods</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fce7f3;color:#db2777">⚙</div> Parameters</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">📊</div> Spec Limits</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f1f5f9;color:#64748b">📄</div> Form Templates</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#15803d">📝</div> Spec Templates</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#dbeafe;color:#2563eb">👥</div> Users</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">🧪</div> Sample Types</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f1f5f9;color:#64748b">🏠</div> Storage Locations</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f3e8ff;color:#7c3aed">🔬</div> Reagents</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">🎓</div> Training Records</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fef9c3;color:#ca8a04">📅</div> Sampling Plans</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0369a1">🧬</div> Stability Protocols</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fce7f3;color:#db2777">🔗</div> Instrument Mapping</a>
+      </div>
+
+      <!-- OPERATIONS — open by default -->
+      <div class="sec-divider"></div>
+      <div class="sec-toggle" onclick="toggleSec('op1',this)">
+        <span class="sec-toggle-label">Operations</span>
+        <span class="sec-toggle-arrow open" id="arr-op1">▼</span>
+      </div>
+      <div class="sec-body" id="op1" style="max-height:600px">
+        <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0284c7">📋</div> Sample Registration</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">✅</div> Checkpoints</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f1f5f9;color:#64748b">📋</div> Work Queue</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fee2e2;color:#dc2626">⚠</div> OOS Investigations</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fce7f3;color:#9d174d">🛡</div> CAPA / Quality Events</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f0fdf4;color:#16a34a">📈</div> SPC / Trending</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">📖</div> Digital Logbook</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#dbeafe;color:#2563eb">📊</div> Results Review</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f0fdf4;color:#15803d">✅</div> Batch Release</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f3e8ff;color:#7c3aed">📄</div> CoA Review</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f1f5f9;color:#64748b">📦</div> Dispatch QC</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f0f9ff;color:#0369a1">⬇</div> Reports & Exports</a>
+      </div>
+
+      <!-- INVENTORY — collapsed by default -->
+      <div class="sec-divider"></div>
+      <div class="sec-toggle" onclick="toggleSec('inv1',this)">
+        <span class="sec-toggle-label">Inventory &amp; Traceability</span>
+        <span class="sec-toggle-arrow" id="arr-inv1">▼</span>
+      </div>
+      <div class="sec-body closed" id="inv1" style="max-height:160px">
+        <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0284c7">ℹ</div> Traceability</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">🧪</div> Stability Pulls</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">📦</div> Retain Samples</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fee2e2;color:#dc2626">🌡</div> Condition Excursions</a>
+      </div>
+    </div>
+
+    <button class="select-btn" onclick="selectCard(1);event.stopPropagation()">Select Option 1</button>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════
+       OPTION 2 — Two-level sidebar (icon rail + panel)
+  ══════════════════════════════════════════════ -->
+  <div class="option-card" id="card2" onclick="selectCard(2)">
+    <div class="card-header">
+      <div class="option-num">2</div>
+      <div class="option-title">Icon Rail + Slide Panel</div>
+      <div class="option-desc">Primary sidebar shows 5 section icons. Click an icon to reveal that section's items in a slide-out panel.</div>
+    </div>
+
+    <div style="height:540px; overflow:hidden;">
+      <div class="two-level">
+        <!-- Icon rail -->
+        <div class="icon-rail">
+          <!-- Brand icon -->
+          <div style="width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#0d9488,#0f766e);display:flex;align-items:center;justify-content:center;margin-bottom:8px;">
+            <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M9 3h6M10 3v6L5 19a2 2 0 002 3h10a2 2 0 002-3l-5-10V3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="rail-divider"></div>
+
+          <div class="rail-item rail-active" onclick="switchPanel('overview')">
+            🏠<span class="tooltip">Overview</span>
+          </div>
+          <div class="rail-item" onclick="switchPanel('masterdata')">
+            ⚙️<span class="tooltip">Master Data</span>
+          </div>
+          <div class="rail-item" onclick="switchPanel('operations')">
+            🔬<span class="tooltip">Operations</span>
+          </div>
+          <div class="rail-item" onclick="switchPanel('inventory')">
+            📦<span class="tooltip">Inventory</span>
+          </div>
+          <div class="rail-divider"></div>
+          <div class="rail-item" onclick="switchPanel('reports')">
+            📊<span class="tooltip">Reports</span>
+          </div>
+        </div>
+
+        <!-- Slide panel -->
+        <div class="slide-panel" id="panel-overview">
+          <div class="panel-header">Overview</div>
+          <a class="nav-item active"><div class="nav-icon" style="background:#dbeafe;color:#2563eb">🏠</div> Dashboard</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">🛡</div> Compliance</a>
+        </div>
+        <div class="slide-panel" id="panel-masterdata" style="display:none">
+          <div class="panel-header">Master Data</div>
+          <a class="nav-item"><div class="nav-icon" style="background:#f0fdfa;color:#0d9488">🏛</div> Laboratories</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0284c7">⏱</div> Instruments</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">📦</div> Materials</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#f3e8ff;color:#7c3aed">📋</div> Test Methods</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#fce7f3;color:#db2777">⚙</div> Parameters</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">📊</div> Spec Limits</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#f1f5f9;color:#64748b">📄</div> Form Templates</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#15803d">📝</div> Spec Templates</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#dbeafe;color:#2563eb">👥</div> Users</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">🧪</div> Sample Types</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#f1f5f9;color:#64748b">🏠</div> Storage Locations</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#f3e8ff;color:#7c3aed">🔬</div> Reagents</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">🎓</div> Training Records</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#fef9c3;color:#ca8a04">📅</div> Sampling Plans</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0369a1">🧬</div> Stability Protocols</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#fce7f3;color:#db2777">🔗</div> Instrument Mapping</a>
+        </div>
+        <div class="slide-panel" id="panel-operations" style="display:none">
+          <div class="panel-header">Operations</div>
+          <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0284c7">📋</div> Sample Registration</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">✅</div> Checkpoints</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#f1f5f9;color:#64748b">📋</div> Work Queue</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#fee2e2;color:#dc2626">⚠</div> OOS Investigations</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#fce7f3;color:#9d174d">🛡</div> CAPA / Quality Events</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#f0fdf4;color:#16a34a">📈</div> SPC / Trending</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">📖</div> Digital Logbook</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#dbeafe;color:#2563eb">📊</div> Results Review</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#f0fdf4;color:#15803d">✅</div> Batch Release</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#f3e8ff;color:#7c3aed">📄</div> CoA Review</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#f1f5f9;color:#64748b">📦</div> Dispatch QC</a>
+        </div>
+        <div class="slide-panel" id="panel-inventory" style="display:none">
+          <div class="panel-header">Inventory &amp; Traceability</div>
+          <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0284c7">ℹ</div> Traceability</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">🧪</div> Stability Pulls</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">📦</div> Retain Samples</a>
+          <a class="nav-item"><div class="nav-icon" style="background:#fee2e2;color:#dc2626">🌡</div> Condition Excursions</a>
+        </div>
+        <div class="slide-panel" id="panel-reports" style="display:none">
+          <div class="panel-header">Reports</div>
+          <a class="nav-item"><div class="nav-icon" style="background:#f0f9ff;color:#0369a1">⬇</div> Reports &amp; Exports</a>
+        </div>
+      </div>
+    </div>
+
+    <button class="select-btn" onclick="selectCard(2);event.stopPropagation()">Select Option 2</button>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════
+       OPTION 3 — Master Data → Settings page
+  ══════════════════════════════════════════════ -->
+  <div class="option-card" id="card3" onclick="selectCard(3)">
+    <div class="card-header">
+      <div class="option-num">3</div>
+      <div class="option-title">Master Data → ⚙ Settings Page</div>
+      <div class="option-desc">Remove all 16 Master Data items from sidebar. Single "Settings" link at the bottom opens a dedicated tab-based settings page. Sidebar: 34 → 18 items.</div>
+    </div>
+
+    <div class="option3-sidebar">
+      <div class="option3-main">
+        <!-- Brand -->
+        <div class="brand">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M9 3h6M10 3v6L5 19a2 2 0 002 3h10a2 2 0 002-3l-5-10V3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <span class="brand-name">LIMS</span>
+          <div class="live-dot"></div>
+        </div>
+
+        <div class="sec-label">Overview</div>
+        <a class="nav-item active"><div class="nav-icon" style="background:#dbeafe;color:#2563eb">🏠</div> Dashboard</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">🛡</div> Compliance</a>
+
+        <div class="sec-divider"></div>
+        <div class="sec-label">Operations</div>
+        <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0284c7">📋</div> Sample Registration</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">✅</div> Checkpoints</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f1f5f9;color:#64748b">📋</div> Work Queue</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fee2e2;color:#dc2626">⚠</div> OOS Investigations</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fce7f3;color:#9d174d">🛡</div> CAPA / Quality Events</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f0fdf4;color:#16a34a">📈</div> SPC / Trending</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">📖</div> Digital Logbook</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#dbeafe;color:#2563eb">📊</div> Results Review</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f0fdf4;color:#15803d">✅</div> Batch Release</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f3e8ff;color:#7c3aed">📄</div> CoA Review</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f1f5f9;color:#64748b">📦</div> Dispatch QC</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f0f9ff;color:#0369a1">⬇</div> Reports &amp; Exports</a>
+
+        <div class="sec-divider"></div>
+        <div class="sec-label">Inventory</div>
+        <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0284c7">ℹ</div> Traceability</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">🧪</div> Stability Pulls</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">📦</div> Retain Samples</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fee2e2;color:#dc2626">🌡</div> Condition Excursions</a>
+      </div>
+
+      <!-- Settings gear pinned at bottom -->
+      <div class="sidebar-footer-gear">
+        <div class="gear-btn">
+          ⚙️ &nbsp;Master Data / Settings
+          <span style="margin-left:auto;font-size:10px;opacity:0.7">16 items →</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="select-btn" onclick="selectCard(3);event.stopPropagation()">Select Option 3</button>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════
+       OPTION 4 — Merge & trim sections
+  ══════════════════════════════════════════════ -->
+  <div class="option-card" id="card4" onclick="selectCard(4)">
+    <div class="card-header">
+      <div class="option-num">4</div>
+      <div class="option-title">Merge &amp; Trim Sections</div>
+      <div class="option-desc">Merge related pages (Logbook+Results → one page, CoA+Dispatch → one page). Move Inventory under Operations. Total: ~20 items across 2 sections.</div>
+    </div>
+
+    <div class="sidebar-demo">
+      <!-- Brand -->
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M9 3h6M10 3v6L5 19a2 2 0 002 3h10a2 2 0 002-3l-5-10V3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <span class="brand-name">LIMS</span>
+        <div class="live-dot"></div>
+      </div>
+
+      <div class="sec-label">Overview</div>
+      <a class="nav-item active"><div class="nav-icon" style="background:#dbeafe;color:#2563eb">🏠</div> Dashboard</a>
+      <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">🛡</div> Compliance</a>
+
+      <div class="sec-divider"></div>
+      <!-- Collapsed Master Data -->
+      <div class="sec-toggle" onclick="toggleSec('md4',this)">
+        <span class="sec-toggle-label">Master Data</span>
+        <span class="sec-toggle-arrow" id="arr-md4">▼</span>
+      </div>
+      <div class="sec-body closed" id="md4" style="max-height:320px">
+        <a class="nav-item"><div class="nav-icon" style="background:#f0fdfa;color:#0d9488">🏛</div> Laboratories</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0284c7">⏱</div> Instruments</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">📦</div> Materials</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f3e8ff;color:#7c3aed">📋</div> Test Methods</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fce7f3;color:#db2777">⚙</div> Parameters + Spec Limits</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f1f5f9;color:#64748b">📄</div> Templates</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#dbeafe;color:#2563eb">👥</div> Users &amp; Training</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">🧪</div> Sample Types</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#f1f5f9;color:#64748b">🏠</div> Storage &amp; Reagents</a>
+        <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0369a1">🧬</div> Protocols &amp; Plans</a>
+      </div>
+
+      <div class="sec-divider"></div>
+      <div class="sec-label">Operations &amp; QA</div>
+      <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0284c7">📋</div> Sample Registration</a>
+      <a class="nav-item"><div class="nav-icon" style="background:#dcfce7;color:#16a34a">✅</div> Checkpoints &amp; Work Queue</a>
+      <a class="nav-item"><div class="nav-icon" style="background:#fee2e2;color:#dc2626">⚠</div> OOS &amp; CAPA</a>
+      <a class="nav-item"><div class="nav-icon" style="background:#f0fdf4;color:#16a34a">📈</div> SPC / Trending</a>
+      <a class="nav-item"><div class="nav-icon" style="background:#fef3c7;color:#d97706">📖</div> Logbook &amp; Results</a>
+      <a class="nav-item"><div class="nav-icon" style="background:#f0fdf4;color:#15803d">✅</div> Batch Release</a>
+      <a class="nav-item"><div class="nav-icon" style="background:#f3e8ff;color:#7c3aed">📄</div> CoA &amp; Dispatch</a>
+      <a class="nav-item"><div class="nav-icon" style="background:#e0f2fe;color:#0284c7">ℹ</div> Traceability &amp; Stability</a>
+      <a class="nav-item"><div class="nav-icon" style="background:#f0f9ff;color:#0369a1">⬇</div> Reports &amp; Exports</a>
+
+      <div style="height:12px"></div>
+    </div>
+
+    <button class="select-btn" onclick="selectCard(4);event.stopPropagation()">Select Option 4</button>
+  </div>
+
+</div>
+
+<!-- Result banner -->
+<div id="result-banner" style="display:none;margin-top:28px;padding:18px 24px;background:#fff;border-radius:12px;border:2px solid #0d6e6e;box-shadow:0 4px 20px rgba(13,110,110,0.12);">
+  <div style="font-size:16px;font-weight:800;color:#0d6e6e;">✅ You selected: <span id="result-text"></span></div>
+  <div style="font-size:13px;color:#6b7280;margin-top:4px;" id="result-desc"></div>
+</div>
+
+<script>
+  let selectedOption = null;
+
+  const DESCRIPTIONS = {
+    1: 'Collapsible sections — Master Data + Inventory collapsed by default. Toggle arrows on each section header. Zero pages merged, full sidebar.',
+    2: 'Icon rail + slide panel — 5 section icons on narrow rail, click to reveal that section\'s items. Very clean, enterprise-grade look.',
+    3: 'Master Data moved to a ⚙ Settings page pinned at the sidebar bottom. Sidebar shrinks from 34 → 18 items permanently.',
+    4: 'Sections merged — related pages combined into single tabs (Logbook+Results, CoA+Dispatch, OOS+CAPA, Traceability+Stability). ~20 items total.',
+  };
+
+  function selectCard(n) {
+    document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('card' + n).classList.add('selected');
+    selectedOption = n;
+
+    const banner = document.getElementById('result-banner');
+    banner.style.display = 'block';
+    document.getElementById('result-text').textContent = 'Option ' + n;
+    document.getElementById('result-desc').textContent = DESCRIPTIONS[n];
+    banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // Option 1 / 4 accordion toggles
+  function toggleSec(id, el) {
+    const body = document.getElementById(id);
+    const arrow = el.querySelector('.sec-toggle-arrow');
+    const isClosed = body.classList.contains('closed');
+    body.classList.toggle('closed', !isClosed);
+    arrow.classList.toggle('open', isClosed);
+  }
+
+  // Option 2 panel switch
+  const panels = ['overview', 'masterdata', 'operations', 'inventory', 'reports'];
+  function switchPanel(name) {
+    panels.forEach(p => {
+      const panel = document.getElementById('panel-' + p);
+      if (panel) panel.style.display = p === name ? 'block' : 'none';
+    });
+    document.querySelectorAll('#card2 .rail-item').forEach((el, i) => {
+      el.classList.remove('rail-active');
+    });
+    event.currentTarget.classList.add('rail-active');
+  }
+</script>
+</body>
+</html>

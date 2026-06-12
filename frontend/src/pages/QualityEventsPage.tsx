@@ -1,4 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
@@ -14,6 +16,7 @@ interface QualityEvent {
   labId: number | null; labName: string | null
   linkedOosId: number | null; dueDate: string | null
   openedBy: string; openedAt: string; resolvedAt: string | null; resolvedBy: string | null
+  capaRef: string | null
 }
 interface User { userId: number; fullName: string }
 interface Sample { sampleId: number; sampleNumber: string; materialName: string }
@@ -49,6 +52,9 @@ const EMPTY_FORM = {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function QualityEventsPage() {
+  const role = useSelector((s: RootState) => s.auth.role) ?? ''
+  const canReopen = role === 'Admin' || role === 'QA'
+
   const [typeFilter,   setTypeFilter]   = useState('Capa')
   const [statusFilter, setStatusFilter] = useState('')
   const [data,         setData]         = useState<QualityEvent[]>([])
@@ -152,6 +158,14 @@ export default function QualityEventsPage() {
     } catch (err) { alert(getErrorMessage(err, 'Failed to close')) }
   }
 
+  async function reopenEvent(ev: QualityEvent) {
+    if (!confirm(`Reopen ${ev.cdType} "${ev.cdReference}"?`)) return
+    try {
+      await api.post(`/quality-events/${ev.cdId}/reopen`, {})
+      load()
+    } catch (err) { alert(getErrorMessage(err, 'Failed to reopen')) }
+  }
+
   const currentType = TYPE_OPTIONS.find(t => t.value === typeFilter) ?? TYPE_OPTIONS[0]
 
   return (
@@ -222,6 +236,9 @@ export default function QualityEventsPage() {
                 <button onClick={() => openEdit(r)} style={{ padding: '3px 8px', background: '#0d6e6e', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Edit</button>
                 <button onClick={() => closeEvent(r)} style={{ padding: '3px 8px', background: '#d1fae5', color: '#065f46', border: '1px solid #a7f3d0', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Close</button>
               </>
+            )}
+            {r.status === 'Closed' && canReopen && (
+              <button onClick={() => reopenEvent(r)} style={{ padding: '3px 8px', background: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Reopen</button>
             )}
           </div>
         )},
