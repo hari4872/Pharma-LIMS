@@ -19,9 +19,10 @@ public class RejectCoAHandler : IRequestHandler<RejectCoACommand, Result<int>>
     private readonly ILimsDbContext _db;
     private readonly IElectronicSignatureService _esig;
     private readonly INotificationService _notify;
+    private readonly IMasterDataAuditService _audit;
 
-    public RejectCoAHandler(ILimsDbContext db, IElectronicSignatureService esig, INotificationService notify)
-    { _db = db; _esig = esig; _notify = notify; }
+    public RejectCoAHandler(ILimsDbContext db, IElectronicSignatureService esig, INotificationService notify, IMasterDataAuditService audit)
+    { _db = db; _esig = esig; _notify = notify; _audit = audit; }
 
     public async Task<Result<int>> Handle(RejectCoACommand cmd, CancellationToken ct)
     {
@@ -56,6 +57,15 @@ public class RejectCoAHandler : IRequestHandler<RejectCoACommand, Result<int>>
         if (coa.Sample is not null)
             coa.Sample.Status = SampleStatus.Rejected;
         await _db.SaveChangesAsync(ct);
+
+        try
+        {
+            await _audit.LogAsync("CoA", cmd.CoaId, "Rejected",
+                null,
+                new { Decision = "Rejected", Justification = cmd.Justification, SignatureId = sig.SignatureId },
+                sig.FullName, ct);
+        }
+        catch { /* non-critical */ }
 
         // Notification is best-effort — never block CoA rejection if SignalR fails
         try

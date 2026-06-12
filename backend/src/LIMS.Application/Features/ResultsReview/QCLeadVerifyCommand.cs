@@ -21,10 +21,11 @@ public class QCLeadVerifyHandler : IRequestHandler<QCLeadVerifyCommand, Result<i
     private readonly IElectronicSignatureService _esig;
     private readonly INotificationService _notify;
     private readonly ICoAGenerationService _coaGen;
+    private readonly IMasterDataAuditService _audit;
 
     public QCLeadVerifyHandler(ILimsDbContext db, IElectronicSignatureService esig,
-        INotificationService notify, ICoAGenerationService coaGen)
-    { _db = db; _esig = esig; _notify = notify; _coaGen = coaGen; }
+        INotificationService notify, ICoAGenerationService coaGen, IMasterDataAuditService audit)
+    { _db = db; _esig = esig; _notify = notify; _coaGen = coaGen; _audit = audit; }
 
     public async Task<Result<int>> Handle(QCLeadVerifyCommand cmd, CancellationToken ct)
     {
@@ -84,6 +85,15 @@ public class QCLeadVerifyHandler : IRequestHandler<QCLeadVerifyCommand, Result<i
         // (CoA can be manually generated later via POST /coas/generate)
         try { await _coaGen.GenerateDraftAsync(execution.SampleId, cmd.ExecutionId, ct); }
         catch { /* CoA generation is non-critical — verification is already committed */ }
+
+        try
+        {
+            await _audit.LogAsync("ResultsReview", cmd.ExecutionId, "QCLeadVerified",
+                null,
+                new { ReviewType = "QCLeadVerification", QcLeadId = cmd.QcLeadId, SignatureId = sig.SignatureId },
+                sig.FullName, ct);
+        }
+        catch { /* non-critical */ }
 
         // Notification is best-effort — never block verification if SignalR/push fails
         try

@@ -23,10 +23,11 @@ public class ApproveCoAHandler : IRequestHandler<ApproveCoACommand, Result<int>>
     private readonly IQAReviewGateService _qaGate;
     private readonly ICoADistributionService _distribution;
     private readonly INotificationService _notify;
+    private readonly IMasterDataAuditService _audit;
 
     public ApproveCoAHandler(ILimsDbContext db, IElectronicSignatureService esig,
-        IQAReviewGateService qaGate, ICoADistributionService distribution, INotificationService notify)
-    { _db = db; _esig = esig; _qaGate = qaGate; _distribution = distribution; _notify = notify; }
+        IQAReviewGateService qaGate, ICoADistributionService distribution, INotificationService notify, IMasterDataAuditService audit)
+    { _db = db; _esig = esig; _qaGate = qaGate; _distribution = distribution; _notify = notify; _audit = audit; }
 
     public async Task<Result<int>> Handle(ApproveCoACommand cmd, CancellationToken ct)
     {
@@ -108,6 +109,15 @@ public class ApproveCoAHandler : IRequestHandler<ApproveCoACommand, Result<int>>
             var inner = ex.InnerException?.Message ?? ex.Message;
             return Result<int>.Failure("DB_SAVE_FAILED", $"Save failed: {inner}");
         }
+
+        try
+        {
+            await _audit.LogAsync("CoA", cmd.CoaId, "QAApproved",
+                null,
+                new { Decision = cmd.IsConditionalRelease ? "Cond.Rel" : "Approved", CoaNumber = coa.CoaNumber, SignatureId = sig.SignatureId },
+                sig.FullName, ct);
+        }
+        catch { /* non-critical */ }
 
         // Distribution + notification: best-effort — never block approval if these fail
         try { await _distribution.DistributeAsync(cmd.CoaId, ct); } catch { /* non-critical */ }

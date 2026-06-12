@@ -17,10 +17,11 @@ public class ApproveDispatchQcHandler : IRequestHandler<ApproveDispatchQcCommand
     private readonly IElectronicSignatureService _esig;
     private readonly IDispatchStatusService _dispatchStatus;
     private readonly INotificationService _notify;
+    private readonly IMasterDataAuditService _audit;
 
     public ApproveDispatchQcHandler(ILimsDbContext db, IElectronicSignatureService esig,
-        IDispatchStatusService dispatchStatus, INotificationService notify)
-    { _db = db; _esig = esig; _dispatchStatus = dispatchStatus; _notify = notify; }
+        IDispatchStatusService dispatchStatus, INotificationService notify, IMasterDataAuditService audit)
+    { _db = db; _esig = esig; _dispatchStatus = dispatchStatus; _notify = notify; _audit = audit; }
 
     public async Task<Result<int>> Handle(ApproveDispatchQcCommand cmd, CancellationToken ct)
     {
@@ -47,6 +48,15 @@ public class ApproveDispatchQcHandler : IRequestHandler<ApproveDispatchQcCommand
 
         task.Status = DispatchTaskStatus.QAApproved;
         await _db.SaveChangesAsync(ct);
+
+        try
+        {
+            await _audit.LogAsync("DispatchQcTask", cmd.TaskId, "QAApproved",
+                null,
+                new { Decision = "QAApproved", DoId = task.DoId, SignatureId = sig.SignatureId },
+                sig.FullName, ct);
+        }
+        catch { /* non-critical */ }
 
         // Status update + notification are best-effort — QA approval is already committed
         try { await _dispatchStatus.SetStatusAsync(task.DoId, DispatchStatus.Cleared, ct); }
