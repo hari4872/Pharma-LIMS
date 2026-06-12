@@ -179,6 +179,18 @@ public class QualityEventsController : ControllerBase
         _db.ComplaintsDeviations.Add(entity);
         await _db.SaveChangesAsync();
 
+        // §11.10(e): INSERT-only audit trail
+        _db.MasterDataAuditLogs.Add(new LIMS.Domain.Entities.MasterDataAuditLog
+        {
+            EntityType  = "QualityEvent",
+            EntityId    = entity.CdId,
+            EventType   = "Created",
+            PerformedBy = User.Identity?.Name ?? "Unknown",
+            NewValue    = $"{{\"reference\":\"{entity.CdReference}\",\"type\":\"{entity.CdType}\",\"title\":\"{entity.Title}\",\"priority\":\"{entity.Priority}\"}}",
+            PerformedAt = DateTimeOffset.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
         return Ok(new { entity.CdId, entity.CdReference, status = "Open" });
     }
 
@@ -213,6 +225,17 @@ public class QualityEventsController : ControllerBase
         entity.UpdatedBy = User.Identity?.Name ?? "Unknown";
         entity.UpdatedAt = DateTimeOffset.UtcNow;
 
+        // §11.10(e): INSERT-only audit trail — captures status transitions (Close, Verify, etc.)
+        _db.MasterDataAuditLogs.Add(new LIMS.Domain.Entities.MasterDataAuditLog
+        {
+            EntityType  = "QualityEvent",
+            EntityId    = entity.CdId,
+            EventType   = req.Status is "Closed" or "Verified" ? $"StatusChanged:{req.Status}" : "Updated",
+            PerformedBy = User.Identity?.Name ?? "Unknown",
+            NewValue    = $"{{\"reference\":\"{entity.CdReference}\",\"status\":\"{entity.Status}\",\"capaRef\":\"{entity.CAPARef}\"}}",
+            PerformedAt = DateTimeOffset.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         return Ok(new { entity.CdId, entity.Status });
     }
@@ -232,6 +255,18 @@ public class QualityEventsController : ControllerBase
         entity.ResolvedBy = null;
         entity.UpdatedBy = User.Identity?.Name ?? "Unknown";
         entity.UpdatedAt = DateTimeOffset.UtcNow;
+
+        // §11.10(e): Reopen is a high-risk action — INSERT-only audit record
+        _db.MasterDataAuditLogs.Add(new LIMS.Domain.Entities.MasterDataAuditLog
+        {
+            EntityType  = "QualityEvent",
+            EntityId    = entity.CdId,
+            EventType   = "Reopened",
+            PerformedBy = User.Identity?.Name ?? "Unknown",
+            NewValue    = $"{{\"reference\":\"{entity.CdReference}\",\"previousStatus\":\"Closed\",\"newStatus\":\"Open\"}}",
+            PerformedAt = DateTimeOffset.UtcNow
+        });
+
         await _db.SaveChangesAsync();
         return Ok(new { entity.CdId, entity.Status });
     }
@@ -247,8 +282,19 @@ public class QualityEventsController : ControllerBase
         entity.Status    = "Void";
         entity.UpdatedBy = User.Identity?.Name ?? "Admin";
         entity.UpdatedAt = DateTimeOffset.UtcNow;
-        await _db.SaveChangesAsync();
 
+        // §11.10(e): Void is irreversible — INSERT-only audit record
+        _db.MasterDataAuditLogs.Add(new LIMS.Domain.Entities.MasterDataAuditLog
+        {
+            EntityType  = "QualityEvent",
+            EntityId    = entity.CdId,
+            EventType   = "Voided",
+            PerformedBy = User.Identity?.Name ?? "Unknown",
+            NewValue    = $"{{\"reference\":\"{entity.CdReference}\",\"title\":\"{entity.Title}\"}}",
+            PerformedAt = DateTimeOffset.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
         return Ok(new { message = "Quality event voided." });
     }
 
