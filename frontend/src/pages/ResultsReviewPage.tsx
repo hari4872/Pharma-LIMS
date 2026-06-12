@@ -116,9 +116,8 @@ export default function ResultsReviewPage() {
   async function load() {
     setLoading(true)
     try {
-      // Fetch all terminal statuses that need peer review
-      // OOSOpen = completed but OOS investigation raised — still requires review chain
-      const c = await api.get('/test-executions?status=Completed,OOSOpen,PeerReviewed')
+      // Fetch all review-pipeline statuses including QCVerified so history stays visible
+      const c = await api.get('/test-executions?status=Completed,OOSOpen,PeerReviewed,QCVerified')
       setAll(c.data ?? [])
     } catch { setAll([]) }
     finally { setLoading(false) }
@@ -127,22 +126,26 @@ export default function ResultsReviewPage() {
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
 
   // ── Derived filter counts for chips ─────────────────────────────────────
-  const pendingPeer  = all.filter(r => r.status === 'Completed').length
+  const pendingPeer  = all.filter(r => r.status === 'Completed' || r.status === 'OOSOpen').length
   const pendingQC    = all.filter(r => r.status === 'PeerReviewed').length
+  const doneQC       = all.filter(r => r.status === 'QCVerified').length
 
   const CHIPS = [
     { key: 'All',         label: 'All',                 color: '#374151', bg: '#f1f5f9', count: all.length },
     { key: 'PendingPeer', label: 'Pending Peer Review', color: '#1e40af', bg: '#dbeafe', count: pendingPeer },
     { key: 'PendingQC',   label: 'Pending QC Verify',   color: '#b45309', bg: '#fef9c3', count: pendingQC },
+    { key: 'QCVerified',  label: 'QC Verified',         color: '#166534', bg: '#dcfce7', count: doneQC },
   ]
 
   // ── Filtered rows ────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     let rows = all
     if (statusFilter === 'PendingPeer')
-      rows = rows.filter(r => r.status === 'Completed')
+      rows = rows.filter(r => r.status === 'Completed' || r.status === 'OOSOpen')
     else if (statusFilter === 'PendingQC')
       rows = rows.filter(r => r.status === 'PeerReviewed')
+    else if (statusFilter === 'QCVerified')
+      rows = rows.filter(r => r.status === 'QCVerified')
 
     if (search.trim()) {
       const q = search.toLowerCase()
