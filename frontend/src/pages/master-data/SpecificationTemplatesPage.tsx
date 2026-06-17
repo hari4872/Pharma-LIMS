@@ -75,6 +75,9 @@ export default function SpecificationTemplatesPage() {
   const [search,       setSearch]       = useState('')
   const [showCreate,   setShowCreate]   = useState(false)
   const [designer,     setDesigner]     = useState<SpecTemplate | null>(null)
+  const [approveTarget, setApproveTarget] = useState<{ id: number; name: string } | null>(null)
+  const [esig,         setEsig]         = useState({ password: '', meaning: 'I approve this specification template', reason: '' })
+  const [approving,    setApproving]    = useState(false)
 
   useEffect(() => { loadAll() }, [])
 
@@ -112,12 +115,30 @@ export default function SpecificationTemplatesPage() {
   })
 
   async function handleApprove(id: number, name: string) {
+    setApproveTarget({ id, name })
+    setEsig({ password: '', meaning: 'I approve this specification template', reason: '' })
+  }
+
+  async function submitApprove() {
+    if (!approveTarget) return
+    if (!esig.password || !esig.meaning || !esig.reason) {
+      toast('Password, meaning and reason are all required (21 CFR §11.50)', 'error')
+      return
+    }
+    setApproving(true)
     try {
-      await api.post(`/specification-templates/${id}/approve`, {})
-      toast(`✓ ${name} approved — spec engine will now auto-apply this template`, 'success')
+      await api.post(`/specification-templates/${approveTarget.id}/approve`, {
+        password: esig.password,
+        meaning:  esig.meaning,
+        reason:   esig.reason,
+      })
+      toast(`✓ ${approveTarget.name} approved — spec engine will now auto-apply this template`, 'success')
+      setApproveTarget(null)
       loadAll()
     } catch (e) {
       toast(getErrorMessage(e, 'Approval failed'), 'error')
+    } finally {
+      setApproving(false)
     }
   }
 
@@ -267,6 +288,47 @@ export default function SpecificationTemplatesPage() {
             onClose={() => setDesigner(null)}
             onSaved={() => { setDesigner(null); loadAll() }}
           />
+        )}
+
+        {/* E-Signature Approval Modal */}
+        {approveTarget && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+              <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 800 }}>Approve Specification Template</h3>
+              <p style={{ margin: '0 0 18px', fontSize: 12, color: '#5f6368' }}>
+                <strong>{approveTarget.name}</strong> — e-signature required (21 CFR §11.50)
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Password *</label>
+                  <input type="password" value={esig.password} onChange={e => setEsig(p => ({ ...p, password: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }}
+                    placeholder="Your login password" />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Meaning *</label>
+                  <input type="text" value={esig.meaning} onChange={e => setEsig(p => ({ ...p, meaning: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Reason *</label>
+                  <textarea value={esig.reason} onChange={e => setEsig(p => ({ ...p, reason: e.target.value }))}
+                    rows={2} style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }}
+                    placeholder="e.g. Template reviewed and validated against compendial requirements" />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+                <button onClick={() => setApproveTarget(null)} disabled={approving}
+                  style={{ padding: '8px 18px', border: '1px solid #d1d5db', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 13 }}>
+                  Cancel
+                </button>
+                <button onClick={submitApprove} disabled={approving}
+                  style={{ padding: '8px 18px', border: 'none', borderRadius: 6, background: '#0d6e6e', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                  {approving ? 'Approving…' : 'Approve'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </ErrorBoundary>
