@@ -30,8 +30,8 @@ public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, List<UserDto>
             u.UserType.ToString(), u.Role.ToString(),
             u.LabId, u.Lab?.LabName,
             u.IsActive, u.IsTenantAdmin, u.CreatedBy, u.CreatedAt,
-            // CustomPermissionsJson omitted from list — fetch via GET /users/{id}/permissions (Admin only)
-            null,
+            // Return effective permissions: custom if set, else role defaults
+            u.CustomPermissionsJson ?? GetDefaultPermissionsJson(u.Role.ToString()),
             u.LockedUntil
         )).ToList();
     }
