@@ -9,6 +9,9 @@ interface Instrument { instrumentId: number; labName: string; instrumentCode: st
 interface Lab { labId: number; labName: string }
 interface Breakdown { breakdownId: number; instrumentId: number; instrumentCode: string; raisedByName: string; raisedAt: string; issueDescription: string; status: string; repairCount: number; returnSignatureId: number | null }
 interface UtilisationSummary { summaryId: number; windowDays: number; windowStart: string; windowEnd: string; totalTests: number; totalHours: number; utilisationPct: number | null; calculatedAt: string }
+interface CalibrationRecord { calibrationId: number; calibrationDate: string; nextCalibrationDue: string; certificateRef: string; performedBy: string; frequency: string | null; createdBy: string; createdAt: string; isApproved: boolean }
+
+const FREQUENCIES = ['Monthly', '3 months', '6 months', 'Annual', '2 years']
 
 const statusColour = (s: string) => {
   if (s === 'Available') return { bg: '#d1fae5', fg: '#065f46' }
@@ -43,6 +46,41 @@ export default function InstrumentsPage() {
   const [showBulkRts, setShowBulkRts] = useState(false)
   const [bulkRtsForm, setBulkRtsForm] = useState({ password: '', meaning: '', reason: '' })
   const [bulkSaving, setBulkSaving] = useState(false)
+
+  // Calibration records
+  const [calibInstrument, setCalibInstrument] = useState<Instrument | null>(null)
+  const [calibRecords, setCalibRecords] = useState<CalibrationRecord[]>([])
+  const [calibLoading, setCalibLoading] = useState(false)
+  const [showCalibForm, setShowCalibForm] = useState(false)
+  const [calibForm, setCalibForm] = useState({ calibrationDate: '', nextCalibrationDue: '', certificateRef: '', performedBy: '', frequency: '' })
+  const [calibSaving, setCalibSaving] = useState(false)
+  const [calibError, setCalibError] = useState('')
+
+  async function openCalibrations(r: Instrument) {
+    setCalibInstrument(r); setCalibRecords([]); setCalibLoading(true)
+    try { const res = await api.get(`/instruments/${r.instrumentId}/calibrations`); setCalibRecords(res.data) }
+    catch { setCalibRecords([]) }
+    finally { setCalibLoading(false) }
+  }
+
+  async function submitCalibRecord(e: React.FormEvent) {
+    e.preventDefault(); setCalibSaving(true); setCalibError('')
+    try {
+      await api.post(`/instruments/${calibInstrument!.instrumentId}/calibrations`, {
+        calibrationDate: calibForm.calibrationDate,
+        nextCalibrationDue: calibForm.nextCalibrationDue,
+        certificateRef: calibForm.certificateRef,
+        performedBy: calibForm.performedBy,
+        frequency: calibForm.frequency || null,
+      })
+      toast('Calibration record added', 'success')
+      setShowCalibForm(false)
+      setCalibForm({ calibrationDate: '', nextCalibrationDue: '', certificateRef: '', performedBy: '', frequency: '' })
+      openCalibrations(calibInstrument!)
+      load()
+    } catch (err) { const msg = getErrorMessage(err, 'Failed'); setCalibError(msg); toast(msg, 'error') }
+    finally { setCalibSaving(false) }
+  }
 
   function openEdit(r: Instrument) {
     setEditRow(r)
@@ -245,6 +283,11 @@ export default function InstrumentsPage() {
                     <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     Edit
                   </button>
+                  <button onClick={() => openCalibrations(r)}
+                    title="View / Add Calibration Records"
+                    style={{ fontSize: 12, padding: '2px 8px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>
+                    🗓 Calibration
+                  </button>
                   <button
                     onClick={() => downloadCalibCert(r)}
                     title="Download Calibration Certificate PDF"
@@ -425,6 +468,78 @@ export default function InstrumentsPage() {
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <ModalFooter saving={bulkSaving} onCancel={() => setShowBulkRts(false)} label={`Approve & Return ${bulkSelected.size} to Service`} />
           </form>
+        </Modal>
+      )}
+
+      {/* Calibration Records */}
+      {calibInstrument && (
+        <Modal title={`Calibration Records — ${calibInstrument.instrumentCode}`} onClose={() => { setCalibInstrument(null); setShowCalibForm(false) }}>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: '#6b7280' }}>{calibInstrument.instrumentName}</span>
+            <button onClick={() => { setShowCalibForm(true); setCalibError('') }}
+              style={{ padding: '4px 12px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+              + Add Record
+            </button>
+          </div>
+
+          {showCalibForm && (
+            <form onSubmit={submitCalibRecord} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#1e40af', marginBottom: 10 }}>New Calibration Record</div>
+              <Field label="Calibration Date"><input style={inp} type="date" value={calibForm.calibrationDate} onChange={e => setCalibForm(f => ({ ...f, calibrationDate: e.target.value }))} required /></Field>
+              <Field label="Next Due Date"><input style={inp} type="date" value={calibForm.nextCalibrationDue} onChange={e => setCalibForm(f => ({ ...f, nextCalibrationDue: e.target.value }))} required /></Field>
+              <Field label="Certificate Ref."><input style={inp} value={calibForm.certificateRef} onChange={e => setCalibForm(f => ({ ...f, certificateRef: e.target.value }))} required placeholder="e.g. CERT-2026-BOD001" /></Field>
+              <Field label="Performed By"><input style={inp} value={calibForm.performedBy} onChange={e => setCalibForm(f => ({ ...f, performedBy: e.target.value }))} required placeholder="Technician / lab name" /></Field>
+              <Field label="Frequency">
+                <select style={inp} value={calibForm.frequency} onChange={e => setCalibForm(f => ({ ...f, frequency: e.target.value }))}>
+                  <option value="">— Select —</option>
+                  {FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </Field>
+              {calibError && <p style={{ color: '#dc2626', fontSize: 12, margin: '4px 0' }}>{calibError}</p>}
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <button type="submit" disabled={calibSaving}
+                  style={{ padding: '6px 16px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  {calibSaving ? 'Saving…' : 'Save Record'}
+                </button>
+                <button type="button" onClick={() => setShowCalibForm(false)}
+                  style={{ padding: '6px 12px', background: '#f1f5f9', color: '#374151', border: '1px solid #e2e8f0', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+
+          {calibLoading ? (
+            <p style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 20 }}>Loading…</p>
+          ) : calibRecords.length === 0 ? (
+            <p style={{ color: '#9ca3af', fontSize: 13, textAlign: 'center', padding: 20 }}>No calibration records yet. Click "+ Add Record" to add one.</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                  {['Cal. Date', 'Next Due', 'Cert. Ref', 'Performed By', 'Frequency', 'Status'].map(h => (
+                    <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, color: '#374151' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {calibRecords.map(c => (
+                  <tr key={c.calibrationId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '6px 8px' }}>{c.calibrationDate?.slice(0, 10)}</td>
+                    <td style={{ padding: '6px 8px' }}>{c.nextCalibrationDue?.slice(0, 10)}</td>
+                    <td style={{ padding: '6px 8px', color: '#2563eb' }}>{c.certificateRef}</td>
+                    <td style={{ padding: '6px 8px' }}>{c.performedBy}</td>
+                    <td style={{ padding: '6px 8px' }}>{c.frequency || '—'}</td>
+                    <td style={{ padding: '6px 8px' }}>
+                      {c.isApproved
+                        ? <span style={{ color: '#16a34a', fontWeight: 700 }}>✓ Approved</span>
+                        : <span style={{ color: '#d97706' }}>Pending QA</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </Modal>
       )}
 

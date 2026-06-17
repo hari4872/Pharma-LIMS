@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LIMS.Application.Features.MasterData.Instruments;
 
 public record CreateCalibrationCommand(int InstrumentId, DateOnly CalibrationDate,
-    DateOnly NextCalibrationDue, string CertificateRef, string CreatedBy) : IRequest<Result<int>>;
+    DateOnly NextCalibrationDue, string CertificateRef, string PerformedBy, string? Frequency, string CreatedBy) : IRequest<Result<int>>;
 
 public class CreateCalibrationValidator : AbstractValidator<CreateCalibrationCommand>
 {
@@ -39,7 +39,8 @@ public class CreateCalibrationCommandHandler : IRequestHandler<CreateCalibration
             CalibrationDate = request.CalibrationDate,
             NextCalibrationDue = request.NextCalibrationDue,
             CertificateRef = request.CertificateRef,
-            PerformedBy = request.CreatedBy,
+            PerformedBy = request.PerformedBy,
+            Frequency = request.Frequency,
             CreatedBy = request.CreatedBy,
             CreatedAt = DateTimeOffset.UtcNow
         };

@@ -54,13 +54,30 @@ public class InstrumentsController : LimsControllerBase
         return Ok(new { instrumentId = result.Value, status = "Inactive" });
     }
 
+    // GET api/v1/instruments/{id}/calibrations — list calibration history
+    [HttpGet("{id}/calibrations")]
+    public async Task<IActionResult> GetCalibrations(int id)
+    {
+        var records = await _db.CalibrationRecords
+            .Where(c => c.InstrumentId == id)
+            .OrderByDescending(c => c.CalibrationDate)
+            .Select(c => new {
+                c.CalibrationId, c.InstrumentId, c.CalibrationDate, c.NextCalibrationDue,
+                c.CertificateRef, c.PerformedBy, c.Frequency,
+                c.CreatedBy, c.CreatedAt,
+                IsApproved = c.SignatureId != null
+            })
+            .ToListAsync();
+        return Ok(records);
+    }
+
     // POST api/v1/instruments/{id}/calibrations — create calibration record
     [HttpPost("{id}/calibrations")]
     [Authorize(Roles = "Admin,Analyst")]
     public async Task<IActionResult> CreateCalibration(int id, [FromBody] CreateCalibrationRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
-        var result = await _mediator.Send(new CreateCalibrationCommand(id, request.CalibrationDate, request.NextCalibrationDue, request.CertificateRef, username));
+        var result = await _mediator.Send(new CreateCalibrationCommand(id, request.CalibrationDate, request.NextCalibrationDue, request.CertificateRef, request.PerformedBy, request.Frequency, username));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { calibrationId = result.Value });
     }
@@ -182,7 +199,7 @@ public class InstrumentsController : LimsControllerBase
 
 public record CreateInstrumentRequest(int LabId, string InstrumentCode, string? InstrumentName, string InstrumentType, string? Manufacturer, string? Model, string? SerialNumber, string? Location, DateOnly CalibrationDue, DateOnly? LastCalibration);
 public record UpdateInstrumentRequest(string? InstrumentName, string InstrumentType, string? Manufacturer, string? Model, string? SerialNumber, string? Location, DateOnly CalibrationDue, DateOnly? LastCalibration);
-public record CreateCalibrationRequest(DateOnly CalibrationDate, DateOnly NextCalibrationDue, string CertificateRef);
+public record CreateCalibrationRequest(DateOnly CalibrationDate, DateOnly NextCalibrationDue, string CertificateRef, string PerformedBy, string? Frequency);
 public record RaiseBreakdownRequest(string IssueDescription);
 public record RecordRepairRequest(string Technician, DateOnly RepairDate, string RepairDescription, string? PartsUsed);
 

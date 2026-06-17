@@ -9,6 +9,7 @@ public class CalibrationRecord
     public DateOnly NextCalibrationDue { get; set; }
     public string CertificateRef { get; set; } = default!;
     public string PerformedBy { get; set; } = default!;
+    public string? Frequency { get; set; }
     public int? SignatureId { get; set; }
     public ElectronicSignature? Signature { get; set; }     // QA §11.50 approval
     public string CreatedBy { get; set; } = default!;
