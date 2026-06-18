@@ -83,11 +83,13 @@ export default function TestExecutionPage() {
   const currentFullName = useSelector((s: RootState) => s.auth.fullName) ?? ''
   // elapsed timer driven by tick state below
 
-  const [execution,   setExecution]   = useState<Execution | null>(null)
-  const [parameters,  setParameters]  = useState<Parameter[]>([])
-  const [specLimits,  setSpecLimits]  = useState<SpecLimit[]>([])
-  const [entries,     setEntries]     = useState<Record<number, string>>({})
-  const [evidence,    setEvidence]    = useState<Record<number, string>>({})
+  const [execution,    setExecution]   = useState<Execution | null>(null)
+  const [parameters,   setParameters]  = useState<Parameter[]>([])
+  const [specLimits,   setSpecLimits]  = useState<SpecLimit[]>([])
+  const [entries,      setEntries]     = useState<Record<number, string>>({})
+  const [evidence,     setEvidence]    = useState<Record<number, string>>({})
+  const [paramInstruments, setParamInstruments] = useState<Record<number, number>>({}) // parameterId → instrumentId
+  const [instruments,  setInstruments] = useState<{ instrumentId: number; instrumentCode: string; instrumentName: string; instrumentType: string }[]>([])
   const [results,     setResults]     = useState<ResultRow[]>([])
   const [uploadFiles, setUploadFiles] = useState<Record<number, { file: File | null; desc: string; uploading: boolean; files: EvidenceFile[]; open: boolean }>>({})
   const [hasOos,      setHasOos]      = useState(false)
@@ -194,6 +196,10 @@ export default function TestExecutionPage() {
       .then(r => setParameters(r.data))
       .catch(() => setError('Failed to load parameters.'))
 
+    api.get('/instruments?includeInactive=false')
+      .then(r => setInstruments(r.data))
+      .catch(() => {/* non-blocking */})
+
     return () => { formCancelled = true }
   }, [id])
 
@@ -261,7 +267,8 @@ export default function TestExecutionPage() {
     try {
       const entryList = Object.entries(entries).map(([pid, raw]) => ({
         parameterId: Number(pid), rawValue: raw,
-        evidenceFileRef: evidence[Number(pid)] || undefined
+        evidenceFileRef: evidence[Number(pid)] || undefined,
+        instrumentId: paramInstruments[Number(pid)] || undefined
       }))
       const r = await api.post(`/test-executions/${id}/results`, { entries: entryList, entryMethod: 'Manual' })
       setResults(r.data.results)
@@ -477,7 +484,7 @@ export default function TestExecutionPage() {
                   background: status === 'fail' ? '#fff8f8' : status === 'oot' ? '#fffdf0' : '#fff',
                   transition: 'all 0.15s'
                 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '28px 2fr 1.4fr 1.4fr 100px', gap: 12, alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '28px 2fr 1.4fr 1.4fr 160px 100px', gap: 12, alignItems: 'center' }}>
                     {/* Row # */}
                     <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>{idx + 1}</span>
 
@@ -535,6 +542,20 @@ export default function TestExecutionPage() {
                         background: '#fafafa',
                       }}
                     />
+
+                    {/* Instrument selector per parameter */}
+                    <select
+                      value={paramInstruments[p.parameterId] ?? ''}
+                      onChange={e => setParamInstruments(prev => ({ ...prev, [p.parameterId]: Number(e.target.value) }))}
+                      style={{ ...inp, margin: 0, fontSize: 12, padding: '6px 8px' }}
+                    >
+                      <option value="">— Instrument —</option>
+                      {instruments.map(i => (
+                        <option key={i.instrumentId} value={i.instrumentId}>
+                          {i.instrumentCode} ({i.instrumentType})
+                        </option>
+                      ))}
+                    </select>
 
                     {/* Live status badge */}
                     <span style={{

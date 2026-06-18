@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.Application.Features.TestExecutions;
 
-public record ResultEntryDto(int ParameterId, string RawValue, string? EvidenceFileRef = null);
+public record ResultEntryDto(int ParameterId, string RawValue, string? EvidenceFileRef = null, int? InstrumentId = null);
 
 // Step 4–5: Save raw values, run formula + OOS/OOT detection, create Pending logbook entries
 public record SubmitTestResultsCommand(
@@ -131,7 +131,7 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
                 PassFail = detection.PassFail,
                 IsOos = detection.IsOos,
                 IsOot = detection.IsOot,
-                InstrumentId = execution.InstrumentId,
+                InstrumentId = item.InstrumentId ?? execution.InstrumentId,
                 AnalystId = cmd.AnalystId,
                 EvidenceFileRef = item.EvidenceFileRef,
                 Status = LogbookEntryStatus.Pending,
