@@ -14,7 +14,7 @@ namespace LIMS.Application.Features.TestExecutions;
 public record AssignTestMethodCommand(
     int ExecutionId,
     int AnalystId,
-    int InstrumentId,
+    int? InstrumentId,
     int AssignedById,
     int? PriorityScore = null) : IRequest<Result<int>>;
 
@@ -53,20 +53,23 @@ public class AssignTestMethodHandler : IRequestHandler<AssignTestMethodCommand, 
             return Result<int>.Failure("TRAINING_EXPIRED",
                 "Analyst training expired — assignment blocked. (21 CFR 11.10(i))");
 
-        // Instrument check (21 CFR 211.68)
-        var instrument = await _db.Instruments
-            .FirstOrDefaultAsync(i => i.InstrumentId == cmd.InstrumentId && i.IsActive, ct);
-        if (instrument is null)
-            return Result<int>.Failure("NOT_FOUND", "Instrument not found or inactive.");
-        if (instrument.Status == InstrumentStatus.OutOfCalibration || instrument.Status == InstrumentStatus.Maintenance)
-            return Result<int>.Failure("INSTRUMENT_OOC",
-                $"Instrument is {instrument.Status} — assignment blocked. (21 CFR 211.68)");
-        if (instrument.CalibrationDue < today)
-            return Result<int>.Failure("INSTRUMENT_OOC",
-                "Instrument calibration expired — assignment blocked. (21 CFR 211.68)");
+        // Instrument is optional — analyst selects per-parameter at execution time
+        if (cmd.InstrumentId.HasValue)
+        {
+            var instrument = await _db.Instruments
+                .FirstOrDefaultAsync(i => i.InstrumentId == cmd.InstrumentId && i.IsActive, ct);
+            if (instrument is null)
+                return Result<int>.Failure("NOT_FOUND", "Instrument not found or inactive.");
+            if (instrument.Status == InstrumentStatus.OutOfCalibration || instrument.Status == InstrumentStatus.Maintenance)
+                return Result<int>.Failure("INSTRUMENT_OOC",
+                    $"Instrument is {instrument.Status} — assignment blocked. (21 CFR 211.68)");
+            if (instrument.CalibrationDue < today)
+                return Result<int>.Failure("INSTRUMENT_OOC",
+                    "Instrument calibration expired — assignment blocked. (21 CFR 211.68)");
+            execution.InstrumentId = cmd.InstrumentId;
+        }
 
         execution.AnalystId    = cmd.AnalystId;
-        execution.InstrumentId = cmd.InstrumentId;
         execution.AssignedById = cmd.AssignedById;
         if (cmd.PriorityScore.HasValue) execution.PriorityScore = cmd.PriorityScore;
 
