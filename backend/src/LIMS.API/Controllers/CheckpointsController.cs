@@ -61,25 +61,42 @@ public class CheckpointsController : LimsControllerBase
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { checkpointId = result.Value });
     }
 
-    // GET api/v1/checkpoints/{id}/linked-samples -- samples registered with this checkpoint
+    // GET api/v1/checkpoints/{id}/linked-samples -- samples for traceability link
+    // Returns pre-linked samples (via SampleCheckpoint) first, then all active samples
+    // so the analyst can always pick a sample even if registration didn't auto-link it.
     [HttpGet("{id}/linked-samples")]
     public async Task<IActionResult> GetLinkedSamples(int id, CancellationToken ct)
     {
-        var samples = await _db.SampleCheckpoints
+        var linkedIds = await _db.SampleCheckpoints
             .Where(sc => sc.CheckpointId == id)
-            .Include(sc => sc.Sample).ThenInclude(s => s.Material)
-            .Select(sc => new {
-                sc.Sample.SampleId,
-                sc.Sample.SampleNumber,
-                MaterialName = sc.Sample.Material != null ? sc.Sample.Material.MaterialName : "—",
-                sc.Sample.LotNumber,
-                Status = sc.Sample.Status.ToString(),
-                sc.Sample.CreatedAt,
-            })
-            .OrderByDescending(s => s.CreatedAt)
-            .Take(50)
+            .Select(sc => sc.SampleId)
             .ToListAsync(ct);
-        return Ok(samples);
+
+        var allSamples = await _db.Samples
+            .Include(s => s.Material)
+            .Where(s => s.Status == LIMS.Domain.Enums.SampleStatus.Registered
+                     || s.Status == LIMS.Domain.Enums.SampleStatus.PendingTesting
+                     || s.Status == LIMS.Domain.Enums.SampleStatus.InTesting)
+            .OrderByDescending(s => s.CreatedAt)
+            .Take(100)
+            .Select(s => new {
+                s.SampleId,
+                s.SampleNumber,
+                MaterialName = s.Material != null ? s.Material.MaterialName : "—",
+                s.LotNumber,
+                Status = s.Status.ToString(),
+                s.CreatedAt,
+                IsLinked = linkedIds.Contains(s.SampleId),
+            })
+            .ToListAsync(ct);
+
+        // Pre-linked samples appear first, then the rest
+        var ordered = allSamples
+            .OrderByDescending(s => s.IsLinked)
+            .ThenByDescending(s => s.CreatedAt)
+            .ToList();
+
+        return Ok(ordered);
     }
 
     // POST api/v1/checkpoints/{id}/trigger -- Mode 2: operator scan (FR-03), also Mode 4 manual DO entry
