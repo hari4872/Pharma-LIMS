@@ -26,15 +26,17 @@ public class StartTestExecutionHandler : IRequestHandler<StartTestExecutionComma
         if (execution.Status != TestExecutionStatus.Assigned)
             return Result<int>.Failure("INVALID_STATE", $"Task is already {execution.Status}.");
 
-        // Step 3: instrument OOC hard block (21 CFR 211.68)
+        // Instrument is optional at assignment — analyst selects per-parameter during result entry.
+        // Only check calibration if an execution-level instrument was pre-assigned.
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        if (execution.Instrument is null)
-            return Result<int>.Failure("INSTRUMENT_REQUIRED", "No instrument assigned to this test execution.");
-        if (execution.Instrument.Status == InstrumentStatus.OutOfCalibration ||
-            execution.Instrument.Status == InstrumentStatus.Maintenance)
-            return Result<int>.Failure("INSTRUMENT_OOC", $"Instrument is {execution.Instrument.Status} — test start blocked. (21 CFR 211.68)");
-        if (execution.Instrument.CalibrationDue < today)
-            return Result<int>.Failure("INSTRUMENT_OOC", "Instrument calibration expired — test start blocked. (21 CFR 211.68)");
+        if (execution.Instrument is not null)
+        {
+            if (execution.Instrument.Status == InstrumentStatus.OutOfCalibration ||
+                execution.Instrument.Status == InstrumentStatus.Maintenance)
+                return Result<int>.Failure("INSTRUMENT_OOC", $"Instrument is {execution.Instrument.Status} — test start blocked. (21 CFR 211.68)");
+            if (execution.Instrument.CalibrationDue < today)
+                return Result<int>.Failure("INSTRUMENT_OOC", "Instrument calibration expired — test start blocked. (21 CFR 211.68)");
+        }
 
         // Analyst training re-check at task open — Admin is exempt (oversight role, not analyst)
         if (!cmd.IsAdmin)
