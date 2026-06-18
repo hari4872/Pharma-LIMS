@@ -462,11 +462,11 @@ export default function TestExecutionPage() {
         <form onSubmit={submitResults}>
           {/* Column headers */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '28px 2fr 1.4fr 1.4fr 100px',
+            display: 'grid', gridTemplateColumns: '28px 2fr 1.4fr 1.4fr 160px 100px',
             gap: 12, padding: '6px 10px', marginBottom: 6,
             fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em'
           }}>
-            <span>#</span><span>Parameter</span><span>Spec Limit</span><span>Value</span><span>Status</span>
+            <span>#</span><span>Parameter</span><span>Spec Limit</span><span>Value</span><span>Instrument</span><span>Status</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
