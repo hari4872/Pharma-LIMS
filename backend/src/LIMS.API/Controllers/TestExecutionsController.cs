@@ -27,13 +27,13 @@ public class TestExecutionsController : LimsControllerBase
         _lab = lab;
     }
 
-    // GET api/v1/test-executions?analystId=1&labId=2&status=Assigned — Work Queue
+    // GET api/v1/test-executions?analystId=1&labId=2&status=Assigned ï¿½ Work Queue
     [HttpGet]
     public async Task<IActionResult> GetWorkQueue(
         [FromQuery] int? analystId, [FromQuery] int? labId, [FromQuery] string? status)
         => Ok(await _mediator.Send(new GetWorkQueueQuery(analystId, labId, status)));
 
-    // GET api/v1/test-executions/{id} — fetch single execution by ID (avoids stale client-side find)
+    // GET api/v1/test-executions/{id} ï¿½ fetch single execution by ID (avoids stale client-side find)
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
@@ -50,19 +50,19 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(new {
             execution.ExecutionId,
             execution.SampleId,
-            SampleNumber   = execution.Sample?.SampleNumber ?? "—",
-            MaterialName   = execution.Sample?.Material?.MaterialName ?? "—",
+            SampleNumber   = execution.Sample?.SampleNumber ?? "ï¿½",
+            MaterialName   = execution.Sample?.Material?.MaterialName ?? "ï¿½",
             MaterialId     = execution.Sample?.MaterialId ?? 0,
-            LotNumber      = execution.Sample?.LotNumber ?? "—",
-            AnalystName    = execution.Analyst?.FullName ?? "—",
-            InstrumentCode = execution.Instrument?.InstrumentCode ?? "—",
+            LotNumber      = execution.Sample?.LotNumber ?? "ï¿½",
+            AnalystName    = execution.Analyst?.FullName ?? "ï¿½",
+            InstrumentCode = execution.Instrument?.InstrumentCode ?? "ï¿½",
             Status         = execution.Status.ToString(),
             execution.StartedAt,
             DueDate        = execution.DueAt,
         });
     }
 
-    // POST api/v1/test-executions — Lab Manager assigns sample to analyst (WAP FR-13)
+    // POST api/v1/test-executions ï¿½ Lab Manager assigns sample to analyst (WAP FR-13)
     [HttpPost]
     [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Assign([FromBody] AssignWorkQueueRequest request)
@@ -76,7 +76,7 @@ public class TestExecutionsController : LimsControllerBase
         return CreatedAtAction(nameof(GetWorkQueue), new { id = result.Value }, new { executionId = result.Value });
     }
 
-    // POST api/v1/test-executions/{id}/start — Analyst opens task / barcode scan (FR-22 started_at UTC)
+    // POST api/v1/test-executions/{id}/start ï¿½ Analyst opens task / barcode scan (FR-22 started_at UTC)
     [HttpPost("{id}/start")]
     [Authorize(Roles = "Admin,Analyst,LabManager,QA")]
     public async Task<IActionResult> Start(int id)
@@ -88,7 +88,7 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(new { executionId = result.Value, status = "InProgress" });
     }
 
-    // POST api/v1/test-executions/{id}/results — Step 4-5: submit raw values + OOS/OOT detection
+    // POST api/v1/test-executions/{id}/results ï¿½ Step 4-5: submit raw values + OOS/OOT detection
     [HttpPost("{id}/results")]
     [Authorize(Roles = "Admin,Analyst,LabManager,QA")]
     public async Task<IActionResult> SubmitResults(int id, [FromBody] SubmitResultsRequest request)
@@ -132,7 +132,7 @@ public class TestExecutionsController : LimsControllerBase
     public async Task<IActionResult> GetParameters(int id)
         => Ok(await _mediator.Send(new GetExecutionParametersQuery(id)));
 
-    // GET api/v1/test-executions/suggest-instrument — Phase D auto-suggest
+    // GET api/v1/test-executions/suggest-instrument ï¿½ Phase D auto-suggest
     // Returns ranked list of instruments capable of running a given TestMethod or Parameter.
     // Filters to: IsActive=true, InstrumentStatus=Available, Calibration not overdue.
     [HttpGet("suggest-instrument")]
@@ -173,7 +173,7 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(suggestions);
     }
 
-    // POST api/v1/test-executions/{id}/sign-off — Step 7: Â§11.50 e-sig, logbook rows finalized
+    // POST api/v1/test-executions/{id}/sign-off ï¿½ Step 7: Â§11.50 e-sig, logbook rows finalized
     [HttpPost("{id}/sign-off")]
     [Authorize(Roles = "Admin,Analyst,LabManager,QA")]
     public async Task<IActionResult> SignOff(int id, [FromBody] ApproveRequest request)
@@ -189,7 +189,7 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(new { executionId = result.Value, status = "Signed" });
     }
 
-    // â"€â"€ Sprint 6 — Intelligent Workflow Endpoints â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+    // ï¿½"ï¿½ï¿½"ï¿½ Sprint 6 ï¿½ Intelligent Workflow Endpoints ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½
 
     // GET api/v1/test-executions/queue-intelligence?labId=1
     [HttpGet("queue-intelligence")]
@@ -221,8 +221,8 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(new { executionId = id, priorityScore = score });
     }
 
-    // POST api/v1/test-executions/{id}/assign — per-test-method assignment (LabVantage parity)
-    // Different from POST / (sample-level) — this targets a specific execution row directly.
+    // POST api/v1/test-executions/{id}/assign ï¿½ per-test-method assignment (LabVantage parity)
+    // Different from POST / (sample-level) ï¿½ this targets a specific execution row directly.
     [HttpPost("{id}/assign")]
     [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> AssignTestMethod(int id, [FromBody] AssignTestMethodRequest request)
@@ -238,8 +238,8 @@ public class TestExecutionsController : LimsControllerBase
     }
 }
 
-public record AssignWorkQueueRequest(int SampleId, int AnalystId, int InstrumentId, int? PriorityScore = null);
-public record AssignTestMethodRequest(int AnalystId, int InstrumentId, int? PriorityScore = null);
+public record AssignWorkQueueRequest(int SampleId, int AnalystId, int? InstrumentId = null, int? PriorityScore = null);
+public record AssignTestMethodRequest(int AnalystId, int? InstrumentId = null, int? PriorityScore = null);
 public record SubmitResultsRequest(List<ResultEntryDto> Entries, EntryMethod EntryMethod = EntryMethod.Manual);
 public record BatchRowRequest(int ExecutionId, List<ResultEntryDto> Entries);
 public record BatchSubmitRequest(List<BatchRowRequest> Rows);

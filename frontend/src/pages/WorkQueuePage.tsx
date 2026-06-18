@@ -20,17 +20,6 @@ interface WorkItem {
 }
 interface Sample { sampleId: number; sampleNumber: string; materialName: string; lotNumber: string; specTemplateId?: number }
 interface Analyst { userId: number; fullName: string }
-interface Instrument { instrumentId: number; instrumentCode: string }
-interface SuggestedInstrument {
-  instrumentId:   number
-  instrumentCode: string
-  instrumentType: string
-  model:          string | null
-  calibrationDue: string
-  priority:       number
-  notes:          string | null
-  labName:        string
-}
 
 // AI Intelligence interfaces
 interface AnalystLoad { userId: number; fullName: string; assigned: number; inProgress: number; overdue: number }
@@ -81,18 +70,14 @@ export default function WorkQueuePage() {
   const [showAssign, setShowAssign] = useState(false)
   const [samples, setSamples] = useState<Sample[]>([])
   const [analysts, setAnalysts] = useState<Analyst[]>([])
-  const [instruments, setInstruments] = useState<Instrument[]>([])
-  const [form, setForm] = useState({ sampleId: '', analystId: '', instrumentId: '', priorityScore: '' })
+  const [form, setForm] = useState({ sampleId: '', analystId: '', priorityScore: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   // Re-assign (per-test-method)
   const [reassignItem, setReassignItem]   = useState<WorkItem | null>(null)
-  const [reassignForm, setReassignForm]   = useState({ analystId: '', instrumentId: '', priorityScore: '' })
+  const [reassignForm, setReassignForm]   = useState({ analystId: '', priorityScore: '' })
   const [reassignSaving, setReassignSaving] = useState(false)
   const [reassignError, setReassignError]   = useState('')
-  // Phase D — auto-suggest
-  const [suggestions, setSuggestions]       = useState<SuggestedInstrument[]>([])
-  const [suggestLoading, setSuggestLoading] = useState(false)
   // AI Intelligence
   const [showAi, setShowAi]           = useState(false)
   const [aiData, setAiData]           = useState<QueueIntelligence | null>(null)
@@ -211,28 +196,13 @@ export default function WorkQueuePage() {
   }
 
   async function openAssign() {
-    const [sr, ur, ir] = await Promise.all([
+    const [sr, ur] = await Promise.all([
       api.get('/samples?status=PendingTesting').catch(() => ({ data: [] })),
       api.get('/users').catch(() => ({ data: [] })),
-      api.get('/instruments').catch(() => ({ data: [] })),
     ])
-    setSamples(sr.data); setAnalysts(ur.data); setInstruments(ir.data)
-    setSuggestions([]); setForm({ sampleId: '', analystId: '', instrumentId: '', priorityScore: '' })
+    setSamples(sr.data); setAnalysts(ur.data)
+    setForm({ sampleId: '', analystId: '', priorityScore: '' })
     setShowAssign(true)
-  }
-
-  async function fetchSuggestions(sampleId: string) {
-    if (!sampleId) { setSuggestions([]); return }
-    // Find the sample to get its spec template items (which carry test method IDs)
-    // For now, query without filter to get all available instruments — the endpoint
-    // returns all Available+calibrated instruments sorted by priority
-    setSuggestLoading(true)
-    try {
-      const res = await api.get('/test-executions/suggest-instrument')
-      setSuggestions(res.data)
-    } catch {
-      setSuggestions([])
-    } finally { setSuggestLoading(false) }
   }
 
   async function submitAssign(e: React.FormEvent) {
@@ -241,7 +211,6 @@ export default function WorkQueuePage() {
       await api.post('/test-executions', {
         sampleId: Number(form.sampleId),
         analystId: Number(form.analystId),
-        instrumentId: Number(form.instrumentId),
         priorityScore: form.priorityScore ? Number(form.priorityScore) : null,
       })
       setShowAssign(false); load()
@@ -251,14 +220,11 @@ export default function WorkQueuePage() {
 
   async function openReassign(item: WorkItem) {
     if (analysts.length === 0) {
-      const [ur, ir] = await Promise.all([
-        api.get('/users').catch(() => ({ data: [] })),
-        api.get('/instruments').catch(() => ({ data: [] })),
-      ])
-      setAnalysts(ur.data); setInstruments(ir.data)
+      const ur = await api.get('/users').catch(() => ({ data: [] }))
+      setAnalysts(ur.data)
     }
     setReassignItem(item)
-    setReassignForm({ analystId: '', instrumentId: '', priorityScore: item.priorityScore != null ? String(item.priorityScore) : '' })
+    setReassignForm({ analystId: '', priorityScore: item.priorityScore != null ? String(item.priorityScore) : '' })
     setReassignError('')
   }
 
@@ -267,7 +233,6 @@ export default function WorkQueuePage() {
     try {
       await api.post(`/test-executions/${reassignItem!.executionId}/assign`, {
         analystId:    Number(reassignForm.analystId),
-        instrumentId: Number(reassignForm.instrumentId),
         priorityScore: reassignForm.priorityScore ? Number(reassignForm.priorityScore) : null,
       })
       toast('Execution re-assigned successfully', 'success')
@@ -668,12 +633,6 @@ export default function WorkQueuePage() {
                 {analysts.map(u => <option key={u.userId} value={u.userId}>{u.fullName}</option>)}
               </select>
             </Field>
-            <Field label="New Instrument">
-              <select style={inp} value={reassignForm.instrumentId} onChange={e => setReassignForm(f => ({ ...f, instrumentId: e.target.value }))} required>
-                <option value="">Select instrument…</option>
-                {instruments.map(i => <option key={i.instrumentId} value={i.instrumentId}>{i.instrumentCode}</option>)}
-              </select>
-            </Field>
             <Field label="Priority Score (optional)">
               <input style={inp} type="number" min="1" max="100" value={reassignForm.priorityScore}
                 onChange={e => setReassignForm(f => ({ ...f, priorityScore: e.target.value }))} placeholder="1–100 (lower = higher priority)" />
@@ -692,10 +651,7 @@ export default function WorkQueuePage() {
             </p>
             <Field label="Sample (PendingTesting)">
               <select style={inp} value={form.sampleId}
-                onChange={e => {
-                  setForm(f => ({ ...f, sampleId: e.target.value, instrumentId: '' }))
-                  fetchSuggestions(e.target.value)
-                }} required>
+                onChange={e => setForm(f => ({ ...f, sampleId: e.target.value }))} required>
                 <option value="">Select sample…</option>
                 {samples.map(s => <option key={s.sampleId} value={s.sampleId}>{s.sampleNumber} — {s.materialName} / {s.lotNumber}</option>)}
               </select>
@@ -704,54 +660,6 @@ export default function WorkQueuePage() {
               <select style={inp} value={form.analystId} onChange={e => setForm(f => ({ ...f, analystId: e.target.value }))} required>
                 <option value="">Select analyst…</option>
                 {analysts.map(u => <option key={u.userId} value={u.userId}>{u.fullName}</option>)}
-              </select>
-            </Field>
-            <Field label="Instrument">
-              {/* Phase D — show auto-suggest if available, else fall back to full list */}
-              {suggestLoading && <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 6px' }}>🔍 Finding best instruments…</p>}
-              {!suggestLoading && suggestions.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#0d6e6e', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 6px' }}>
-                    ✦ Auto-suggested (sorted by priority)
-                  </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {suggestions.slice(0, 5).map(s => (
-                      <label key={s.instrumentId}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
-                          padding: '8px 12px', borderRadius: 7,
-                          border: `1.5px solid ${form.instrumentId === String(s.instrumentId) ? '#0d6e6e' : '#e0e0e0'}`,
-                          background: form.instrumentId === String(s.instrumentId) ? '#f0fdfa' : '#fff',
-                        }}>
-                        <input type="radio" name="suggestedInstrument"
-                          checked={form.instrumentId === String(s.instrumentId)}
-                          onChange={() => setForm(f => ({ ...f, instrumentId: String(s.instrumentId) }))}
-                          style={{ accentColor: '#0d6e6e' }}
-                        />
-                        <div style={{ flex: 1 }}>
-                          <span style={{ fontWeight: 700, fontSize: 13, color: '#111', fontFamily: 'monospace' }}>{s.instrumentCode}</span>
-                          <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 8 }}>{s.instrumentType}</span>
-                          {s.model && <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 6 }}>({s.model})</span>}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#6b7280', textAlign: 'right' }}>
-                          <div>{s.labName}</div>
-                          <div>Cal. due: {fmtDate(s.calibrationDue)}</div>
-                        </div>
-                        <span style={{
-                          minWidth: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 11, fontWeight: 700,
-                          background: s.priority === 1 ? '#dcfce7' : '#fef9c3',
-                          color: s.priority === 1 ? '#15803d' : '#92400e',
-                        }}>P{s.priority}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>Or choose manually below:</p>
-                </div>
-              )}
-              <select style={inp} value={form.instrumentId} onChange={e => setForm(f => ({ ...f, instrumentId: e.target.value }))} required>
-                <option value="">Select instrument…</option>
-                {instruments.map(i => <option key={i.instrumentId} value={i.instrumentId}>{i.instrumentCode}</option>)}
               </select>
             </Field>
             <Field label="Priority Score (lower = higher priority)">
