@@ -77,7 +77,7 @@ export default function CoaReviewPage() {
   // Reissue CoA state
   const [showReissue,    setShowReissue]    = useState(false)
   const [reissueTarget,  setReissueTarget]  = useState<CoaItem | null>(null)
-  const [reissueReason,  setReissueReason]  = useState('')
+  const [reissueEsig,    setReissueEsig]    = useState({ password: '', meaning: 'I authorize the reissue of this CoA', reason: '' })
   const [reissueSaving,  setReissueSaving]  = useState(false)
   const [reissueError,   setReissueError]   = useState('')
 
@@ -120,9 +120,13 @@ export default function CoaReviewPage() {
   async function submitReissue(ev: React.FormEvent) {
     ev.preventDefault()
     if (!reissueTarget) return
+    if (!reissueEsig.password.trim()) { setReissueError('Password is required'); return }
+    if (!reissueEsig.meaning.trim())  { setReissueError('Meaning is required'); return }
+    if (!reissueEsig.reason.trim())   { setReissueError('Reason is required'); return }
     setReissueSaving(true); setReissueError('')
     try {
-      const r = await api.post(`/coas/${reissueTarget.coaId}/reissue`, { reason: reissueReason })
+      const r = await api.post(`/coas/${reissueTarget.coaId}/reissue`,
+        { password: reissueEsig.password, meaning: reissueEsig.meaning, reason: reissueEsig.reason })
       toast(`CoA reissued — new CoA #${r.data?.newCoaId ?? ''} created, original superseded`, 'success')
       setShowReissue(false); setReissueTarget(null); load()
     } catch (err) {
@@ -463,7 +467,7 @@ export default function CoaReviewPage() {
                   PDF
                 </button>
                 <button
-                  onClick={() => { setReissueTarget(r); setReissueReason(''); setReissueError(''); setShowReissue(true) }}
+                  onClick={() => { setReissueTarget(r); setReissueEsig({ password: '', meaning: 'I authorize the reissue of this CoA', reason: '' }); setReissueError(''); setShowReissue(true) }}
                   title="Issue a replacement CoA — supersedes this one"
                   style={{ background: 'none', border: 'none', color: '#d97706', cursor: 'pointer', fontSize: 12, padding: 0 }}>
                   Reissue
@@ -595,7 +599,7 @@ export default function CoaReviewPage() {
           {selected.status === 'Released' && (
             <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
               <button
-                onClick={() => { setReissueTarget(selected); setReissueReason(''); setReissueError(''); setSelected(null); setShowReissue(true) }}
+                onClick={() => { setReissueTarget(selected); setReissueReason(''); setReissueError(''); setForm(f => ({ ...f, password: '', meaning: 'I authorize the reissue of this CoA.' })); setSelected(null); setShowReissue(true) }}
                 style={{ padding: '7px 16px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>
                 🔄 Reissue CoA
               </button>
@@ -711,12 +715,21 @@ export default function CoaReviewPage() {
           <form onSubmit={submitReissue}>
             <Field label="Reason for Reissue *">
               <textarea
-                style={{ ...inp, height: 80, resize: 'vertical' as const }}
-                value={reissueReason}
-                onChange={e => setReissueReason(e.target.value)}
+                style={{ ...inp, height: 70, resize: 'vertical' as const }}
+                value={reissueEsig.reason}
+                onChange={e => setReissueEsig(p => ({ ...p, reason: e.target.value }))}
                 required
                 placeholder="e.g. Customer name correction / Updated spec version applied / Transcription error in lot number"
               />
+            </Field>
+            <Field label="Meaning *">
+              <input style={inp} value={reissueEsig.meaning}
+                onChange={e => setReissueEsig(p => ({ ...p, meaning: e.target.value }))} required />
+            </Field>
+            <Field label="Password (re-enter) *">
+              <input style={inp} type="password" value={reissueEsig.password}
+                onChange={e => setReissueEsig(p => ({ ...p, password: e.target.value }))} required
+                placeholder="Re-enter your login password (21 CFR §11.50)" />
             </Field>
             {reissueError && <p style={{ color: '#dc2626', fontSize: 13, margin: '6px 0 0' }}>{reissueError}</p>}
             <ModalFooter saving={reissueSaving} onCancel={() => { setShowReissue(false); setReissueTarget(null) }} label="🔄 Reissue CoA" />
