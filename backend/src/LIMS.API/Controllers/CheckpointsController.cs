@@ -102,7 +102,7 @@ public class CheckpointsController : LimsControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var readings = request.Readings?.Select(r => new ParameterReadingInput(r.ParameterId, r.Value)).ToList();
         var result = await _mediator.Send(new ExecuteTimeBasedCheckpointCommand(
-            id, userId, request.SlotLabel, request.Password, request.Meaning, request.Reason, readings));
+            id, userId, request.SlotLabel, request.Password, request.Meaning, request.Reason, readings, request.SampleId));
         if (!result.IsSuccess)
         {
             if (result.ErrorCode == "ESIGN_AUTH_FAILED")
@@ -146,4 +146,4 @@ public record CreateCheckpointRequest(string CheckpointCode, int LabId, string T
 public record TriggerCheckpointRequest(string? DeliveryOrder = null, bool IsOfflineSync = false, int? SampleId = null);
 public record ReadingRequest(int ParameterId, string Value);
 public record SignProcessLogRequest(string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null);
-public record ExecuteTimeBasedRequest(string SlotLabel, string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null);
+public record ExecuteTimeBasedRequest(string SlotLabel, string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null, int? SampleId = null);

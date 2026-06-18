@@ -163,6 +163,8 @@ export default function CheckpointExecutionPage() {
   const [execReadings, setExecReadings] = useState<Record<number, string>>({})
   const [execSaving, setExecSaving]     = useState(false)
   const [execError, setExecError]       = useState('')
+  const [execSampleId, setExecSampleId] = useState<number | null>(null)
+  const [execSamples, setExecSamples]   = useState<{ sampleId: number; sampleNumber: string; materialName: string; lotNumber: string }[]>([])
 
   const { triggerCheckpoint } = useOfflineScanQueue()
 
@@ -234,11 +236,17 @@ export default function CheckpointExecutionPage() {
   }
 
   // ── Open Execute modal for a time-based slot ───────────────────────────
-  function openExecute(cp: Checkpoint, slot: string) {
+  async function openExecute(cp: Checkpoint, slot: string) {
     setExecFor({ checkpoint: cp, slotLabel: slot })
     setExecForm({ password: '', meaning: 'I confirm this time-based checkpoint has been performed', reason: '' })
     setExecReadings({})
     setExecError('')
+    setExecSampleId(null)
+    setExecSamples([])
+    try {
+      const r = await api.get(`/checkpoints/${cp.checkpointId}/linked-samples`)
+      setExecSamples(r.data)
+    } catch { /* non-critical */ }
   }
 
   // ── Submit Execute (Mode 1) ────────────────────────────────────────────
@@ -256,6 +264,7 @@ export default function CheckpointExecutionPage() {
         meaning:   execForm.meaning,
         reason:    execForm.reason,
         readings:  readingsList,
+        sampleId:  execSampleId ?? undefined,
       })
       toast(`Checkpoint ${execFor.checkpoint.checkpointCode} @ ${execFor.slotLabel} recorded and signed`, 'success')
       setExecFor(null)
@@ -509,6 +518,31 @@ export default function CheckpointExecutionPage() {
             Record your readings and confirm with e-signature. This creates an immutable audit entry (21 CFR Part 11).
           </p>
           <form onSubmit={handleExecute}>
+
+            {/* ── Link to Sample (optional) ── */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
+                Link to Sample <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>(optional — for traceability)</span>
+              </label>
+              <select
+                style={{ ...inp, margin: 0 }}
+                value={execSampleId ?? ''}
+                onChange={e => setExecSampleId(e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">— No sample link —</option>
+                {execSamples.map(s => (
+                  <option key={s.sampleId} value={s.sampleId}>
+                    {s.sampleNumber} · {s.materialName}{s.lotNumber ? ` / ${s.lotNumber}` : ''}
+                  </option>
+                ))}
+              </select>
+              {execSamples.length === 0 && (
+                <p style={{ margin: '4px 0 0', fontSize: 11, color: '#9ca3af' }}>
+                  No samples linked to this checkpoint yet. Link samples during Sample Registration.
+                </p>
+              )}
+            </div>
+            <div style={{ height: 1, background: '#e5e7eb', marginBottom: 16 }} />
 
             {/* ── Parameter readings ── */}
             {execFor.checkpoint.parameters.length > 0 && (

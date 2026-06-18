@@ -12,7 +12,8 @@ namespace LIMS.Application.Features.Checkpoints;
 public record ExecuteTimeBasedCheckpointCommand(
     int CheckpointId, int UserId, string SlotLabel,
     string Password, string Meaning, string Reason,
-    List<ParameterReadingInput>? Readings = null)
+    List<ParameterReadingInput>? Readings = null,
+    int? SampleId = null)
     : IRequest<Result<int>>;
 
 public class ExecuteTimeBasedCheckpointCommandHandler
@@ -53,6 +54,7 @@ public class ExecuteTimeBasedCheckpointCommandHandler
             SlotLabel    = request.SlotLabel,
             Status       = "Locked",
             SignatureId  = sig.SignatureId,
+            SampleId     = request.SampleId,
         };
         _db.ProcessLogRows.Add(row);
 
