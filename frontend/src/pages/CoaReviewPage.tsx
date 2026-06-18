@@ -599,7 +599,7 @@ export default function CoaReviewPage() {
           {selected.status === 'Released' && (
             <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
               <button
-                onClick={() => { setReissueTarget(selected); setReissueReason(''); setReissueError(''); setForm(f => ({ ...f, password: '', meaning: 'I authorize the reissue of this CoA.' })); setSelected(null); setShowReissue(true) }}
+                onClick={() => { setReissueTarget(selected); setReissueEsig({ password: '', meaning: 'I authorize the reissue of this CoA', reason: '' }); setReissueError(''); setSelected(null); setShowReissue(true) }}
                 style={{ padding: '7px 16px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>
                 🔄 Reissue CoA
               </button>
