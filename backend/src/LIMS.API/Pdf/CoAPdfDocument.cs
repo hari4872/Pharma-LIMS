@@ -146,15 +146,21 @@ public class CoAPdfDocument : IDocument
                          .PaddingVertical(5).PaddingHorizontal(6);
 
                     table.Cell().Element(DataCell).Text(line.ParameterName).FontSize(9);
+                    var specText = (line.SpecMin, line.SpecMax) switch {
+                        (not null, not null) => $"{line.SpecMin} – {line.SpecMax}",
+                        (not null, null)     => $"NLT {line.SpecMin}",
+                        (null, not null)     => $"NMT {line.SpecMax}",
+                        _                   => "—"
+                    };
                     table.Cell().Element(DataCell)
-                        .Text($"{line.SpecMin?.ToString() ?? "—"} – {line.SpecMax?.ToString() ?? "—"}")
+                        .Text(specText)
                         .FontSize(9).FontColor("#374151");
                     table.Cell().Element(DataCell)
                         .Text(line.CalculatedResult?.ToString() ?? "—")
                         .FontSize(9).Bold();
                     table.Cell().Element(DataCell)
                         .Text(line.PassFail).FontSize(9).Bold()
-                        .FontColor(line.PassFail == "PASS" ? "#065f46" : "#dc2626");
+                        .FontColor(string.Equals(line.PassFail, "Pass", StringComparison.OrdinalIgnoreCase) ? "#065f46" : "#dc2626");
                     table.Cell().Element(DataCell).Text(line.AnalystName).FontSize(8.5f);
                 }
             });
