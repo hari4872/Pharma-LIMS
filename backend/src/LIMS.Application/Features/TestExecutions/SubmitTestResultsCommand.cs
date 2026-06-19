@@ -24,7 +24,8 @@ public record SubmitTestResultsResponse(
 public record LogbookEntryResult(
     int EntryId, int ParameterId, string ParameterName,
     string RawValue, decimal? CalculatedResult, string PassFail,
-    bool IsOos, bool IsOot, bool IsCritical, bool HasEvidence);
+    bool IsOos, bool IsOot, bool IsCritical, bool HasEvidence,
+    decimal? SpecMin = null, decimal? SpecMax = null);
 
 public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand, Result<SubmitTestResultsResponse>>
 {
@@ -75,7 +76,11 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
                 .FirstOrDefaultAsync(p => p.ParameterId == item.ParameterId, ct);
             if (param is null) continue;
 
-            var specLimit = param.SpecLimits?.FirstOrDefault(s => s.IsActive && s.Status == ApprovalStatus.Approved);
+            // Most recently approved spec wins — avoids ambiguous FirstOrDefault when multiple approved limits exist
+            var specLimit = param.SpecLimits?
+                .Where(s => s.IsActive && s.Status == ApprovalStatus.Approved)
+                .OrderByDescending(s => s.SpecLimitId)
+                .FirstOrDefault();
 
             // Auto-correction before formula (Contract 2: server-side, correction table from DB)
             decimal? numericRaw = decimal.TryParse(item.RawValue, out var parsed) ? parsed : null;
@@ -150,7 +155,8 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
             s.Entry.EntryId, s.Param.ParameterId, s.Param.ParameterName,
             s.Entry.RawValue, s.Entry.CalculatedResult, s.Detection.PassFail,
             s.Detection.IsOos, s.Detection.IsOot,
-            s.Param.IsCritical, s.Entry.EvidenceFileRef is not null)).ToList();
+            s.Param.IsCritical, s.Entry.EvidenceFileRef is not null,
+            s.Entry.SpecMinSnapshot, s.Entry.SpecMaxSnapshot)).ToList();
 
         return Result<SubmitTestResultsResponse>.Success(
             new SubmitTestResultsResponse(cmd.ExecutionId, results, hasOos, hasOot));

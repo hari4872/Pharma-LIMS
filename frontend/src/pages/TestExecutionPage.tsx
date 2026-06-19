@@ -32,6 +32,7 @@ interface ResultRow {
   entryId: number; parameterId: number; parameterName: string
   rawValue: string; calculatedResult: number | null
   passFail: string; isOos: boolean; isOot: boolean; isCritical: boolean; hasEvidence: boolean
+  specMin: number | null; specMax: number | null
 }
 
 const DRAFT_KEY = (id: string) => `lims-draft-exec-${id}`
@@ -162,6 +163,8 @@ export default function TestExecutionPage() {
                   isOot: (e as any).isOot ?? false,
                   isCritical: (e as any).isCritical ?? false,
                   hasEvidence: (e as any).hasEvidence ?? false,
+                  specMin: (e as any).specMinSnapshot ?? null,
+                  specMax: (e as any).specMaxSnapshot ?? null,
                 })))
               })
               .catch(() => {/* non-blocking — form still shows, just without prefilled values */})
@@ -753,7 +756,9 @@ export default function TestExecutionPage() {
               </thead>
               <tbody>
                 {results.map(r => {
-                  const spec = specFor(r.parameterId)
+                  const specLabel = r.specMin !== null && r.specMax !== null ? `${r.specMin} – ${r.specMax}`
+                    : r.specMin !== null ? `NLT ${r.specMin}`
+                    : r.specMax !== null ? `NMT ${r.specMax}` : '—'
                   return (
                     <tr key={r.entryId} style={{ borderBottom: '1px solid #e5e7eb', background: r.isOos ? '#fff8f8' : r.isOot ? '#fffdf0' : '#fff' }}>
                       <td style={{ padding: '10px 12px', fontWeight: 600 }}>
@@ -761,7 +766,7 @@ export default function TestExecutionPage() {
                         {r.isCritical && <span style={{ marginLeft: 6, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 5px', borderRadius: 4 }}>CRITICAL</span>}
                       </td>
                       <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 600 }}>{r.rawValue}</td>
-                      <td style={{ padding: '10px 12px', color: '#1e3a5f', fontWeight: 500 }}>{formatSpec(spec)}</td>
+                      <td style={{ padding: '10px 12px', color: '#1e3a5f', fontWeight: 500 }}>{specLabel}</td>
                       <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>{r.calculatedResult ?? r.rawValue}</td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{
