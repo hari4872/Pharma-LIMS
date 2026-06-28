@@ -30,6 +30,16 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({ errorInfo })
+
+    // Chunk loading failures happen when a new deployment changes chunk hashes
+    // but the browser has a stale index.html pointing to old URLs.
+    // Auto-reload ONCE — the fresh page fetch gets the correct new chunks.
+    if (isChunkError(error) && !sessionStorage.getItem('lims_chunk_reload')) {
+      sessionStorage.setItem('lims_chunk_reload', '1')
+      window.location.reload()
+      return
+    }
+
     // Emit to global handler so Layout.tsx can log / show toast if needed
     window.dispatchEvent(new CustomEvent('lims:component:error', {
       detail: { message: error.message, stack: error.stack, componentStack: errorInfo.componentStack }
@@ -151,6 +161,14 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 }
 
+/** Returns true when the error is a failed lazy-chunk fetch (stale deployment). */
+function isChunkError(error: Error | null): boolean {
+  if (!error) return false
+  const m = error.message?.toLowerCase() ?? ''
+  return m.includes('dynamically imported module') || m.includes('failed to fetch') ||
+    m.includes('loading chunk') || m.includes('loading css chunk')
+}
+
 /** Convert technical error messages into plain English. */
 function friendlyMessage(msg: string): string {
   if (!msg) return 'An unexpected error occurred while rendering this section.'
@@ -160,6 +178,8 @@ function friendlyMessage(msg: string): string {
     return 'An internal function was called incorrectly. Try reloading.'
   if (msg.toLowerCase().includes('network'))
     return 'A network error interrupted the page. Check your connection and try again.'
+  if (isChunkError({ message: msg } as Error))
+    return 'A page module failed to load — the page is reloading automatically. If this persists, try a hard refresh (Ctrl+Shift+R).'
   if (msg.toLowerCase().includes('chunk') || msg.toLowerCase().includes('loading'))
     return 'A page resource failed to load. Try reloading the page.'
   return 'An unexpected error occurred. If this keeps happening, contact your administrator.'
