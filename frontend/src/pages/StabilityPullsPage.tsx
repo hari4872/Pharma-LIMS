@@ -3,6 +3,7 @@ import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 
@@ -260,7 +261,7 @@ export default function StabilityPullsPage() {
       {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />}
 
       {showSchedule && (
-        <Modal title="Schedule Stability Pull" onClose={() => setShowSchedule(false)}>
+        <Drawer title="Schedule Stability Pull" subtitle="Define time-point, due date, and required quantity." onClose={() => setShowSchedule(false)}>
           <form onSubmit={submitSchedule}>
             <Field label="Sample ID"><input style={inp} type="number" value={schedForm.sampleId} onChange={e => setSchedForm(f => ({ ...f, sampleId: e.target.value }))} required /></Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -278,9 +279,9 @@ export default function StabilityPullsPage() {
               </Field>
             </div>
             {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowSchedule(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowSchedule(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {showExecute && (

@@ -4,6 +4,7 @@ import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface Method { methodId: number; methodCode: string; methodName: string; methodType: string; status: string; version: string; parameterCount: number; approvedBy: string }
 
@@ -84,7 +85,7 @@ export default function TestMethodsPage() {
         ) },
       ]} />
       {showForm && (
-        <Modal title="Add Test Method" onClose={() => setShowForm(false)}>
+        <Drawer title="Add Test Method" subtitle="Register a new analytical test method" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Method Code"><input style={inp} value={form.methodCode} onChange={e => setForm(f => ({ ...f, methodCode: e.target.value }))} required /></Field>
@@ -99,12 +100,12 @@ export default function TestMethodsPage() {
               <input style={inp} value={form.version} onChange={e => setForm(f => ({ ...f, version: e.target.value }))} placeholder="e.g. 1.0" />
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
       {editRow && (
-        <Modal title={`Edit Test Method — ${editRow.methodCode}`} onClose={() => setEditRow(null)}>
+        <Drawer title={`Edit Test Method — ${editRow.methodCode}`} subtitle="Update method name, type and SOP reference" onClose={() => setEditRow(null)}>
           <form onSubmit={submitEdit}>
             <Field label="Method Name"><input style={inp} value={editForm.methodName} onChange={e => setEditForm(f => ({ ...f, methodName: e.target.value }))} required /></Field>
             <Field label="SOP Reference"><input style={inp} value={editForm.sopReference} onChange={e => setEditForm(f => ({ ...f, sopReference: e.target.value }))} /></Field>
@@ -114,9 +115,9 @@ export default function TestMethodsPage() {
               </select>
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
+            <DrawerFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
-        </Modal>
+        </Drawer>
       )}
       {showApprove && (
         <Modal title="E-Signature Approval" onClose={() => setShowApprove(null)}>

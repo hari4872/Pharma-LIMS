@@ -4,6 +4,7 @@ import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface Param { parameterId: number; methodName: string; parameterName: string; parameterCode: string; uom: string; dataType: string; formulaType: string; instrumentType: string; columnFrequency: string; isCritical: boolean; isMandatory: boolean }
 interface Method { methodId: number; methodName: string }
@@ -94,7 +95,7 @@ export default function ParametersPage() {
         ) },
       ]} />
       {editRow && (
-        <Modal title={`Edit Parameter — ${editRow.parameterCode}`} onClose={() => setEditRow(null)}>
+        <Drawer title={`Edit Parameter — ${editRow.parameterCode}`} subtitle="Update parameter definition and measurement settings" onClose={() => setEditRow(null)}>
           <form onSubmit={submitEdit}>
             <Field label="Parameter Name"><input style={inp} value={editForm.parameterName} onChange={e => setEditForm(f => ({ ...f, parameterName: e.target.value }))} required /></Field>
             <Field label="Parameter Code"><input style={inp} value={editForm.parameterCode} onChange={e => setEditForm(f => ({ ...f, parameterCode: e.target.value }))} required /></Field>
@@ -130,12 +131,12 @@ export default function ParametersPage() {
               </label>
             </div>
             {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
+            <DrawerFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
-        </Modal>
+        </Drawer>
       )}
       {showForm && (
-        <Modal title="Add Parameter" onClose={() => setShowForm(false)}>
+        <Drawer title="Add Parameter" subtitle="Define a new test parameter linked to a method" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Test Method">
@@ -179,9 +180,9 @@ export default function ParametersPage() {
               </label>
             </div>
             {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

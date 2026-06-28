@@ -13,6 +13,7 @@ import { PageHeader, Modal, Field, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { getErrorMessage } from '@/utils/errors'
+import { Drawer } from '@/components/Drawer'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -374,7 +375,7 @@ function CreateTemplateModal({
   }
 
   return (
-    <Modal title="New Specification Template" onClose={onClose}>
+    <Drawer title="New Specification Template" subtitle="Create a spec template to auto-assign tests at sample registration" onClose={onClose} width={540}>
       <Field label="Material *">
         <select style={inp} value={form.materialId} onChange={e => f('materialId', e.target.value)}>
           <option value="">Select material…</option>
@@ -427,7 +428,7 @@ function CreateTemplateModal({
           {saving ? 'Creating…' : 'Create Template'}
         </button>
       </div>
-    </Modal>
+    </Drawer>
   )
 }
 

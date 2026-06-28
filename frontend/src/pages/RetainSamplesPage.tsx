@@ -3,6 +3,7 @@ import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 
@@ -149,7 +150,7 @@ export default function RetainSamplesPage() {
       {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} />}
 
       {showAdd && (
-        <Modal title="Register Retain Sample" onClose={() => setShowAdd(false)}>
+        <Drawer title="Register Retain Sample" subtitle="Retention period calculated from system configuration." onClose={() => setShowAdd(false)}>
           <form onSubmit={submitAdd}>
             {/* Sample picker — searchable by sample number (alphanumeric like APEX-A-1-20260608-0002) */}
             <Field label="Sample Number">
@@ -219,9 +220,9 @@ export default function RetainSamplesPage() {
             <Field label="Retained On"><input style={inp} type="date" value={addForm.retainedOn} onChange={e => setAddForm(f => ({ ...f, retainedOn: e.target.value }))} required /></Field>
             <p style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>Retention period calculated from DB config (retain_period_months) — Contract 2.</p>
             {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowAdd(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowAdd(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {showDestroy && (

@@ -4,6 +4,7 @@ import DataTable from '@/components/DataTable'
 import { toast } from '@/components/Toast'
 import AuditTrailPanel from '@/components/AuditTrailPanel'
 import { getErrorMessage } from '@/utils/errors'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface Lab { labId: number; labName: string; site: string; location: string; labType: string; isActive: boolean; createdBy: string }
 
@@ -105,7 +106,7 @@ export default function LaboratoriesPage() {
         />
       )}
       {editRow && (
-        <Modal title={`Edit Laboratory — ${editRow.labName}`} onClose={() => setEditRow(null)}>
+        <Drawer title={`Edit Laboratory — ${editRow.labName}`} subtitle="Update laboratory details" onClose={() => setEditRow(null)}>
           <form onSubmit={submitEdit}>
             <Field label="Name">
               <input style={inp} value={editForm.labName} onChange={e => setEditForm(f => ({ ...f, labName: e.target.value }))} required />
@@ -122,12 +123,12 @@ export default function LaboratoriesPage() {
               </select>
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
+            <DrawerFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
-        </Modal>
+        </Drawer>
       )}
       {showForm && (
-        <Modal title="Add Laboratory" onClose={() => { setShowForm(false); setTouched({}) }}>
+        <Drawer title="Add Laboratory" subtitle="Register a new laboratory" onClose={() => { setShowForm(false); setTouched({}) }}>
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8f9fa', color: '#80868b', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label={<>Name {fieldErr('labName', form.labName) && <span style={{ color: '#dc2626', fontSize: 11, fontWeight: 400, marginLeft: 4 }}>Required</span>}</>}>
@@ -151,9 +152,9 @@ export default function LaboratoriesPage() {
               </select>
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

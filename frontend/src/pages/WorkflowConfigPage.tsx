@@ -3,6 +3,7 @@ import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import { toast } from '@/components/Toast'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface Material   { materialId: number; materialName: string }
 interface SampleType { sampleTypeId: number; typeName: string; typeCode: string }
@@ -494,7 +495,7 @@ export default function WorkflowConfigPage() {
 
       {/* ── Template Modal ───────────────────────────────────────────────────── */}
       {showTplModal && (
-        <Modal title={editTpl ? 'Edit Workflow Template' : 'New Workflow Template'} onClose={() => setShowTplModal(false)}>
+        <Drawer title={editTpl ? 'Edit Workflow Template' : 'New Workflow Template'} subtitle="Define matching rules — material, sample type, default priority." width={540} onClose={() => setShowTplModal(false)}>
           <form onSubmit={saveTpl}>
             <Field label="Template Name *">
               <input style={inp} value={tplForm.name} onChange={e => setTplForm(f => ({ ...f, name: e.target.value }))} required placeholder="e.g. Standard Release Workflow" />
@@ -530,14 +531,14 @@ export default function WorkflowConfigPage() {
               Matching priority: Material + SampleType → Material only → SampleType only → Default (global)
             </p>
             {tplError && <p style={{ color: '#dc2626', fontSize: 13, margin: '0 0 10px' }}>{tplError}</p>}
-            <ModalFooter saving={tplSaving} onCancel={() => setShowTplModal(false)} label={editTpl ? 'Save Changes' : 'Create Template'} />
+            <DrawerFooter saving={tplSaving} onCancel={() => setShowTplModal(false)} label={editTpl ? 'Save Changes' : 'Create Template'} />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── Inline Confirm Modal ─────────────────────────────────────────────── */}
       {confirmFn && (
-        <Modal title="Confirm Delete" onClose={() => { setConfirmFn(null); setConfirmMsg('') }}>
+        <Drawer title="Confirm Delete" subtitle="This action cannot be undone." width={400} onClose={() => { setConfirmFn(null); setConfirmMsg('') }}>
           <p style={{ fontSize: 14, color: '#374151', marginBottom: 20 }}>{confirmMsg}</p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button onClick={() => { setConfirmFn(null); setConfirmMsg('') }}
@@ -549,12 +550,12 @@ export default function WorkflowConfigPage() {
               Delete
             </button>
           </div>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── Step Modal ───────────────────────────────────────────────────────── */}
       {showStepModal && (
-        <Modal title={editStep ? 'Edit Step' : 'Add Workflow Step'} onClose={() => setShowStepModal(false)}>
+        <Drawer title={editStep ? 'Edit Step' : 'Add Workflow Step'} subtitle="Define order, assignee role, and time limit for this step." width={540} onClose={() => setShowStepModal(false)}>
           <form onSubmit={saveStep}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: 12, marginBottom: 12 }}>
               <Field label="Order *">
@@ -599,9 +600,9 @@ export default function WorkflowConfigPage() {
               </label>
             </div>
             {stepError && <p style={{ color: '#dc2626', fontSize: 13, margin: '0 0 10px' }}>{stepError}</p>}
-            <ModalFooter saving={stepSaving} onCancel={() => setShowStepModal(false)} label={editStep ? 'Save Step' : 'Add Step'} />
+            <DrawerFooter saving={stepSaving} onCancel={() => setShowStepModal(false)} label={editStep ? 'Save Step' : 'Add Step'} />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

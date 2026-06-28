@@ -12,6 +12,7 @@ import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { getErrorMessage } from '@/utils/errors'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -289,7 +290,7 @@ export default function SamplingPlansPage() {
 
         {/* ── Create Modal ──────────────────────────────────────────────── */}
         {showCreate && (
-          <Modal title="New Sampling Plan" onClose={() => { setShowCreate(false); resetForm() }}>
+          <Drawer title="New Sampling Plan" subtitle="Define frequency, pull size and spec template for a material" onClose={() => { setShowCreate(false); resetForm() }} width={540}>
             <form onSubmit={handleCreate}>
               <Field label="Plan Name *">
                 <input style={inp} value={planName} onChange={e => setPlanName(e.target.value)} required placeholder="e.g. FP Routine Incoming — Weekly" />
@@ -342,14 +343,14 @@ export default function SamplingPlansPage() {
                 <textarea style={{ ...inp, height: 68, resize: 'vertical' as const }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes or SOPs reference" />
               </Field>
               {error && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>⚠ {error}</p>}
-              <ModalFooter saving={saving} onCancel={() => { setShowCreate(false); resetForm() }} label="Create Plan" />
+              <DrawerFooter saving={saving} onCancel={() => { setShowCreate(false); resetForm() }} label="Create Plan" />
             </form>
-          </Modal>
+          </Drawer>
         )}
 
         {/* ── Edit Modal ────────────────────────────────────────────────── */}
         {editing && (
-          <Modal title={`Edit: ${editing.planName}`} onClose={() => { setEditing(null); resetForm() }}>
+          <Drawer title={`Edit: ${editing.planName}`} subtitle="Update sampling frequency and pull configuration" onClose={() => { setEditing(null); resetForm() }} width={540}>
             <form onSubmit={handleUpdate}>
               <Field label="Plan Name *">
                 <input style={inp} value={planName} onChange={e => setPlanName(e.target.value)} required />
@@ -386,9 +387,9 @@ export default function SamplingPlansPage() {
                 <textarea style={{ ...inp, height: 68, resize: 'vertical' as const }} value={notes} onChange={e => setNotes(e.target.value)} />
               </Field>
               {error && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>⚠ {error}</p>}
-              <ModalFooter saving={saving} onCancel={() => { setEditing(null); resetForm() }} label="Save Changes" />
+              <DrawerFooter saving={saving} onCancel={() => { setEditing(null); resetForm() }} label="Save Changes" />
             </form>
-          </Modal>
+          </Drawer>
         )}
       </div>
     </ErrorBoundary>

@@ -3,6 +3,7 @@ import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface Excursion {
   excursionId: number; locationId: number; locationCode: string; locationName: string
@@ -96,7 +97,7 @@ export default function ConditionExcursionsPage() {
       ]} />
 
       {showLog && (
-        <Modal title="Log Condition Excursion" onClose={() => setShowLog(false)}>
+        <Drawer title="Log Condition Excursion" subtitle="Record a temperature, humidity, or storage deviation." onClose={() => setShowLog(false)}>
           <form onSubmit={submitLog}>
             <Field label="Storage Location">
               <select style={inp} value={logForm.locationId} onChange={e => setLogForm(f => ({ ...f, locationId: e.target.value }))} required>
@@ -128,13 +129,13 @@ export default function ConditionExcursionsPage() {
               </Field>
             </div>
             {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowLog(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowLog(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {showImpact && (
-        <Modal title={`Assess Impact — Excursion #${showImpact.excursionId}`} onClose={() => setShowImpact(null)}>
+        <Drawer title={`Assess Impact — Excursion #${showImpact.excursionId}`} subtitle="Document impact outcome and corrective actions taken." onClose={() => setShowImpact(null)}>
           <p style={{ fontSize: 13, color: '#374151', marginBottom: 12 }}>
             <strong>{showImpact.excursionType}</strong> excursion at <strong>{showImpact.locationCode}</strong><br />
             Value: {showImpact.measuredValue} | {showImpact.limitExceeded} limit exceeded<br />
@@ -146,9 +147,9 @@ export default function ConditionExcursionsPage() {
                 placeholder="Describe impact assessment outcome and any actions taken…" />
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowImpact(null)} label="Submit Assessment" />
+            <DrawerFooter saving={saving} onCancel={() => setShowImpact(null)} label="Submit Assessment" />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

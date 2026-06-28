@@ -7,6 +7,7 @@ import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import AuditTrailPanel from '@/components/AuditTrailPanel'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface UserRow { userId: number; username: string; fullName: string; email: string; userType: string; role: string; labName: string; isActive: boolean; isTenantAdmin: boolean; customPermissionsJson: string | null; lockedUntil: string | null }
 interface Lab { labId: number; labName: string }
@@ -186,7 +187,7 @@ export default function UsersPage() {
         )},
       ]} />
       {permUser && (
-        <Modal title={`Edit Permissions — ${permUser.username}`} onClose={() => setPermUser(null)}>
+        <Drawer title={`Edit Permissions — ${permUser.username}`} subtitle="Toggle module access rights for this user" onClose={() => setPermUser(null)}>
           <form onSubmit={e => { e.preventDefault(); savePerms() }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>
@@ -212,9 +213,9 @@ export default function UsersPage() {
                 </label>
               ))}
             </div>
-            <ModalFooter saving={permSaving} onCancel={() => setPermUser(null)} label="Save Permissions" />
+            <DrawerFooter saving={permSaving} onCancel={() => setPermUser(null)} label="Save Permissions" />
           </form>
-        </Modal>
+        </Drawer>
       )}
       {auditUser && (
         <AuditTrailPanel
@@ -225,7 +226,7 @@ export default function UsersPage() {
         />
       )}
       {editRow && (
-        <Modal title={`Edit User — ${editRow.username}`} onClose={() => setEditRow(null)}>
+        <Drawer title={`Edit User — ${editRow.username}`} subtitle="Update user profile, role and laboratory assignment" onClose={() => setEditRow(null)}>
           <form onSubmit={submitEdit}>
             <Field label="Full Name"><input style={inp} value={editForm.fullName} onChange={e => setEditForm(f => ({ ...f, fullName: e.target.value }))} required /></Field>
             <Field label="Email"><input style={inp} type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} required /></Field>
@@ -247,12 +248,12 @@ export default function UsersPage() {
               </select>
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
+            <DrawerFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
-        </Modal>
+        </Drawer>
       )}
       {showForm && (
-        <Modal title="Add User" onClose={() => setShowForm(false)}>
+        <Drawer title="Add User" subtitle="Create a new user account with role and laboratory assignment" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Username"><input style={inp} value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} required /></Field>
@@ -281,9 +282,9 @@ export default function UsersPage() {
               </select>
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

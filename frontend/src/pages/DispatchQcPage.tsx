@@ -4,6 +4,7 @@ import { fmtDate } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 
@@ -245,7 +246,7 @@ export default function DispatchQcPage() {
 
       {/* Create Delivery Order Modal */}
       {showCreateDO && (
-        <Modal title="New Delivery Order" onClose={() => setShowCreateDO(false)}>
+        <Drawer title="New Delivery Order" subtitle="Auto-triggers a Dispatch QC task via DispatchEventService." onClose={() => setShowCreateDO(false)}>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
             Creating a DO will auto-trigger a Dispatch QC task via DispatchEventService (Contract 1).
           </p>
@@ -261,9 +262,9 @@ export default function DispatchQcPage() {
             <Field label="Despatch Date"><input style={inp} type="date" value={doForm.despatchDate} onChange={e => setDoForm(f => ({ ...f, despatchDate: e.target.value }))} /></Field>
             <Field label="Packing Type"><input style={inp} value={doForm.packingType} onChange={e => setDoForm(f => ({ ...f, packingType: e.target.value }))} placeholder="e.g. Carton, Pallet…" /></Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowCreateDO(false)} label="Create DO" />
+            <DrawerFooter saving={saving} onCancel={() => setShowCreateDO(false)} label="Create DO" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* QA Approve Modal */}

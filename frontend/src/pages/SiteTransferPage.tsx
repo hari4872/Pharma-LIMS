@@ -3,6 +3,7 @@ import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { toast } from '@/components/Toast'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -217,7 +218,7 @@ export default function SiteTransferPage() {
 
       {/* ── Initiate Transfer Modal ───────────────────────────────────────── */}
       {showInitiate && (
-        <Modal title="Request Inter-site Transfer" onClose={() => setShowInitiate(false)}>
+        <Drawer title="Request Inter-site Transfer" subtitle="Destination lab must accept before sample is dispatched." onClose={() => setShowInitiate(false)}>
           <form onSubmit={submitInitiate}>
             <Field label="Sample ID *">
               <input style={inp} type="number" value={initForm.sampleId}
@@ -249,14 +250,14 @@ export default function SiteTransferPage() {
               ℹ The destination lab must Accept the transfer before the sample is dispatched.
             </div>
             {initError && <p style={{ color: '#dc2626', fontSize: 13, margin: '0 0 10px' }}>{initError}</p>}
-            <ModalFooter saving={initSaving} onCancel={() => setShowInitiate(false)} label="Submit Transfer Request" />
+            <DrawerFooter saving={initSaving} onCancel={() => setShowInitiate(false)} label="Submit Transfer Request" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── Respond Modal ────────────────────────────────────────────────── */}
       {showRespond && (
-        <Modal title={`${showRespond.action} Transfer`} onClose={() => setShowRespond(null)}>
+        <Drawer title={`${showRespond.action} Transfer`} subtitle="Confirm action — logged with timestamp and user identity." onClose={() => setShowRespond(null)}>
           <form onSubmit={submitRespond}>
             <div style={{ marginBottom: 16, padding: '10px 14px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8 }}>
               <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Transfer</div>
@@ -285,13 +286,9 @@ export default function SiteTransferPage() {
             </Field>
 
             {respondError && <p style={{ color: '#dc2626', fontSize: 13, margin: '0 0 10px' }}>{respondError}</p>}
-            <ModalFooter
-              saving={respondSaving}
-              onCancel={() => setShowRespond(null)}
-              label={`Confirm ${showRespond.action}`}
-            />
+            <DrawerFooter saving={respondSaving} onCancel={() => setShowRespond(null)} label={`Confirm ${showRespond.action}`} />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

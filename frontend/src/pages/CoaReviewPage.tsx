@@ -4,6 +4,7 @@ import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { toast } from '@/components/Toast'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
@@ -480,7 +481,7 @@ export default function CoaReviewPage() {
 
       {/* CoA Detail + Checklist Panel */}
       {selected && !showApprove && !showReject && (
-        <Modal title={`CoA Review — ${selected.coaNumber}`} onClose={() => setSelected(null)}>
+        <Drawer title={`CoA Review — ${selected.coaNumber}`} subtitle="QA validation checklist and release decisions." width={720} onClose={() => setSelected(null)}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
             {selected.status === 'Released' && (
               <button onClick={() => downloadPdf(selected)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 14px', border: 'none', borderRadius: 7, background: '#065f46', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
@@ -605,7 +606,7 @@ export default function CoaReviewPage() {
               </button>
             </div>
           )}
-        </Modal>
+        </Drawer>
       )}
 
       {/* Approve Modal */}
@@ -672,7 +673,7 @@ export default function CoaReviewPage() {
 
       {/* ── Generate CoA Modal ────────────────────────────────────────────── */}
       {showGenerate && (
-        <Modal title="Generate Certificate of Analysis" onClose={() => setShowGenerate(false)}>
+        <Drawer title="Generate Certificate of Analysis" subtitle="Creates a Draft CoA from a completed test execution." onClose={() => setShowGenerate(false)}>
           <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 14, lineHeight: 1.6 }}>
             Generates a new CoA in <strong>Draft</strong> status from a completed test execution.
             Select the execution below — the CoA will pull all test results and can then be reviewed and approved.
@@ -694,9 +695,9 @@ export default function CoaReviewPage() {
               )}
             </Field>
             {generateError && <p style={{ color: '#dc2626', fontSize: 13, margin: '6px 0 0' }}>{generateError}</p>}
-            <ModalFooter saving={generateSaving} onCancel={() => setShowGenerate(false)} label="Generate CoA" />
+            <DrawerFooter saving={generateSaving} onCancel={() => setShowGenerate(false)} label="Generate CoA" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── Sample Detail Sheet ──────────────────────────────────────────── */}

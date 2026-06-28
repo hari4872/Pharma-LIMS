@@ -4,6 +4,7 @@ import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import { getErrorMessage } from '@/utils/errors'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -205,7 +206,7 @@ export default function FormTemplatesPage() {
 
       {/* ── Add Template modal ── */}
       {showForm && (
-        <Modal title="Add Form Template" onClose={() => setShowForm(false)}>
+        <Drawer title="Add Form Template" subtitle="Define a monitoring or log form template for the laboratory" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Laboratory">
@@ -248,9 +249,9 @@ export default function FormTemplatesPage() {
               Evidence Mandatory
             </label>
             {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── E-Signature Approval modal ── */}

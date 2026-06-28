@@ -4,6 +4,7 @@ import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import { getErrorMessage } from '@/utils/errors'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface StorageLocation {
   locationId: number; locationCode: string; locationName: string
@@ -111,7 +112,7 @@ export default function StorageLocationsPage() {
       ]} />
 
       {showForm && (
-        <Modal title={editing ? 'Edit Storage Location' : 'Add Storage Location'} onClose={() => setShowForm(false)}>
+        <Drawer title={editing ? 'Edit Storage Location' : 'Add Storage Location'} subtitle={editing ? 'Update location conditions and thresholds' : 'Register a new storage location with condition limits'} onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             {!editing && (
@@ -154,9 +155,9 @@ export default function StorageLocationsPage() {
               <input style={inp} type="number" value={form.lowStockThreshold} onChange={e => setForm(f => ({ ...f, lowStockThreshold: e.target.value }))} placeholder="Alert when count below this" />
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

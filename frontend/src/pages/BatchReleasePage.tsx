@@ -4,6 +4,7 @@ import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 
@@ -219,7 +220,7 @@ export default function BatchReleasePage() {
 
       {/* ── Initiate Modal ── */}
       {showInitiate && (
-        <Modal title="Initiate Batch Release Review" onClose={() => setShowInitiate(false)}>
+        <Drawer title="Initiate Batch Release Review" subtitle="Select a sample in PendingQAReview — auto-evaluates the release checklist." onClose={() => setShowInitiate(false)}>
           <form onSubmit={submitInitiate}>
             <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
               Select a sample in PendingQAReview status. The system will auto-evaluate the release checklist.
@@ -232,14 +233,14 @@ export default function BatchReleasePage() {
             </Field>
             {samples.length === 0 && <p style={{ fontSize: 12, color: '#d97706' }}>⚠ No samples in PendingQAReview status.</p>}
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowInitiate(false)} label="Initiate Review" />
+            <DrawerFooter saving={saving} onCancel={() => setShowInitiate(false)} label="Initiate Review" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── Detail + Checklist Modal ── */}
       {showDetail && detail && (
-        <Modal title={`Batch Release — ${detail.sampleNumber}`} onClose={() => setShowDetail(false)}>
+        <Drawer title={`Batch Release — ${detail.sampleNumber}`} subtitle="Release checklist and AI risk assessment." width={600} onClose={() => setShowDetail(false)}>
           {/* Risk Score */}
           {riskLoading && (
             <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12, fontSize: 12, color: '#6b7280' }}>
@@ -322,7 +323,7 @@ export default function BatchReleasePage() {
               → Make Release Decision
             </button>
           )}
-        </Modal>
+        </Drawer>
       )}
 
       {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="release" />}

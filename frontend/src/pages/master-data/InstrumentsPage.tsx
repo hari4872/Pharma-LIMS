@@ -4,6 +4,7 @@ import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import { getErrorMessage } from '@/utils/errors'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface Instrument { instrumentId: number; labName: string; instrumentCode: string; instrumentName: string; instrumentType: string; manufacturer: string; model: string; serialNumber: string; location: string; calibrationDue: string; lastCalibration: string; status: string; isActive: boolean }
 interface Lab { labId: number; labName: string }
@@ -379,7 +380,7 @@ export default function InstrumentsPage() {
 
       {/* Add Instrument */}
       {showForm && (
-        <Modal title="Add Instrument" onClose={() => setShowForm(false)}>
+        <Drawer title="Add Instrument" subtitle="Register a new instrument in the laboratory" onClose={() => setShowForm(false)}>
           <form onSubmit={submitInstrument}>
             <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Laboratory">
@@ -398,14 +399,14 @@ export default function InstrumentsPage() {
             <Field label="Calibration Due"><input style={inp} type="date" value={form.calibrationDue} onChange={e => setForm(f => ({ ...f, calibrationDue: e.target.value }))} required /></Field>
             <Field label="Last Calibration"><input style={inp} type="date" value={form.lastCalibration} onChange={e => setForm(f => ({ ...f, lastCalibration: e.target.value }))} /></Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* Raise Breakdown */}
       {showBreakdownForm && (
-        <Modal title="Raise Breakdown" onClose={() => setShowBreakdownForm(false)}>
+        <Drawer title="Raise Breakdown" subtitle="Report an instrument breakdown or fault" onClose={() => setShowBreakdownForm(false)}>
           <form onSubmit={submitBreakdown}>
             <Field label="Instrument">
               <select style={inp} value={bdForm.instrumentId} onChange={e => setBdForm(f => ({ ...f, instrumentId: e.target.value }))} required>
@@ -417,14 +418,14 @@ export default function InstrumentsPage() {
               <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={bdForm.issueDescription} onChange={e => setBdForm(f => ({ ...f, issueDescription: e.target.value }))} required />
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowBreakdownForm(false)} label="Raise Breakdown" />
+            <DrawerFooter saving={saving} onCancel={() => setShowBreakdownForm(false)} label="Raise Breakdown" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* Record Repair */}
       {showRepairForm && selectedBreakdownId && (
-        <Modal title={`Record Repair — Breakdown #${selectedBreakdownId}`} onClose={() => setShowRepairForm(false)}>
+        <Drawer title={`Record Repair — Breakdown #${selectedBreakdownId}`} subtitle="Log technician repair details" onClose={() => setShowRepairForm(false)}>
           <form onSubmit={submitRepair}>
             <Field label="Technician"><input style={inp} value={repairForm.technician} onChange={e => setRepairForm(f => ({ ...f, technician: e.target.value }))} required /></Field>
             <Field label="Repair Date"><input style={inp} type="date" value={repairForm.repairDate} onChange={e => setRepairForm(f => ({ ...f, repairDate: e.target.value }))} required /></Field>
@@ -433,13 +434,13 @@ export default function InstrumentsPage() {
             </Field>
             <Field label="Parts Used"><input style={inp} value={repairForm.partsUsed} onChange={e => setRepairForm(f => ({ ...f, partsUsed: e.target.value }))} /></Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowRepairForm(false)} label="Save Repair" />
+            <DrawerFooter saving={saving} onCancel={() => setShowRepairForm(false)} label="Save Repair" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {editRow && (
-        <Modal title={`Edit Instrument — ${editRow.instrumentCode}`} onClose={() => setEditRow(null)}>
+        <Drawer title={`Edit Instrument — ${editRow.instrumentCode}`} subtitle="Update instrument details and calibration dates" onClose={() => setEditRow(null)}>
           <form onSubmit={submitEditInstrument}>
             <Field label="Instrument Name"><input style={inp} value={editForm.instrumentName} onChange={e => setEditForm(f => ({ ...f, instrumentName: e.target.value }))} /></Field>
             <Field label="Instrument Type"><input style={inp} value={editForm.instrumentType} onChange={e => setEditForm(f => ({ ...f, instrumentType: e.target.value }))} required /></Field>
@@ -450,9 +451,9 @@ export default function InstrumentsPage() {
             <Field label="Calibration Due"><input style={inp} type="date" value={editForm.calibrationDue} onChange={e => setEditForm(f => ({ ...f, calibrationDue: e.target.value }))} required /></Field>
             <Field label="Last Calibration"><input style={inp} type="date" value={editForm.lastCalibration} onChange={e => setEditForm(f => ({ ...f, lastCalibration: e.target.value }))} /></Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
+            <DrawerFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* Bulk Return to Service */}
@@ -473,7 +474,7 @@ export default function InstrumentsPage() {
 
       {/* Calibration Records */}
       {calibInstrument && (
-        <Modal title={`Calibration Records — ${calibInstrument.instrumentCode}`} onClose={() => { setCalibInstrument(null); setShowCalibForm(false) }}>
+        <Drawer title={`Calibration Records — ${calibInstrument.instrumentCode}`} subtitle="View and add calibration history" onClose={() => { setCalibInstrument(null); setShowCalibForm(false) }} width={560}>
           <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: '#6b7280' }}>{calibInstrument.instrumentName}</span>
             <button onClick={() => { setShowCalibForm(true); setCalibError('') }}
@@ -540,7 +541,7 @@ export default function InstrumentsPage() {
               </tbody>
             </table>
           )}
-        </Modal>
+        </Drawer>
       )}
 
       {/* Return to Service — QA §11.50 e-sig */}

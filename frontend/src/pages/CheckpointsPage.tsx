@@ -5,6 +5,7 @@ import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'
 import { toast } from '@/components/Toast'
 
@@ -320,24 +321,7 @@ export default function CheckpointsPage() {
           Create / Edit Checkpoint — matches reference UI
       ══════════════════════════════════════════════════════════════════ */}
       {showForm && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100,
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-          padding: '32px 16px', overflowY: 'auto'
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: 12, width: '100%', maxWidth: 640,
-            padding: '28px 32px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
-          }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
-                {editTarget ? 'Edit Checkpoint' : 'Add Checkpoint'}
-              </h2>
-              <button type="button" onClick={() => setShowForm(false)}
-                style={{ background: 'none', border: 'none', fontSize: 22, color: '#9ca3af', cursor: 'pointer', lineHeight: 1 }}>×</button>
-            </div>
-
+        <Drawer title={editTarget ? 'Edit Checkpoint' : 'Add Checkpoint'} width={680} onClose={() => setShowForm(false)}>
             <form onSubmit={submitForm}>
               {/* ── Name + ID ─────────────────────────────────────────── */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
@@ -518,24 +502,14 @@ export default function CheckpointsPage() {
                   <p style={{ margin: 0, fontSize: 13, color: '#dc2626' }}>⚠ {error}</p>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button type="button" onClick={() => setShowForm(false)}
-                  style={{ padding: '10px 22px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, color: '#374151', cursor: 'pointer' }}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={saving}
-                  style={{ padding: '10px 22px', background: saving ? '#9ca3af' : '#1e3a5f', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {saving ? 'Saving…' : '💾  Save Checkpoint'}
-                </button>
-              </div>
+              <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} label="💾 Save Checkpoint" />
             </form>
-          </div>
-        </div>
+        </Drawer>
       )}
 
       {/* ── Mode 3: Process Log grid ──────────────────────────────────────── */}
       {showProcessLog && (
-        <Modal title="Process Log — Mode 3 Shift Grid" onClose={() => setShowProcessLog(null)}>
+        <Drawer title="Process Log — Mode 3 Shift Grid" subtitle="Today's shift slots for this checkpoint." width={540} onClose={() => setShowProcessLog(null)}>
           <div style={{ maxHeight: 400, overflowY: 'auto' }}>
             {processLogRows.length === 0 && (
               <p style={{ color: '#6b7280', fontSize: 13 }}>No slots for today. Scheduler runs at midnight UTC.</p>
@@ -568,7 +542,7 @@ export default function CheckpointsPage() {
               </div>
             ))}
           </div>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── Sign Process Log Row §11.50 ───────────────────────────────────── */}
@@ -595,7 +569,7 @@ export default function CheckpointsPage() {
 
       {/* ── Trigger History Modal ────────────────────────────────────────── */}
       {historyCheckpoint && (
-        <Modal title={`${historyCheckpoint.checkpointCode} — Trigger History`} onClose={() => setHistoryCheckpoint(null)}>
+        <Drawer title={`${historyCheckpoint.checkpointCode} — Trigger History`} subtitle="Last 10 trigger events for this checkpoint." width={620} onClose={() => setHistoryCheckpoint(null)}>
           <div style={{ marginBottom: 12 }}>
             <span style={{ fontSize: 12, color: '#6b7280' }}>Last 10 trigger events for this checkpoint</span>
           </div>
@@ -649,7 +623,7 @@ export default function CheckpointsPage() {
               Close
             </button>
           </div>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

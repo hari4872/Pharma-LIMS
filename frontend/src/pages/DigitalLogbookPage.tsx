@@ -6,6 +6,7 @@ import { fmtDateTime } from '@/utils/dateFormat'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 
@@ -591,7 +592,7 @@ export default function DigitalLogbookPage() {
 
       {/* ── Evidence Upload Modal ───────────────────────────────────────────── */}
       {uploadEvidenceEntry && (
-        <Modal title="Upload Evidence" onClose={() => setUploadEvidenceEntry(null)}>
+        <Drawer title="Upload Evidence" subtitle="Required for QA checklist Item 8 — supporting files for critical parameters." onClose={() => setUploadEvidenceEntry(null)}>
           <div style={{ marginBottom: 14, padding: '10px 14px', background: '#eff6ff',
             borderRadius: 6, fontSize: 13, color: '#1e40af' }}>
             <strong>Critical Parameter:</strong> {uploadEvidenceEntry.parameterName}<br />
@@ -618,9 +619,9 @@ export default function DigitalLogbookPage() {
                 ⚠ {uploadError}
               </div>
             )}
-            <ModalFooter saving={uploadSaving} onCancel={() => setUploadEvidenceEntry(null)} label="Upload Evidence" />
+            <DrawerFooter saving={uploadSaving} onCancel={() => setUploadEvidenceEntry(null)} label="Upload Evidence" />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

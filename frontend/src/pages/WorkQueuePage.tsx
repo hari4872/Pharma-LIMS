@@ -7,6 +7,7 @@ import api from '@/api/client'
 import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 import BatchResultEntryPage from './BatchResultEntryPage'
@@ -619,13 +620,13 @@ export default function WorkQueuePage() {
         )},
       ]} />
 
-      {/* ── Re-assign Modal ───────────────────────────────────────────── */}
+      {/* ── Re-assign Drawer ─────────────────────────────────────────────── */}
       {reassignItem && (
-        <Modal title={`Re-assign Execution #${reassignItem.executionId} — ${reassignItem.sampleNumber}`} onClose={() => setReassignItem(null)}>
-          <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
-            ℹ Per-test-method assignment — overrides analyst and instrument for this specific execution.
-            Training and calibration checks enforced server-side.
-          </p>
+        <Drawer
+          title={`Re-assign — ${reassignItem.sampleNumber}`}
+          subtitle={`Execution #${reassignItem.executionId} · Training & calibration checks enforced server-side.`}
+          onClose={() => setReassignItem(null)}
+        >
           <form onSubmit={submitReassign}>
             <Field label="New Analyst">
               <select style={inp} value={reassignForm.analystId} onChange={e => setReassignForm(f => ({ ...f, analystId: e.target.value }))} required>
@@ -638,17 +639,14 @@ export default function WorkQueuePage() {
                 onChange={e => setReassignForm(f => ({ ...f, priorityScore: e.target.value }))} placeholder="1–100 (lower = higher priority)" />
             </Field>
             {reassignError && <p style={{ color: '#dc2626', fontSize: 13, margin: '4px 0' }}>{reassignError}</p>}
-            <ModalFooter saving={reassignSaving} onCancel={() => setReassignItem(null)} label="Re-assign" />
+            <DrawerFooter saving={reassignSaving} onCancel={() => setReassignItem(null)} label="Re-assign" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {showAssign && (
-        <Modal title="Assign Task" onClose={() => setShowAssign(false)}>
+        <Drawer title="Assign Task" subtitle="WAP rules enforced: trained analyst + calibrated instrument + capacity check server-side." onClose={() => setShowAssign(false)}>
           <form onSubmit={submitAssign}>
-            <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
-              ℹ WAP rules enforced: trained analyst + calibrated instrument + capacity check server-side.
-            </p>
             <Field label="Sample (PendingTesting)">
               <select style={inp} value={form.sampleId}
                 onChange={e => setForm(f => ({ ...f, sampleId: e.target.value }))} required>
@@ -666,9 +664,9 @@ export default function WorkQueuePage() {
               <input style={inp} type="number" min="1" max="100" value={form.priorityScore} onChange={e => setForm(f => ({ ...f, priorityScore: e.target.value }))} placeholder="e.g. 1 (urgent)" />
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowAssign(false)} label="Assign" />
+            <DrawerFooter saving={saving} onCancel={() => setShowAssign(false)} label="Assign" />
           </form>
-        </Modal>
+        </Drawer>
       )}
       {detailSampleId !== null && (
         <SampleDetailSheet
@@ -679,9 +677,9 @@ export default function WorkQueuePage() {
         />
       )}
 
-      {/* ── Shift Handover Modal ───────────────────────────────────────── */}
+      {/* ── Shift Handover Drawer ─────────────────────────────────────────── */}
       {handoverOpen && (
-        <Modal title="Shift Handover Report" onClose={() => setHandoverOpen(false)}>
+        <Drawer title="Shift Handover Report" subtitle="AI-generated summary · Read-only · Print for physical handover record." width={540} onClose={() => setHandoverOpen(false)}>
           {handoverLoading && (
             <div style={{ textAlign: 'center', padding: '32px 0', color: '#4338ca', fontSize: 14 }}>
               Generating AI shift handover summary…
@@ -694,29 +692,29 @@ export default function WorkQueuePage() {
               </p>
               <div style={{
                 background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8,
-                padding: '16px', marginBottom: 16, maxHeight: 420, overflowY: 'auto',
+                padding: '16px', marginBottom: 16,
               }}>
                 <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit', color: '#1e293b' }}>
                   {handoverData.summary}
                 </pre>
               </div>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
                 <button
                   onClick={() => window.print()}
-                  style={{ padding: '7px 18px', background: '#4338ca', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                  style={{ padding: '9px 18px', background: '#4338ca', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
                 >
                   🖨 Print / Save
                 </button>
                 <button
                   onClick={() => setHandoverOpen(false)}
-                  style={{ padding: '7px 18px', background: '#f1f5f9', color: '#374151', border: '1px solid #e2e8f0', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                  style={{ padding: '9px 18px', background: '#f1f5f9', color: '#374151', border: '1px solid #e2e8f0', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
                 >
                   Close
                 </button>
               </div>
             </>
           )}
-        </Modal>
+        </Drawer>
       )}
     </div>}
     </div>

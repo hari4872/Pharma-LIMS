@@ -4,6 +4,7 @@ import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface Material { materialId: number; materialName: string; uom: string; materialType: string; productType: string; shelfLifeDays: number; isActive: boolean }
 
@@ -72,7 +73,7 @@ export default function MaterialsPage() {
         ) },
       ]} />
       {editRow && (
-        <Modal title={`Edit Material — ${editRow.materialName}`} onClose={() => setEditRow(null)}>
+        <Drawer title={`Edit Material — ${editRow.materialName}`} subtitle="Update material properties and shelf life" onClose={() => setEditRow(null)}>
           <form onSubmit={submitEdit}>
             <Field label="Material Name"><input style={inp} value={editForm.materialName} onChange={e => setEditForm(f => ({ ...f, materialName: e.target.value }))} required /></Field>
             <Field label="UOM"><input style={inp} value={editForm.uom} onChange={e => setEditForm(f => ({ ...f, uom: e.target.value }))} required /></Field>
@@ -84,12 +85,12 @@ export default function MaterialsPage() {
             <Field label="Product Type"><input style={inp} value={editForm.productType} onChange={e => setEditForm(f => ({ ...f, productType: e.target.value }))} /></Field>
             <Field label="Shelf Life (days)"><input style={inp} type="number" value={editForm.shelfLifeDays} onChange={e => setEditForm(f => ({ ...f, shelfLifeDays: e.target.value }))} required /></Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
+            <DrawerFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
-        </Modal>
+        </Drawer>
       )}
       {showForm && (
-        <Modal title="Add Material" onClose={() => setShowForm(false)}>
+        <Drawer title="Add Material" subtitle="Register a new material or product" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Material Name"><input style={inp} value={form.materialName} onChange={e => setForm(f => ({ ...f, materialName: e.target.value }))} required /></Field>
@@ -102,9 +103,9 @@ export default function MaterialsPage() {
             <Field label="Product Type"><input style={inp} value={form.productType} onChange={e => setForm(f => ({ ...f, productType: e.target.value }))} /></Field>
             <Field label="Shelf Life (days)"><input style={inp} type="number" value={form.shelfLifeDays} onChange={e => setForm(f => ({ ...f, shelfLifeDays: e.target.value }))} required /></Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

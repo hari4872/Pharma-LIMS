@@ -7,6 +7,7 @@ import api from '@/api/client'
 import { fmtDate } from '@/utils/dateFormat'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet, { type SampleDetailExtraInfo } from '@/components/SampleDetailSheet'
 import BatchSampleRegistrationPage from './BatchSampleRegistrationPage'
@@ -714,17 +715,15 @@ export default function SampleRegistrationPage() {
 
       {/* ── Registration form — contained modal with sticky header + footer ── */}
       {showForm && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.50)', zIndex: 100,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '20px 16px',
-        }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', justifyContent: 'flex-end' }}>
+          <div onClick={() => setShowForm(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.25)' }} />
           <div style={{
-            width: '100%', maxWidth: 760,
-            maxHeight: 'calc(100vh - 40px)',
+            position: 'relative',
+            width: 760, maxWidth: '95vw',
+            height: '100%',
             display: 'flex', flexDirection: 'column',
-            background: '#fff', borderRadius: 14,
-            boxShadow: '0 24px 64px rgba(0,0,0,0.30)',
+            background: '#fff', borderLeft: '1px solid #e2e8f0',
+            boxShadow: '-8px 0 32px rgba(0,0,0,0.15)',
             overflow: 'hidden',
           }}>
             {/* Sticky modal header */}
@@ -838,59 +837,85 @@ export default function SampleRegistrationPage() {
               </Section>
 
               {/* ── Section 2: Sample Details ───────────────────────────── */}
-              <Section num={2} title="Sample Details" subtitle="Physical sample identification and receipt condition.">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <Section num={2} title="Sample Details" subtitle="Batch identification, receipt condition, and optional references.">
+
+                {/* ── 2a: Batch Identification ─────────────────────────── */}
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                  Batch Identification
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
                   <div>
-                    <span style={label}>D.O. / Batch / Lot No. <span style={{ color: '#dc2626' }}>*</span></span>
+                    <span style={label}>Batch / Lot No. <span style={{ color: '#dc2626' }}>*</span></span>
                     <input style={inp} value={lotNumber} onChange={e => setLotNumber(e.target.value)}
                       required placeholder="e.g. B-20260422-03" />
                   </div>
                   <div>
-                    <span style={label}>Sample Condition <span style={{ color: '#dc2626' }}>*</span></span>
-                    <select style={inp} value={sampleCondition} onChange={e => setSampleCondition(e.target.value)}>
-                      <option value="OK">✓ OK — Acceptable condition</option>
-                      <option value="Damaged">⚠ Damaged — Physical damage noted</option>
-                      <option value="Compromised">✗ Compromised — Integrity at risk</option>
-                    </select>
-                  </div>
-                  <div>
-                    <span style={label}>Manufacturing Date <span style={{ color: '#dc2626' }}>*</span></span>
+                    <span style={label}>Mfg. Date <span style={{ color: '#dc2626' }}>*</span></span>
                     <input style={inp} type="date" value={mfgDate} onChange={e => setMfgDate(e.target.value)} required />
                   </div>
                   <div>
                     <span style={label}>Expiry Date <span style={{ color: '#dc2626' }}>*</span></span>
                     <input style={inp} type="date" value={expDate} onChange={e => setExpDate(e.target.value)} required />
                   </div>
-                  <div>
-                    <span style={label}>Tank / Source ID</span>
-                    <input style={inp} value={tankSourceId} onChange={e => setTankSourceId(e.target.value)} placeholder="e.g. 1T4002" />
-                  </div>
-                  <div>
-                    <span style={label}>Sample Label</span>
-                    <input style={inp} value={sampleLabel} onChange={e => setSampleLabel(e.target.value)} placeholder="As written on the bottle" />
-                  </div>
-                  <div>
-                    <span style={label}>Received Temp (°C)</span>
-                    <input type="number" step="0.1" style={inp} value={receivedTemp} onChange={e => setReceivedTemp(e.target.value)} placeholder="e.g. 5.2" />
-                  </div>
-                  <div>
-                    <span style={label}>External Batch ID</span>
-                    <input style={inp} value={externalBatchId} onChange={e => setExternalBatchId(e.target.value)} placeholder="MES / ERP batch ref" />
-                  </div>
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '10px 14px', borderRadius: 8, border: `1.5px solid ${isRush ? '#fca5a5' : '#e5e7eb'}`, background: isRush ? '#fff5f5' : '#f9fafb', marginBottom: sampleCondition !== 'OK' ? 10 : 0 }}>
-                  <input type="checkbox" checked={isRush} onChange={e => setIsRush(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#dc2626', cursor: 'pointer' }} />
-                  <div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: isRush ? '#dc2626' : '#374151' }}>🚨 Rush Sample</span>
-                    <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 10 }}>Flags this sample for expedited testing and elevated priority in the Work Queue</span>
+
+                {/* ── 2b: Receipt Condition ─────────────────────────────── */}
+                <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 16, marginBottom: 14 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                    Receipt Condition
                   </div>
-                </label>
-                {sampleCondition !== 'OK' && (
-                  <div style={{ padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6 }}>
-                    <span style={{ fontSize: 12, color: '#92400e', fontWeight: 600 }}>⚠ Non-OK condition recorded — QA will be notified for review</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 12 }}>
+                    <div>
+                      <span style={label}>Sample Condition <span style={{ color: '#dc2626' }}>*</span></span>
+                      <select style={inp} value={sampleCondition} onChange={e => setSampleCondition(e.target.value)}>
+                        <option value="OK">✓ OK — Acceptable</option>
+                        <option value="Damaged">⚠ Damaged — Physical damage noted</option>
+                        <option value="Compromised">✗ Compromised — Integrity at risk</option>
+                      </select>
+                    </div>
+                    <div>
+                      <span style={label}>Received Temp (°C)</span>
+                      <input type="number" step="0.1" style={inp} value={receivedTemp}
+                        onChange={e => setReceivedTemp(e.target.value)} placeholder="e.g. 5.2" />
+                    </div>
                   </div>
-                )}
-                <p style={{ fontSize: 11, color: '#9ca3af', margin: '10px 0 0' }}>ℹ Sample ID is server-generated · Barcode auto-printed · 5 GMP checks run server-side</p>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '10px 14px', borderRadius: 8, border: `1.5px solid ${isRush ? '#fca5a5' : '#e5e7eb'}`, background: isRush ? '#fff5f5' : '#f9fafb', marginBottom: sampleCondition !== 'OK' ? 10 : 0 }}>
+                    <input type="checkbox" checked={isRush} onChange={e => setIsRush(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#dc2626', cursor: 'pointer' }} />
+                    <div>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: isRush ? '#dc2626' : '#374151' }}>🚨 Rush Sample</span>
+                      <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 10 }}>Flags for expedited testing and elevated Work Queue priority</span>
+                    </div>
+                  </label>
+                  {sampleCondition !== 'OK' && (
+                    <div style={{ padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6 }}>
+                      <span style={{ fontSize: 12, color: '#92400e', fontWeight: 600 }}>⚠ Non-OK condition recorded — QA will be notified for review</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── 2c: Optional References (collapsed by default) ────── */}
+                <details style={{ borderTop: '1px solid #f1f5f9', paddingTop: 14 }}>
+                  <summary style={{ fontSize: 12, color: '#6b7280', cursor: 'pointer', fontWeight: 600, userSelect: 'none', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 10 }}>▸</span> Optional References
+                    <span style={{ fontWeight: 400, color: '#9ca3af' }}> — Tank Source, Sample Label, External Batch ID</span>
+                  </summary>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginTop: 12 }}>
+                    <div>
+                      <span style={label}>Tank / Source ID</span>
+                      <input style={inp} value={tankSourceId} onChange={e => setTankSourceId(e.target.value)} placeholder="e.g. 1T4002" />
+                    </div>
+                    <div>
+                      <span style={label}>Sample Label</span>
+                      <input style={inp} value={sampleLabel} onChange={e => setSampleLabel(e.target.value)} placeholder="As written on bottle" />
+                    </div>
+                    <div>
+                      <span style={label}>External Batch ID</span>
+                      <input style={inp} value={externalBatchId} onChange={e => setExternalBatchId(e.target.value)} placeholder="MES / ERP ref" />
+                    </div>
+                  </div>
+                </details>
+
+                <p style={{ fontSize: 11, color: '#9ca3af', margin: '14px 0 0' }}>ℹ Sample ID is server-generated · Barcode auto-printed · 5 GMP checks run server-side</p>
               </Section>
 
             </form>
@@ -947,12 +972,9 @@ export default function SampleRegistrationPage() {
         </Modal>
       )}
 
-      {/* ── Add Test (Ad-hoc) Modal ─────────────────────────────────────── */}
+      {/* ── Add Test (Ad-hoc) Drawer ────────────────────────────────────── */}
       {showAddTest && (
-        <Modal title={`Add Test — ${showAddTest.sampleNumber}`} onClose={() => setShowAddTest(null)}>
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            Add a single-parameter additional test outside the normal test method workflow.
-          </p>
+        <Drawer title={`Add Test — ${showAddTest.sampleNumber}`} subtitle="Single-parameter ad-hoc test outside normal workflow." onClose={() => setShowAddTest(null)}>
           <form onSubmit={submitAdHoc}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
               Parameter *
@@ -972,26 +994,14 @@ export default function SampleRegistrationPage() {
               placeholder="e.g. Confirmatory test requested by QA — borderline Assay result"
               style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 8, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' as const }}
             />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-              <button type="button" onClick={() => setShowAddTest(null)}
-                style={{ padding: '8px 18px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
-                Cancel
-              </button>
-              <button type="submit" disabled={adHocSaving || !adHocParamId || !adHocReason.trim()}
-                style={{ padding: '8px 18px', borderRadius: 7, border: 'none', background: adHocSaving ? '#ddd6fe' : '#7c3aed', color: '#fff', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                {adHocSaving ? 'Adding…' : 'Add Test'}
-              </button>
-            </div>
+            <DrawerFooter saving={adHocSaving} onCancel={() => setShowAddTest(null)} label="Add Test" disabled={!adHocParamId || !adHocReason.trim()} />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
-      {/* ── Retest Modal ────────────────────────────────────────────────── */}
+      {/* ── Retest Drawer ───────────────────────────────────────────────── */}
       {showRetest && (
-        <Modal title={`Request Retest — ${showRetest.sampleNumber}`} onClose={() => setShowRetest(null)}>
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            FDA OOS Guidance 2006 §IV — select which parameters to retest. OOS parameters pre-selected.
-          </p>
+        <Drawer title={`Request Retest — ${showRetest.sampleNumber}`} subtitle="FDA OOS Guidance 2006 §IV — OOS parameters pre-selected." onClose={() => setShowRetest(null)}>
           <form onSubmit={submitRetest}>
 
             {/* Parameter selection */}
@@ -1056,21 +1066,14 @@ export default function SampleRegistrationPage() {
               style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 8, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
             />
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-              <button type="button" onClick={() => setShowRetest(null)}
-                style={{ padding: '8px 18px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
-                Cancel
-              </button>
-              <button type="submit" disabled={retestSaving || !retestReason.trim()}
-                style={{ padding: '8px 18px', borderRadius: 7, border: 'none', fontWeight: 700, cursor: 'pointer',
-                  background: retestSaving ? '#fed7aa' : '#c2410c', color: '#fff', fontFamily: 'inherit' }}>
-                {retestSaving ? 'Registering…' : selectedParams.length > 0
-                  ? `Retest ${selectedParams.length} Parameter(s)`
-                  : 'Full Retest'}
-              </button>
-            </div>
+            <DrawerFooter
+              saving={retestSaving}
+              onCancel={() => setShowRetest(null)}
+              label={selectedParams.length > 0 ? `Retest ${selectedParams.length} Parameter(s)` : 'Full Retest'}
+              disabled={!retestReason.trim()}
+            />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── Barcode Reprint ───────────────────────────────────────────────── */}
@@ -1172,12 +1175,12 @@ export default function SampleRegistrationPage() {
         </div>
       )}
 
-      {/* ── Container Management Modal ───────────────────────────────────── */}
+      {/* ── Container Management Drawer ─────────────────────────────────── */}
       {containerSample && (
-        <Modal title={`Containers — ${containerSample.sampleNumber}`} onClose={() => setContainerSample(null)}>
+        <Drawer title={`Containers — ${containerSample.sampleNumber}`} subtitle="Split into aliquots or manage existing sub-containers." width={680} onClose={() => setContainerSample(null)}>
           {/* Split form */}
           <form onSubmit={submitSplit}>
-            <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>Split this sample into aliquots or sub-containers.</p>
+            <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>Create aliquots or sub-containers from this sample.</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
               <Field label="Count (1–100)">
                 <input type="number" min={1} max={100} style={inp} value={splitForm.count}
@@ -1284,7 +1287,7 @@ export default function SampleRegistrationPage() {
               </tbody>
             </table>
           )}
-        </Modal>
+        </Drawer>
       )}
 
       {detailSampleId !== null && (
@@ -1295,9 +1298,9 @@ export default function SampleRegistrationPage() {
         />
       )}
 
-      {/* ── Assign Spec Modal ─────────────────────────────────────────────── */}
+      {/* ── Assign Spec Drawer ───────────────────────────────────────────── */}
       {showAssignSpec && (
-        <Modal title="Assign Specification Template" onClose={() => setShowAssignSpec(null)}>
+        <Drawer title="Assign Specification Template" subtitle="Select a product test plan for this sample." onClose={() => setShowAssignSpec(null)}>
           {specAssignLoading ? (
             <div style={{ padding: '24px 0', textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
               🔍 Loading specification candidates…
@@ -1365,7 +1368,7 @@ export default function SampleRegistrationPage() {
               )}
 
               {specAssignData.candidates.length > 0 && (
-                <ModalFooter saving={assignSaving} onCancel={() => setShowAssignSpec(null)} label="Apply Spec & Create Tests" />
+                <DrawerFooter saving={assignSaving} onCancel={() => setShowAssignSpec(null)} label="Apply Spec & Create Tests" />
               )}
               {specAssignData.candidates.length === 0 && (
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -1379,15 +1382,12 @@ export default function SampleRegistrationPage() {
           ) : (
             <div style={{ padding: '16px', color: '#dc2626', fontSize: 13 }}>{assignError || 'Failed to load data.'}</div>
           )}
-        </Modal>
+        </Drawer>
       )}
 
-      {/* ── Assign Form Template Modal ───────────────────────────────────────── */}
+      {/* ── Assign Form Template Drawer ──────────────────────────────────────── */}
       {showAssignForm && (
-        <Modal title="Assign Form Template" onClose={() => setShowAssignForm(null)}>
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            Select the testing form for this sample. This determines which parameters appear on the COA.
-          </p>
+        <Drawer title="Assign Form Template" subtitle="Determines which parameters appear on the COA." onClose={() => setShowAssignForm(null)}>
           <form onSubmit={submitAssignForm}>
             <Field label="Form Template *">
               <select style={inp} value={selectedFormId ?? ''} onChange={e => setSelectedFormId(Number(e.target.value))} required>
@@ -1400,9 +1400,9 @@ export default function SampleRegistrationPage() {
               </select>
             </Field>
             {formAssignError && <p style={{ color: '#dc2626', fontSize: 13 }}>{formAssignError}</p>}
-            <ModalFooter saving={formAssignSaving} onCancel={() => setShowAssignForm(null)} label="Assign Form Template" />
+            <DrawerFooter saving={formAssignSaving} onCancel={() => setShowAssignForm(null)} label="Assign Form Template" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── Dynamic Form Renderer ────────────────────────────────────────────── */}

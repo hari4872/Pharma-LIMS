@@ -12,6 +12,7 @@ import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { getErrorMessage } from '@/utils/errors'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -374,7 +375,7 @@ export default function StabilityProtocolsPage() {
 
         {/* ── Create Modal ──────────────────────────────────────────────── */}
         {showCreate && (
-          <Modal title="New Stability Protocol" onClose={() => { setShowCreate(false); resetForm() }}>
+          <Drawer title="New Stability Protocol" subtitle="Set up a stability study with storage conditions and duration" onClose={() => { setShowCreate(false); resetForm() }} width={540}>
             <form onSubmit={handleCreate}>
               <Field label="Protocol Name *">
                 <input style={inp} value={protocolName} onChange={e => setProtocolName(e.target.value)} required placeholder="e.g. Paracetamol 500mg — Long-Term 25°C" />
@@ -419,14 +420,14 @@ export default function StabilityProtocolsPage() {
                 <textarea style={{ ...inp, height: 60, resize: 'vertical' as const }} value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional study description or purpose" />
               </Field>
               {error && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>⚠ {error}</p>}
-              <ModalFooter saving={saving} onCancel={() => { setShowCreate(false); resetForm() }} label="Create Protocol" />
+              <DrawerFooter saving={saving} onCancel={() => { setShowCreate(false); resetForm() }} label="Create Protocol" />
             </form>
-          </Modal>
+          </Drawer>
         )}
 
         {/* ── Edit Modal ────────────────────────────────────────────────── */}
         {editing && (
-          <Modal title={`Edit: ${editing.protocolName}`} onClose={() => { setEditing(null); resetForm() }}>
+          <Drawer title={`Edit: ${editing.protocolName}`} subtitle="Modify stability protocol conditions and spec template" onClose={() => { setEditing(null); resetForm() }} width={540}>
             <form onSubmit={handleUpdate}>
               <Field label="Protocol Name *">
                 <input style={inp} value={protocolName} onChange={e => setProtocolName(e.target.value)} required />
@@ -461,9 +462,9 @@ export default function StabilityProtocolsPage() {
                 <textarea style={{ ...inp, height: 60, resize: 'vertical' as const }} value={description} onChange={e => setDescription(e.target.value)} />
               </Field>
               {error && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>⚠ {error}</p>}
-              <ModalFooter saving={saving} onCancel={() => { setEditing(null); resetForm() }} label="Save Changes" />
+              <DrawerFooter saving={saving} onCancel={() => { setEditing(null); resetForm() }} label="Save Changes" />
             </form>
-          </Modal>
+          </Drawer>
         )}
 
         {/* ── Interval Designer ─────────────────────────────────────────── */}

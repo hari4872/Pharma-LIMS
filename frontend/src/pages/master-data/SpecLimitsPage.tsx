@@ -6,6 +6,7 @@ import api from '@/api/client'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface SpecLimit {
   specLimitId: number; parameterName: string; materialName: string; stage: string
@@ -145,7 +146,7 @@ export default function SpecLimitsPage() {
         ) },
       ]} />
       {showForm && (
-        <Modal title="Add Spec Limit" onClose={() => setShowForm(false)}>
+        <Drawer title="Add Spec Limit" subtitle="Define acceptance criteria and OOT limits for a parameter" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Parameter">
@@ -184,12 +185,12 @@ export default function SpecLimitsPage() {
               </div>
             )}
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
       {editRow && (
-        <Modal title={`Edit Spec Limit — ${editRow.parameterName}`} onClose={() => setEditRow(null)}>
+        <Drawer title={`Edit Spec Limit — ${editRow.parameterName}`} subtitle="Update OOS/OOT thresholds and regulatory limits" onClose={() => setEditRow(null)}>
           <form onSubmit={submitEdit}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <Field label="Min Value"><input style={inp} type="number" step="any" value={editForm.minValue} onChange={e => setEditForm(f => ({ ...f, minValue: e.target.value }))} /></Field>
@@ -210,9 +211,9 @@ export default function SpecLimitsPage() {
               </div>
             )}
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
+            <DrawerFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
           </form>
-        </Modal>
+        </Drawer>
       )}
       {showApprove && (
         <Modal title="E-Signature Approval" onClose={() => setShowApprove(null)}>

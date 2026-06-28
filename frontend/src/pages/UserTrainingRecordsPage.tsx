@@ -3,6 +3,7 @@ import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 // Master Data FR-11: User Training Records — GMP training gate for test-method assignment
 
@@ -99,7 +100,7 @@ export default function UserTrainingRecordsPage() {
       ]} />
 
       {showForm && (
-        <Modal title="Add Training Record" onClose={() => setShowForm(false)}>
+        <Drawer title="Add Training Record" subtitle="GMP training gate — analysts can only be assigned methods they're trained on." onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
             <Field label="Analyst *">
               <select style={inp} value={form.userId} onChange={set('userId')} required>
@@ -121,9 +122,9 @@ export default function UserTrainingRecordsPage() {
               <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>Leave blank for permanent (no expiry) training.</p>
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

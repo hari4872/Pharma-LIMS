@@ -4,6 +4,7 @@ import { fmtDate } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { toast } from '@/components/Toast'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
@@ -262,7 +263,7 @@ export default function OosInvestigationsPage() {
       {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="qa" />}
 
       {showAdd && (
-        <Modal title="Add OOS / OOT Investigation" onClose={() => setShowAdd(false)}>
+        <Drawer title="Add OOS / OOT Investigation" subtitle="Manually open an investigation for a result not automatically flagged." onClose={() => setShowAdd(false)}>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
             Manually open an investigation for a logbook entry that was not automatically flagged.
           </p>
@@ -315,10 +316,10 @@ export default function OosInvestigationsPage() {
               </Field>
 
               {addError && <p style={{ color: '#dc2626', fontSize: 13, margin: '4px 0' }}>{addError}</p>}
-              <ModalFooter saving={addSaving} onCancel={() => setShowAdd(false)} label="Create Investigation" />
+              <DrawerFooter saving={addSaving} onCancel={() => setShowAdd(false)} label="Create Investigation" />
             </form>
           )}
-        </Modal>
+        </Drawer>
       )}
 
       {showEscalate && (

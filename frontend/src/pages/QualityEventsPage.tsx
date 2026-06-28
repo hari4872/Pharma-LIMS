@@ -5,6 +5,7 @@ import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface QualityEvent {
@@ -246,7 +247,7 @@ export default function QualityEventsPage() {
 
       {/* ── Create Modal ── */}
       {showCreate && (
-        <Modal title={`New ${currentType.label}`} onClose={() => { setShowCreate(false); setClassification(null) }}>
+        <Drawer title={`New ${currentType.label}`} subtitle="AI classification available after entering a title." width={640} onClose={() => { setShowCreate(false); setClassification(null) }}>
           <form onSubmit={submitCreate}>
             <Field label="Type">
               <select style={inp} value={form.cdType} onChange={e => setForm(f => ({ ...f, cdType: e.target.value }))}>
@@ -370,14 +371,14 @@ export default function QualityEventsPage() {
               </Field>
             </div>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => { setShowCreate(false); setClassification(null) }} label={`Create ${currentType.label}`} />
+            <DrawerFooter saving={saving} onCancel={() => { setShowCreate(false); setClassification(null) }} label={`Create ${currentType.label}`} />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── Edit Modal ── */}
       {showEdit && selected && (
-        <Modal title={`Edit ${selected.cdType} — ${selected.cdReference}`} onClose={() => setShowEdit(false)}>
+        <Drawer title={`Edit ${selected.cdType} — ${selected.cdReference}`} subtitle="Update details, priority, root cause, and action plan." width={620} onClose={() => setShowEdit(false)}>
           <form onSubmit={submitEdit}>
             <div style={{ marginBottom: 12, padding: '8px 12px', background: '#f0fdfa', borderRadius: 8, border: '1px solid #99f6e4' }}>
               <span style={{ fontSize: 11, color: '#0f766e', fontWeight: 600 }}>Reference: </span>
@@ -415,9 +416,9 @@ export default function QualityEventsPage() {
               </Field>
             </div>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowEdit(false)} label="Save Changes" />
+            <DrawerFooter saving={saving} onCancel={() => setShowEdit(false)} label="Save Changes" />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

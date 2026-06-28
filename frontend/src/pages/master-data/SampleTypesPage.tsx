@@ -4,6 +4,7 @@ import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface SampleType { sampleTypeId: number; typeName: string; typeCode: string; matrix: string; stage: string; description: string; isActive: boolean }
 interface Checkpoint { checkpointId: number; checkpointCode: string; triggerMode: string; checkpointType: string }
@@ -92,7 +93,7 @@ export default function SampleTypesPage() {
 
       {/* Add Sample Type modal */}
       {showForm && (
-        <Modal title="Add Sample Type" onClose={() => setShowForm(false)}>
+        <Drawer title="Add Sample Type" subtitle="Define a new sample matrix and stage classification" onClose={() => setShowForm(false)}>
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <Field label="Type Code"><input style={inp} value={form.typeCode} onChange={e => setForm(f => ({ ...f, typeCode: e.target.value }))} required placeholder="e.g. ST-LIQ-001" /></Field>
@@ -109,14 +110,14 @@ export default function SampleTypesPage() {
             </Field>
             <Field label="Description"><input style={inp} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} /></Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* Default Checkpoints config modal */}
       {cpModal && (
-        <Modal title={`Default Checkpoints — ${cpModal.typeName}`} onClose={() => setCpModal(null)}>
+        <Drawer title={`Default Checkpoints — ${cpModal.typeName}`} subtitle="Choose which checkpoints are auto-selected for this sample type" onClose={() => setCpModal(null)}>
           <p style={{ fontSize: 13, color: '#6b7280', marginTop: 0, marginBottom: 16 }}>
             Selected checkpoints will be auto-checked when this sample type is chosen during registration. Analyst can still adjust before submitting.
           </p>
@@ -152,7 +153,7 @@ export default function SampleTypesPage() {
               {cpSaving ? 'Saving…' : 'Save'}
             </button>
           </div>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

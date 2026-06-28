@@ -4,6 +4,7 @@ import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Modal, Field, ModalFooter, StatusBadge, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 // Master Data FR-09: Reagents & Standards — lot-traceable, potency-tracked, method-linked
 
@@ -95,7 +96,7 @@ export default function ReagentsPage() {
       ]} />
 
       {showForm && (
-        <Modal title="Add Reagent / Standard" onClose={() => setShowForm(false)}>
+        <Drawer title="Add Reagent / Standard" subtitle="Register a new reagent or reference standard with lot details" onClose={() => setShowForm(false)} width={560}>
           <form onSubmit={submit}>
             <Field label="ID"><input style={{ ...inp, background: '#f8fafc', color: '#9ca3af', cursor: 'not-allowed' }} value="Auto-generated" readOnly /></Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
@@ -139,9 +140,9 @@ export default function ReagentsPage() {
               </select>
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowForm(false)} />
+            <DrawerFooter saving={saving} onCancel={() => setShowForm(false)} />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )
