@@ -5,6 +5,7 @@ import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
+import { Panel } from '@/components/Panel'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 
@@ -240,7 +241,7 @@ export default function BatchReleasePage() {
 
       {/* ── Detail + Checklist Modal ── */}
       {showDetail && detail && (
-        <Drawer title={`Batch Release — ${detail.sampleNumber}`} subtitle="Release checklist and AI risk assessment." width={600} onClose={() => setShowDetail(false)}>
+        <Panel title={`Batch Release — ${detail.sampleNumber}`} subtitle="Release checklist and AI risk assessment." width={600} onClose={() => setShowDetail(false)}>
           {/* Risk Score */}
           {riskLoading && (
             <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12, fontSize: 12, color: '#6b7280' }}>
@@ -323,7 +324,7 @@ export default function BatchReleasePage() {
               → Make Release Decision
             </button>
           )}
-        </Drawer>
+        </Panel>
       )}
 
       {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="release" />}

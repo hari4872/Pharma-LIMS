@@ -6,6 +6,7 @@ import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
+import { Panel } from '@/components/Panel'
 import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'
 import { toast } from '@/components/Toast'
 
@@ -569,7 +570,7 @@ export default function CheckpointsPage() {
 
       {/* ── Trigger History Modal ────────────────────────────────────────── */}
       {historyCheckpoint && (
-        <Drawer title={`${historyCheckpoint.checkpointCode} — Trigger History`} subtitle="Last 10 trigger events for this checkpoint." width={620} onClose={() => setHistoryCheckpoint(null)}>
+        <Panel title={`${historyCheckpoint.checkpointCode} — Trigger History`} subtitle="Last 10 trigger events for this checkpoint." width={620} onClose={() => setHistoryCheckpoint(null)}>
           <div style={{ marginBottom: 12 }}>
             <span style={{ fontSize: 12, color: '#6b7280' }}>Last 10 trigger events for this checkpoint</span>
           </div>
@@ -623,7 +624,7 @@ export default function CheckpointsPage() {
               Close
             </button>
           </div>
-        </Drawer>
+        </Panel>
       )}
     </div>
   )

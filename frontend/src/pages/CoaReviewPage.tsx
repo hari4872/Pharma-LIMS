@@ -5,6 +5,7 @@ import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
+import { Panel } from '@/components/Panel'
 import { toast } from '@/components/Toast'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
@@ -481,7 +482,7 @@ export default function CoaReviewPage() {
 
       {/* CoA Detail + Checklist Panel */}
       {selected && !showApprove && !showReject && (
-        <Drawer title={`CoA Review — ${selected.coaNumber}`} subtitle="QA validation checklist and release decisions." width={720} onClose={() => setSelected(null)}>
+        <Panel title={`CoA Review — ${selected.coaNumber}`} subtitle="QA validation checklist and release decisions." width={720} onClose={() => setSelected(null)}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
             {selected.status === 'Released' && (
               <button onClick={() => downloadPdf(selected)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 14px', border: 'none', borderRadius: 7, background: '#065f46', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
@@ -606,7 +607,7 @@ export default function CoaReviewPage() {
               </button>
             </div>
           )}
-        </Drawer>
+        </Panel>
       )}
 
       {/* Approve Modal */}
