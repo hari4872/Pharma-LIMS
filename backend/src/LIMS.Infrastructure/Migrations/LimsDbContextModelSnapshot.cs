@@ -176,6 +176,9 @@ namespace LIMS.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Frequency")
+                        .HasColumnType("text");
+
                     b.Property<int>("InstrumentId")
                         .HasColumnType("integer");
 

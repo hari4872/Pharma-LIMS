@@ -5,7 +5,7 @@ import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
-import { Panel } from '@/components/Panel'
+import { MasterDetail, DetailPane } from '@/components/MasterDetail'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 
@@ -86,7 +86,7 @@ export default function BatchReleasePage() {
     setLoading(true)
     try {
       const r = await api.get('/batch-releases')
-      setData(r.data)
+      setData(Array.isArray(r.data) ? r.data : [])
     } finally { setLoading(false) }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
@@ -182,42 +182,138 @@ export default function BatchReleasePage() {
         </div>
       </div>
 
-      {/* ── Table ── */}
-      <DataTable loading={loading} data={filtered} columns={[
-        { header: 'Sample', accessor: r => (
-          <button onClick={() => setDetailSampleId(r.sampleId)}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, fontSize: 12, color: '#2563eb', textDecoration: 'underline' }}>
-            {r.sampleNumber}
-          </button>
-        )},
-        { header: 'Material / Lot', accessor: r => <span>{r.materialName}<br /><span style={{ fontSize: 11, color: '#6b7280' }}>{r.lotNumber}</span></span> },
-        { header: 'Status', accessor: r => {
-          const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
-          return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: c.bg, color: c.color }}>{r.status}</span>
-        }},
-        { header: 'Decision', accessor: r => {
-          if (!r.decision) return <span style={{ color: '#9ca3af' }}>—</span>
-          const c = DECISION_COLORS[r.decision] ?? { bg: '#f3f4f6', color: '#374151' }
-          return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.bg, color: c.color }}>{r.decision}</span>
-        }},
-        { header: 'Initiated By', accessor: r => <span style={{ fontSize: 12 }}>{r.initiatedBy}</span> },
-        { header: 'Reviewed By', accessor: r => <span style={{ fontSize: 12 }}>{r.reviewedBy ?? '—'}</span> },
-        { header: 'Date', accessor: r => <span style={{ fontSize: 11, color: '#6b7280' }}>{fmtDate(r.initiatedAt)}</span> },
-        { header: 'Actions', accessor: r => (
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => openDetail(r.batchReleaseId)}
-              style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: 12, padding: 0 }}>
-              View Checklist
-            </button>
-            {(r.status === 'InReview' || r.status === 'PendingReview') && (
-              <button onClick={() => openDecide(r.batchReleaseId)}
-                style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: 12, padding: 0 }}>
-                Make Decision
+      {/* ── Table + Detail ── */}
+      <MasterDetail
+        detail={showDetail && detail ? (
+          <DetailPane
+            title={`Batch Release — ${detail.sampleNumber}`}
+            subtitle="Release checklist and AI risk assessment."
+            onClose={() => setShowDetail(false)}
+          >
+            {/* Risk Score */}
+            {riskLoading && (
+              <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12, fontSize: 12, color: '#6b7280' }}>
+                Calculating risk score…
+              </div>
+            )}
+            {!riskLoading && riskScore && (() => {
+              const rc = RISK_COLORS[riskScore.riskLevel] ?? RISK_COLORS.Low
+              return (
+                <div style={{ borderRadius: 8, border: `1px solid ${rc.border}`, marginBottom: 14, overflow: 'hidden' }}>
+                  {/* Collapsed summary row — always visible */}
+                  <button type="button" onClick={() => setRiskExpanded(e => !e)}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: rc.bg, border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: rc.color }}>{riskScore.riskLevel} Risk</span>
+                    <span style={{ fontSize: 12, color: rc.color, fontWeight: 700 }}>Score: {riskScore.score}/100</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 11, color: rc.color, opacity: 0.7 }}>{riskExpanded ? '▾ Hide detail' : '▸ Show detail'}</span>
+                  </button>
+                  {/* Expanded detail */}
+                  {riskExpanded && (
+                    <div style={{ padding: '10px 14px', background: rc.bg, borderTop: `1px solid ${rc.border}` }}>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+                        {riskScore.factors.map((f, i) => (
+                          <span key={i} style={{ fontSize: 10, padding: '1px 7px', borderRadius: 10, background: '#fff', color: rc.color, border: `1px solid ${rc.border}`, fontWeight: 600 }}>
+                            {f.factor} ({f.count})
+                          </span>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 11, color: rc.color, fontStyle: 'italic' }}>{riskScore.recommendation}</div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+            {/* Checklist */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 8 }}>Release Checklist</div>
+              {detail.checkItems.map((ci, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 10,
+                  padding: '8px 12px', borderRadius: 6, marginBottom: 6,
+                  background: ci.passed ? '#f0fdf4' : '#fff1f2',
+                  border: `1px solid ${ci.passed ? '#bbf7d0' : '#fecaca'}`,
+                }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5, flexShrink: 0,
+                    background: ci.passed ? '#d1fae5' : '#fee2e2',
+                    color: ci.passed ? '#166534' : '#991b1b',
+                    border: `1px solid ${ci.passed ? '#6ee7b7' : '#fca5a5'}`,
+                    letterSpacing: '0.04em',
+                  }}>
+                    {ci.passed ? 'PASS' : 'FAIL'}
+                  </span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: ci.passed ? '#166534' : '#991b1b' }}>
+                      {CHECK_LABELS[ci.checkType] ?? ci.checkType}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{ci.detail}</div>
+                  </div>
+                </div>
+              ))}
+              {!allChecksPassed && (
+                <div style={{ padding: '8px 12px', background: '#fef3c7', borderRadius: 6, fontSize: 12, color: '#92400e', border: '1px solid #fde68a' }}>
+                  ⚠ One or more checklist items failed. QA can still make a decision (with documented justification).
+                </div>
+              )}
+            </div>
+
+            {/* Decision info if already decided */}
+            {detail.decision && (
+              <div style={{ padding: '12px 16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>Decision: <span style={{ color: detail.decision === 'Released' ? '#166534' : '#991b1b' }}>{detail.decision}</span></div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>{detail.decisionReason}</div>
+                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>Reviewed by: {detail.reviewedBy} on {detail.decidedAt ? fmtDateTime(detail.decidedAt) : '—'}</div>
+              </div>
+            )}
+
+            {(detail.status === 'InReview' || detail.status === 'PendingReview') && (
+              <button onClick={() => { setShowDetail(false); openDecide(detail.batchReleaseId) }}
+                style={{ width: '100%', padding: '10px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit' }}>
+                → Make Release Decision
               </button>
             )}
-          </div>
-        )},
-      ]} />
+          </DetailPane>
+        ) : null}
+        onCloseDetail={() => setShowDetail(false)}
+      >
+        <DataTable loading={loading} data={filtered} columns={[
+          { header: 'Sample', accessor: r => (
+            <button onClick={() => setDetailSampleId(r.sampleId)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, fontSize: 12, color: '#2563eb', textDecoration: 'underline' }}>
+              {r.sampleNumber}
+            </button>
+          )},
+          { header: 'Material / Lot', accessor: r => <span>{r.materialName}<br /><span style={{ fontSize: 11, color: '#6b7280' }}>{r.lotNumber}</span></span> },
+          { header: 'Status', accessor: r => {
+            const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
+            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: c.bg, color: c.color }}>{r.status}</span>
+          }},
+          { header: 'Decision', accessor: r => {
+            if (!r.decision) return <span style={{ color: '#9ca3af' }}>—</span>
+            const c = DECISION_COLORS[r.decision] ?? { bg: '#f3f4f6', color: '#374151' }
+            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.bg, color: c.color }}>{r.decision}</span>
+          }},
+          { header: 'Initiated By', accessor: r => <span style={{ fontSize: 12 }}>{r.initiatedBy}</span> },
+          { header: 'Reviewed By', accessor: r => <span style={{ fontSize: 12 }}>{r.reviewedBy ?? '—'}</span> },
+          { header: 'Date', accessor: r => <span style={{ fontSize: 11, color: '#6b7280' }}>{fmtDate(r.initiatedAt)}</span> },
+          { header: 'Actions', accessor: r => (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => openDetail(r.batchReleaseId)}
+                style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: 12, padding: 0 }}>
+                View Checklist
+              </button>
+              {(r.status === 'InReview' || r.status === 'PendingReview') && (
+                <button onClick={() => openDecide(r.batchReleaseId)}
+                  style={{ background: 'none', border: 'none', color: '#7c3aed', cursor: 'pointer', fontSize: 12, padding: 0 }}>
+                  Make Decision
+                </button>
+              )}
+            </div>
+          )},
+        ]} />
+      </MasterDetail>
+
+      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="release" />}
 
       {/* ── Initiate Modal ── */}
       {showInitiate && (
@@ -238,96 +334,6 @@ export default function BatchReleasePage() {
           </form>
         </Drawer>
       )}
-
-      {/* ── Detail + Checklist Modal ── */}
-      {showDetail && detail && (
-        <Panel title={`Batch Release — ${detail.sampleNumber}`} subtitle="Release checklist and AI risk assessment." width={600} onClose={() => setShowDetail(false)}>
-          {/* Risk Score */}
-          {riskLoading && (
-            <div style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12, fontSize: 12, color: '#6b7280' }}>
-              Calculating risk score…
-            </div>
-          )}
-          {!riskLoading && riskScore && (() => {
-            const rc = RISK_COLORS[riskScore.riskLevel] ?? RISK_COLORS.Low
-            return (
-              <div style={{ borderRadius: 8, border: `1px solid ${rc.border}`, marginBottom: 14, overflow: 'hidden' }}>
-                {/* Collapsed summary row — always visible */}
-                <button type="button" onClick={() => setRiskExpanded(e => !e)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: rc.bg, border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: rc.color }}>{riskScore.riskLevel} Risk</span>
-                  <span style={{ fontSize: 12, color: rc.color, fontWeight: 700 }}>Score: {riskScore.score}/100</span>
-                  <span style={{ marginLeft: 'auto', fontSize: 11, color: rc.color, opacity: 0.7 }}>{riskExpanded ? '▾ Hide detail' : '▸ Show detail'}</span>
-                </button>
-                {/* Expanded detail */}
-                {riskExpanded && (
-                  <div style={{ padding: '10px 14px', background: rc.bg, borderTop: `1px solid ${rc.border}` }}>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
-                      {riskScore.factors.map((f, i) => (
-                        <span key={i} style={{ fontSize: 10, padding: '1px 7px', borderRadius: 10, background: '#fff', color: rc.color, border: `1px solid ${rc.border}`, fontWeight: 600 }}>
-                          {f.factor} ({f.count})
-                        </span>
-                      ))}
-                    </div>
-                    <div style={{ fontSize: 11, color: rc.color, fontStyle: 'italic' }}>{riskScore.recommendation}</div>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
-          {/* Checklist */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 8 }}>Release Checklist</div>
-            {detail.checkItems.map((ci, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-                padding: '8px 12px', borderRadius: 6, marginBottom: 6,
-                background: ci.passed ? '#f0fdf4' : '#fff1f2',
-                border: `1px solid ${ci.passed ? '#bbf7d0' : '#fecaca'}`,
-              }}>
-                <span style={{
-                  fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 5, flexShrink: 0,
-                  background: ci.passed ? '#d1fae5' : '#fee2e2',
-                  color: ci.passed ? '#166534' : '#991b1b',
-                  border: `1px solid ${ci.passed ? '#6ee7b7' : '#fca5a5'}`,
-                  letterSpacing: '0.04em',
-                }}>
-                  {ci.passed ? 'PASS' : 'FAIL'}
-                </span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: ci.passed ? '#166534' : '#991b1b' }}>
-                    {CHECK_LABELS[ci.checkType] ?? ci.checkType}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{ci.detail}</div>
-                </div>
-              </div>
-            ))}
-            {!allChecksPassed && (
-              <div style={{ padding: '8px 12px', background: '#fef3c7', borderRadius: 6, fontSize: 12, color: '#92400e', border: '1px solid #fde68a' }}>
-                ⚠ One or more checklist items failed. QA can still make a decision (with documented justification).
-              </div>
-            )}
-          </div>
-
-          {/* Decision info if already decided */}
-          {detail.decision && (
-            <div style={{ padding: '12px 16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>Decision: <span style={{ color: detail.decision === 'Released' ? '#166534' : '#991b1b' }}>{detail.decision}</span></div>
-              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>{detail.decisionReason}</div>
-              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>Reviewed by: {detail.reviewedBy} on {detail.decidedAt ? fmtDateTime(detail.decidedAt) : '—'}</div>
-            </div>
-          )}
-
-          {(detail.status === 'InReview' || detail.status === 'PendingReview') && (
-            <button onClick={() => { setShowDetail(false); openDecide(detail.batchReleaseId) }}
-              style={{ width: '100%', padding: '10px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'inherit' }}>
-              → Make Release Decision
-            </button>
-          )}
-        </Panel>
-      )}
-
-      {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="release" />}
 
       {/* ── Decision Modal ── */}
       {showDecide && (

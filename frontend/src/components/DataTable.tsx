@@ -15,6 +15,10 @@ interface Props<T> {
   searchable?: boolean
   exportFilename?: string
   rowStyle?: (row: T) => React.CSSProperties
+  initialSortCol?: string   // column header to sort by on first render
+  initialSortDir?: 'asc' | 'desc'
+  onRowClick?: (row: T) => void
+  selectedRow?: T | null
 }
 
 type Density = 'compact' | 'default' | 'spacious'
@@ -94,11 +98,12 @@ function DensityIcon({ type }: { type: Density }) {
 // ── Main component ────────────────────────────────────────────────────────
 export default function DataTable<T extends object>({
   columns, data, loading, searchable = true, exportFilename, rowStyle,
+  initialSortCol, initialSortDir, onRowClick, selectedRow,
 }: Props<T>) {
 
   const [search,       setSearch]       = useState('')
-  const [sortCol,      setSortCol]      = useState<string | null>(null)
-  const [sortDir,      setSortDir]      = useState<'asc' | 'desc'>('asc')
+  const [sortCol,      setSortCol]      = useState<string | null>(initialSortCol ?? null)
+  const [sortDir,      setSortDir]      = useState<'asc' | 'desc'>(initialSortDir ?? 'asc')
   const [page,         setPage]         = useState(0)
   const [pageSize,     setPageSize]     = useState(25)
   const [hoveredRow,   setHoveredRow]   = useState<number | null>(null)
@@ -442,17 +447,27 @@ export default function DataTable<T extends object>({
             ) : paginated.map((row, i) => {
               const sortedIdx  = safePage * pageSize + i
               const isSelected = selected.has(sortedIdx)
+              const isRowSelected = selectedRow === row
               const extraStyle = rowStyle ? rowStyle(row) : {}
               return (
                 <tr key={i}
                   onMouseEnter={() => setHoveredRow(i)}
                   onMouseLeave={() => setHoveredRow(null)}
+                  onClick={onRowClick ? (e: React.MouseEvent<HTMLTableRowElement>) => {
+                    if ((e.target as HTMLElement).closest('button,a,input,select,textarea')) return
+                    onRowClick(row)
+                  } : undefined}
                   style={{
                     borderBottom: i < paginated.length - 1 ? '1px solid #f1f3f4' : 'none',
-                    background: isSelected
+                    background: isRowSelected
+                      ? '#eff6ff'
+                      : isSelected
                       ? '#f0fdfa'
                       : hoveredRow === i ? '#f8f9fa'
                       : '#ffffff',
+                    cursor: onRowClick ? 'pointer' : undefined,
+                    outline: isRowSelected ? '2px solid #3b82f6' : undefined,
+                    outlineOffset: isRowSelected ? '-2px' : undefined,
                     transition: 'background 0.08s',
                     ...extraStyle,
                   }}>

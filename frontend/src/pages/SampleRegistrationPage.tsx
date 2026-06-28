@@ -8,6 +8,7 @@ import { fmtDate } from '@/utils/dateFormat'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
+import { MasterDetail, DetailPane } from '@/components/MasterDetail'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet, { type SampleDetailExtraInfo } from '@/components/SampleDetailSheet'
 import BatchSampleRegistrationPage from './BatchSampleRegistrationPage'
@@ -19,6 +20,12 @@ interface Sample {
   sampleType: string; status: string; barcodePrinted: boolean; dueDate: string
   analystName: string; createdAt: string; isRush?: boolean
   sampleCondition?: string; specTemplateName?: string; testsAutoCreated?: number; srfSigned?: boolean
+  // Extended fields returned by API (not in all endpoints)
+  formTemplateName?: string | null
+  isCheckpointLinked?: boolean
+  checkpointCount?: number
+  specVersion?: string | null
+  specStage?: string | null
 }
 interface Parameter  { parameterId: number; parameterName: string; uom: string }
 interface Material   { materialId: number; materialName: string; productType: string }
@@ -158,6 +165,8 @@ export default function SampleRegistrationPage() {
   const labelRef = useRef<HTMLDivElement>(null)
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
   const [detailExtraInfo, setDetailExtraInfo] = useState<SampleDetailExtraInfo | undefined>(undefined)
+  // Master-detail selection
+  const [selectedSample, setSelectedSample] = useState<Sample | null>(null)
   const [fillFormSample, setFillFormSample] = useState<Sample | null>(null)
   const [moreMenuRow,   setMoreMenuRow]    = useState<number | null>(null)
 
@@ -589,25 +598,113 @@ export default function SampleRegistrationPage() {
       })()}
 
       {/* ── Sample list table ─────────────────────────────────────────────── */}
-      <DataTable loading={loading} data={data} columns={[
+      <MasterDetail
+        onCloseDetail={() => setSelectedSample(null)}
+        detailTitle="Sample Detail"
+        detail={selectedSample ? (
+          <DetailPane
+            title={selectedSample.sampleNumber}
+            subtitle={`${selectedSample.materialName} · ${selectedSample.lotNumber}`}
+            onClose={() => setSelectedSample(null)}
+            actions={
+              <button
+                onClick={() => {
+                  setDetailSampleId(selectedSample.sampleId)
+                  setDetailExtraInfo({
+                    sampleType:         selectedSample.sampleType,
+                    formTemplateName:   selectedSample.formTemplateName ?? null,
+                    isCheckpointLinked: selectedSample.isCheckpointLinked ?? false,
+                    checkpointCount:    selectedSample.checkpointCount ?? 0,
+                    specVersion:        selectedSample.specVersion ?? null,
+                    specStage:          selectedSample.specStage ?? null,
+                    barcodePrinted:     selectedSample.barcodePrinted,
+                  })
+                }}
+                style={{ padding: '4px 10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 5, fontSize: 11, cursor: 'pointer', color: '#374151' }}
+              >
+                Full Details
+              </button>
+            }
+          >
+            {/* Status + flags */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+              {(() => {
+                const c = STATUS_COLORS[selectedSample.status] ?? { bg: '#f3f4f6', color: '#374151' }
+                return <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color }}>{selectedSample.status}</span>
+              })()}
+              {selectedSample.isRush && <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: '#fef3c7', color: '#92400e' }}>RUSH</span>}
+              {selectedSample.sampleCondition && selectedSample.sampleCondition !== 'OK' && (
+                <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: '#fef2f2', color: '#991b1b' }}>
+                  {selectedSample.sampleCondition.toUpperCase()}
+                </span>
+              )}
+            </div>
+
+            {/* Detail fields */}
+            {[
+              { label: 'Material',     value: selectedSample.materialName },
+              { label: 'Lot / Batch',  value: selectedSample.lotNumber },
+              { label: 'Sample Type',  value: selectedSample.sampleType },
+              { label: 'Analyst',      value: selectedSample.analystName || '—' },
+              { label: 'Due Date',     value: selectedSample.dueDate ? fmtDate(selectedSample.dueDate) : '—' },
+              { label: 'Registered',   value: fmtDate(selectedSample.createdAt) },
+              { label: 'SRF Signed',   value: selectedSample.srfSigned ? '✓ Signed' : '✗ Pending' },
+              { label: 'Barcode',      value: selectedSample.barcodePrinted ? '✓ Printed' : '✗ Pending' },
+              ...(selectedSample.specTemplateName ? [{ label: 'Spec Template', value: selectedSample.specTemplateName }] : []),
+            ].map(({ label: lbl, value }) => (
+              <div key={lbl} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 2 }}>{lbl}</div>
+                <div style={{ fontSize: 13, color: '#0f172a', fontWeight: 500 }}>{value}</div>
+              </div>
+            ))}
+
+            {/* Quick actions */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16, paddingTop: 14, borderTop: '1px solid #e5e7eb' }}>
+              {(selectedSample.status === 'Registered' || selectedSample.status === 'PendingTesting') && !selectedSample.srfSigned && (
+                <button
+                  onClick={() => { setShowSRF(selectedSample.sampleId); setError(''); setSelectedSample(null) }}
+                  style={{ padding: '9px 14px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer', width: '100%' }}
+                >
+                  ✍ Sign SRF
+                </button>
+              )}
+              {!selectedSample.specTemplateName && (
+                <button
+                  onClick={() => { openAssignSpec(selectedSample.sampleId); setSelectedSample(null) }}
+                  style={{ padding: '9px 14px', background: '#0f766e', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer', width: '100%' }}
+                >
+                  📋 Assign Test Plan
+                </button>
+              )}
+              {(selectedSample.status === 'Released' || selectedSample.status === 'Rejected') && (
+                <button
+                  onClick={async () => {
+                    setShowRetest(selectedSample); setRetestReason(''); setTestedParams([]); setSelectedParams([])
+                    setSelectedSample(null)
+                    try {
+                      const res = await api.get(`/samples/${selectedSample.sampleId}/tested-parameters`)
+                      setTestedParams(res.data)
+                      setSelectedParams(res.data.filter((p: { isOos: boolean; parameterId: number }) => p.isOos).map((p: { isOos: boolean; parameterId: number }) => p.parameterId))
+                    } catch { setTestedParams([]) }
+                  }}
+                  style={{ padding: '9px 14px', background: '#c2410c', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer', width: '100%' }}
+                >
+                  🔁 Retest
+                </button>
+              )}
+            </div>
+          </DetailPane>
+        ) : null}
+      >
+      <DataTable loading={loading} data={data}
+        onRowClick={row => setSelectedSample(row)}
+        selectedRow={selectedSample ?? undefined}
+        columns={[
         { header: 'Sample No.', accessor: r => (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <button onClick={() => {
-              setDetailSampleId(r.sampleId)
-              setDetailExtraInfo({
-                sampleType:         r.sampleType,
-                formTemplateName:   (r as any).formTemplateName ?? null,
-                isCheckpointLinked: (r as any).isCheckpointLinked ?? false,
-                checkpointCount:    (r as any).checkpointCount ?? 0,
-                specVersion:        (r as any).specVersion ?? null,
-                specStage:          (r as any).specStage ?? null,
-                barcodePrinted:     r.barcodePrinted,
-              })
-            }}
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f', fontSize: 13, textDecoration: 'underline dotted', textAlign: 'left' }}
-              title="Click to view sample details">
+            <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f', fontSize: 13 }}>
               {r.sampleNumber}
-            </button>
+            </span>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {r.isRush && <span style={{ fontSize: 9, background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4, fontWeight: 700 }}>RUSH</span>}
               {r.sampleCondition && r.sampleCondition !== 'OK' && (
@@ -643,15 +740,15 @@ export default function SampleRegistrationPage() {
                     ✍ Sign SRF
                   </button>
                 )}
-                {!(r as any).formTemplateName && (
+                {!r.formTemplateName && (
                   <button onClick={() => openAssignForm(r.sampleId)}
                     style={{ padding: '4px 10px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
                     📄 Form
                   </button>
                 )}
-                {(r as any).formTemplateName && (
+                {r.formTemplateName && (
                   <button onClick={() => setFillFormSample(r)}
-                    title={`Fill: ${(r as any).formTemplateName}`}
+                    title={`Fill: ${r.formTemplateName}`}
                     style={{ padding: '4px 10px', background: '#0369a1', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
                     📝 Fill Form
                   </button>
@@ -712,6 +809,7 @@ export default function SampleRegistrationPage() {
           )
         },
       ]} />
+      </MasterDetail>
 
       {/* ── Registration form — contained modal with sticky header + footer ── */}
       {showForm && (

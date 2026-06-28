@@ -5,7 +5,7 @@ import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
-import { Panel } from '@/components/Panel'
+import { MasterDetail, DetailPane } from '@/components/MasterDetail'
 import { toast } from '@/components/Toast'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
@@ -140,7 +140,7 @@ export default function CoaReviewPage() {
     setLoading(true)
     try {
       const r = await api.get('/coas')
-      setData(r.data)
+      setData(Array.isArray(r.data) ? r.data : [])
     } finally { setLoading(false) }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
@@ -439,176 +439,182 @@ export default function CoaReviewPage() {
         </div>
       </div>
 
-      <DataTable loading={loading} data={filtered} exportFilename="CoA_Review" columns={[
-        { header: 'CoA No.', accessor: r => <strong style={{ fontFamily: 'monospace' }}>{r.coaNumber}</strong> },
-        { header: 'Sample', accessor: r => (
-          <button
-            onClick={() => setDetailSampleId(r.sampleId)}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#2563eb', fontFamily: 'monospace', fontSize: 13, fontWeight: 700, textDecoration: 'underline dotted' }}>
-            {r.sampleNumber}
-          </button>
-        )},
-        { header: 'Material', accessor: 'materialName' },
-        { header: 'Lot', accessor: 'lotNumber' },
-        { header: 'Customer / DO', accessor: r => r.customerName ? `${r.customerName} / ${r.doNumber ?? '—'}` : '—' },
-        { header: 'Status', accessor: r => {
-          const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
-          return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 500, background: c.bg, color: c.color }}>{r.status}</span>
-        }},
-        { header: 'QA Signed By', accessor: r => r.qaSignedBy
-          ? <span style={{ fontSize: 12 }}>{r.qaSignedBy}<br /><span style={{ color: '#6b7280' }}>{fmtDateTime(r.qaSignedAt!)}</span></span>
-          : '—' },
-        { header: 'Actions', accessor: r => (
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button onClick={() => openDetail(r)} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: 12, padding: 0 }}>
-              Review
-            </button>
-            {r.status === 'Released' && (
-              <>
-                <button onClick={() => downloadPdf(r)} style={{ background: 'none', border: 'none', color: '#065f46', cursor: 'pointer', fontSize: 12, padding: 0 }}>
-                  PDF
-                </button>
-                <button
-                  onClick={() => { setReissueTarget(r); setReissueEsig({ password: '', meaning: 'I authorize the reissue of this CoA', reason: '' }); setReissueError(''); setShowReissue(true) }}
-                  title="Issue a replacement CoA — supersedes this one"
-                  style={{ background: 'none', border: 'none', color: '#d97706', cursor: 'pointer', fontSize: 12, padding: 0 }}>
-                  Reissue
-                </button>
-              </>
-            )}
-          </div>
-        )},
-      ]} />
-
-      {/* CoA Detail + Checklist Panel */}
-      {selected && !showApprove && !showReject && (
-        <Panel title={`CoA Review — ${selected.coaNumber}`} subtitle="QA validation checklist and release decisions." width={720} onClose={() => setSelected(null)}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
-            {selected.status === 'Released' && (
-              <button onClick={() => downloadPdf(selected)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 14px', border: 'none', borderRadius: 7, background: '#065f46', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
-                📄 Download CoA PDF
-              </button>
-            )}
-            <button onClick={() => handlePrint(selected)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', border: '1px solid #e5e7eb', borderRadius: 7, background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#374151', fontFamily: 'inherit' }}>
-              <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              Print CoA
-            </button>
-          </div>
-          {/* Header Summary */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', marginBottom: 16, fontSize: 13 }}>
-            {[
-              ['Sample', selected.sampleNumber],
-              ['Material / Lot', `${selected.materialName} / ${selected.lotNumber}`],
-              ['Customer', selected.customerName ?? '—'],
-              ['DO No.', selected.doNumber ?? '—'],
-              ['Despatch Date', selected.despatchDate ?? '—'],
-            ].map(([label, val]) => (
-              <div key={label}><span style={{ color: '#6b7280' }}>{label}:</span> <strong>{val}</strong></div>
-            ))}
-          </div>
-
-          {/* 10-item Checklist — auto-verified items collapsed by default */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>QA Validation Checklist (21 CFR 211.192)</div>
-            {checklistLoading && <div style={{ fontSize: 13, color: '#6b7280' }}>Evaluating checklist…</div>}
-            {checklist && (() => {
-              const failed = checklist.filter(c => !c.pass)
-              const passed = checklist.filter(c => c.pass)
-              return (
-                <>
-                  {/* Failed items always visible */}
-                  {failed.map(item => (
-                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13, borderBottom: '1px solid #f3f4f6' }}>
-                      <span style={{ fontSize: 16, color: '#dc2626' }}>✗</span>
-                      <span style={{ color: '#dc2626' }}>{item.label}</span>
-                    </div>
-                  ))}
-                  {/* Passed items collapsed */}
-                  <button type="button" onClick={() => setChecklistExpanded(e => !e)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 0', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#16a34a', fontWeight: 600, fontFamily: 'inherit', textAlign: 'left' }}>
-                    <span>{checklistExpanded ? '▾' : '▸'}</span>
-                    <span>✓ {passed.length}/{checklist.length} system checks passed</span>
-                    <span style={{ marginLeft: 'auto', color: '#9ca3af', fontWeight: 400 }}>{checklistExpanded ? 'Hide' : 'Show all'}</span>
-                  </button>
-                  {checklistExpanded && passed.map(item => (
-                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13, borderBottom: '1px solid #f3f4f6' }}>
-                      <span style={{ fontSize: 16, color: '#16a34a' }}>✓</span>
-                      <span style={{ color: '#374151' }}>{item.label}</span>
-                    </div>
-                  ))}
-                </>
-              )
-            })()}
-          </div>
-
-          {/* CoA Lines */}
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Test Results ({selected.lines.length} parameters)</div>
-          <div style={{ overflowX: 'auto', marginBottom: 16 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: '#f9fafb' }}>
-                  {['Parameter', 'Method', 'Spec Min–Max', 'Result', 'Pass/Fail', 'Analyst'].map(h => (
-                    <th key={h} style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', color: '#6b7280', fontWeight: 500 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {selected.lines.map(line => (
-                  <tr key={line.coaLineId}>
-                    <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>{line.parameterName}</td>
-                    <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace', fontSize: 11 }}>{line.methodCode}</td>
-                    <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>{line.specMin ?? '—'} – {line.specMax ?? '—'}</td>
-                    <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace' }}>{line.calculatedResult ?? '—'}</td>
-                    <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>
-                      <span style={{ padding: '1px 6px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                        background: line.passFail === 'PASS' ? '#d1fae5' : '#fee2e2',
-                        color: line.passFail === 'PASS' ? '#065f46' : '#991b1b' }}>{line.passFail}</span>
-                    </td>
-                    <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>{line.analystName}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Approve / Reject Buttons */}
-          {selected.status === 'Draft' && (
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => { setShowReject(true); setForm(f => ({ ...f, meaning: 'I reject this CoA — see justification', reason: '', password: '', justification: '' })) }}
-                style={{ padding: '7px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
-                Reject CoA
-              </button>
-              {!allChecklistPassed && (
-                <button
-                  onClick={() => { setShowConditional(true); setForm(f => ({ ...f, meaning: 'I conditionally release this batch pending resolution of open items.', reason: '', password: '', conditionalJustification: '' })) }}
-                  style={{ padding: '7px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
-                  Conditional Release
+      <MasterDetail
+        detail={selected && !showApprove && !showReject ? (
+          <DetailPane
+            title={`CoA Review — ${selected.coaNumber}`}
+            subtitle="QA validation checklist and release decisions."
+            onClose={() => setSelected(null)}
+          >
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
+              {selected.status === 'Released' && (
+                <button onClick={() => downloadPdf(selected)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 14px', border: 'none', borderRadius: 7, background: '#065f46', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'inherit' }}>
+                  📄 Download CoA PDF
                 </button>
               )}
-              <button
-                disabled={!allChecklistPassed}
-                onClick={() => { setShowApprove(true); setForm(f => ({ ...f, meaning: 'I approve the release of this batch. This CoA is accurate.', reason: '', password: '' })) }}
-                style={{ padding: '7px 16px', background: allChecklistPassed ? '#16a34a' : '#9ca3af',
-                  color: '#fff', border: 'none', borderRadius: 4,
-                  cursor: allChecklistPassed ? 'pointer' : 'not-allowed', fontSize: 13 }}>
-                {allChecklistPassed ? 'Approve & Lock CoA' : 'Checklist Incomplete'}
+              <button onClick={() => handlePrint(selected)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', border: '1px solid #e5e7eb', borderRadius: 7, background: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#374151', fontFamily: 'inherit' }}>
+                <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                Print CoA
               </button>
             </div>
-          )}
+            {/* Header Summary */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', marginBottom: 16, fontSize: 13 }}>
+              {[
+                ['Sample', selected.sampleNumber],
+                ['Material / Lot', `${selected.materialName} / ${selected.lotNumber}`],
+                ['Customer', selected.customerName ?? '—'],
+                ['DO No.', selected.doNumber ?? '—'],
+                ['Despatch Date', selected.despatchDate ?? '—'],
+              ].map(([label, val]) => (
+                <div key={label}><span style={{ color: '#6b7280' }}>{label}:</span> <strong>{val}</strong></div>
+              ))}
+            </div>
 
-          {/* Reissue button — for Released CoAs only */}
-          {selected.status === 'Released' && (
-            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => { setReissueTarget(selected); setReissueEsig({ password: '', meaning: 'I authorize the reissue of this CoA', reason: '' }); setReissueError(''); setSelected(null); setShowReissue(true) }}
-                style={{ padding: '7px 16px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>
-                🔄 Reissue CoA
-              </button>
+            {/* 10-item Checklist — auto-verified items collapsed by default */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>QA Validation Checklist (21 CFR 211.192)</div>
+              {checklistLoading && <div style={{ fontSize: 13, color: '#6b7280' }}>Evaluating checklist…</div>}
+              {checklist && (() => {
+                const failed = checklist.filter(c => !c.pass)
+                const passed = checklist.filter(c => c.pass)
+                return (
+                  <>
+                    {/* Failed items always visible */}
+                    {failed.map(item => (
+                      <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13, borderBottom: '1px solid #f3f4f6' }}>
+                        <span style={{ fontSize: 16, color: '#dc2626' }}>✗</span>
+                        <span style={{ color: '#dc2626' }}>{item.label}</span>
+                      </div>
+                    ))}
+                    {/* Passed items collapsed */}
+                    <button type="button" onClick={() => setChecklistExpanded(e => !e)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '6px 0', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#16a34a', fontWeight: 600, fontFamily: 'inherit', textAlign: 'left' }}>
+                      <span>{checklistExpanded ? '▾' : '▸'}</span>
+                      <span>✓ {passed.length}/{checklist.length} system checks passed</span>
+                      <span style={{ marginLeft: 'auto', color: '#9ca3af', fontWeight: 400 }}>{checklistExpanded ? 'Hide' : 'Show all'}</span>
+                    </button>
+                    {checklistExpanded && passed.map(item => (
+                      <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13, borderBottom: '1px solid #f3f4f6' }}>
+                        <span style={{ fontSize: 16, color: '#16a34a' }}>✓</span>
+                        <span style={{ color: '#374151' }}>{item.label}</span>
+                      </div>
+                    ))}
+                  </>
+                )
+              })()}
             </div>
-          )}
-        </Panel>
-      )}
+
+            {/* CoA Lines */}
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Test Results ({selected.lines.length} parameters)</div>
+            <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f9fafb' }}>
+                    {['Parameter', 'Method', 'Spec Min–Max', 'Result', 'Pass/Fail', 'Analyst'].map(h => (
+                      <th key={h} style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', color: '#6b7280', fontWeight: 500 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {selected.lines.map(line => (
+                    <tr key={line.coaLineId}>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>{line.parameterName}</td>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace', fontSize: 11 }}>{line.methodCode}</td>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>{line.specMin ?? '—'} – {line.specMax ?? '—'}</td>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace' }}>{line.calculatedResult ?? '—'}</td>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                        <span style={{ padding: '1px 6px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                          background: line.passFail === 'PASS' ? '#d1fae5' : '#fee2e2',
+                          color: line.passFail === 'PASS' ? '#065f46' : '#991b1b' }}>{line.passFail}</span>
+                      </td>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>{line.analystName}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Approve / Reject Buttons */}
+            {selected.status === 'Draft' && (
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => { setShowReject(true); setForm(f => ({ ...f, meaning: 'I reject this CoA — see justification', reason: '', password: '', justification: '' })) }}
+                  style={{ padding: '7px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
+                  Reject CoA
+                </button>
+                {!allChecklistPassed && (
+                  <button
+                    onClick={() => { setShowConditional(true); setForm(f => ({ ...f, meaning: 'I conditionally release this batch pending resolution of open items.', reason: '', password: '', conditionalJustification: '' })) }}
+                    style={{ padding: '7px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
+                    Conditional Release
+                  </button>
+                )}
+                <button
+                  disabled={!allChecklistPassed}
+                  onClick={() => { setShowApprove(true); setForm(f => ({ ...f, meaning: 'I approve the release of this batch. This CoA is accurate.', reason: '', password: '' })) }}
+                  style={{ padding: '7px 16px', background: allChecklistPassed ? '#16a34a' : '#9ca3af',
+                    color: '#fff', border: 'none', borderRadius: 4,
+                    cursor: allChecklistPassed ? 'pointer' : 'not-allowed', fontSize: 13 }}>
+                  {allChecklistPassed ? 'Approve & Lock CoA' : 'Checklist Incomplete'}
+                </button>
+              </div>
+            )}
+
+            {/* Reissue button — for Released CoAs only */}
+            {selected.status === 'Released' && (
+              <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => { setReissueTarget(selected); setReissueEsig({ password: '', meaning: 'I authorize the reissue of this CoA', reason: '' }); setReissueError(''); setSelected(null); setShowReissue(true) }}
+                  style={{ padding: '7px 16px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}>
+                  🔄 Reissue CoA
+                </button>
+              </div>
+            )}
+          </DetailPane>
+        ) : null}
+        onCloseDetail={() => setSelected(null)}
+      >
+        <DataTable loading={loading} data={filtered} exportFilename="CoA_Review" columns={[
+          { header: 'CoA No.', accessor: r => <strong style={{ fontFamily: 'monospace' }}>{r.coaNumber}</strong> },
+          { header: 'Sample', accessor: r => (
+            <button
+              onClick={() => setDetailSampleId(r.sampleId)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#2563eb', fontFamily: 'monospace', fontSize: 13, fontWeight: 700, textDecoration: 'underline dotted' }}>
+              {r.sampleNumber}
+            </button>
+          )},
+          { header: 'Material', accessor: 'materialName' },
+          { header: 'Lot', accessor: 'lotNumber' },
+          { header: 'Customer / DO', accessor: r => r.customerName ? `${r.customerName} / ${r.doNumber ?? '—'}` : '—' },
+          { header: 'Status', accessor: r => {
+            const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
+            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 500, background: c.bg, color: c.color }}>{r.status}</span>
+          }},
+          { header: 'QA Signed By', accessor: r => r.qaSignedBy
+            ? <span style={{ fontSize: 12 }}>{r.qaSignedBy}<br /><span style={{ color: '#6b7280' }}>{fmtDateTime(r.qaSignedAt!)}</span></span>
+            : '—' },
+          { header: 'Actions', accessor: r => (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button onClick={() => openDetail(r)} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: 12, padding: 0 }}>
+                Review
+              </button>
+              {r.status === 'Released' && (
+                <>
+                  <button onClick={() => downloadPdf(r)} style={{ background: 'none', border: 'none', color: '#065f46', cursor: 'pointer', fontSize: 12, padding: 0 }}>
+                    PDF
+                  </button>
+                  <button
+                    onClick={() => { setReissueTarget(r); setReissueEsig({ password: '', meaning: 'I authorize the reissue of this CoA', reason: '' }); setReissueError(''); setShowReissue(true) }}
+                    title="Issue a replacement CoA — supersedes this one"
+                    style={{ background: 'none', border: 'none', color: '#d97706', cursor: 'pointer', fontSize: 12, padding: 0 }}>
+                    Reissue
+                  </button>
+                </>
+              )}
+            </div>
+          )},
+        ]} />
+      </MasterDetail>
 
       {/* Approve Modal */}
       {showApprove && selected && (

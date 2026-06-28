@@ -44,7 +44,8 @@ public class GetWorkQueueHandler : IRequestHandler<GetWorkQueueQuery, List<WorkQ
 
         return await query
             .OrderBy(e => e.PriorityScore.HasValue ? e.PriorityScore.Value : 999)
-            .ThenBy(e => e.Sample.DueDate)
+            .ThenBy(e => e.Sample.DueDate ?? DateTimeOffset.MaxValue)
+            .ThenByDescending(e => e.CreatedAt)
             .Select(e => new WorkQueueItemDto(
                 e.ExecutionId, e.SampleId, e.Sample.SampleNumber,
                 e.Sample.Material != null ? e.Sample.Material.MaterialName : "Unknown",

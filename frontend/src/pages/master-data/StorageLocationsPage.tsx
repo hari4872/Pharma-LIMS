@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
-import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
+import { PageHeader, Field, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import { getErrorMessage } from '@/utils/errors'
 import { Drawer, DrawerFooter } from '@/components/Drawer'

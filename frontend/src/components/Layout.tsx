@@ -3,6 +3,8 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import type { AppDispatch, RootState } from '@/store'
 import { logout } from '@/store/authSlice'
+import { loadNavVisibility, isNavEnabled } from '@/store/navVisibilitySlice'
+import { fetchPermissions } from '@/store/authSlice'
 import { ToastContainer, toast } from '@/components/Toast'
 import CommandPalette from '@/components/CommandPalette'
 import OfflineSyncButton from '@/components/OfflineSyncButton'
@@ -31,108 +33,80 @@ type NavItem = {
   iconColor: string
   icon: React.ReactNode
   badge?: number
+  visKey?: string   // Module Visibility key e.g. "nav.multi-site"
+  roles?: string[]   // If set, only these roles see this item. Undefined = all roles.
+  permKey?: string   // If set, also checked against user's permOverrides (e.g. "sampleRegistration")
 }
 
+type NavSection = {
+  sectionKey: string
+  label: string
+  first?: boolean
+  items: NavItem[]
+  roles?: string[]  // If set, entire section hidden for roles not in this list.
+}
+
+// ── Role constants ────────────────────────────────────────────────────────
+const LAB_ROLES  = ['Admin', 'Analyst', 'QA', 'QCLead', 'LabManager', 'Supervisor']
+const QA_ROLES   = ['Admin', 'QA', 'QCLead', 'LabManager']
+const MGMT_ROLES = ['Admin', 'LabManager']
+
 // ── Nav definitions ───────────────────────────────────────────────────────
-const topItems: NavItem[] = [
+const NAV_SECTIONS: NavSection[] = [
   {
-    label: 'Dashboard', path: '/dashboard',
-    iconBg: '#dbeafe', iconColor: '#2563eb',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/></svg>,
+    sectionKey: 'sec.overview', label: 'Overview', first: true,
+    items: [
+      { label: 'Dashboard',  path: '/dashboard',            visKey: 'nav.dashboard',   iconBg: '#dbeafe', iconColor: '#2563eb', icon: <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8"/></svg> },
+      { label: 'Compliance', path: '/compliance',           visKey: 'nav.compliance',  iconBg: '#dcfce7', iconColor: '#16a34a', roles: [...QA_ROLES, 'Supervisor'], permKey: 'compliance', icon: <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg> },
+      { label: 'Multi-site', path: '/multi-site-dashboard', visKey: 'nav.multi-site',  iconBg: '#dbeafe', iconColor: '#1d4ed8', roles: MGMT_ROLES, icon: <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> },
+    ],
   },
   {
-    label: 'Compliance', path: '/compliance',
-    iconBg: '#dcfce7', iconColor: '#16a34a',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M12 2L4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>,
+    sectionKey: 'sec.lab-ops', label: 'Lab Operations',
+    items: [
+      { label: 'Sample Registration', path: '/samples',          visKey: 'nav.samples',          iconBg: '#e0f2fe', iconColor: '#0284c7', permKey: 'sampleRegistration', icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M12 12h.01M12 16h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> },
+      { label: 'Work Queue',          path: '/work-queue',       visKey: 'nav.work-queue',       iconBg: '#f1f5f9', iconColor: '#64748b', roles: LAB_ROLES, permKey: 'workQueue', icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M4 6h16M4 10h16M4 14h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> },
+      { label: 'Capacity Booking',    path: '/capacity-booking', visKey: 'nav.capacity-booking', iconBg: '#e0f2fe', iconColor: '#0284c7', roles: ['Admin', 'Analyst', 'LabManager', 'Supervisor'], icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> },
+      { label: 'Checkpoints',         path: '/checkpoint-tasks', visKey: 'nav.checkpoint-tasks', iconBg: '#fce7f3', iconColor: '#be185d', roles: LAB_ROLES, icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8"/></svg> },
+      { label: 'Digital Logbook',     path: '/digital-logbook',  visKey: 'nav.digital-logbook',  iconBg: '#fef3c7', iconColor: '#d97706', roles: LAB_ROLES, icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+    ],
   },
   {
-    label: 'Multi-site', path: '/multi-site-dashboard',
-    iconBg: '#dbeafe', iconColor: '#1d4ed8',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
-  },
-]
-
-// ── Lab Operations — Analyst daily workflow ───────────────────────────────
-const labOpsItems: NavItem[] = [
-  {
-    label: 'Sample Registration', path: '/samples',
-    iconBg: '#e0f2fe', iconColor: '#0284c7',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M12 12h.01M12 16h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+    sectionKey: 'sec.quality', label: 'Quality Assurance',
+    roles: QA_ROLES,
+    items: [
+      { label: 'Quality Assurance', path: '/quality-assurance', visKey: 'nav.quality-assurance', iconBg: '#dbeafe', iconColor: '#2563eb', permKey: 'resultsReview', icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+    ],
   },
   {
-    label: 'Work Queue', path: '/work-queue',
-    iconBg: '#f1f5f9', iconColor: '#64748b',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M4 6h16M4 10h16M4 14h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+    sectionKey: 'sec.release', label: 'Release & Dispatch',
+    roles: [...MGMT_ROLES, 'QA'],
+    items: [
+      { label: 'Release & Dispatch', path: '/release-dispatch', visKey: 'nav.release-dispatch', iconBg: '#f0fdf4', iconColor: '#15803d', permKey: 'batchRelease', icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+    ],
   },
   {
-    label: 'Capacity Booking', path: '/capacity-booking',
-    iconBg: '#e0f2fe', iconColor: '#0284c7',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>,
+    sectionKey: 'sec.stability', label: 'Stability & Retention',
+    roles: LAB_ROLES,
+    items: [
+      { label: 'Stability & Retention', path: '/stability-retention', visKey: 'nav.stability-retention', iconBg: '#e0f2fe', iconColor: '#0369a1', icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 3h6M10 3v6L5 19a2 2 0 002 3h10a2 2 0 002-3l-5-10V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+    ],
   },
   {
-    label: 'Checkpoints', path: '/checkpoint-tasks',
-    iconBg: '#fce7f3', iconColor: '#be185d',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.8"/></svg>,
+    sectionKey: 'sec.analytics', label: 'Analytics & Reports',
+    roles: [...QA_ROLES, 'Supervisor'],
+    items: [
+      { label: 'Reports & Exports', path: '/reports',        visKey: 'nav.reports',        iconBg: '#f0fdf4', iconColor: '#15803d', icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 17v-2m3 2v-4m3 4v-6M5 21h14a2 2 0 002-2V7l-5-5H5a2 2 0 00-2 2v15a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+      { label: 'Report Builder',    path: '/report-builder', visKey: 'nav.report-builder', iconBg: '#fef9c3', iconColor: '#a16207', roles: MGMT_ROLES, icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+    ],
   },
   {
-    label: 'Digital Logbook', path: '/digital-logbook',
-    iconBg: '#fef3c7', iconColor: '#d97706',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-]
-
-// ── Quality Assurance — QA Manager focus ──────────────────────────────────
-const qualityItems: NavItem[] = [
-  {
-    label: 'Quality Assurance', path: '/quality-assurance',
-    iconBg: '#dbeafe', iconColor: '#2563eb',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-]
-
-// ── Release & Dispatch — QA + Dispatch team ───────────────────────────────
-const releaseItems: NavItem[] = [
-  {
-    label: 'Release & Dispatch', path: '/release-dispatch',
-    iconBg: '#f0fdf4', iconColor: '#15803d',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7l2 2 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-]
-
-// ── Stability & Retention — ICH Q1A / 21 CFR 211.170 ─────────────────────
-const stabilityItems: NavItem[] = [
-  {
-    label: 'Stability & Retention', path: '/stability-retention',
-    iconBg: '#e0f2fe', iconColor: '#0369a1',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 3h6M10 3v6L5 19a2 2 0 002 3h10a2 2 0 002-3l-5-10V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-]
-
-// ── Analytics & Reports ───────────────────────────────────────────────────
-const analyticsItems: NavItem[] = [
-  {
-    label: 'Reports & Exports', path: '/reports',
-    iconBg: '#f0fdf4', iconColor: '#15803d',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M9 17v-2m3 2v-4m3 4v-6M5 21h14a2 2 0 002-2V7l-5-5H5a2 2 0 00-2 2v15a2 2 0 002 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Report Builder', path: '/report-builder',
-    iconBg: '#fef9c3', iconColor: '#a16207',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-]
-
-// ── Traceability & Transfers ──────────────────────────────────────────────
-const traceabilityItems: NavItem[] = [
-  {
-    label: 'Traceability', path: '/traceability',
-    iconBg: '#e0f2fe', iconColor: '#0284c7',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    label: 'Site Transfers', path: '/site-transfers',
-    iconBg: '#dbeafe', iconColor: '#1d4ed8',
-    icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M8 7h12M8 12h12M8 17h12M3 7h.01M3 12h.01M3 17h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
+    sectionKey: 'sec.traceability', label: 'Traceability & Transfers',
+    roles: [...MGMT_ROLES, 'QA', 'Supervisor'],
+    items: [
+      { label: 'Traceability',   path: '/traceability',   visKey: 'nav.traceability',   iconBg: '#e0f2fe', iconColor: '#0284c7', icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+      { label: 'Site Transfers', path: '/site-transfers', visKey: 'nav.site-transfers', iconBg: '#dbeafe', iconColor: '#1d4ed8', icon: <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M8 7h12M8 12h12M8 17h12M3 7h.01M3 12h.01M3 17h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> },
+    ],
   },
 ]
 
@@ -269,8 +243,11 @@ export default function Layout() {
   const dispatch   = useDispatch<AppDispatch>()
   const navigate   = useNavigate()
   const location   = useLocation()
-  const fullName   = useSelector((s: RootState) => s.auth.fullName)
-  const token      = useSelector((s: RootState) => s.auth.token)
+  const fullName      = useSelector((s: RootState) => s.auth.fullName)
+  const role          = useSelector((s: RootState) => s.auth.role) ?? ''
+  const userId        = useSelector((s: RootState) => s.auth.userId)
+  const permOverrides = useSelector((s: RootState) => s.auth.permOverrides)
+  const token         = useSelector((s: RootState) => s.auth.token)
   const initials   = fullName
     ? fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
     : '?'
@@ -285,6 +262,14 @@ export default function Layout() {
   })()
 
   const { isLocked, unlock } = useIdleLock(15, !!token)
+
+  const visMap    = useSelector((s: RootState) => s.navVisibility.map)
+
+  // Load module visibility once after login
+  useEffect(() => { dispatch(loadNavVisibility()) }, [dispatch])
+
+  // Load this user's per-user permission overrides — re-fetch when token changes (new login)
+  useEffect(() => { if (userId && token) dispatch(fetchPermissions(userId)) }, [dispatch, userId, token])
 
   const [collapsed,    setCollapsed]    = useState(false)
   const [paletteOpen,  setPaletteOpen]  = useState(false)
@@ -453,29 +438,25 @@ export default function Layout() {
 
         {/* Nav */}
         <nav style={{ flex: 1, paddingBottom: 10 }}>
-          <SectionHead label="Overview" first dm={dm} collapsed={collapsed} />
-          <NavGroup items={topItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
+          {NAV_SECTIONS.map(sec => {
+            if (!isNavEnabled(visMap, sec.sectionKey)) return null
+            if (sec.roles && !sec.roles.includes(role)) return null
+            const visibleItems = sec.items.filter(n =>
+              (!n.visKey   || isNavEnabled(visMap, n.visKey)) &&
+              (!n.roles    || n.roles.includes(role)) &&
+              (!n.permKey  || permOverrides[n.permKey] !== false)
+            )
+            if (visibleItems.length === 0) return null
+            return (
+              <div key={sec.sectionKey}>
+                <SectionHead label={sec.label} first={sec.first} dm={dm} collapsed={collapsed} />
+                <NavGroup items={visibleItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
+              </div>
+            )
+          })}
 
-          <SectionHead label="Lab Operations" dm={dm} collapsed={collapsed} />
-          <NavGroup items={labOpsItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
-
-          <SectionHead label="Quality Assurance" dm={dm} collapsed={collapsed} />
-          <NavGroup items={qualityItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
-
-          <SectionHead label="Release & Dispatch" dm={dm} collapsed={collapsed} />
-          <NavGroup items={releaseItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
-
-          <SectionHead label="Stability & Retention" dm={dm} collapsed={collapsed} />
-          <NavGroup items={stabilityItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
-
-          <SectionHead label="Analytics & Reports" dm={dm} collapsed={collapsed} />
-          <NavGroup items={analyticsItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
-
-          <SectionHead label="Traceability & Transfers" dm={dm} collapsed={collapsed} />
-          <NavGroup items={traceabilityItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
-
-          {/* ── Master Data / Settings — single consolidated entry ── */}
-          <div style={{ padding: collapsed ? '4px 4px 0' : '4px 8px 0' }}>
+          {/* ── Master Data / Settings — Admin and LabManager only ── */}
+          {MGMT_ROLES.includes(role) && <div style={{ padding: collapsed ? '4px 4px 0' : '4px 8px 0' }}>
             {!collapsed && (
               <div style={{
                 fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
@@ -515,7 +496,7 @@ export default function Layout() {
                 </span>
               )}
             </NavLink>
-          </div>
+          </div>}
         </nav>
 
         {/* User footer */}

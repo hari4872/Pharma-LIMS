@@ -30,12 +30,17 @@ public class DashboardAggregationService : IDashboardAggregationService
         var testsInProgress = await execQuery.CountAsync(e => e.Status == TestExecutionStatus.InProgress, ct);
         var testsCompleted  = await execQuery.CountAsync(e => e.Status == TestExecutionStatus.Completed, ct);
 
-        // Analyst workloads — contract 2: server-side aggregation
-        var workloads = await execQuery
+        // Analyst workloads — group DB-side by AnalystId, then merge by name in-memory
+        // to prevent duplicate rows when multiple seeded users share the same FullName
+        var workloads = (await execQuery
             .Where(e => e.Status == TestExecutionStatus.Assigned || e.Status == TestExecutionStatus.InProgress)
             .GroupBy(e => new { AnalystId = e.AnalystId ?? 0, FullName = e.Analyst != null ? e.Analyst.FullName : "Unassigned" })
             .Select(g => new AnalystWorkload(g.Key.AnalystId, g.Key.FullName, g.Count()))
-            .ToListAsync(ct);
+            .ToListAsync(ct))
+            .GroupBy(w => w.AnalystName)
+            .Select(g => new AnalystWorkload(g.First().AnalystId, g.Key, g.Sum(w => w.OpenTasks)))
+            .OrderByDescending(w => w.OpenTasks)
+            .ToList();
 
         return new WipSummary(registeredToday, inTesting, completedToday,
             testsPending, testsInProgress, testsCompleted, overdue, workloads);

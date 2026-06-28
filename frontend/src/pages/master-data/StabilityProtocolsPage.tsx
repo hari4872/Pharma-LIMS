@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react'
 import api from '@/api/client'
-import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
+import { PageHeader, Field, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { getErrorMessage } from '@/utils/errors'

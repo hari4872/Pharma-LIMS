@@ -2,7 +2,7 @@
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
-import { PageHeader, Modal, Field, ModalFooter, StatusBadge, inp } from './LaboratoriesPage'
+import { PageHeader, Field, StatusBadge, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 

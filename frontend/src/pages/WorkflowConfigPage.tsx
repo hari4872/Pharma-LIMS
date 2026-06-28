@@ -2,7 +2,7 @@
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import { toast } from '@/components/Toast'
-import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Field, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface Material   { materialId: number; materialName: string }

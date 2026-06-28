@@ -352,10 +352,10 @@ export default function DashboardPage() {
         boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
         overflow: 'hidden',
       }}>
-        <StatItem value={wip?.inTesting ?? 0}        label="In Testing"         valueColor="#111111"
-          iconBg="#eff6ff" iconColor="#2563eb" iconPath={ICONS.flask} />
-        <StatItem value={wip?.testsCompleted ?? 0}   label="Tests Completed"    valueColor="#16a34a"
+        <StatItem value={`${kpis?.rftRate ?? 0}%`}     label="RFT Rate"           valueColor={(kpis?.rftRate ?? 0) >= 95 ? '#16a34a' : (kpis?.rftRate ?? 0) >= 80 ? '#d97706' : '#dc2626'}
           iconBg="#f0fdf4" iconColor="#16a34a" iconPath={ICONS.check} />
+        <StatItem value={`${(tat?.avgTatHours ?? 0).toFixed(1)}h`} label="Avg TAT"          valueColor="#111111"
+          iconBg="#f8fafc" iconColor="#64748b" iconPath={ICONS.clock} />
         <StatItem value={`${kpis?.oosRate ?? 0}%`}   label="OOS Rate"           valueColor={(kpis?.oosRate ?? 0) > 0 ? '#dc2626' : '#16a34a'}
           iconBg={(kpis?.oosRate ?? 0) > 0 ? '#fef2f2' : '#f0fdf4'} iconColor={(kpis?.oosRate ?? 0) > 0 ? '#dc2626' : '#16a34a'} iconPath={ICONS.percent} />
         <StatItem value={`${kpis?.ootRate ?? 0}%`}   label="OOT Rate"           valueColor={(kpis?.ootRate ?? 0) > 0 ? '#d97706' : '#16a34a'}

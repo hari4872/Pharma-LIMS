@@ -27,7 +27,7 @@ public class SamplesController : LimsControllerBase
     public async Task<IActionResult> GetAll([FromQuery] int? labId, [FromQuery] string? status, [FromQuery] int? analystId)
         => Ok(await _mediator.Send(new GetSamplesQuery(labId, status, analystId)));
 
-    // POST api/v1/samples — FR-01: unified entry for both manual and checkpoint auto-trigger
+    // POST api/v1/samples ï¿½ FR-01: unified entry for both manual and checkpoint auto-trigger
     [HttpPost]
     [Authorize(Roles = "Admin,QA,Analyst,LabManager")]
     [RequirePermission("sampleRegistration")]
@@ -54,7 +54,7 @@ public class SamplesController : LimsControllerBase
         });
     }
 
-    // POST api/v1/samples/{id}/sign-srf — Step 7: SRF Â§11.50 e-sig â†’ PendingTesting (FR-09)
+    // POST api/v1/samples/{id}/sign-srf ï¿½ Step 7: SRF Â§11.50 e-sig â†’ PendingTesting (FR-09)
     [HttpPost("{id}/sign-srf")]
     [Authorize(Roles = "Admin,Analyst,QA,LabManager")]
     public async Task<IActionResult> SignSRF(int id, [FromBody] ApproveRequest request)
@@ -69,7 +69,7 @@ public class SamplesController : LimsControllerBase
         return Ok(new { sampleId = result.Value, status = "PendingTesting" });
     }
 
-    // POST api/v1/samples/{id}/barcode-reprint — FR-18: audit-logged reprint with mandatory reason
+    // POST api/v1/samples/{id}/barcode-reprint ï¿½ FR-18: audit-logged reprint with mandatory reason
     [HttpPost("{id}/barcode-reprint")]
     [Authorize(Roles = "Admin,Analyst,LabManager,QA")]
     public async Task<IActionResult> ReprintBarcode(int id, [FromBody] ReprintBarcodeRequest request)
@@ -110,7 +110,7 @@ public class SamplesController : LimsControllerBase
         });
     }
 
-    // GET api/v1/samples/{id} — full sample detail with related executions (single query)
+    // GET api/v1/samples/{id} ï¿½ full sample detail with related executions (single query)
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
@@ -119,6 +119,7 @@ public class SamplesController : LimsControllerBase
             .Include(s => s.Material)
             .Include(s => s.SampleTypeNav)
             .Include(s => s.SpecTemplate)
+            .Include(s => s.FormTemplate)
             .Include(s => s.TestExecutions).ThenInclude(e => e.Analyst)
             .Include(s => s.TestExecutions).ThenInclude(e => e.Instrument)
             .AsNoTracking()
@@ -145,13 +146,15 @@ public class SamplesController : LimsControllerBase
             sample.ExternalBatchId,
             SpecTemplateName = sample.SpecTemplate != null ? sample.SpecTemplate.TemplateName : null,
             sample.SpecTemplateId,
+            sample.FormTemplateId,
+            FormTemplateName = sample.FormTemplate != null ? sample.FormTemplate.FormName : null,
             TestExecutions = sample.TestExecutions
                 .OrderBy(e => e.PriorityScore ?? 999)
                 .Select(e => new {
                     e.ExecutionId,
                     Status         = e.Status.ToString(),
-                    AnalystName    = e.Analyst != null ? e.Analyst.FullName : "—",
-                    InstrumentCode = e.Instrument != null ? e.Instrument.InstrumentCode : "—",
+                    AnalystName    = e.Analyst != null ? e.Analyst.FullName : "ï¿½",
+                    InstrumentCode = e.Instrument != null ? e.Instrument.InstrumentCode : "ï¿½",
                     e.PriorityScore, e.StartedAt, e.CompletedAt, DueDate = e.DueAt
                 }).ToList()
         });
@@ -233,7 +236,7 @@ public class SamplesController : LimsControllerBase
         return Ok(new { testsCreated = execIds.Count, specTemplateId = req.SpecTemplateId });
     }
 
-    // POST api/v1/samples/{id}/assign-form-template — manually assign a form template when auto-select failed
+    // POST api/v1/samples/{id}/assign-form-template ï¿½ manually assign a form template when auto-select failed
     [HttpPost("{id}/assign-form-template")]
     [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> AssignFormTemplate(int id, [FromBody] AssignFormTemplateRequest req, CancellationToken ct)
@@ -248,7 +251,7 @@ public class SamplesController : LimsControllerBase
         sample.FormTemplateId = req.FormTemplateId;
         await _db.SaveChangesAsync(ct);
 
-        // Audit log — 21 CFR §11.10(e): record who changed form template, old value, new value
+        // Audit log ï¿½ 21 CFR ï¿½11.10(e): record who changed form template, old value, new value
         var userName = User.Identity?.Name ?? "Unknown";
         await _audit.LogAsync("Sample", id, "FormTemplateChanged",
             oldFormTemplateId.HasValue ? new { FormTemplateId = oldFormTemplateId.Value } : null,
@@ -258,7 +261,7 @@ public class SamplesController : LimsControllerBase
         return Ok(new { formTemplateId = req.FormTemplateId, formTemplateName = template.FormName });
     }
 
-    // POST api/v1/samples/{id}/form-entries — record that the monitoring form has been filled (INSERT-only, 21 CFR §11)
+    // POST api/v1/samples/{id}/form-entries ï¿½ record that the monitoring form has been filled (INSERT-only, 21 CFR ï¿½11)
     [HttpPost("{id}/form-entries")]
     [Authorize(Roles = "Admin,QA,LabManager,Analyst")]
     public async Task<IActionResult> SubmitFormEntry(int id, [FromBody] SubmitFormEntryRequest req, CancellationToken ct)

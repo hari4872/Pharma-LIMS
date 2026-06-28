@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
+import { isNavEnabled } from '@/store/navVisibilitySlice'
+import NavVisibilityPanel from './master-data/NavVisibilityPanel'
 import LaboratoriesPage       from './master-data/LaboratoriesPage'
 import InstrumentsPage        from './master-data/InstrumentsPage'
 import InstrumentMappingPage  from './master-data/InstrumentMappingPage'
@@ -21,7 +23,7 @@ import WorkflowConfigPage     from './WorkflowConfigPage'
 import CheckpointsPage        from './CheckpointsPage'
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
-type TabId = 'lab-setup' | 'materials' | 'methods-specs' | 'users-training' | 'workflow'
+type TabId = 'lab-setup' | 'materials' | 'methods-specs' | 'users-training' | 'workflow' | 'nav-visibility'
 
 interface SubTab {
   id: string
@@ -37,6 +39,8 @@ interface TabGroup {
   color: string
   bg: string
   subtabs: SubTab[]
+  adminOnly?: boolean
+  visKey?: string   // Module Visibility key for the tab group itself
 }
 
 const TAB_GROUPS: TabGroup[] = [
@@ -83,21 +87,36 @@ const TAB_GROUPS: TabGroup[] = [
       { id: 'workflow-config', label: 'Workflow Templates', icon: '⚙', component: WorkflowConfigPage },
     ],
   },
+  {
+    id: 'nav-visibility', label: 'Module Visibility', icon: '👁', color: '#7c3aed', bg: '#f3e8ff',
+    subtabs: [
+      { id: 'nav-visibility', label: 'Module Visibility', icon: '👁', component: NavVisibilityPanel },
+    ],
+    adminOnly: true,
+  },
 ]
 
 export default function SettingsPage() {
-  const role = useSelector((s: RootState) => s.auth.role) ?? ''
+  const role    = useSelector((s: RootState) => s.auth.role) ?? ''
+  const visMap  = useSelector((s: RootState) => s.navVisibility.map)
   const isAdmin = role === 'Admin'
 
   const [activeGroup,  setActiveGroup]  = useState<TabId>('lab-setup')
   const [activeSub,    setActiveSub]    = useState<string>('laboratories')
 
-  // Filter out the Users subtab for non-Admin roles
-  const visibleGroups = TAB_GROUPS.map(g =>
-    g.id === 'users-training'
-      ? { ...g, subtabs: g.subtabs.filter(s => s.id !== 'users' || isAdmin) }
-      : g
-  )
+  // Filter tab groups: hide adminOnly tabs for non-admin, hide tabs turned off via Module Visibility
+  const visibleGroups = TAB_GROUPS
+    .filter(g => (!g.adminOnly || isAdmin) && isNavEnabled(visMap, `md.${g.id}`))
+    .map(g =>
+      g.id === 'users-training'
+        ? { ...g, subtabs: g.subtabs.filter(s => s.id !== 'users' || isAdmin) }
+        : g
+    )
+    .map(g => ({
+      ...g,
+      subtabs: g.subtabs.filter(s => isNavEnabled(visMap, `md.${s.id}`)),
+    }))
+    .filter(g => g.subtabs.length > 0)
 
   const group    = visibleGroups.find(g => g.id === activeGroup)!
   const subtab   = group.subtabs.find(s => s.id === activeSub) ?? group.subtabs[0]

@@ -10,7 +10,7 @@ namespace LIMS.API.Controllers;
 [ApiController]
 [Route("api/v1/users")]
 [Authorize]
-public class UsersController : ControllerBase
+public class UsersController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILimsDbContext _db;
@@ -77,15 +77,17 @@ public class UsersController : ControllerBase
         return Ok(new { userId = id, status = "Unlocked" });
     }
 
-    // GET api/v1/users/{id}/permissions — get user's permission matrix
+    // GET api/v1/users/{id}/permissions — Admin can view any user; any user can view their own
     [HttpGet("{id}/permissions")]
-    [Authorize(Roles = "Admin")]
+    [Authorize]
     public async Task<IActionResult> GetPermissions(int id)
     {
+        if (!TryGetUserId(out var callerId)) return Unauthorized();
+        if (!User.IsInRole("Admin") && callerId != id) return Forbid();
+
         var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == id);
         if (user is null) return NotFound(new { message = "User not found." });
 
-        // If custom permissions are stored on the user, return them; else return role defaults
         if (user.CustomPermissionsJson != null)
         {
             var custom = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, bool>>(user.CustomPermissionsJson);

@@ -54,8 +54,12 @@ public class SpecificationEngineService : ISpecificationEngineService
         // Filter to Approved only
         var approved = templates
             .Where(t => t.Status == SpecTemplateStatus.Approved)
-            // Respect EffectiveFrom — don't apply a future-dated spec
-            .Where(t => t.EffectiveFrom == null || t.EffectiveFrom <= DateTimeOffset.UtcNow)
+            // Respect EffectiveFrom — don't apply a future-dated spec.
+            // Compare by calendar date: a spec "effective from today" is usable for the
+            // whole day, avoiding a timezone-driven dead zone when EffectiveFrom is stored
+            // as midnight UTC but the user's local day has already started.
+            .Where(t => t.EffectiveFrom == null
+                     || t.EffectiveFrom.Value.UtcDateTime.Date <= DateTimeOffset.UtcNow.UtcDateTime.Date)
             .ToList();
 
         if (approved.Count == 0)

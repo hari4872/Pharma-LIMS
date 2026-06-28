@@ -1,9 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit'
 import authReducer from './authSlice'
+import navVisibilityReducer from './navVisibilitySlice'
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
+    navVisibility: navVisibilityReducer,
   }
 })
 

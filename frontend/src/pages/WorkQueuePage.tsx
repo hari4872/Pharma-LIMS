@@ -6,8 +6,9 @@ import { useNavigate } from 'react-router-dom'
 import api from '@/api/client'
 import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
 import DataTable from '@/components/DataTable'
-import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Field, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
+import { MasterDetail, DetailPane } from '@/components/MasterDetail'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 import BatchResultEntryPage from './BatchResultEntryPage'
@@ -97,6 +98,8 @@ export default function WorkQueuePage() {
   const scanBuffer                      = useRef('')
   const scanLastKey                     = useRef(0)
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
+  // Master-detail selection
+  const [selectedItem, setSelectedItem] = useState<WorkItem | null>(null)
 
   const role = useSelector((s: RootState) => s.auth.role) ?? ''
   const canAssign = ['Admin', 'QA', 'LabManager', 'QCLead'].includes(role)
@@ -561,64 +564,117 @@ export default function WorkQueuePage() {
         </div>
       )}
 
-      <DataTable loading={loading}
-        data={scanResults && scanResults.length > 0
-          ? data.filter(r => scanResults.some(s => s.executionId === r.executionId))
-          : data}
-        rowStyle={() => {
-          if (!scanResults || scanResults.length === 0) return {}
-          return { background: '#fffbeb', outline: '2px solid #fcd34d', outlineOffset: '-2px' }
-        }}
-        columns={[
-        { header: 'Sample No.', accessor: r => (
-          <div>
-            <button onClick={() => setDetailSampleId(r.sampleId)}
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f', fontSize: 'inherit', textDecoration: 'underline dotted' }}
-              title="Click to view sample details">
-              {r.sampleNumber}
-            </button>
-            {isOverdue(r) && <span style={{ marginLeft: 6, fontSize: 11, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8 }}>OVERDUE</span>}
-            {scanResults?.some(s => s.executionId === r.executionId) && (
-              <span style={{ marginLeft: 6, fontSize: 11, background: '#fef9c3', color: '#854d0e', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>● MATCHED</span>
-            )}
-          </div>
-        )},
-        { header: 'Material / Lot', accessor: r => <span>{r.materialName}<br /><span style={{ fontSize: 12, color: '#6b7280' }}>{r.lotNumber}</span></span> },
-        { header: 'Analyst', accessor: 'analystName' },
-        { header: 'Instrument', accessor: 'instrumentCode' },
-        { header: 'Priority', accessor: 'priorityScore', render: r => {
-          const pb = priorityBadge(r.priorityScore)
-          return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: pb.bg, color: pb.color, border: `1px solid ${pb.border}` }}>{pb.label}</span>
-        }},
-        { header: 'Status', accessor: r => {
-          const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
-          return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{r.status}</span>
-        }},
-        { header: 'Due', accessor: r => r.dueDate ? <span style={{ color: isOverdue(r) ? '#dc2626' : '#374151' }}>{fmtDate(r.dueDate)}</span> : '—' },
-        { header: 'Started', accessor: r => r.startedAt ? fmtDateTime(r.startedAt) : '—' },
-        { header: 'Actions', accessor: r => (
-          <div style={{ display: 'flex', gap: 6 }}>
-            {r.status === 'Assigned' && (
-              <button onClick={() => startTask(r.executionId)}
-                style={{ padding: '3px 8px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                Start Task
+      <MasterDetail
+        onCloseDetail={() => setSelectedItem(null)}
+        detailTitle="Task Detail"
+        detail={selectedItem ? (
+          <DetailPane
+            title={selectedItem.sampleNumber}
+            subtitle={`${selectedItem.materialName} · ${selectedItem.lotNumber}`}
+            onClose={() => setSelectedItem(null)}
+            actions={
+              <button
+                onClick={() => setDetailSampleId(selectedItem.sampleId)}
+                style={{ padding: '4px 10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 5, fontSize: 11, cursor: 'pointer', color: '#374151' }}
+              >
+                Sample Info
               </button>
-            )}
-            {r.status === 'Assigned' && canAssign && (
-              <button onClick={() => openReassign(r)}
-                style={{ padding: '3px 8px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                Re-assign
-              </button>
-            )}
-            {r.status === 'InProgress' && (
-              <a href={`/test-execution/${r.executionId}`}
-                style={{ padding: '3px 8px', background: '#7c3aed', color: '#fff', borderRadius: 4, textDecoration: 'none', fontSize: 11 }}>
-                Enter Results
-              </a>
-            )}
-          </div>
-        )},
-      ]} />
+            }
+          >
+            {/* Status + Priority */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+              {(() => {
+                const c = STATUS_COLORS[selectedItem.status] ?? { bg: '#f3f4f6', color: '#374151' }
+                return <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color }}>{selectedItem.status}</span>
+              })()}
+              {(() => {
+                const pb = priorityBadge(selectedItem.priorityScore)
+                return <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: pb.bg, color: pb.color, border: `1px solid ${pb.border}` }}>{pb.label}</span>
+              })()}
+              {isOverdue(selectedItem) && <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b' }}>OVERDUE</span>}
+            </div>
+
+            {/* Detail fields */}
+            {[
+              { label: 'Analyst',    value: selectedItem.analystName || '—' },
+              { label: 'Instrument', value: selectedItem.instrumentCode || '—' },
+              { label: 'Due Date',   value: selectedItem.dueDate ? fmtDate(selectedItem.dueDate) : '—' },
+              { label: 'Started',    value: selectedItem.startedAt ? fmtDateTime(selectedItem.startedAt) : '—' },
+              { label: 'Execution',  value: `#${selectedItem.executionId}` },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: 13, color: '#0f172a', fontWeight: 500 }}>{value}</div>
+              </div>
+            ))}
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16, paddingTop: 14, borderTop: '1px solid #e5e7eb' }}>
+              {selectedItem.status === 'Assigned' && (
+                <button
+                  onClick={() => startTask(selectedItem.executionId)}
+                  style={{ padding: '9px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer', width: '100%' }}
+                >
+                  ▶ Start Task
+                </button>
+              )}
+              {selectedItem.status === 'InProgress' && (
+                <a
+                  href={`/test-execution/${selectedItem.executionId}`}
+                  style={{ padding: '9px 14px', background: '#7c3aed', color: '#fff', borderRadius: 7, fontWeight: 600, fontSize: 13, textDecoration: 'none', display: 'block', textAlign: 'center', width: '100%', boxSizing: 'border-box' }}
+                >
+                  ✏ Enter Results
+                </a>
+              )}
+              {selectedItem.status === 'Assigned' && canAssign && (
+                <button
+                  onClick={() => { openReassign(selectedItem); setSelectedItem(null) }}
+                  style={{ padding: '9px 14px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer', width: '100%' }}
+                >
+                  ↔ Re-assign
+                </button>
+              )}
+            </div>
+          </DetailPane>
+        ) : null}
+      >
+        <DataTable loading={loading}
+          data={scanResults && scanResults.length > 0
+            ? data.filter(r => scanResults.some(s => s.executionId === r.executionId))
+            : data}
+          onRowClick={row => setSelectedItem(row)}
+          selectedRow={selectedItem ?? undefined}
+          rowStyle={() => {
+            if (!scanResults || scanResults.length === 0) return {}
+            return { background: '#fffbeb', outline: '2px solid #fcd34d', outlineOffset: '-2px' }
+          }}
+          columns={[
+          { header: 'Sample No.', accessor: r => (
+            <div>
+              <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f' }}>
+                {r.sampleNumber}
+              </span>
+              {isOverdue(r) && <span style={{ marginLeft: 6, fontSize: 11, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8 }}>OVERDUE</span>}
+              {scanResults?.some(s => s.executionId === r.executionId) && (
+                <span style={{ marginLeft: 6, fontSize: 11, background: '#fef9c3', color: '#854d0e', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>● MATCHED</span>
+              )}
+            </div>
+          )},
+          { header: 'Material / Lot', accessor: r => <span>{r.materialName}<br /><span style={{ fontSize: 12, color: '#6b7280' }}>{r.lotNumber}</span></span> },
+          { header: 'Analyst', accessor: 'analystName' },
+          { header: 'Instrument', accessor: 'instrumentCode' },
+          { header: 'Priority', accessor: 'priorityScore', render: r => {
+            const pb = priorityBadge(r.priorityScore)
+            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: pb.bg, color: pb.color, border: `1px solid ${pb.border}` }}>{pb.label}</span>
+          }},
+          { header: 'Status', accessor: r => {
+            const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
+            return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{r.status}</span>
+          }},
+          { header: 'Due', accessor: r => r.dueDate ? <span style={{ color: isOverdue(r) ? '#dc2626' : '#374151' }}>{fmtDate(r.dueDate)}</span> : '—' },
+          { header: 'Started', accessor: r => r.startedAt ? fmtDateTime(r.startedAt) : '—' },
+        ]} />
+      </MasterDetail>
 
       {/* ── Re-assign Drawer ─────────────────────────────────────────────── */}
       {reassignItem && (

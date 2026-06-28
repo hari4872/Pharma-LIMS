@@ -9,7 +9,8 @@ interface AuthState {
   role: string | null
   userType: string | null
   labId: number | null
-  labName: string | null   // MS-1: lab display name from JWT claim
+  labName: string | null
+  permOverrides: Record<string, boolean>  // per-user permission overrides loaded after login
   loading: boolean
   error: string | null
 }
@@ -58,6 +59,16 @@ function hydrateFromToken(token: string | null): Partial<AuthState> {
   }
 }
 
+export const fetchPermissions = createAsyncThunk('auth/fetchPermissions',
+  async (userId: number) => {
+    const { data } = await api.get(`/users/${userId}/permissions`)
+    const perms = data.permissions as Record<string, boolean>
+    // Persist to sessionStorage so permissions survive page refresh without a re-fetch flash
+    sessionStorage.setItem('lims_perms', JSON.stringify(perms))
+    return perms
+  }
+)
+
 const storedToken = localStorage.getItem('lims_token')
 const initial: AuthState = {
   token: storedToken,
@@ -67,6 +78,9 @@ const initial: AuthState = {
   userType: null,
   labId: null,
   labName: null,
+  permOverrides: (() => {
+    try { return JSON.parse(sessionStorage.getItem('lims_perms') ?? '{}') } catch { return {} }
+  })(),
   loading: false,
   error: null,
   ...hydrateFromToken(storedToken),
@@ -96,8 +110,9 @@ const authSlice = createSlice({
       state.userType = null
       state.labId = null
       state.labName = null
+      state.permOverrides = {}
       localStorage.removeItem('lims_token')
-      sessionStorage.clear()
+      sessionStorage.clear()   // also clears lims_perms
     }
   },
   extraReducers: b => {
@@ -115,6 +130,9 @@ const authSlice = createSlice({
     b.addCase(login.rejected, (s, a) => {
       s.loading = false
       s.error = a.payload as string
+    })
+    b.addCase(fetchPermissions.fulfilled, (s, a) => {
+      s.permOverrides = a.payload ?? {}
     })
   }
 })

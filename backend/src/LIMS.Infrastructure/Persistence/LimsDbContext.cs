@@ -99,11 +99,21 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<LoginAuditLog> LoginAuditLogs => Set<LoginAuditLog>();
     public DbSet<StabilityTrendPoint> StabilityTrendPoints => Set<StabilityTrendPoint>();
     public DbSet<SampleContainer> SampleContainers => Set<SampleContainer>();
+    // Module Visibility
+    public DbSet<NavVisibilitySetting> NavVisibilitySettings => Set<NavVisibilitySetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(LimsDbContext).Assembly);
+
+        // NavVisibilitySetting — string PK, no FK
+        modelBuilder.Entity<NavVisibilitySetting>(e =>
+        {
+            e.HasKey(x => x.Key);
+            e.Property(x => x.Key).IsRequired().HasMaxLength(100);
+            e.Property(x => x.UpdatedBy).IsRequired().HasMaxLength(100);
+        });
 
         // ProcessLogReading — parameter values recorded when a process log row is signed
         modelBuilder.Entity<Domain.Entities.ProcessLogReading>(e =>
