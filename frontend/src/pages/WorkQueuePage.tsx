@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import { getErrorMessage, asApiError } from '@/utils/errors'
@@ -20,10 +20,26 @@ interface WorkItem {
   startedAt: string | null; completedAt: string | null
   dueDate: string | null; createdAt: string
 }
+
+interface SampleGroup {
+  sampleId: number
+  sampleNumber: string
+  materialName: string
+  lotNumber: string
+  executions: WorkItem[]
+  overallStatus: string
+  totalCount: number
+  completedCount: number
+  inProgressCount: number
+  analystName: string
+  minPriority: number | null
+  earliestDue: string | null
+  anyOverdue: boolean
+}
+
 interface Sample { sampleId: number; sampleNumber: string; materialName: string; lotNumber: string; specTemplateId?: number }
 interface Analyst { userId: number; fullName: string }
 
-// AI Intelligence interfaces
 interface AnalystLoad { userId: number; fullName: string; assigned: number; inProgress: number; overdue: number }
 interface PriorityBand { band: string; count: number }
 interface QueueIntelligence { labId: number; totalOpen: number; overdue: number; oosOpen: number; avgTatHours: number | null; analystLoads: AnalystLoad[]; priorityBands: PriorityBand[] }
@@ -63,6 +79,55 @@ const TAB_STYLE = (active: boolean): React.CSSProperties => ({
   transition: 'all 0.15s',
 })
 
+function groupBySample(items: WorkItem[]): SampleGroup[] {
+  const map = new Map<number, WorkItem[]>()
+  for (const item of items) {
+    if (!map.has(item.sampleId)) map.set(item.sampleId, [])
+    map.get(item.sampleId)!.push(item)
+  }
+  return Array.from(map.values()).map(execs => {
+    const completed  = execs.filter(e => e.status === 'Completed').length
+    const inProgress = execs.filter(e => e.status === 'InProgress').length
+    const hasOOS     = execs.some(e => e.status === 'OOSOpen')
+
+    let overallStatus = 'Assigned'
+    if (hasOOS)                        overallStatus = 'OOSOpen'
+    else if (inProgress > 0)           overallStatus = 'InProgress'
+    else if (completed === execs.length) overallStatus = 'Completed'
+
+    const analysts   = [...new Set(execs.map(e => e.analystName).filter(Boolean))]
+    const analystName = analysts.length === 0 ? '—' : analysts.length === 1 ? analysts[0] : 'Multiple'
+
+    const priorities = execs.map(e => e.priorityScore).filter((p): p is number => p !== null)
+    const minPriority = priorities.length > 0 ? Math.min(...priorities) : null
+
+    const dues = execs.map(e => e.dueDate).filter(Boolean) as string[]
+    const earliestDue = dues.length > 0 ? dues.sort()[0] : null
+
+    const now = new Date()
+    const anyOverdue = execs.some(e =>
+      e.dueDate && new Date(e.dueDate) < now &&
+      (e.status === 'Assigned' || e.status === 'InProgress')
+    )
+
+    return {
+      sampleId: execs[0].sampleId,
+      sampleNumber: execs[0].sampleNumber,
+      materialName: execs[0].materialName,
+      lotNumber: execs[0].lotNumber,
+      executions: execs,
+      overallStatus,
+      totalCount: execs.length,
+      completedCount: completed,
+      inProgressCount: inProgress,
+      analystName,
+      minPriority,
+      earliestDue,
+      anyOverdue,
+    }
+  })
+}
+
 export default function WorkQueuePage() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<'queue' | 'batch'>('queue')
@@ -75,31 +140,26 @@ export default function WorkQueuePage() {
   const [form, setForm] = useState({ sampleId: '', analystId: '', priorityScore: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  // Re-assign (per-test-method)
+  const [sampleSearch, setSampleSearch] = useState('')
+  const [sampleDropOpen, setSampleDropOpen] = useState(false)
   const [reassignItem, setReassignItem]   = useState<WorkItem | null>(null)
   const [reassignForm, setReassignForm]   = useState({ analystId: '', priorityScore: '' })
   const [reassignSaving, setReassignSaving] = useState(false)
   const [reassignError, setReassignError]   = useState('')
-  // AI Intelligence
   const [showAi, setShowAi]           = useState(false)
   const [aiData, setAiData]           = useState<QueueIntelligence | null>(null)
   const [aiSuggestion, setAiSuggestion] = useState<WorkloadSuggestion | null>(null)
   const [aiLoading, setAiLoading]     = useState(false)
-
-  // Shift Handover
   const [handoverOpen, setHandoverOpen]   = useState(false)
   const [handoverData, setHandoverData]   = useState<{ summary: string; generatedAt: string } | null>(null)
   const [handoverLoading, setHandoverLoading] = useState(false)
-
-  // Barcode scan
   const [scanQuery, setScanQuery]       = useState('')
-  const [scanResults, setScanResults]   = useState<WorkItem[] | null>(null)
+  const [scanSampleIds, setScanSampleIds] = useState<Set<number> | null>(null)
   const scanInputRef                    = useRef<HTMLInputElement>(null)
   const scanBuffer                      = useRef('')
   const scanLastKey                     = useRef(0)
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
-  // Master-detail selection
-  const [selectedItem, setSelectedItem] = useState<WorkItem | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<SampleGroup | null>(null)
 
   const role = useSelector((s: RootState) => s.auth.role) ?? ''
   const canAssign = ['Admin', 'QA', 'LabManager', 'QCLead'].includes(role)
@@ -118,35 +178,32 @@ export default function WorkQueuePage() {
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [statusFilter])
 
-  // ── Barcode scan / search ────────────────────────────────────────────────
+  const groups = groupBySample(data)
+
+  const displayGroups = scanSampleIds !== null
+    ? groups.filter(g => scanSampleIds.has(g.sampleId))
+    : groups
+
   const runScan = useCallback((value: string) => {
     const q = value.trim().toUpperCase()
-    if (!q) { setScanResults(null); return }
-    const matches = data
-      .filter(w => w.sampleNumber.toUpperCase().includes(q))
-      .sort((a, b) => {
-        // Sort: active statuses first, then by priority (lower = more urgent)
-        const activeA = a.status === 'Assigned' || a.status === 'InProgress' ? 0 : 1
-        const activeB = b.status === 'Assigned' || b.status === 'InProgress' ? 0 : 1
-        if (activeA !== activeB) return activeA - activeB
-        const pa = a.priorityScore ?? 999
-        const pb = b.priorityScore ?? 999
-        return pa - pb
-      })
-    setScanResults(matches)
-    if (matches.length === 0) toast(`No work items found for "${value.trim()}"`, 'error')
+    if (!q) { setScanSampleIds(null); return }
+    const matched = data.filter(w => w.sampleNumber.toUpperCase().includes(q))
+    if (matched.length === 0) {
+      toast(`No work items found for "${value.trim()}"`, 'error')
+      setScanSampleIds(new Set())
+    } else {
+      setScanSampleIds(new Set(matched.map(w => w.sampleId)))
+    }
   }, [data])
 
-  // Global keyboard listener — captures scanner rapid-fire input from anywhere on the page
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const target = e.target as HTMLElement
       const inOtherInput = ['INPUT','SELECT','TEXTAREA'].includes(target.tagName) &&
                            target.id !== 'wq-scan-input'
-      if (inOtherInput) return   // don't interfere with forms / modals
+      if (inOtherInput) return
 
       const now = Date.now()
-      // Gap > 80ms between keys = human typing; reset buffer
       if (now - scanLastKey.current > 80) scanBuffer.current = ''
       scanLastKey.current = now
 
@@ -155,7 +212,6 @@ export default function WorkQueuePage() {
           const val = scanBuffer.current
           setScanQuery(val)
           scanBuffer.current = ''
-          // Also populate the visible input
           if (scanInputRef.current) scanInputRef.current.value = val
           runScan(val)
           e.preventDefault()
@@ -171,7 +227,7 @@ export default function WorkQueuePage() {
   async function toggleAi() {
     if (showAi) { setShowAi(false); return }
     setShowAi(true)
-    if (aiData) return // already loaded
+    if (aiData) return
     setAiLoading(true)
     try {
       const [qr, sr] = await Promise.all([
@@ -262,11 +318,6 @@ export default function WorkQueuePage() {
     }
   }
 
-  function isOverdue(item: WorkItem) {
-    return item.dueDate && new Date(item.dueDate) < new Date() &&
-      (item.status === 'Assigned' || item.status === 'InProgress')
-  }
-
   return (
     <div>
       {/* ── Tab strip ─────────────────────────────────────────────────────── */}
@@ -281,6 +332,7 @@ export default function WorkQueuePage() {
 
       {tab === 'batch' && <BatchResultEntryPage />}
       {tab === 'queue' && <div>
+
       {/* ── Barcode Scan Bar ───────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
@@ -307,9 +359,9 @@ export default function WorkQueuePage() {
           style={{ padding: '7px 16px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
           Search
         </button>
-        {scanResults !== null && (
+        {scanSampleIds !== null && (
           <button
-            onClick={() => { setScanResults(null); setScanQuery(''); if (scanInputRef.current) scanInputRef.current.value = '' }}
+            onClick={() => { setScanSampleIds(null); setScanQuery(''); if (scanInputRef.current) scanInputRef.current.value = '' }}
             style={{ padding: '7px 12px', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
             ✕ Clear
           </button>
@@ -318,84 +370,6 @@ export default function WorkQueuePage() {
           Click field · scan label · Enter
         </span>
       </div>
-
-      {/* ── Scan Results ───────────────────────────────────────────────────── */}
-      {scanResults !== null && scanResults.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-            {scanResults.length === 1 ? '1 work item found' : `${scanResults.length} work items found — sorted by priority`}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {scanResults.map(r => {
-              const pb      = priorityBadge(r.priorityScore)
-              const overdue = r.dueDate && new Date(r.dueDate) < new Date() && (r.status === 'Assigned' || r.status === 'InProgress')
-              const sc      = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
-              return (
-                <div key={r.executionId} style={{
-                  border: `2px solid ${pb.border}`, borderRadius: 10,
-                  background: pb.bg, padding: '14px 18px',
-                  display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
-                }}>
-                  {/* Priority badge */}
-                  <div style={{
-                    minWidth: 96, padding: '4px 12px', borderRadius: 20, textAlign: 'center',
-                    background: '#fff', border: `1.5px solid ${pb.border}`,
-                    fontSize: 12, fontWeight: 700, color: pb.color, whiteSpace: 'nowrap',
-                  }}>
-                    {pb.label}
-                    {r.priorityScore !== null && <span style={{ marginLeft: 4, opacity: 0.7 }}>#{r.priorityScore}</span>}
-                  </div>
-
-                  {/* Sample info */}
-                  <div style={{ flex: 1, minWidth: 200 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                      <span style={{ fontSize: 15, fontWeight: 700, fontFamily: 'monospace', color: '#111827' }}>{r.sampleNumber}</span>
-                      {overdue && <span style={{ fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b', padding: '1px 7px', borderRadius: 8 }}>⚠ OVERDUE</span>}
-                      <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 8px', borderRadius: 8, background: sc.bg, color: sc.color }}>{r.status}</span>
-                    </div>
-                    <div style={{ fontSize: 13, color: '#374151' }}>
-                      <strong>{r.materialName}</strong>
-                      {r.lotNumber && <span style={{ color: '#6b7280', marginLeft: 8 }}>Lot: {r.lotNumber}</span>}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                      <span>👤 {r.analystName || '—'}</span>
-                      <span>🔬 {r.instrumentCode || '—'}</span>
-                      {r.dueDate && <span style={{ color: overdue ? '#dc2626' : '#6b7280' }}>📅 Due: {fmtDate(r.dueDate)}</span>}
-                    </div>
-                  </div>
-
-                  {/* Action buttons */}
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {r.status === 'Assigned' && (
-                      <button onClick={() => startTask(r.executionId)}
-                        style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                        ▶ Start Task
-                      </button>
-                    )}
-                    {r.status === 'InProgress' && (
-                      <a href={`/test-execution/${r.executionId}`}
-                        style={{ padding: '7px 16px', background: '#7c3aed', color: '#fff', borderRadius: 7, textDecoration: 'none', fontWeight: 700, fontSize: 13 }}>
-                        📋 Enter Results
-                      </a>
-                    )}
-                    {(r.status === 'Assigned' || r.status === 'InProgress') && canAssign && (
-                      <button onClick={() => openReassign(r)}
-                        style={{ padding: '7px 14px', background: '#fff', color: '#6d28d9', border: '1.5px solid #ddd6fe', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                        ↩ Re-assign
-                      </button>
-                    )}
-                    {(r.status === 'Completed' || r.status === 'OOSOpen') && (
-                      <span style={{ fontSize: 12, color: '#6b7280', fontStyle: 'italic', padding: '7px 0' }}>
-                        {r.status === 'Completed' ? '✓ Task completed' : '⚠ OOS under investigation'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <div style={{ flex: 1 }} />
@@ -438,13 +412,9 @@ export default function WorkQueuePage() {
           background: '#f0fdfa', border: '1.5px solid #99f6e4', borderRadius: 12,
           padding: '18px 20px', marginBottom: 18, position: 'relative',
         }}>
-          {/* Close button */}
           <button
             onClick={() => setShowAi(false)}
-            style={{
-              position: 'absolute', top: 10, right: 12, background: 'none', border: 'none',
-              fontSize: 18, color: '#0f766e', cursor: 'pointer', lineHeight: 1,
-            }}
+            style={{ position: 'absolute', top: 10, right: 12, background: 'none', border: 'none', fontSize: 18, color: '#0f766e', cursor: 'pointer', lineHeight: 1 }}
             title="Close"
           >×</button>
 
@@ -459,13 +429,10 @@ export default function WorkQueuePage() {
             )}
           </div>
 
-          {aiLoading && (
-            <div style={{ color: '#0d9488', fontSize: 13, padding: '8px 0' }}>Fetching queue intelligence…</div>
-          )}
+          {aiLoading && <div style={{ color: '#0d9488', fontSize: 13, padding: '8px 0' }}>Fetching queue intelligence…</div>}
 
           {!aiLoading && aiData && (
             <>
-              {/* Top Stats Row */}
               <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
                 {[
                   { label: 'Total Open', value: String(aiData.totalOpen), alert: false },
@@ -484,12 +451,9 @@ export default function WorkQueuePage() {
               </div>
 
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                {/* Analyst Loads Table */}
                 {aiData.analystLoads.length > 0 && (
                   <div style={{ flex: '1 1 320px' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-                      Analyst Loads
-                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Analyst Loads</div>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                       <thead>
                         <tr style={{ background: '#ccfbf1' }}>
@@ -515,28 +479,16 @@ export default function WorkQueuePage() {
                     </table>
                   </div>
                 )}
-
-                {/* Priority Bands */}
                 {aiData.priorityBands.length > 0 && (
                   <div style={{ flex: '0 0 auto' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-                      Priority Bands
-                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Priority Bands</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                       {aiData.priorityBands.map(pb => {
                         const c = BAND_COLORS[pb.band] ?? { bg: '#f3f4f6', color: '#374151' }
                         return (
-                          <span key={pb.band} style={{
-                            background: c.bg, color: c.color,
-                            borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 600,
-                            display: 'flex', alignItems: 'center', gap: 6,
-                          }}>
+                          <span key={pb.band} style={{ background: c.bg, color: c.color, borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                             {pb.band}
-                            <span style={{
-                              background: c.color, color: '#fff', borderRadius: '50%',
-                              width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: 11, fontWeight: 700,
-                            }}>{pb.count}</span>
+                            <span style={{ background: c.color, color: '#fff', borderRadius: '50%', width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>{pb.count}</span>
                           </span>
                         )
                       })}
@@ -545,12 +497,8 @@ export default function WorkQueuePage() {
                 )}
               </div>
 
-              {/* Suggested Analyst */}
               {aiSuggestion && (
-                <div style={{
-                  marginTop: 14, background: '#fff', border: '1.5px solid #a7f3d0',
-                  borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10,
-                }}>
+                <div style={{ marginTop: 14, background: '#fff', border: '1.5px solid #a7f3d0', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontSize: 18 }}>💡</span>
                   <div>
                     <span style={{ fontWeight: 700, color: '#065f46' }}>Suggested: {aiSuggestion.fullName}</span>
@@ -564,116 +512,152 @@ export default function WorkQueuePage() {
         </div>
       )}
 
+      {/* ── Main Table (1 row per sample) ──────────────────────────────────── */}
       <MasterDetail
-        onCloseDetail={() => setSelectedItem(null)}
-        detailTitle="Task Detail"
-        detail={selectedItem ? (
+        onCloseDetail={() => setSelectedGroup(null)}
+        detailTitle="Sample Tests"
+        detail={selectedGroup ? (
           <DetailPane
-            title={selectedItem.sampleNumber}
-            subtitle={`${selectedItem.materialName} · ${selectedItem.lotNumber}`}
-            onClose={() => setSelectedItem(null)}
+            title={selectedGroup.sampleNumber}
+            subtitle={`${selectedGroup.materialName} · ${selectedGroup.lotNumber}`}
+            onClose={() => setSelectedGroup(null)}
             actions={
               <button
-                onClick={() => setDetailSampleId(selectedItem.sampleId)}
+                onClick={() => setDetailSampleId(selectedGroup.sampleId)}
                 style={{ padding: '4px 10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 5, fontSize: 11, cursor: 'pointer', color: '#374151' }}
               >
                 Sample Info
               </button>
             }
           >
-            {/* Status + Priority */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
-              {(() => {
-                const c = STATUS_COLORS[selectedItem.status] ?? { bg: '#f3f4f6', color: '#374151' }
-                return <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color }}>{selectedItem.status}</span>
-              })()}
-              {(() => {
-                const pb = priorityBadge(selectedItem.priorityScore)
-                return <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: pb.bg, color: pb.color, border: `1px solid ${pb.border}` }}>{pb.label}</span>
-              })()}
-              {isOverdue(selectedItem) && <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b' }}>OVERDUE</span>}
+            {/* Progress summary */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                {(() => {
+                  const c = STATUS_COLORS[selectedGroup.overallStatus] ?? { bg: '#f3f4f6', color: '#374151' }
+                  return <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color }}>{selectedGroup.overallStatus}</span>
+                })()}
+                {selectedGroup.anyOverdue && <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b' }}>OVERDUE</span>}
+              </div>
+              {/* Progress bar */}
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 6 }}>
+                {selectedGroup.completedCount} of {selectedGroup.totalCount} tests complete
+              </div>
+              <div style={{ background: '#e5e7eb', borderRadius: 6, height: 8, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', borderRadius: 6, transition: 'width 0.3s',
+                  background: selectedGroup.completedCount === selectedGroup.totalCount ? '#10b981' : '#3b82f6',
+                  width: `${selectedGroup.totalCount > 0 ? (selectedGroup.completedCount / selectedGroup.totalCount) * 100 : 0}%`,
+                }} />
+              </div>
             </div>
 
-            {/* Detail fields */}
-            {[
-              { label: 'Analyst',    value: selectedItem.analystName || '—' },
-              { label: 'Instrument', value: selectedItem.instrumentCode || '—' },
-              { label: 'Due Date',   value: selectedItem.dueDate ? fmtDate(selectedItem.dueDate) : '—' },
-              { label: 'Started',    value: selectedItem.startedAt ? fmtDateTime(selectedItem.startedAt) : '—' },
-              { label: 'Execution',  value: `#${selectedItem.executionId}` },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: 13, color: '#0f172a', fontWeight: 500 }}>{value}</div>
-              </div>
-            ))}
-
-            {/* Action buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16, paddingTop: 14, borderTop: '1px solid #e5e7eb' }}>
-              {selectedItem.status === 'Assigned' && (
-                <button
-                  onClick={() => startTask(selectedItem.executionId)}
-                  style={{ padding: '9px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer', width: '100%' }}
-                >
-                  ▶ Start Task
-                </button>
-              )}
-              {selectedItem.status === 'InProgress' && (
-                <a
-                  href={`/test-execution/${selectedItem.executionId}`}
-                  style={{ padding: '9px 14px', background: '#7c3aed', color: '#fff', borderRadius: 7, fontWeight: 600, fontSize: 13, textDecoration: 'none', display: 'block', textAlign: 'center', width: '100%', boxSizing: 'border-box' }}
-                >
-                  ✏ Enter Results
-                </a>
-              )}
-              {selectedItem.status === 'Assigned' && canAssign && (
-                <button
-                  onClick={() => { openReassign(selectedItem); setSelectedItem(null) }}
-                  style={{ padding: '9px 14px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer', width: '100%' }}
-                >
-                  ↔ Re-assign
-                </button>
-              )}
+            {/* Individual test executions */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {selectedGroup.executions.map((exec, idx) => {
+                const sc = STATUS_COLORS[exec.status] ?? { bg: '#f3f4f6', color: '#374151' }
+                const isOverdue = exec.dueDate && new Date(exec.dueDate) < new Date() &&
+                  (exec.status === 'Assigned' || exec.status === 'InProgress')
+                return (
+                  <div key={exec.executionId} style={{
+                    border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px',
+                    background: exec.status === 'Completed' ? '#f0fdf4' : '#fafafa',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>Test {idx + 1}</span>
+                      <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{exec.status}</span>
+                      {isOverdue && <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b' }}>OVERDUE</span>}
+                      <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9ca3af' }}>#{exec.executionId}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+                      {exec.analystName && <span>👤 {exec.analystName}</span>}
+                      {exec.instrumentCode && <span>🔬 {exec.instrumentCode}</span>}
+                      {exec.dueDate && <span style={{ color: isOverdue ? '#dc2626' : '#6b7280' }}>📅 {fmtDate(exec.dueDate)}</span>}
+                      {exec.startedAt && <span>▶ {fmtDateTime(exec.startedAt)}</span>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {exec.status === 'Assigned' && (
+                        <button
+                          onClick={() => startTask(exec.executionId)}
+                          style={{ padding: '5px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                        >▶ Start</button>
+                      )}
+                      {exec.status === 'InProgress' && (
+                        <a
+                          href={`/test-execution/${exec.executionId}`}
+                          style={{ padding: '5px 12px', background: '#7c3aed', color: '#fff', borderRadius: 6, fontWeight: 600, fontSize: 12, textDecoration: 'none' }}
+                        >✏ Enter Results</a>
+                      )}
+                      {(exec.status === 'Assigned' || exec.status === 'InProgress') && canAssign && (
+                        <button
+                          onClick={() => openReassign(exec)}
+                          style={{ padding: '5px 12px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                        >↩ Re-assign</button>
+                      )}
+                      {exec.status === 'Completed' && (
+                        <span style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>✓ Complete</span>
+                      )}
+                      {exec.status === 'OOSOpen' && (
+                        <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>⚠ OOS Investigation</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </DetailPane>
         ) : null}
       >
-        <DataTable loading={loading}
-          data={scanResults && scanResults.length > 0
-            ? data.filter(r => scanResults.some(s => s.executionId === r.executionId))
-            : data}
-          onRowClick={row => setSelectedItem(row)}
-          selectedRow={selectedItem ?? undefined}
-          rowStyle={() => {
-            if (!scanResults || scanResults.length === 0) return {}
-            return { background: '#fffbeb', outline: '2px solid #fcd34d', outlineOffset: '-2px' }
-          }}
+        <DataTable
+          loading={loading}
+          data={displayGroups}
+          onRowClick={row => setSelectedGroup(row)}
+          selectedRow={selectedGroup ?? undefined}
+          rowStyle={row => scanSampleIds !== null && scanSampleIds.has(row.sampleId)
+            ? { background: '#fffbeb', outline: '2px solid #fcd34d', outlineOffset: '-2px' }
+            : {}
+          }
           columns={[
-          { header: 'Sample No.', accessor: r => (
-            <div>
-              <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f' }}>
-                {r.sampleNumber}
-              </span>
-              {isOverdue(r) && <span style={{ marginLeft: 6, fontSize: 11, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8 }}>OVERDUE</span>}
-              {scanResults?.some(s => s.executionId === r.executionId) && (
-                <span style={{ marginLeft: 6, fontSize: 11, background: '#fef9c3', color: '#854d0e', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>● MATCHED</span>
-              )}
-            </div>
-          )},
-          { header: 'Material / Lot', accessor: r => <span>{r.materialName}<br /><span style={{ fontSize: 12, color: '#6b7280' }}>{r.lotNumber}</span></span> },
-          { header: 'Analyst', accessor: 'analystName' },
-          { header: 'Instrument', accessor: 'instrumentCode' },
-          { header: 'Priority', accessor: 'priorityScore', render: r => {
-            const pb = priorityBadge(r.priorityScore)
-            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: pb.bg, color: pb.color, border: `1px solid ${pb.border}` }}>{pb.label}</span>
-          }},
-          { header: 'Status', accessor: r => {
-            const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
-            return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{r.status}</span>
-          }},
-          { header: 'Due', accessor: r => r.dueDate ? <span style={{ color: isOverdue(r) ? '#dc2626' : '#374151' }}>{fmtDate(r.dueDate)}</span> : '—' },
-          { header: 'Started', accessor: r => r.startedAt ? fmtDateTime(r.startedAt) : '—' },
-        ]} />
+            { header: 'Sample No.', accessor: r => (
+              <div>
+                <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f' }}>{r.sampleNumber}</span>
+                {r.anyOverdue && <span style={{ marginLeft: 6, fontSize: 11, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8 }}>OVERDUE</span>}
+                {scanSampleIds?.has(r.sampleId) && <span style={{ marginLeft: 6, fontSize: 11, background: '#fef9c3', color: '#854d0e', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>● MATCHED</span>}
+              </div>
+            )},
+            { header: 'Material / Lot', accessor: r => (
+              <span>{r.materialName}<br /><span style={{ fontSize: 12, color: '#6b7280' }}>{r.lotNumber}</span></span>
+            )},
+            { header: 'Analyst', accessor: 'analystName' },
+            { header: 'Progress', accessor: r => (
+              <div style={{ minWidth: 120 }}>
+                <div style={{ fontSize: 12, color: '#374151', marginBottom: 4, fontWeight: 600 }}>
+                  {r.completedCount}/{r.totalCount} tests
+                </div>
+                <div style={{ background: '#e5e7eb', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 4,
+                    background: r.completedCount === r.totalCount ? '#10b981' : '#3b82f6',
+                    width: `${r.totalCount > 0 ? (r.completedCount / r.totalCount) * 100 : 0}%`,
+                    transition: 'width 0.3s',
+                  }} />
+                </div>
+              </div>
+            )},
+            { header: 'Priority', accessor: 'minPriority', render: r => {
+              const pb = priorityBadge(r.minPriority)
+              return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: pb.bg, color: pb.color, border: `1px solid ${pb.border}` }}>{pb.label}</span>
+            }},
+            { header: 'Status', accessor: r => {
+              const c = STATUS_COLORS[r.overallStatus] ?? { bg: '#f3f4f6', color: '#374151' }
+              return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{r.overallStatus}</span>
+            }},
+            { header: 'Due', accessor: r => r.earliestDue
+              ? <span style={{ color: r.anyOverdue ? '#dc2626' : '#374151' }}>{fmtDate(r.earliestDue)}</span>
+              : '—'
+            },
+          ]}
+        />
       </MasterDetail>
 
       {/* ── Re-assign Drawer ─────────────────────────────────────────────── */}
@@ -704,11 +688,101 @@ export default function WorkQueuePage() {
         <Drawer title="Assign Task" subtitle="WAP rules enforced: trained analyst + calibrated instrument + capacity check server-side." onClose={() => setShowAssign(false)}>
           <form onSubmit={submitAssign}>
             <Field label="Sample (PendingTesting)">
-              <select style={inp} value={form.sampleId}
-                onChange={e => setForm(f => ({ ...f, sampleId: e.target.value }))} required>
-                <option value="">Select sample…</option>
-                {samples.map(s => <option key={s.sampleId} value={s.sampleId}>{s.sampleNumber} — {s.materialName} / {s.lotNumber}</option>)}
-              </select>
+              {/* Custom sample picker — shows product name + lot clearly */}
+              <div style={{ position: 'relative' }}>
+                {/* Trigger button */}
+                <button
+                  type="button"
+                  onClick={() => { setSampleDropOpen(o => !o); setSampleSearch('') }}
+                  style={{
+                    ...inp, width: '100%', textAlign: 'left', cursor: 'pointer',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    background: '#fff', marginTop: 0,
+                  }}
+                >
+                  {form.sampleId
+                    ? (() => {
+                        const s = samples.find(s => String(s.sampleId) === form.sampleId)
+                        return s
+                          ? <span><span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f' }}>{s.sampleNumber}</span><span style={{ color: '#6b7280', marginLeft: 8 }}>{s.materialName}</span></span>
+                          : 'Select sample…'
+                      })()
+                    : <span style={{ color: '#9ca3af' }}>Select sample…</span>
+                  }
+                  <span style={{ color: '#9ca3af', fontSize: 11 }}>▼</span>
+                </button>
+
+                {sampleDropOpen && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
+                    background: '#fff', border: '1.5px solid #cbd5e1', borderRadius: 8,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden', marginTop: 2,
+                  }}>
+                    {/* Search */}
+                    <div style={{ padding: '8px 10px', borderBottom: '1px solid #e5e7eb' }}>
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Search by sample no. or product…"
+                        value={sampleSearch}
+                        onChange={e => setSampleSearch(e.target.value)}
+                        style={{
+                          width: '100%', border: '1px solid #e2e8f0', borderRadius: 6,
+                          padding: '6px 10px', fontSize: 12, outline: 'none', boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                    {/* List */}
+                    <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                      {samples
+                        .filter(s => {
+                          const q = sampleSearch.toLowerCase()
+                          return !q ||
+                            s.sampleNumber.toLowerCase().includes(q) ||
+                            s.materialName.toLowerCase().includes(q) ||
+                            s.lotNumber.toLowerCase().includes(q)
+                        })
+                        .map(s => (
+                          <div
+                            key={s.sampleId}
+                            onClick={() => {
+                              setForm(f => ({ ...f, sampleId: String(s.sampleId) }))
+                              setSampleDropOpen(false)
+                            }}
+                            style={{
+                              padding: '10px 14px', cursor: 'pointer',
+                              background: String(s.sampleId) === form.sampleId ? '#f0fdf4' : '#fff',
+                              borderBottom: '1px solid #f1f5f9',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
+                            onMouseLeave={e => (e.currentTarget.style.background = String(s.sampleId) === form.sampleId ? '#f0fdf4' : '#fff')}
+                          >
+                            <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: '#1e3a5f' }}>
+                              {s.sampleNumber}
+                            </div>
+                            <div style={{ fontSize: 13, color: '#111827', marginTop: 2 }}>
+                              {s.materialName}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
+                              Lot: {s.lotNumber}
+                            </div>
+                          </div>
+                        ))
+                      }
+                      {samples.filter(s => {
+                        const q = sampleSearch.toLowerCase()
+                        return !q || s.sampleNumber.toLowerCase().includes(q) || s.materialName.toLowerCase().includes(q) || s.lotNumber.toLowerCase().includes(q)
+                      }).length === 0 && (
+                        <div style={{ padding: '16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                          No samples found
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* Hidden required input for form validation */}
+              <input type="hidden" value={form.sampleId} required />
             </Field>
             <Field label="Analyst">
               <select style={inp} value={form.analystId} onChange={e => setForm(f => ({ ...f, analystId: e.target.value }))} required>
@@ -724,6 +798,7 @@ export default function WorkQueuePage() {
           </form>
         </Drawer>
       )}
+
       {detailSampleId !== null && (
         <SampleDetailSheet
           sampleId={detailSampleId}
@@ -743,13 +818,8 @@ export default function WorkQueuePage() {
           )}
           {!handoverLoading && handoverData && (
             <>
-              <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
-                Generated at: {fmtDateTime(handoverData.generatedAt)}
-              </p>
-              <div style={{
-                background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8,
-                padding: '16px', marginBottom: 16,
-              }}>
+              <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>Generated at: {fmtDateTime(handoverData.generatedAt)}</p>
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '16px', marginBottom: 16 }}>
                 <pre style={{ margin: 0, fontSize: 13, lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit', color: '#1e293b' }}>
                   {handoverData.summary}
                 </pre>
@@ -758,15 +828,11 @@ export default function WorkQueuePage() {
                 <button
                   onClick={() => window.print()}
                   style={{ padding: '9px 18px', background: '#4338ca', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
-                >
-                  🖨 Print / Save
-                </button>
+                >🖨 Print / Save</button>
                 <button
                   onClick={() => setHandoverOpen(false)}
                   style={{ padding: '9px 18px', background: '#f1f5f9', color: '#374151', border: '1px solid #e2e8f0', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
-                >
-                  Close
-                </button>
+                >Close</button>
               </div>
             </>
           )}
