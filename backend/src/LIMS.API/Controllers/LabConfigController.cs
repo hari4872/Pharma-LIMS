@@ -31,7 +31,7 @@ public class LabConfigController : ControllerBase
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { configId = result.Value });
     }
-    // POST api/v1/lab-config/logo?labId=1 — upload company logo (PNG/JPG, max 2MB)
+    // POST api/v1/lab-config/logo?labId=1 — upload company logo (PNG/JPG/GIF/WebP, max 2MB)
     [HttpPost("logo")]
     [Authorize(Roles = "Admin")]
     [RequestSizeLimit(2_097_152)]
@@ -42,12 +42,33 @@ public class LabConfigController : ControllerBase
 
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms, ct);
-        var base64 = $"data:{file.ContentType};base64,{Convert.ToBase64String(ms.ToArray())}";
+        var bytes = ms.ToArray();
+
+        // Magic bytes validation — guards against spoofed Content-Type headers
+        if (!IsValidImageMagicBytes(bytes))
+            return BadRequest(new { error = "INVALID_FILE", message = "File content does not match a supported image format (PNG, JPEG, GIF, WebP)." });
+
+        var base64 = $"data:{file.ContentType};base64,{Convert.ToBase64String(bytes)}";
 
         var username = User.Identity?.Name ?? "System";
         var result = await _mediator.Send(new UpsertLabConfigCommand(labId, "coa_logo_base64", base64, username), ct);
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { message = "Logo saved." });
+    }
+
+    private static bool IsValidImageMagicBytes(byte[] b)
+    {
+        if (b.Length < 4) return false;
+        // PNG: 89 50 4E 47
+        if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) return true;
+        // JPEG: FF D8 FF
+        if (b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF) return true;
+        // GIF: 47 49 46 38
+        if (b[0] == 0x47 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x38) return true;
+        // WebP: 52 49 46 46 .. .. .. .. 57 45 42 50
+        if (b.Length >= 12 && b[0] == 0x52 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x46
+            && b[8] == 0x57 && b[9] == 0x45 && b[10] == 0x42 && b[11] == 0x50) return true;
+        return false;
     }
 
     // GET api/v1/lab-config/logo?labId=1 — returns logo as base64 data URI

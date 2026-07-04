@@ -136,6 +136,7 @@ export default function CoaReviewPage() {
   // ── Logo upload ────────────────────────────────────────────────────────────
   function handleLogoFile(file: File) {
     if (!file.type.startsWith('image/')) { setLogoError('Only image files (PNG, JPG, SVG) are accepted.'); return }
+    if (file.size > 2_097_152) { setLogoError('File too large — maximum size is 2 MB.'); return }
     setLogoError('')
     setLogoFile(file)
     const reader = new FileReader()
