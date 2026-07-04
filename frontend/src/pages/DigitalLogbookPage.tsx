@@ -5,7 +5,7 @@ import api from '@/api/client'
 import { fmtDateTime } from '@/utils/dateFormat'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
-import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Field, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
@@ -13,7 +13,7 @@ import SampleDetailSheet from '@/components/SampleDetailSheet'
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface LogbookEntry {
   entryId: number; sampleId: number; sampleNumber: string; executionId: number
-  parameterId: number; parameterName: string; isCritical: boolean
+  parameterId: number; parameterName: string; uom: string; isCritical: boolean
   triggerSource: string
   rawValue: string; calculatedResult: number | null
   autoCorectionApplied: boolean; correctionDetail: string | null
@@ -82,7 +82,7 @@ export default function DigitalLogbookPage() {
 
   // Sign modal
   const [signRow, setSignRow]         = useState<ProcessLogRow | null>(null)
-  const [signForm, setSignForm]       = useState<SignForm>({ password: '', meaning: 'I confirm this process log entry is accurate', reason: '' })
+  const [signForm, setSignForm]       = useState<SignForm>({ password: '', meaning: 'I confirm this process log entry is accurate', reason: 'Routine process log sign-off' })
   const [signSaving, setSignSaving]   = useState(false)
   const [signError, setSignError]     = useState('')
   const [signReadings, setSignReadings] = useState<Record<number, string>>({})
@@ -480,20 +480,16 @@ export default function DigitalLogbookPage() {
 
       {detailSampleId !== null && <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="qa" />}
 
-      {/* ── Amendment Modal ───────────────────────────────────────────────── */}
+      {/* ── Amendment Drawer ───────────────────────────────────────────────── */}
       {amendEntry && (
-        <Modal title="Amend Entry" onClose={() => setAmendEntry(null)}>
-          <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
-            21 CFR Part 11 — Original preserved as Superseded. New entry created as Pending.
-            E-signature re-authentication required.
-          </p>
+        <Drawer title="Amend Entry" subtitle="21 CFR Part 11 — original preserved as Superseded" onClose={() => setAmendEntry(null)} blocking width={460}>
           <div style={{ padding: '8px 12px', background: '#f9fafb', borderRadius: 6, marginBottom: 14, fontSize: 12, color: '#374151' }}>
             <strong>Entry #{amendEntry.entryId}</strong> · {amendEntry.parameterName} · Sample {amendEntry.sampleNumber}
             <br />Current value: <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{amendEntry.rawValue}</span>
           </div>
           <form onSubmit={handleAmend}>
             <Field label="New Raw Value *">
-              <input style={inp} value={amendForm.newRawValue} onChange={e => setAmendForm(f => ({ ...f, newRawValue: e.target.value }))} required />
+              <input style={inp} value={amendForm.newRawValue} onChange={e => setAmendForm(f => ({ ...f, newRawValue: e.target.value }))} required autoFocus />
             </Field>
             <Field label="Amendment Reason *">
               <textarea style={{ ...inp, height: 60, resize: 'vertical' as const }} value={amendForm.amendmentReason}
@@ -515,14 +511,14 @@ export default function DigitalLogbookPage() {
                 placeholder="e.g. Correcting data entry error per SOP-LAB-012" />
             </Field>
             {amendError && <p style={{ color: '#dc2626', fontSize: 13, margin: '4px 0' }}>{amendError}</p>}
-            <ModalFooter saving={amendSaving} onCancel={() => setAmendEntry(null)} label="Submit Amendment" />
+            <DrawerFooter saving={amendSaving} onCancel={() => setAmendEntry(null)} label="Submit Amendment" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
-      {/* ── Sign Process Log Row Modal ────────────────────────────────────── */}
+      {/* ── Sign Process Log Row Drawer ────────────────────────────────────── */}
       {signRow && (
-        <Modal title="Sign & Lock Process Log Row" onClose={() => setSignRow(null)}>
+        <Drawer title="Sign & Lock Process Log Row" subtitle="Immutable audit entry (21 CFR Part 11)" onClose={() => setSignRow(null)} blocking width={460}>
           <div style={{ padding: '10px 14px', background: '#f0f9ff', borderRadius: 8, marginBottom: 16, border: '1px solid #bae6fd' }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#0369a1', marginBottom: 4 }}>
               {signRow.checkpointCode} — Shift Slot {signRow.slotLabel}
@@ -572,22 +568,10 @@ export default function DigitalLogbookPage() {
               <input type="password" style={inp} value={signForm.password}
                 onChange={e => setSignForm(f => ({ ...f, password: e.target.value }))} required autoFocus />
             </Field>
-            <Field label="Meaning">
-              <select style={inp} value={signForm.meaning} onChange={e => setSignForm(f => ({ ...f, meaning: e.target.value }))}>
-                <option>I confirm this process log entry is accurate</option>
-                <option>Authorship of process log entry</option>
-                <option>Shift supervisor approval</option>
-              </select>
-            </Field>
-            <Field label="Reason">
-              <input style={inp} value={signForm.reason}
-                onChange={e => setSignForm(f => ({ ...f, reason: e.target.value }))} required
-                placeholder="e.g. End of shift — all parameters within range" />
-            </Field>
             {signError && <p style={{ color: '#dc2626', fontSize: 13, margin: '4px 0' }}>{signError}</p>}
-            <ModalFooter saving={signSaving} onCancel={() => setSignRow(null)} label="Sign & Lock Row" />
+            <DrawerFooter saving={signSaving} onCancel={() => setSignRow(null)} label="Sign & Lock Row" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── Evidence Upload Modal ───────────────────────────────────────────── */}

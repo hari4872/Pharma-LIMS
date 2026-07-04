@@ -12,7 +12,7 @@ public record GetLogbookEntriesQuery(
 
 public record LogbookEntryDto(
     int EntryId, int SampleId, string SampleNumber, int ExecutionId,
-    int ParameterId, string ParameterName, bool IsCritical,
+    int ParameterId, string ParameterName, string Uom, bool IsCritical,
     string TriggerSource,
     string RawValue, decimal? CalculatedResult,
     bool AutoCorrectionApplied, string? CorrectionDetail,
@@ -49,8 +49,8 @@ public class GetLogbookEntriesHandler : IRequestHandler<GetLogbookEntriesQuery, 
         return await query
             .OrderByDescending(e => e.CreatedAt)
             .Select(e => new LogbookEntryDto(
-                e.EntryId, e.SampleId, e.Sample.SampleNumber, e.ExecutionId,
-                e.ParameterId, e.Parameter.ParameterName, e.Parameter.IsCritical,
+                e.EntryId, e.SampleId, e.Sample != null ? e.Sample.SampleNumber : "", e.ExecutionId,
+                e.ParameterId, e.Parameter != null ? e.Parameter.ParameterName : "Unknown", e.Parameter != null ? (e.Parameter.Uom ?? "") : "", e.Parameter != null && e.Parameter.IsCritical,
                 e.TriggerSource.ToString(),
                 e.RawValue, e.CalculatedResult,
                 e.AutoCorrectionApplied, e.CorrectionDetail,

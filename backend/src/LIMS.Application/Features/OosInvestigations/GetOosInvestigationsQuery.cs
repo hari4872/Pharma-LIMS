@@ -11,7 +11,7 @@ public record OosInvestigationDto(
     int InvestigationId, int ExecutionId, int SampleId, string SampleNumber,
     int ParameterId, string ParameterName,
     string FlagType, string Phase, string Status,
-    string? RootCause, string? CapaRef,
+    string? RootCause, string? CapaRef, string? CapaStatus,
     DateTimeOffset OpenedAt, DateTimeOffset? ClosedAt, string CreatedBy);
 
 public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQuery, List<OosInvestigationDto>>
@@ -34,11 +34,11 @@ public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQ
         return await query
             .OrderByDescending(i => i.OpenedAt)
             .Select(i => new OosInvestigationDto(
-                i.InvestigationId, i.ExecutionId, i.Execution.SampleId,
-                i.Execution.Sample.SampleNumber,
-                i.ParameterId, i.Parameter.ParameterName,
+                i.InvestigationId, i.ExecutionId, i.Execution != null ? i.Execution.SampleId : 0,
+                i.Execution != null && i.Execution.Sample != null ? i.Execution.Sample.SampleNumber : "",
+                i.ParameterId, i.Parameter != null ? i.Parameter.ParameterName : "Unknown",
                 i.FlagType.ToString(), i.Phase.ToString(), i.Status.ToString(),
-                i.RootCause, i.CapaRef, i.OpenedAt, i.ClosedAt, i.CreatedBy))
+                i.RootCause, i.CapaRef, i.CapaStatus, i.OpenedAt, i.ClosedAt, i.CreatedBy))
             .ToListAsync(ct);
     }
 }

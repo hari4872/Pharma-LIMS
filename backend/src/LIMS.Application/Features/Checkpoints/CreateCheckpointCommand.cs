@@ -8,12 +8,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.Application.Features.Checkpoints;
 
+public record ParameterLimitsInput(
+    int ParameterId,
+    decimal? AlertMin, decimal? AlertMax,
+    decimal? ActionMin, decimal? ActionMax);
+
 public record CreateCheckpointCommand(
     string CheckpointCode, int LabId, string TriggerMode,
     string CheckpointType, string? TimeSlots, int? ShiftIntervalHrs,
     int? FormTemplateId,
-    List<int>? ParameterIds,                                 // operator-selected parameters for this checkpoint
-    string CreatedBy) : IRequest<Result<int>>;
+    List<int>? ParameterIds,                                 // legacy — plain IDs, no limits
+    string CreatedBy,
+    List<ParameterLimitsInput>? Parameters = null) : IRequest<Result<int>>;   // preferred — IDs + two-tier limits
 
 public class CreateCheckpointValidator : AbstractValidator<CreateCheckpointCommand>
 {
@@ -61,7 +67,23 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
         };
         _db.Checkpoints.Add(checkpoint);
 
-        if (request.ParameterIds is { Count: > 0 })
+        // Prefer Parameters (with limits) over plain ParameterIds
+        if (request.Parameters is { Count: > 0 })
+        {
+            foreach (var p in request.Parameters.DistinctBy(x => x.ParameterId))
+            {
+                var paramExists = await _db.TestMethodParameters.AnyAsync(x => x.ParameterId == p.ParameterId, ct);
+                if (paramExists)
+                    _db.CheckpointParameters.Add(new CheckpointParameter
+                    {
+                        Checkpoint  = checkpoint,
+                        ParameterId = p.ParameterId,
+                        AlertMin    = p.AlertMin,  AlertMax  = p.AlertMax,
+                        ActionMin   = p.ActionMin, ActionMax = p.ActionMax,
+                    });
+            }
+        }
+        else if (request.ParameterIds is { Count: > 0 })
         {
             foreach (var parameterId in request.ParameterIds.Distinct())
             {

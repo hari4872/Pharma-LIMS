@@ -23,7 +23,7 @@ public class Checkpoint
     public ICollection<CheckpointParameter> CheckpointParameters { get; set; } = [];
 }
 
-// Links parameters to checkpoints — FK only (Contract 1)
+// Links parameters to checkpoints with optional two-tier alert/action limits (LabVantage parity)
 public class CheckpointParameter
 {
     public int CheckpointParameterId { get; set; }
@@ -31,6 +31,13 @@ public class CheckpointParameter
     public Checkpoint Checkpoint { get; set; } = default!;
     public int ParameterId { get; set; }
     public TestMethodParameter Parameter { get; set; } = default!;
+
+    // Two-tier limits: Alert (amber warning) and Action (red critical)
+    // Null = not configured for this parameter
+    public decimal? AlertMin  { get; set; }
+    public decimal? AlertMax  { get; set; }
+    public decimal? ActionMin { get; set; }
+    public decimal? ActionMax { get; set; }
 }
 
 // Grouped checkpoint column — FK only, no spec values copied (Contract 1)

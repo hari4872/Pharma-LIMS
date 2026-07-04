@@ -9,7 +9,7 @@ namespace LIMS.Application.Features.OosInvestigations;
 // QA/QCLead closes OOS investigation with root cause + CAPA + §11.50 e-sig
 public record CloseOosInvestigationCommand(
     int InvestigationId, int UserId,
-    string RootCause, string? CapaRef,
+    string RootCause, string? CapaRef, string? CapaStatus,
     string Password, string Meaning, string Reason) : IRequest<Result<int>>;
 
 public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigationCommand, Result<int>>
@@ -39,6 +39,7 @@ public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigatio
         inv.Status = OosStatus.Closed;
         inv.RootCause = cmd.RootCause;
         inv.CapaRef = cmd.CapaRef;
+        inv.CapaStatus = cmd.CapaStatus;
         inv.SignatureId = sig.SignatureId;
         inv.ClosedAt = DateTimeOffset.UtcNow;
 

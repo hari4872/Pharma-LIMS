@@ -1,7 +1,9 @@
 ﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
-import { Field, Modal, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
+import { Field, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 // FR-18 / FR-20: Compliance & Governance — audit trail, signature log, validation reviews
 // QA/Admin access only
@@ -223,7 +225,7 @@ export default function CompliancePanelPage() {
                       }}>{a.action}</span>
                     </td>
                     <td style={td}>{a.changedBy}</td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{a.changedAt?.replace('T', ' ').slice(0, 19)} UTC</td>
+                    <td style={{ ...td, whiteSpace: 'nowrap' }}>{fmtDateTime(a.changedAt)}</td>
                     <td style={{ ...td, minWidth: 120 }}><DiffCell label="Before" json={a.before} /></td>
                     <td style={{ ...td, minWidth: 120 }}><DiffCell label="After" json={a.after} /></td>
                   </tr>
@@ -260,7 +262,7 @@ export default function CompliancePanelPage() {
                     <td style={td}>{s.fullName}</td>
                     <td style={{ ...td, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.meaning}</td>
                     <td style={{ ...td, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.reason}</td>
-                    <td style={td}>{s.signedAt?.replace('T', ' ').slice(0, 19)}</td>
+                    <td style={td}>{fmtDateTime(s.signedAt)}</td>
                   </tr>
                 ))}
                 {!loading && (sigs?.items.length ?? 0) === 0 && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#9ca3af' }}>No signatures</td></tr>}
@@ -297,9 +299,9 @@ export default function CompliancePanelPage() {
                     <td style={td}>{r.reviewId}</td>
                     <td style={td}>{r.reviewType}</td>
                     <td style={td}>{r.reviewedBy}</td>
-                    <td style={td}>{r.reviewedAt?.replace('T', ' ').slice(0, 16)} UTC</td>
+                    <td style={td}>{fmtDateTime(r.reviewedAt)}</td>
                     <td style={td}><span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: outcomeColour(r.outcome) }}>{r.outcome}</span></td>
-                    <td style={td}>{r.nextReviewDue?.replace('T', ' ').slice(0, 10)}</td>
+                    <td style={td}>{fmtDate(r.nextReviewDue)}</td>
                     <td style={{ ...td, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#5f6368' }}>{r.notes ?? '—'}</td>
                   </tr>
                 ))}
@@ -308,7 +310,7 @@ export default function CompliancePanelPage() {
             </table>
           </div>
           {showReviewForm && (
-            <Modal title="Record Validation Review" onClose={() => setShowReviewForm(false)}>
+            <Drawer title="Record Validation Review" subtitle="Electronic Signature (21 CFR Part 11)" onClose={() => setShowReviewForm(false)} blocking width={460}>
               <form onSubmit={submitReview}>
                 <Field label="Review Type">
                   <select style={inp} value={reviewForm.reviewType} onChange={e => setReviewForm(f => ({ ...f, reviewType: e.target.value }))}>
@@ -323,14 +325,13 @@ export default function CompliancePanelPage() {
                 <Field label="Notes (optional)">
                   <textarea style={{ ...inp, height: 72, resize: 'vertical' }} value={reviewForm.notes} onChange={e => setReviewForm(f => ({ ...f, notes: e.target.value }))} />
                 </Field>
-                <p style={{ fontSize: 12, color: '#6b7280', margin: '12px 0 0', fontWeight: 500 }}>Electronic Signature (21 CFR Part 11)</p>
-                <Field label="Password (re-enter)"><input style={inp} type="password" value={reviewForm.password} onChange={e => setReviewForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+                <Field label="Password (re-enter)"><input style={inp} type="password" autoFocus value={reviewForm.password} onChange={e => setReviewForm(f => ({ ...f, password: e.target.value }))} required /></Field>
                 <Field label="Meaning"><input style={inp} value={reviewForm.meaning} onChange={e => setReviewForm(f => ({ ...f, meaning: e.target.value }))} required placeholder="e.g. Periodic re-validation approval" /></Field>
                 <Field label="Reason"><input style={inp} value={reviewForm.reason} onChange={e => setReviewForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Annual review cycle completed" /></Field>
                 {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-                <ModalFooter saving={saving} onCancel={() => setShowReviewForm(false)} label="Record Review" />
+                <DrawerFooter saving={saving} onCancel={() => setShowReviewForm(false)} label="Record Review" />
               </form>
-            </Modal>
+            </Drawer>
           )}
         </>
       )}
@@ -357,7 +358,7 @@ export default function CompliancePanelPage() {
                     <td style={td}>{t.templateId}</td>
                     <td style={td}>{t.templateName}</td>
                     <td style={td}><span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: '#fef3c7', color: '#92400e' }}>{t.status}</span></td>
-                    <td style={td}>{t.createdAt?.replace('T', ' ').slice(0, 16)} UTC</td>
+                    <td style={td}>{fmtDateTime(t.createdAt)}</td>
                     <td style={td}>{t.createdBy}</td>
                   </tr>
                 ))}
@@ -401,7 +402,7 @@ export default function CompliancePanelPage() {
                   const oc = outcomeStyle[row.outcome] ?? { bg: '#f3f4f6', color: '#374151' }
                   return (
                     <tr key={row.loginAuditLogId} style={{ borderBottom: '1px solid #f1f3f4' }}>
-                      <td style={td}>{new Date(row.attemptedAt).toLocaleString()}</td>
+                      <td style={td}>{fmtDateTime(row.attemptedAt)}</td>
                       <td style={{ ...td, fontFamily: 'monospace', fontWeight: 600 }}>{row.username}</td>
                       <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{row.ipAddress}</td>
                       <td style={td}><span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: oc.bg, color: oc.color }}>{row.outcome}</span></td>

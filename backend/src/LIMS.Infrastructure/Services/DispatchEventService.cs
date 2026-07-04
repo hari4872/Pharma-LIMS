@@ -43,7 +43,7 @@ public class DispatchEventService : IDispatchEventService
         // Auto-create a Sample for this Dispatch QC
         var sampleNumber = await _sampleIdFormat.GenerateAsync(
             formTemplate.LabId, deliveryOrder.ProductId,
-            formTemplate.SampleTypeNav.TypeCode, deliveryOrder.DoNumber, ct);
+            formTemplate.SampleTypeNav.TypeCode, deliveryOrder.DoNumber, ct: ct);
 
         // Resolve system analyst dynamically — avoid hardcoded ID that breaks in non-seeded environments
         var systemAnalystId = await _db.Users

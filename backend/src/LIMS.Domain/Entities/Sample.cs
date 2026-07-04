@@ -12,7 +12,7 @@ public class Sample
     public int MaterialId { get; set; }
     public Material Material { get; set; } = default!;
     public string LotNumber { get; set; } = default!;
-    public DateOnly MfgDate { get; set; }
+    public DateOnly? MfgDate { get; set; }
     public DateOnly ExpDate { get; set; }
     public int SampleTypeId { get; set; }                     // FK → SampleType master table (Gap 2 fix)
     public SampleType SampleTypeNav { get; set; } = default!;

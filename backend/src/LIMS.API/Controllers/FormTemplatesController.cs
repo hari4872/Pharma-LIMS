@@ -38,6 +38,27 @@ public class FormTemplatesController : LimsControllerBase
         return Ok(results);
     }
 
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var f = await _db.FormTemplates
+            .Include(f => f.SampleTypeNav)
+            .Include(f => f.Locations)
+            .Include(f => f.TemplateParameters)
+            .FirstOrDefaultAsync(f => f.FormTemplateId == id && f.IsActive);
+        if (f is null) return NotFound();
+        return Ok(new
+        {
+            f.FormTemplateId, f.FormCode, f.FormName,
+            FormType = f.FormType.ToString(), TriggerType = f.TriggerType.ToString(),
+            Status = f.Status.ToString(), f.Version,
+            f.EvidenceMandatory, f.RegulatoryTier, f.ApprovedBy, f.ApprovedAt,
+            f.SampleTypeId, SampleTypeName = f.SampleTypeNav != null ? f.SampleTypeNav.TypeName : null,
+            LocationCount = f.Locations.Count, ParameterCount = f.TemplateParameters.Count,
+            f.FieldDefinitionsJson,
+        });
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Create([FromBody] CreateFormTemplateRequest request)

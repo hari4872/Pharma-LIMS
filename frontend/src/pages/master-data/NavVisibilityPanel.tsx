@@ -144,8 +144,9 @@ export default function NavVisibilityPanel() {
   const savedMap = useSelector((s: RootState) => s.navVisibility.map)
   const saving   = useSelector((s: RootState) => s.navVisibility.saving)
 
-  const [local, setLocal] = useState<VisibilityMap>({})
-  const [saved, setSaved] = useState(false)
+  const [local, setLocal]     = useState<VisibilityMap>({})
+  const [saved, setSaved]     = useState(false)
+  const [saveErr, setSaveErr] = useState('')
 
   useEffect(() => { setLocal(savedMap) }, [savedMap])
 
@@ -155,15 +156,34 @@ export default function NavVisibilityPanel() {
   }
 
   function toggle(key: string) {
-    setLocal(prev => ({ ...prev, [key]: prev[key] === false ? true : false }))
+    setLocal(prev => ({ ...prev, [key]: prev[key] !== false ? false : true }))
     setSaved(false)
+    setSaveErr('')
   }
 
   async function handleSave() {
-    const result = await dispatch(persistNavVisibility(local))
+    setSaveErr('')
+    // Build a complete map: every key in the registry with its current on/off state
+    // This ensures we always send a non-empty payload even if nothing was toggled
+    const allKeys: string[] = []
+    REGISTRY.forEach(grp =>
+      grp.sections.forEach(sec => {
+        if (!sec.protected) allKeys.push(sec.sectionKey)
+        sec.items.forEach(item => { if (!(item as any).protected) allKeys.push(item.key) })
+      })
+    )
+    const fullMap: VisibilityMap = {}
+    allKeys.forEach(k => { fullMap[k] = local[k] !== false })
+
+    const result = await dispatch(persistNavVisibility(fullMap))
     if (persistNavVisibility.fulfilled.match(result)) {
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
+    } else {
+      const msg = (result as any).error?.message ?? ''
+      setSaveErr(msg.includes('403') || msg.toLowerCase().includes('forbidden')
+        ? 'Access denied — only Admins can save visibility settings.'
+        : 'Save failed. Please try again.')
     }
   }
 
@@ -178,18 +198,25 @@ export default function NavVisibilityPanel() {
             <span style={{ color: '#d97706', fontWeight: 600 }}>🔒 Protected items cannot be turned off.</span>
           </div>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          style={{
-            padding: '9px 22px', borderRadius: 8,
-            background: saved ? '#16a34a' : '#0d9488',
-            color: '#fff', border: 'none', cursor: saving ? 'wait' : 'pointer',
-            fontWeight: 700, fontSize: 13, fontFamily: 'inherit',
-            transition: 'background 0.2s',
-          }}>
-          {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Changes'}
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              padding: '9px 22px', borderRadius: 8,
+              background: saved ? '#16a34a' : saveErr ? '#dc2626' : '#0d9488',
+              color: '#fff', border: 'none', cursor: saving ? 'wait' : 'pointer',
+              fontWeight: 700, fontSize: 13, fontFamily: 'inherit',
+              transition: 'background 0.2s',
+            }}>
+            {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save Changes'}
+          </button>
+          {saveErr && (
+            <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 500, maxWidth: 280, textAlign: 'right' }}>
+              {saveErr}
+            </span>
+          )}
+        </div>
       </div>
 
       {REGISTRY.map(grp => (

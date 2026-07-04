@@ -1,9 +1,11 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import { fmtDate } from '@/utils/dateFormat'
+import { fmtLabel } from '@/utils/formatLabel'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
-import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Field, inp } from './master-data/LaboratoriesPage'
+import ESignatureDrawer from '@/components/ESignatureDrawer'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
@@ -62,7 +64,7 @@ export default function DispatchQcPage() {
   const [showCreateDO, setShowCreateDO] = useState(false)
   const [showApprove, setShowApprove] = useState<DispatchTask | null>(null)
   const [doForm, setDoForm] = useState({ doNumber: '', customerName: '', despatchDate: '', packingType: '', productId: '' })
-  const [approveForm, setApproveForm] = useState({ password: '', meaning: 'I approve this Dispatch QC — product cleared for dispatch.', reason: '' })
+  const [approveForm, setApproveForm] = useState({ password: '', meaning: 'I approve this Dispatch QC — product cleared for dispatch.', reason: 'Dispatch QC cleared' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
@@ -215,7 +217,7 @@ export default function DispatchQcPage() {
           { header: 'Form Template', accessor: 'formTemplateName' },
           { header: 'Status', accessor: r => {
             const c = TASK_STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
-            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 500, background: c.bg, color: c.color }}>{r.status}</span>
+            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 500, background: c.bg, color: c.color }}>{fmtLabel(r.status)}</span>
           }},
           { header: 'Actions', accessor: r => r.status === 'Passed' ? (
             <button onClick={() => { setShowApprove(r); setApproveForm(f => ({ ...f, password: '', reason: '' })); setError('') }}
@@ -235,7 +237,7 @@ export default function DispatchQcPage() {
           { header: 'Packing', accessor: r => r.packingType ?? '—' },
           { header: 'Status', accessor: r => {
             const c = DO_STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
-            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color }}>{r.status}</span>
+            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color }}>{fmtLabel(r.status)}</span>
           }},
           { header: 'QC Tasks', accessor: r => <span style={{ fontSize: 12 }}>{r.tasks.length} task(s)</span> },
           { header: 'Created', accessor: r => fmtDate(r.createdAt) },
@@ -267,21 +269,17 @@ export default function DispatchQcPage() {
         </Drawer>
       )}
 
-      {/* QA Approve Modal */}
+      {/* QA Approve Drawer */}
       {showApprove && (
-        <Modal title={`QA Approve Dispatch QC — ${showApprove.doNumber}`} onClose={() => setShowApprove(null)}>
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            QA e-signature required (21 CFR Part 11). CLEARED status set server-side by DispatchStatusService (Contract 1).
-            No role can set CLEARED manually.
-          </p>
-          <form onSubmit={submitApprove}>
-            <Field label="Password (re-enter)"><input style={inp} type="password" value={approveForm.password} onChange={e => setApproveForm(f => ({ ...f, password: e.target.value }))} required /></Field>
-            <Field label="Meaning"><input style={inp} value={approveForm.meaning} onChange={e => setApproveForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
-            <Field label="Reason"><input style={inp} value={approveForm.reason} onChange={e => setApproveForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. All Dispatch QC tests passed, product cleared" /></Field>
-            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowApprove(null)} label="Sign & Set CLEARED" />
-          </form>
-        </Modal>
+        <ESignatureDrawer
+          title={`QA Approve Dispatch QC — ${showApprove.doNumber}`}
+          subtitle="CLEARED status set server-side (21 CFR Part 11)"
+          form={approveForm} onChange={setApproveForm}
+          onSubmit={submitApprove} onClose={() => { setShowApprove(null); setError('') }}
+          saving={saving} error={error} label="Sign & Set CLEARED"
+          reasonPlaceholder="e.g. All Dispatch QC tests passed, product cleared"
+          passwordOnly
+        />
       )}
     </div>
   )

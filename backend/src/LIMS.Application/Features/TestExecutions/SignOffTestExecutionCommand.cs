@@ -29,6 +29,7 @@ public class SignOffTestExecutionHandler : IRequestHandler<SignOffTestExecutionC
     {
         var execution = await _db.TestExecutions
             .Include(e => e.Sample)
+            .Include(e => e.SampleContainer)
             .FirstOrDefaultAsync(e => e.ExecutionId == cmd.ExecutionId, ct);
         if (execution is null) return Result<int>.Failure("NOT_FOUND", "Execution not found.");
         if (!cmd.IsAdmin && execution.AnalystId != cmd.UserId)
@@ -87,6 +88,10 @@ public class SignOffTestExecutionHandler : IRequestHandler<SignOffTestExecutionC
             if (!anyStillActive)
                 execution.Sample.Status = SampleStatus.PendingQAReview;
         }
+
+        // Consume the linked container when the test completes normally
+        if (execution.SampleContainer is not null && !hasOpenOos)
+            execution.SampleContainer.Status = ContainerStatus.Consumed;
 
         await _db.SaveChangesAsync(ct);
 

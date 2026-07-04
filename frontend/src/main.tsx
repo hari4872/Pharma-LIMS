@@ -14,6 +14,12 @@ import { store } from '@/store'
 import App from './App'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import ErrorPage from '@/pages/ErrorPage'
+import '@fontsource/plus-jakarta-sans/300.css'
+import '@fontsource/plus-jakarta-sans/400.css'
+import '@fontsource/plus-jakarta-sans/500.css'
+import '@fontsource/plus-jakarta-sans/600.css'
+import '@fontsource/plus-jakarta-sans/700.css'
+import '@fontsource/plus-jakarta-sans/800.css'
 import './index.css'
 
 // ── Global JS error handler ───────────────────────────────────────────────────

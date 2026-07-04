@@ -30,7 +30,7 @@ public class SpecLimitsController : LimsControllerBase
 
         var results = await query.Select(s => new
         {
-            s.SpecLimitId, s.ParameterId, ParameterName = s.Parameter.ParameterName,
+            s.SpecLimitId, s.ParameterId, ParameterName = s.Parameter != null ? s.Parameter.ParameterName : "Unknown",
             MaterialName = s.Material != null ? s.Material.MaterialName : null,
             s.MaterialId, Stage = s.Stage.ToString(), s.MinValue, s.MaxValue,
             RegulatoryTier = s.RegulatoryTier.ToString(), s.RegulatoryMin, s.RegulatoryMax,

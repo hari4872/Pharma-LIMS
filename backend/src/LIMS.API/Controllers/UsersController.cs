@@ -36,7 +36,7 @@ public class UsersController : LimsControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] UpdateUserRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
-        var result = await _mediator.Send(new UpdateUserCommand(id, request.FullName, request.Email, request.Role, request.LabId, username));
+        var result = await _mediator.Send(new UpdateUserCommand(id, request.FullName, request.Email, request.Role, request.LabId, request.IsActive, username));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { userId = result.Value });
     }
@@ -137,5 +137,5 @@ public class UsersController : LimsControllerBase
 }
 
 public record CreateUserRequest(string Username, string Password, string FullName, string Email, string UserType, string Role, int? LabId);
-public record UpdateUserRequest(string FullName, string Email, string Role, int? LabId);
+public record UpdateUserRequest(string FullName, string Email, string Role, int? LabId, bool IsActive = true);
 public record UpdatePermissionsRequest(Dictionary<string, bool> Permissions);

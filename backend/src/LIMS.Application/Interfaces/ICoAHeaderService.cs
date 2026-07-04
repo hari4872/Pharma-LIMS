@@ -5,7 +5,7 @@ namespace LIMS.Application.Interfaces;
 public record CoAHeaderDto(
     string ProductName,
     string LotNumber,
-    DateOnly MfgDate,
+    DateOnly? MfgDate,
     DateOnly ExpiryDate,
     string? CustomerName,
     DateOnly? DespatchDate,

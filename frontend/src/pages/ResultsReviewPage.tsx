@@ -1,26 +1,65 @@
-﻿import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import { fmtDate } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
-import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Field, inp } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 
 interface Execution {
   executionId: number; sampleId: number; sampleNumber: string; materialName: string
   lotNumber: string; analystName: string; status: string; startedAt?: string; completedAt?: string
+  testLabel: string | null
+}
+
+interface SampleReviewGroup {
+  sampleId: number; sampleNumber: string; materialName: string; lotNumber: string
+  analystName: string; executions: Execution[]; overallStatus: string; completedAt: string | null
+  pendingPeerIds: number[]; pendingQCIds: number[]
+}
+
+function groupBySample(items: Execution[]): SampleReviewGroup[] {
+  const map = new Map<number, Execution[]>()
+  for (const item of items) {
+    if (!map.has(item.sampleId)) map.set(item.sampleId, [])
+    map.get(item.sampleId)!.push(item)
+  }
+  return Array.from(map.values()).map(execs => {
+    const statuses = execs.map(e => e.status)
+    const pendingPeerIds = execs.filter(e => e.status === 'Completed').map(e => e.executionId)
+    const pendingQCIds   = execs.filter(e => e.status === 'PeerReviewed').map(e => e.executionId)
+
+    let overallStatus = 'QCVerified'
+    if (statuses.some(s => s === 'Assigned' || s === 'InProgress')) overallStatus = 'InProgress'
+    else if (statuses.some(s => s === 'OOSOpen'))                    overallStatus = 'OOSOpen'
+    else if (statuses.some(s => s === 'Completed'))                  overallStatus = 'Completed'
+    else if (statuses.some(s => s === 'PeerReviewed'))               overallStatus = 'PeerReviewed'
+
+    const analysts = [...new Set(execs.map(e => e.analystName).filter(Boolean))]
+    const analystName = analysts.length === 0 ? '—' : analysts.length === 1 ? analysts[0] : 'Multiple'
+
+    const dates = execs.map(e => e.completedAt).filter(Boolean) as string[]
+    const completedAt = dates.length > 0 ? [...dates].sort().reverse()[0] : null
+
+    return {
+      sampleId: execs[0].sampleId, sampleNumber: execs[0].sampleNumber,
+      materialName: execs[0].materialName, lotNumber: execs[0].lotNumber,
+      analystName, executions: execs, overallStatus, completedAt,
+      pendingPeerIds, pendingQCIds,
+    }
+  })
 }
 
 // ── Status config ──────────────────────────────────────────────────────────
 const STATUS_CFG: Record<string, { bg: string; color: string; label: string }> = {
   Completed:    { bg: '#dbeafe', color: '#1d4ed8', label: 'Pending Peer Review' },
   OOSOpen:      { bg: '#fef3c7', color: '#b45309', label: 'OOS Investigation Open' },
-  PeerReviewed: { bg: '#fef3c7', color: '#b45309', label: 'Pending QC Verify' },
+  PeerReviewed: { bg: '#fef9c3', color: '#b45309', label: 'Pending QC Verify' },
   QCVerified:   { bg: '#dcfce7', color: '#166534', label: 'QC Verified' },
-  Approved:     { bg: '#dcfce7', color: '#166534', label: 'Approved' },
-  Rejected:     { bg: '#fee2e2', color: '#991b1b', label: 'Rejected' },
+  InProgress:   { bg: '#f3e8ff', color: '#6b21a8', label: 'In Progress' },
   default:      { bg: '#f3f4f6', color: '#374151', label: '' },
 }
 
@@ -34,33 +73,27 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-// ── Review step pill ───────────────────────────────────────────────────────
 function ReviewSteps({ status }: { status: string }) {
   const steps = [
-    { key: 'Completed',    short: '① Signed Off' },
-    { key: 'PeerReviewed', short: '② Peer Review' },
-    { key: 'QCVerified',   short: '③ QC Verified' },
+    { key: 'Completed',    short: 'Signed Off' },
+    { key: 'PeerReviewed', short: 'Peer Review' },
+    { key: 'QCVerified',   short: 'QC Verified' },
   ]
   const currentIdx = status === 'QCVerified' || status === 'Approved' ? 2
-    : status === 'PeerReviewed' ? 1
-    : 0
+    : status === 'PeerReviewed' ? 1 : 0
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
       {steps.map((s, i) => (
         <span key={s.key} style={{
           fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10,
           background: i <= currentIdx ? '#2563eb' : '#e5e7eb',
-          color: i <= currentIdx ? '#fff' : '#9ca3af',
-          whiteSpace: 'nowrap',
-        }}>
-          {s.short}
-        </span>
+          color: i <= currentIdx ? '#fff' : '#9ca3af', whiteSpace: 'nowrap',
+        }}>{s.short}</span>
       ))}
     </div>
   )
 }
 
-// ── Filter chip (SampleRegistration style with count badge + arrow) ────────
 function Chip({ label, count, color, bg, active, onClick, showArrow }:
   { label: string; count: number; color: string; bg: string; active: boolean; onClick: () => void; showArrow?: boolean }) {
   return (
@@ -69,20 +102,13 @@ function Chip({ label, count, color, bg, active, onClick, showArrow }:
         display: 'flex', alignItems: 'center', gap: 8,
         padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
         border: `1.5px solid ${active ? color : '#e5e7eb'}`,
-        background: active ? bg : '#fff',
-        transition: 'all 0.12s',
+        background: active ? bg : '#fff', transition: 'all 0.12s',
       }}>
-        <span style={{
-          minWidth: 22, height: 22, borderRadius: 6,
-          background: bg, color: color,
+        <span style={{ minWidth: 22, height: 22, borderRadius: 6, background: bg, color: color,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 12, fontWeight: 700,
-        }}>{count}</span>
-        <span style={{
-          fontSize: 12, whiteSpace: 'nowrap',
-          fontWeight: active ? 700 : 500,
-          color: active ? color : '#374151',
-        }}>{label}</span>
+          fontSize: 12, fontWeight: 700 }}>{count}</span>
+        <span style={{ fontSize: 12, whiteSpace: 'nowrap',
+          fontWeight: active ? 700 : 500, color: active ? color : '#374151' }}>{label}</span>
       </button>
       {showArrow && (
         <svg viewBox="0 0 16 16" fill="none" width="10" height="10">
@@ -102,12 +128,12 @@ export default function ResultsReviewPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo]     = useState('')
 
-  // Modal
-  const [showReview, setShowReview] = useState<{ executionId: number; type: 'peer' | 'qclead' } | null>(null)
+  const [showReview, setShowReview] = useState<{ executionIds: number[]; type: 'peer' | 'qclead' } | null>(null)
   const [reviewForm, setReviewForm] = useState({ reviewerUsername: '', password: '', meaning: '', reason: '', notes: '' })
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
+  const [pdfDropdown, setPdfDropdown] = useState<number | null>(null)
 
   const role = useSelector((s: RootState) => s.auth.role) ?? ''
   const canPeerReview = ['Admin', 'Analyst', 'QCLead', 'QA'].includes(role)
@@ -116,7 +142,6 @@ export default function ResultsReviewPage() {
   async function load() {
     setLoading(true)
     try {
-      // Fetch all statuses — chips handle filtering client-side
       const c = await api.get('/test-executions')
       setAll(c.data ?? [])
     } catch { setAll([]) }
@@ -124,53 +149,55 @@ export default function ResultsReviewPage() {
   }
 
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
+  useEffect(() => {
+    if (pdfDropdown === null) return
+    const close = () => setPdfDropdown(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [pdfDropdown])
 
-  // ── Derived filter counts for chips ─────────────────────────────────────
-  const inProgress   = all.filter(r => r.status === 'Assigned' || r.status === 'InProgress').length
-  const pendingPeer  = all.filter(r => r.status === 'Completed' || r.status === 'OOSOpen').length
-  const pendingQC    = all.filter(r => r.status === 'PeerReviewed').length
-  const doneQC       = all.filter(r => r.status === 'QCVerified').length
+  const groups = useMemo(() => groupBySample(all), [all])
+
+  const inProgress  = groups.filter(g => g.overallStatus === 'InProgress' || g.overallStatus === 'Assigned').length
+  const pendingPeer = groups.filter(g => g.overallStatus === 'Completed' || g.overallStatus === 'OOSOpen').length
+  const pendingQC   = groups.filter(g => g.overallStatus === 'PeerReviewed').length
+  const doneQC      = groups.filter(g => g.overallStatus === 'QCVerified').length
 
   const CHIPS = [
-    { key: 'All',         label: 'All',                 color: '#374151', bg: '#f1f5f9', count: all.length },
+    { key: 'All',         label: 'All',                 color: '#374151', bg: '#f1f5f9', count: groups.length },
     { key: 'InProgress',  label: 'In Progress',         color: '#6b21a8', bg: '#f3e8ff', count: inProgress },
     { key: 'PendingPeer', label: 'Pending Peer Review', color: '#1e40af', bg: '#dbeafe', count: pendingPeer },
     { key: 'PendingQC',   label: 'Pending QC Verify',   color: '#b45309', bg: '#fef9c3', count: pendingQC },
     { key: 'QCVerified',  label: 'QC Verified',         color: '#166534', bg: '#dcfce7', count: doneQC },
   ]
 
-  // ── Filtered rows ────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    let rows = all
+    let rows = groups
     if (statusFilter === 'InProgress')
-      rows = rows.filter(r => r.status === 'Assigned' || r.status === 'InProgress')
+      rows = rows.filter(g => g.overallStatus === 'Assigned' || g.overallStatus === 'InProgress')
     else if (statusFilter === 'PendingPeer')
-      rows = rows.filter(r => r.status === 'Completed' || r.status === 'OOSOpen')
+      rows = rows.filter(g => g.overallStatus === 'Completed' || g.overallStatus === 'OOSOpen')
     else if (statusFilter === 'PendingQC')
-      rows = rows.filter(r => r.status === 'PeerReviewed')
+      rows = rows.filter(g => g.overallStatus === 'PeerReviewed')
     else if (statusFilter === 'QCVerified')
-      rows = rows.filter(r => r.status === 'QCVerified')
+      rows = rows.filter(g => g.overallStatus === 'QCVerified')
 
     if (search.trim()) {
       const q = search.toLowerCase()
-      rows = rows.filter(r =>
-        r.sampleNumber.toLowerCase().includes(q) ||
-        r.materialName.toLowerCase().includes(q) ||
-        r.lotNumber.toLowerCase().includes(q) ||
-        r.analystName?.toLowerCase().includes(q)
+      rows = rows.filter(g =>
+        g.sampleNumber.toLowerCase().includes(q) ||
+        g.materialName.toLowerCase().includes(q) ||
+        g.lotNumber.toLowerCase().includes(q) ||
+        g.analystName?.toLowerCase().includes(q)
       )
     }
-    if (dateFrom)
-      rows = rows.filter(r => r.completedAt && r.completedAt >= dateFrom)
-    if (dateTo)
-      rows = rows.filter(r => r.completedAt && r.completedAt <= dateTo + 'T23:59:59')
-
+    if (dateFrom) rows = rows.filter(g => g.completedAt && g.completedAt >= dateFrom)
+    if (dateTo)   rows = rows.filter(g => g.completedAt && g.completedAt <= dateTo + 'T23:59:59')
     return rows
-  }, [all, statusFilter, search, dateFrom, dateTo])
+  }, [groups, statusFilter, search, dateFrom, dateTo])
 
-  // ── Actions ──────────────────────────────────────────────────────────────
-  function openReview(executionId: number, type: 'peer' | 'qclead') {
-    setShowReview({ executionId, type })
+  function openReview(executionIds: number[], type: 'peer' | 'qclead') {
+    setShowReview({ executionIds, type })
     setReviewForm({
       reviewerUsername: '',
       password: '',
@@ -182,15 +209,27 @@ export default function ResultsReviewPage() {
     setError('')
   }
 
-  async function downloadPdf(item: Execution) {
+  async function downloadExecutionPdf(executionId: number, sampleNumber: string) {
     try {
-      const r = await api.get(`/results-review/${item.executionId}/pdf`, { responseType: 'blob' })
-      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }))
-      const a = document.createElement('a'); a.href = url
-      a.download = `BatchAnalysis_${String(item.executionId).padStart(5,'0')}_${item.sampleNumber}.pdf`
-      a.click(); URL.revokeObjectURL(url)
-      toast(`Report downloaded — ${item.sampleNumber}`, 'success')
-    } catch { toast('Failed to download PDF', 'error') }
+      const res = await api.get(`/results-review/${executionId}/pdf`, { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `BatchAnalysis_${String(executionId).padStart(5, '0')}_${sampleNumber}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (err: any) {
+      let message = 'PDF download failed'
+      const blob = err?.response?.data
+      if (blob instanceof Blob) {
+        try { const j = JSON.parse(await blob.text()); message = j.message ?? j.error ?? message } catch { /* not JSON */ }
+      } else {
+        message = err?.response?.data?.message ?? err?.response?.data?.error ?? message
+      }
+      toast(message, 'error')
+    }
   }
 
   async function submitReview(e: React.FormEvent) {
@@ -201,20 +240,20 @@ export default function ResultsReviewPage() {
       const payload = reviewForm.reviewerUsername.trim()
         ? { ...reviewForm, reviewerUsername: reviewForm.reviewerUsername.trim() }
         : { password: reviewForm.password, meaning: reviewForm.meaning, reason: reviewForm.reason, notes: reviewForm.notes }
-      await api.post(`/results-review/${showReview!.executionId}/${endpoint}`, payload)
+      for (const executionId of showReview!.executionIds) {
+        await api.post(`/results-review/${executionId}/${endpoint}`, payload)
+      }
       setShowReview(null)
       await load()
-      // Navigate to next stage bucket so user sees where the item went
       setStatusFilter(type === 'peer' ? 'PendingQC' : 'All')
       toast('Review recorded successfully', 'success')
     } catch (err) { setError(getErrorMessage(err, 'Review failed')) }
     finally { setSaving(false) }
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: '4px 0' }}>
-      {/* Toolbar: chips + date range + search + count */}
+      {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 20 }}>
         {CHIPS.map((c, i) => (
           <Chip key={c.key} label={c.label} count={c.count} color={c.color} bg={c.bg}
@@ -225,28 +264,22 @@ export default function ResultsReviewPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 8 }}>
           <span style={{ fontSize: 12, color: '#6b7280' }}>From</span>
           <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-            style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6,
-              fontSize: 12, color: '#374151', outline: 'none' }} />
+            style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, color: '#374151', outline: 'none' }} />
           <span style={{ fontSize: 12, color: '#6b7280' }}>To</span>
           <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-            style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6,
-              fontSize: 12, color: '#374151', outline: 'none' }} />
+            style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12, color: '#374151', outline: 'none' }} />
         </div>
 
         <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 280 }}>
-          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
-            color: '#9ca3af', fontSize: 14 }}>🔍</span>
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
+          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: 14 }}>🔍</span>
+          <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search sample, material, lot…"
-            style={{ width: '100%', padding: '6px 10px 6px 30px',
-              border: '1px solid #d1d5db', borderRadius: 20, fontSize: 12,
-              outline: 'none', boxSizing: 'border-box', color: '#374151' }}
-          />
+            style={{ width: '100%', padding: '6px 10px 6px 30px', border: '1px solid #d1d5db',
+              borderRadius: 20, fontSize: 12, outline: 'none', boxSizing: 'border-box', color: '#374151' }} />
         </div>
 
         <span style={{ marginLeft: 'auto', fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>
-          {loading ? 'Loading…' : `${filtered.length} execution${filtered.length !== 1 ? 's' : ''}`}
+          {loading ? 'Loading…' : `${filtered.length} sample${filtered.length !== 1 ? 's' : ''} (${filtered.reduce((n, g) => n + g.executions.length, 0)} tests)`}
         </span>
       </div>
 
@@ -258,104 +291,120 @@ export default function ResultsReviewPage() {
               {['SAMPLE NUMBER', 'MATERIAL', 'LOT', 'ANALYST', 'REVIEW STAGE', 'STATUS', 'COMPLETED', 'ACTIONS'].map(h => (
                 <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11,
                   fontWeight: 700, color: '#6b7280', textTransform: 'uppercase',
-                  letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
-                  {h}
-                </th>
+                  letterSpacing: 0.5, whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
-                Loading executions…
-              </td></tr>
+              <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>Loading…</td></tr>
             ) : filtered.length === 0 ? (
               <tr><td colSpan={8} style={{ padding: 48, textAlign: 'center' }}>
                 <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 4 }}>No executions to review</div>
-                <div style={{ fontSize: 13, color: '#9ca3af' }}>All completed executions have been reviewed, or no results match your filters.</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 4 }}>No samples to review</div>
+                <div style={{ fontSize: 13, color: '#9ca3af' }}>All completed samples have been reviewed, or none match your filters.</div>
               </td></tr>
             ) : (
-              filtered.map((r, i) => {
-                const canPeer = r.status === 'Completed'
-                const canQC   = r.status === 'PeerReviewed'
+              filtered.map((g, i) => {
+                const canPeer = g.pendingPeerIds.length > 0
+                const canQC   = g.pendingQCIds.length > 0
                 return (
-                  <tr key={r.executionId}
+                  <tr key={g.sampleId}
                     style={{ borderBottom: '1px solid #f3f4f6',
-                      background: i % 2 === 0 ? '#fff' : '#fafafa',
-                      transition: 'background 0.1s' }}
+                      background: i % 2 === 0 ? '#fff' : '#fafafa', transition: 'background 0.1s' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#eff6ff')}
                     onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#fafafa')}
                   >
-                    {/* Sample Number — click to open detail sheet */}
                     <td style={{ padding: '10px 16px' }}>
-                      <div
-                        onClick={() => setDetailSampleId(r.sampleId)}
+                      <div onClick={() => setDetailSampleId(g.sampleId)}
                         style={{ fontSize: 13, fontWeight: 700, color: '#2563eb',
-                          cursor: 'pointer', fontFamily: 'monospace',
-                          textDecoration: 'underline dotted' }}>
-                        {r.sampleNumber}
+                          cursor: 'pointer', fontFamily: 'monospace', textDecoration: 'underline dotted' }}>
+                        {g.sampleNumber}
                       </div>
                       <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
-                        Exec #{r.executionId}
+                        {g.executions.length} test{g.executions.length !== 1 ? 's' : ''}
                       </div>
                     </td>
-
-                    {/* Material */}
                     <td style={{ padding: '10px 16px' }}>
-                      <div style={{ fontSize: 13, color: '#111827', fontWeight: 500 }}>{r.materialName}</div>
+                      <div style={{ fontSize: 13, color: '#111827', fontWeight: 500 }}>{g.materialName}</div>
                     </td>
-
-                    {/* Lot */}
                     <td style={{ padding: '10px 16px', fontSize: 12, color: '#6b7280', fontFamily: 'monospace' }}>
-                      {r.lotNumber}
+                      {g.lotNumber}
                     </td>
-
-                    {/* Analyst */}
                     <td style={{ padding: '10px 16px', fontSize: 13, color: '#374151' }}>
-                      {r.analystName}
+                      {g.analystName}
                     </td>
-
-                    {/* Review stage progress */}
                     <td style={{ padding: '10px 16px' }}>
-                      <ReviewSteps status={r.status} />
+                      <ReviewSteps status={g.overallStatus} />
                     </td>
-
-                    {/* Status badge */}
                     <td style={{ padding: '10px 16px' }}>
-                      <StatusBadge status={r.status} />
+                      <StatusBadge status={g.overallStatus} />
                     </td>
-
-                    {/* Completed date */}
                     <td style={{ padding: '10px 16px', fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>
-                      {r.completedAt ? fmtDate(r.completedAt) : '—'}
+                      {g.completedAt ? fmtDate(g.completedAt) : '—'}
                     </td>
-
-                    {/* Actions — link-style like the screenshot */}
                     <td style={{ padding: '10px 16px' }}>
                       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                         {canPeer && canPeerReview && (
-                          <button onClick={() => openReview(r.executionId, 'peer')}
+                          <button onClick={() => openReview(g.pendingPeerIds, 'peer')}
                             style={{ background: 'none', border: 'none', cursor: 'pointer',
                               fontSize: 13, fontWeight: 600, color: '#2563eb', padding: 0 }}>
                             Peer Review
                           </button>
                         )}
                         {canQC && canQCVerify && (
-                          <button onClick={() => openReview(r.executionId, 'qclead')}
+                          <button onClick={() => openReview(g.pendingQCIds, 'qclead')}
                             style={{ background: 'none', border: 'none', cursor: 'pointer',
                               fontSize: 13, fontWeight: 600, color: '#7c3aed', padding: 0 }}>
                             QC Verify
                           </button>
                         )}
-                        {!canPeer && !canQC && (
-                          <span style={{ fontSize: 13, color: '#9ca3af' }}>View</span>
-                        )}
-                        <button onClick={() => downloadPdf(r)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer',
-                            fontSize: 12, color: '#0369a1', padding: 0 }}>
-                          📄 PDF
-                        </button>
+                        {/* PDF download — one per execution */}
+                        <div style={{ position: 'relative' }}>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation()
+                              if (g.executions.length === 1) {
+                                downloadExecutionPdf(g.executions[0].executionId, g.sampleNumber)
+                              } else {
+                                setPdfDropdown(pdfDropdown === g.sampleId ? null : g.sampleId)
+                              }
+                            }}
+                            style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 6,
+                              cursor: 'pointer', fontSize: 11, fontWeight: 600, color: '#374151',
+                              padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <svg viewBox="0 0 24 24" fill="none" width="11" height="11">
+                              <path d="M12 16l-4-4h3V4h2v8h3l-4 4zM4 20h16v-2H4v2z"
+                                fill="#374151"/>
+                            </svg>
+                            PDF{g.executions.length > 1 ? ` (${g.executions.length})` : ''}
+                          </button>
+                          {pdfDropdown === g.sampleId && (
+                            <div style={{ position: 'absolute', right: 0, top: '110%', zIndex: 20,
+                              background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 190, padding: 6 }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af',
+                                textTransform: 'uppercase', padding: '4px 8px 6px', letterSpacing: 0.5 }}>
+                                Download per test
+                              </div>
+                              {g.executions.map((ex, idx) => (
+                                <button key={ex.executionId}
+                                  onClick={e => { e.stopPropagation(); downloadExecutionPdf(ex.executionId, g.sampleNumber); setPdfDropdown(null) }}
+                                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                                    textAlign: 'left', padding: '6px 10px', borderRadius: 6,
+                                    border: 'none', cursor: 'pointer', fontSize: 12,
+                                    background: 'none', color: '#111827', fontFamily: 'inherit' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                  <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#6b7280' }}>
+                                    EXE-{String(ex.executionId).padStart(5, '0')}
+                                  </span>
+                                  <span style={{ fontSize: 11, color: '#9ca3af' }}>{ex.testLabel ?? `Test ${idx + 1}`}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -366,20 +415,20 @@ export default function ResultsReviewPage() {
         </table>
       </div>
 
-      {/* E-Signature Modal */}
+      {/* E-Signature Drawer */}
       {showReview && (
-        <Modal
+        <Drawer
           title={showReview.type === 'peer' ? 'Peer Review — E-Signature' : 'QC Lead Verification — E-Signature'}
-          onClose={() => setShowReview(null)}
+          onClose={() => { setShowReview(null); setError('') }}
+          blocking width={460}
         >
-          {showReview.type === 'qclead' && (
-            <div style={{ marginBottom: 16, padding: '10px 14px', background: '#fef9c3',
-              borderRadius: 6, fontSize: 13, color: '#854d0e', display: 'flex', gap: 8 }}>
-              <span>ℹ️</span>
-              <span>OOS gate enforced — all open OOS investigations must be closed before QC Lead verification is permitted.</span>
+          {showReview.executionIds.length > 1 && (
+            <div style={{ marginBottom: 14, padding: '8px 12px', background: '#f0f9ff',
+              border: '1px solid #bae6fd', borderRadius: 6, fontSize: 13, color: '#0369a1' }}>
+              This will apply to all <strong>{showReview.executionIds.length} tests</strong> for this sample.
             </div>
           )}
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16, lineHeight: 1.6 }}>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 14, lineHeight: 1.6 }}>
             <strong>21 CFR Part 11:</strong> {showReview.type === 'peer'
               ? 'You must not be the original analyst.'
               : 'You must be different from both the analyst and peer reviewer.'}
@@ -392,7 +441,7 @@ export default function ResultsReviewPage() {
                 placeholder="e.g. srikanth — leave blank to use your own account" />
             </Field>
             <Field label="Password (re-enter to confirm identity)">
-              <input style={inp} type="password" value={reviewForm.password}
+              <input style={inp} type="password" autoFocus value={reviewForm.password}
                 onChange={e => setReviewForm(f => ({ ...f, password: e.target.value }))} required />
             </Field>
             <Field label="Meaning">
@@ -411,22 +460,16 @@ export default function ResultsReviewPage() {
             </Field>
             {error && (
               <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6,
-                padding: '8px 12px', fontSize: 13, color: '#dc2626', marginBottom: 8 }}>
-                ⚠ {error}
-              </div>
+                padding: '8px 12px', fontSize: 13, color: '#dc2626', marginBottom: 8 }}>⚠ {error}</div>
             )}
-            <ModalFooter saving={saving} onCancel={() => setShowReview(null)}
+            <DrawerFooter saving={saving} onCancel={() => { setShowReview(null); setError('') }}
               label={showReview.type === 'peer' ? 'Sign Peer Review' : 'Sign QC Lead Verification'} />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {detailSampleId !== null && (
-        <SampleDetailSheet
-          sampleId={detailSampleId}
-          onClose={() => setDetailSampleId(null)}
-          context="qa"
-        />
+        <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="qa" />
       )}
     </div>
   )

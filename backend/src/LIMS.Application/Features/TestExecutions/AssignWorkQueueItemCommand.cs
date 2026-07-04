@@ -10,7 +10,7 @@ namespace LIMS.Application.Features.TestExecutions;
 // Lab Manager assigns a sample to an analyst before analyst opens Work Queue (WAP FR-13)
 public record AssignWorkQueueItemCommand(
     int SampleId, int AnalystId, int? InstrumentId,
-    int AssignedById, int? PriorityScore) : IRequest<Result<int>>;
+    int AssignedById, int? PriorityScore, int? ContainerId = null) : IRequest<Result<int>>;
 
 public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCommand, Result<int>>
 {
@@ -43,44 +43,67 @@ public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCom
             if (instrument is null) return Result<int>.Failure("NOT_FOUND", "Instrument not found or inactive.");
         }
 
-        // Re-use any execution the spec engine already created at registration (Assigned, no analyst yet).
-        // Creating a second row would leave the spec-engine execution orphaned and confuse downstream
-        // sign-off, peer review, and CoA generation which all key off ExecutionId.
-        var execution = await _db.TestExecutions
-            .FirstOrDefaultAsync(e => e.SampleId == cmd.SampleId
-                && (e.Status == TestExecutionStatus.Assigned || e.Status == TestExecutionStatus.InProgress), ct);
-
-        if (execution is not null)
+        // Validate container if provided — must belong to this sample and be Available
+        SampleContainer? container = null;
+        if (cmd.ContainerId.HasValue)
         {
-            // Update the existing execution with the assigned analyst + instrument
-            execution.AnalystId    = cmd.AnalystId;
-            if (cmd.InstrumentId.HasValue) execution.InstrumentId = cmd.InstrumentId;
-            execution.AssignedById = cmd.AssignedById;
-            execution.PriorityScore = cmd.PriorityScore ?? execution.PriorityScore;
-            execution.Status       = TestExecutionStatus.Assigned;
+            container = await _db.SampleContainers
+                .FirstOrDefaultAsync(c => c.SampleContainerId == cmd.ContainerId.Value, ct);
+            if (container is null)
+                return Result<int>.Failure("NOT_FOUND", "Container not found.");
+            if (container.SampleId != cmd.SampleId)
+                return Result<int>.Failure("INVALID_STATE", "Container does not belong to this sample.");
+            if (container.Status != LIMS.Domain.Enums.ContainerStatus.Available)
+                return Result<int>.Failure("INVALID_STATE", $"Container is {container.Status} — only Available containers can be assigned.");
+        }
+
+        // Re-use ALL executions the spec engine created at registration (one per spec test item).
+        // Update every Assigned/InProgress execution for this sample with the analyst.
+        var executions = await _db.TestExecutions
+            .Where(e => e.SampleId == cmd.SampleId
+                && (e.Status == TestExecutionStatus.Assigned || e.Status == TestExecutionStatus.InProgress))
+            .ToListAsync(ct);
+
+        if (executions.Count > 0)
+        {
+            foreach (var exec in executions)
+            {
+                exec.AnalystId     = cmd.AnalystId;
+                if (cmd.InstrumentId.HasValue) exec.InstrumentId = cmd.InstrumentId;
+                exec.AssignedById  = cmd.AssignedById;
+                exec.PriorityScore = cmd.PriorityScore ?? exec.PriorityScore;
+                exec.Status        = TestExecutionStatus.Assigned;
+                if (cmd.ContainerId.HasValue) exec.SampleContainerId = cmd.ContainerId;
+            }
         }
         else
         {
-            // No spec-engine execution exists — create one (manual assignment path)
-            execution = new TestExecution
+            // No spec-engine executions exist — create one (manual assignment path)
+            var newExec = new TestExecution
             {
-                SampleId       = cmd.SampleId,
-                InstrumentId   = cmd.InstrumentId ?? null,
-                AnalystId      = cmd.AnalystId,
-                AssignedById   = cmd.AssignedById,
-                FormTemplateId = sample.FormTemplateId,
-                PriorityScore  = cmd.PriorityScore,
-                Status         = TestExecutionStatus.Assigned,
-                CreatedBy      = analyst.FullName,
-                CreatedAt      = DateTimeOffset.UtcNow
+                SampleId          = cmd.SampleId,
+                InstrumentId      = cmd.InstrumentId ?? null,
+                AnalystId         = cmd.AnalystId,
+                AssignedById      = cmd.AssignedById,
+                FormTemplateId    = sample.FormTemplateId,
+                PriorityScore     = cmd.PriorityScore,
+                SampleContainerId = cmd.ContainerId,
+                Status            = TestExecutionStatus.Assigned,
+                CreatedBy         = analyst.FullName,
+                CreatedAt         = DateTimeOffset.UtcNow
             };
-            _db.TestExecutions.Add(execution);
+            _db.TestExecutions.Add(newExec);
+            executions.Add(newExec);
         }
+
+        // Flip container status → InUse
+        if (container is not null)
+            container.Status = LIMS.Domain.Enums.ContainerStatus.InUse;
 
         sample.Status = SampleStatus.InTesting;
         await _db.SaveChangesAsync(ct);
         try { await _audit.LogAsync("WorkQueue", cmd.SampleId, "Assigned",
             null, new { cmd.AnalystId, cmd.InstrumentId, cmd.PriorityScore }, "System"); } catch { /* non-critical */ }
-        return Result<int>.Success(execution.ExecutionId);
+        return Result<int>.Success(executions.First().ExecutionId);
     }
 }

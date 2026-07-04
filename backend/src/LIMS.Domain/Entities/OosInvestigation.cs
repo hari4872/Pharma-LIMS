@@ -16,6 +16,7 @@ public class OosInvestigation
     public OosStatus Status { get; set; } = OosStatus.Open;
     public string? RootCause { get; set; }
     public string? CapaRef { get; set; }
+    public string? CapaStatus { get; set; }
     public int? SignatureId { get; set; }
     public ElectronicSignature? Signature { get; set; }
     public DateTimeOffset OpenedAt { get; set; } = DateTimeOffset.UtcNow;

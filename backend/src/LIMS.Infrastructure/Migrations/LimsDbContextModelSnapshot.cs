@@ -334,6 +334,18 @@ namespace LIMS.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CheckpointParameterId"));
 
+                    b.Property<decimal?>("ActionMax")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("ActionMin")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("AlertMax")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("AlertMin")
+                        .HasColumnType("numeric");
+
                     b.Property<int>("CheckpointId")
                         .HasColumnType("integer");
 
@@ -409,7 +421,7 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<int?>("DeliveryOrderId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("FormTemplateId")
+                    b.Property<int?>("FormTemplateId")
                         .HasColumnType("integer");
 
                     b.Property<bool>("IsConditionalRelease")
@@ -901,6 +913,32 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasIndex("SampleId");
 
                     b.ToTable("dispatch_qc_tasks", (string)null);
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.ESignConfig", b =>
+                {
+                    b.Property<string>("ActionKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("FourEye")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("ActionKey");
+
+                    b.ToTable("esign_configs", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.ElectronicSignature", b =>
@@ -1562,6 +1600,28 @@ namespace LIMS.Infrastructure.Migrations
                     b.ToTable("materials", (string)null);
                 });
 
+            modelBuilder.Entity("LIMS.Domain.Entities.NavVisibilitySetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("nav_visibility_settings", (string)null);
+                });
+
             modelBuilder.Entity("LIMS.Domain.Entities.OosInvestigation", b =>
                 {
                     b.Property<int>("InvestigationId")
@@ -1573,6 +1633,9 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<string>("CapaRef")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CapaStatus")
+                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset?>("ClosedAt")
                         .HasColumnType("timestamptz");
@@ -2046,7 +2109,7 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<int>("MaterialId")
                         .HasColumnType("integer");
 
-                    b.Property<DateOnly>("MfgDate")
+                    b.Property<DateOnly?>("MfgDate")
                         .HasColumnType("date");
 
                     b.Property<decimal?>("ReceivedTemp")
@@ -2641,7 +2704,7 @@ namespace LIMS.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
 
-                    b.Property<int>("ParameterId")
+                    b.Property<int?>("ParameterId")
                         .HasColumnType("integer");
 
                     b.Property<int>("SortOrder")
@@ -3151,6 +3214,9 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<int?>("PriorityScore")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("SampleContainerId")
+                        .HasColumnType("integer");
+
                     b.Property<int>("SampleId")
                         .HasColumnType("integer");
 
@@ -3175,6 +3241,8 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasIndex("InstrumentId");
 
                     b.HasIndex("ParameterId");
+
+                    b.HasIndex("SampleContainerId");
 
                     b.HasIndex("SampleId");
 
@@ -3281,6 +3349,9 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.Property<string>("FormulaType")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("InputFields")
                         .HasColumnType("text");
 
                     b.Property<string>("InstrumentType")
@@ -3786,8 +3857,7 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasOne("LIMS.Domain.Entities.FormTemplate", "FormTemplate")
                         .WithMany()
                         .HasForeignKey("FormTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("LIMS.Domain.Entities.ElectronicSignature", "QaSignature")
                         .WithMany()
@@ -4669,8 +4739,7 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasOne("LIMS.Domain.Entities.TestMethodParameter", "Parameter")
                         .WithMany()
                         .HasForeignKey("ParameterId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("LIMS.Domain.Entities.SpecificationTemplate", "SpecTemplate")
                         .WithMany("Items")
@@ -4878,6 +4947,11 @@ namespace LIMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("LIMS.Domain.Entities.SampleContainer", "SampleContainer")
+                        .WithMany()
+                        .HasForeignKey("SampleContainerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("LIMS.Domain.Entities.SpecTemplateItem", "SpecTemplateItem")
                         .WithMany()
                         .HasForeignKey("SpecTemplateItemId");
@@ -4893,6 +4967,8 @@ namespace LIMS.Infrastructure.Migrations
                     b.Navigation("Parameter");
 
                     b.Navigation("Sample");
+
+                    b.Navigation("SampleContainer");
 
                     b.Navigation("SpecTemplateItem");
                 });

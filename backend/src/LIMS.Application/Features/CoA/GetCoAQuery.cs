@@ -56,7 +56,7 @@ public class GetCoAHandler : IRequestHandler<GetCoAQuery, List<CoADto>>
 
         var coas = await query.OrderByDescending(c => c.CreatedAt).ToListAsync(ct);
 
-        return coas.Select(c => new CoADto(
+        return coas.Where(c => c.Sample != null).Select(c => new CoADto(
             c.CoaId, c.SampleId, c.Sample.SampleNumber,
             c.Sample.Material != null ? c.Sample.Material.MaterialName : "Unknown", c.Sample.LotNumber,
             c.CoaNumber, c.Status.ToString(),

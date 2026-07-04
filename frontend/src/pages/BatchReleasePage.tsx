@@ -1,9 +1,10 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
+import { fmtLabel } from '@/utils/formatLabel'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
-import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Field, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { MasterDetail, DetailPane } from '@/components/MasterDetail'
 import PipelineBar from '@/components/PipelineBar'
@@ -111,8 +112,14 @@ export default function BatchReleasePage() {
   }
 
   async function openInitiate() {
-    const r = await api.get('/samples?status=PendingQAReview')
-    setSamples(r.data); setForm({ sampleId: '' }); setError(''); setShowInitiate(true)
+    setForm({ sampleId: '' }); setError(''); setShowInitiate(true)
+    try {
+      const r = await api.get('/samples?status=PendingQAReview')
+      setSamples(Array.isArray(r.data) ? r.data : [])
+    } catch {
+      setSamples([])
+      setError('Could not load samples — check connection and try again.')
+    }
   }
 
   async function submitInitiate(e: React.FormEvent) {
@@ -286,12 +293,12 @@ export default function BatchReleasePage() {
           { header: 'Material / Lot', accessor: r => <span>{r.materialName}<br /><span style={{ fontSize: 11, color: '#6b7280' }}>{r.lotNumber}</span></span> },
           { header: 'Status', accessor: r => {
             const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
-            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: c.bg, color: c.color }}>{r.status}</span>
+            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: c.bg, color: c.color }}>{fmtLabel(r.status)}</span>
           }},
           { header: 'Decision', accessor: r => {
             if (!r.decision) return <span style={{ color: '#9ca3af' }}>—</span>
             const c = DECISION_COLORS[r.decision] ?? { bg: '#f3f4f6', color: '#374151' }
-            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.bg, color: c.color }}>{r.decision}</span>
+            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: c.bg, color: c.color }}>{fmtLabel(r.decision)}</span>
           }},
           { header: 'Initiated By', accessor: r => <span style={{ fontSize: 12 }}>{r.initiatedBy}</span> },
           { header: 'Reviewed By', accessor: r => <span style={{ fontSize: 12 }}>{r.reviewedBy ?? '—'}</span> },
@@ -335,9 +342,9 @@ export default function BatchReleasePage() {
         </Drawer>
       )}
 
-      {/* ── Decision Modal ── */}
+      {/* ── Decision Drawer ── */}
       {showDecide && (
-        <Modal title="QA Batch Release Decision" onClose={() => setShowDecide(false)}>
+        <Drawer title="QA Batch Release Decision" subtitle="21 CFR 211.192 — permanently audit-logged" onClose={() => { setShowDecide(false); setError('') }} blocking width={460}>
           <form onSubmit={submitDecide}>
             <div style={{ padding: '10px 14px', background: '#fef3c7', borderRadius: 8, marginBottom: 14, border: '1px solid #fde68a' }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>⚖ 21 CFR 211.192 Compliance</div>
@@ -360,7 +367,7 @@ export default function BatchReleasePage() {
             <div style={{ marginTop: 14, padding: '12px 14px', background: '#f0fdfa', borderRadius: 8, border: '1px solid #99f6e4' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#0d6e6e', marginBottom: 8 }}>🔐 Electronic Signature</div>
               <Field label="Your Password *">
-                <input type="password" style={inp} value={decideForm.password} onChange={e => setDecideForm(f => ({ ...f, password: e.target.value }))} required />
+                <input type="password" autoFocus style={inp} value={decideForm.password} onChange={e => setDecideForm(f => ({ ...f, password: e.target.value }))} required />
               </Field>
               <Field label="Meaning of Signature">
                 <input style={inp} value={decideForm.meaning} onChange={e => setDecideForm(f => ({ ...f, meaning: e.target.value }))} required />
@@ -370,9 +377,9 @@ export default function BatchReleasePage() {
               </Field>
             </div>
             {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowDecide(false)} label="Submit Decision" />
+            <DrawerFooter saving={saving} onCancel={() => { setShowDecide(false); setError('') }} label="Submit Decision" />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

@@ -51,15 +51,15 @@ public class SpecificationTemplatesController : LimsControllerBase
         {
             t.SpecTemplateId, t.TemplateName, t.Version, t.Description, t.CompendialStandard,
             t.Stage, t.Status, t.EffectiveFrom, t.ApprovedBy, t.ApprovedAt,
-            Material   = new { t.Material.MaterialId, t.Material.MaterialName },
-            SampleType = new { t.SampleType.SampleTypeId, t.SampleType.TypeName, t.SampleType.TypeCode },
+            Material   = new { MaterialId = t.Material != null ? t.Material.MaterialId : 0, MaterialName = t.Material != null ? t.Material.MaterialName : "(Deleted)" },
+            SampleType = new { SampleTypeId = t.SampleType != null ? t.SampleType.SampleTypeId : 0, TypeName = t.SampleType != null ? t.SampleType.TypeName : "(Deleted)", TypeCode = t.SampleType != null ? t.SampleType.TypeCode : "" },
             t.CreatedBy, t.CreatedAt, t.UpdatedBy, t.UpdatedAt,
             ItemCount  = t.Items.Count,
             Items = t.Items.OrderBy(i => i.SortOrder).Select(i => new
             {
                 i.SpecTemplateItemId, i.ParameterId, i.TestMethodId, i.TurnaroundHours, i.IsMandatory, i.SortOrder,
-                ParameterName = i.Parameter.ParameterName,
-                ParameterCode = i.Parameter.ParameterCode,
+                ParameterName  = i.Parameter != null ? i.Parameter.ParameterName : null,
+                ParameterCode  = i.Parameter != null ? i.Parameter.ParameterCode : null,
                 TestMethodName = i.TestMethod != null ? i.TestMethod.MethodName : null,
                 TestMethodCode = i.TestMethod != null ? i.TestMethod.MethodCode : null,
             })
@@ -146,6 +146,9 @@ public class SpecificationTemplatesController : LimsControllerBase
 
         // Remove all existing items and replace (simple replace strategy)
         _db.SpecTemplateItems.RemoveRange(template.Items);
+
+        if (items.Any(i => i.ParameterId == null && i.TestMethodId == null))
+            return BadRequest(new { error = "INVALID_ITEM", message = "Each spec item must have either a ParameterId (per-param) or a TestMethodId (method group)." });
 
         foreach (var (item, idx) in items.Select((x, i) => (x, i)))
         {
@@ -269,7 +272,7 @@ public record UpdateSpecTemplateRequest(
     DateTimeOffset? EffectiveFrom);
 
 public record SaveSpecItemRequest(
-    int  ParameterId,
+    int? ParameterId,    // null for method-level items (LabVantage model: 1 execution per method)
     int? TestMethodId,
     int  TurnaroundHours,
     bool IsMandatory);

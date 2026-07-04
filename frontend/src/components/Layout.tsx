@@ -273,7 +273,7 @@ export default function Layout() {
 
   const [collapsed,    setCollapsed]    = useState(false)
   const [paletteOpen,  setPaletteOpen]  = useState(false)
-  const [darkMode,     setDarkMode]     = useState(() => localStorage.getItem('lims_dark_mode') === 'true')
+  const darkMode = false
   const [profileOpen,  setProfileOpen]  = useState(false)
   const [notifOpen,    setNotifOpen]    = useState(false)
   const [isMobile,     setIsMobile]     = useState(() => window.innerWidth < 768)
@@ -345,8 +345,6 @@ export default function Layout() {
   const crumb       = BREADCRUMB_MAP[location.pathname]
   const unreadCount = liveUnread
   const dm          = darkMode
-
-  useEffect(() => { localStorage.setItem('lims_dark_mode', String(darkMode)) }, [darkMode])
 
   function handleLogout() { dispatch(logout()); navigate('/login') }
 
@@ -697,16 +695,6 @@ export default function Layout() {
               )}
             </div>
 
-            {/* Dark mode toggle */}
-            <button onClick={() => setDarkMode(d => !d)}
-              title={dm ? 'Switch to light mode' : 'Switch to dark mode'}
-              style={iconBtn(dm)}>
-              {dm
-                ? <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.166 17.834a.75.75 0 00-1.06 1.06l1.59 1.591a.75.75 0 001.061-1.06l-1.59-1.591zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.166 6.166a.75.75 0 00-1.06 1.06l1.59 1.591a.75.75 0 001.061-1.06L6.166 6.166z"/></svg>
-                : <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/></svg>
-              }
-            </button>
-
             {/* Profile dropdown */}
             <div ref={profileRef} style={{ position: 'relative' }}>
               <button onClick={() => { setProfileOpen(o => !o); setNotifOpen(false) }}
@@ -761,12 +749,6 @@ export default function Layout() {
                     </div>
                   </div>
                   <div style={{ padding: '6px 8px' }}>
-                    <button
-                      onClick={() => { setDarkMode(d => !d); setProfileOpen(false) }}
-                      style={{ width: '100%', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 13, color: dm ? '#cbd5e1' : '#111111', fontFamily: 'inherit', textAlign: 'left' }}>
-                      {dm ? '☀️ Light Mode' : '🌙 Dark Mode'}
-                    </button>
-                    <div style={{ height: 1, background: dm ? '#334155' : '#f1f3f4', margin: '4px 0' }} />
                     <button
                       onClick={handleLogout}
                       style={{ width: '100%', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#dc2626', fontFamily: 'inherit', textAlign: 'left', fontWeight: 600 }}>

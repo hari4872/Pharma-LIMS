@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import { isNavEnabled } from '@/store/navVisibilitySlice'
 import NavVisibilityPanel from './master-data/NavVisibilityPanel'
+import ESignConfigPanel   from './master-data/ESignConfigPanel'
 import LaboratoriesPage       from './master-data/LaboratoriesPage'
 import InstrumentsPage        from './master-data/InstrumentsPage'
 import InstrumentMappingPage  from './master-data/InstrumentMappingPage'
@@ -91,6 +92,7 @@ const TAB_GROUPS: TabGroup[] = [
     id: 'nav-visibility', label: 'Module Visibility', icon: '👁', color: '#7c3aed', bg: '#f3e8ff',
     subtabs: [
       { id: 'nav-visibility', label: 'Module Visibility', icon: '👁', component: NavVisibilityPanel },
+      { id: 'esign-config',   label: 'E-Sign Config',    icon: '✍', component: ESignConfigPanel   },
     ],
     adminOnly: true,
   },
@@ -164,14 +166,6 @@ export default function SettingsPage() {
             }}>
             <span style={{ fontSize: 15 }}>{g.icon}</span>
             {g.label}
-            <span style={{
-              background: activeGroup === g.id ? g.color : '#e2e8f0',
-              color: activeGroup === g.id ? '#fff' : '#9ca3af',
-              fontSize: 10, fontWeight: 800,
-              padding: '1px 6px', borderRadius: 8,
-            }}>
-              {g.subtabs.length}
-            </span>
           </button>
         ))}
       </div>

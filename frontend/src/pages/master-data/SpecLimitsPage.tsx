@@ -4,7 +4,8 @@ const SPEC_STAGES = ['Incoming', 'InProcess', 'Finished', 'Stability']
 function stageLabel(s: string) { return s.replace(/([a-z])([A-Z])/g, '$1 $2') }
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
-import { PageHeader, Modal, Field, ModalFooter, inp } from './LaboratoriesPage'
+import { PageHeader, Field, inp } from './LaboratoriesPage'
+import ESignatureDrawer from '@/components/ESignatureDrawer'
 import { toast } from '@/components/Toast'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 
@@ -216,15 +217,13 @@ export default function SpecLimitsPage() {
         </Drawer>
       )}
       {showApprove && (
-        <Modal title="E-Signature Approval" onClose={() => setShowApprove(null)}>
-          <form onSubmit={submitApprove}>
-            <Field label="Password (re-enter)"><input style={inp} type="password" value={approveForm.password} onChange={e => setApproveForm(f => ({ ...f, password: e.target.value }))} required /></Field>
-            <Field label="Meaning"><input style={inp} value={approveForm.meaning} onChange={e => setApproveForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
-            <Field label="Reason"><input style={inp} value={approveForm.reason} onChange={e => setApproveForm(f => ({ ...f, reason: e.target.value }))} required /></Field>
-            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowApprove(null)} />
-          </form>
-        </Modal>
+        <ESignatureDrawer
+          title="E-Signature Approval"
+          subtitle="Approve this spec limit (21 CFR Part 11)"
+          form={approveForm} onChange={setApproveForm}
+          onSubmit={submitApprove} onClose={() => { setShowApprove(null); setError('') }}
+          saving={saving} error={error} label="Approve"
+        />
       )}
     </div>
   )

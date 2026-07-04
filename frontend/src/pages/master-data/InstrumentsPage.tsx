@@ -1,7 +1,8 @@
 ﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import DataTable from '@/components/DataTable'
-import { PageHeader, Modal, Field, ModalFooter, inp, StatusBadge } from './LaboratoriesPage'
+import { PageHeader, Field, inp, StatusBadge } from './LaboratoriesPage'
+import ESignatureDrawer from '@/components/ESignatureDrawer'
 import { toast } from '@/components/Toast'
 import { getErrorMessage } from '@/utils/errors'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
@@ -38,14 +39,14 @@ export default function InstrumentsPage() {
   const [form, setForm] = useState({ labId: '', instrumentCode: '', instrumentName: '', instrumentType: '', manufacturer: '', model: '', serialNumber: '', location: '', calibrationDue: '', lastCalibration: '' })
   const [bdForm, setBdForm] = useState({ instrumentId: '', issueDescription: '' })
   const [repairForm, setRepairForm] = useState({ technician: '', repairDate: '', repairDescription: '', partsUsed: '' })
-  const [rtsForm, setRtsForm] = useState({ password: '', meaning: '', reason: '' })
+  const [rtsForm, setRtsForm] = useState({ password: '', meaning: 'Instrument returned to service', reason: 'Return to service approved' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [editRow, setEditRow] = useState<Instrument | null>(null)
   const [editForm, setEditForm] = useState({ instrumentName: '', instrumentType: '', manufacturer: '', model: '', serialNumber: '', location: '', calibrationDue: '', lastCalibration: '' })
   const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set())
   const [showBulkRts, setShowBulkRts] = useState(false)
-  const [bulkRtsForm, setBulkRtsForm] = useState({ password: '', meaning: '', reason: '' })
+  const [bulkRtsForm, setBulkRtsForm] = useState({ password: '', meaning: 'Instruments returned to service', reason: 'Bulk return to service approved' })
   const [bulkSaving, setBulkSaving] = useState(false)
 
   // Calibration records
@@ -267,7 +268,7 @@ export default function InstrumentsPage() {
                 return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.fg }}>{r.status}</span>
               }
             },
-            { header: 'Active', accessor: r => <StatusBadge active={r.isActive} /> },
+            { header: 'Active', accessor: r => <StatusBadge active={r.isActive && r.status === 'Available'} /> },
             {
               header: '', accessor: r => (
                 <div style={{ display: 'flex', gap: 4 }}>
@@ -458,18 +459,24 @@ export default function InstrumentsPage() {
 
       {/* Bulk Return to Service */}
       {showBulkRts && (
-        <Modal title={`Bulk Return to Service — ${bulkSelected.size} breakdown(s)`} onClose={() => setShowBulkRts(false)}>
-          <p style={{ color: '#6b7280', fontSize: 13, margin: '0 0 16px' }}>
-            ⚠️ This will mark all {bulkSelected.size} selected breakdown(s) as resolved and instruments as Available. A single e-signature covers all. (21 CFR Part 11)
-          </p>
-          <form onSubmit={submitBulkRts}>
-            <Field label="Password (re-enter)"><input style={inp} type="password" value={bulkRtsForm.password} onChange={e => setBulkRtsForm(f => ({ ...f, password: e.target.value }))} required /></Field>
-            <Field label="Meaning of Signature"><input style={inp} value={bulkRtsForm.meaning} onChange={e => setBulkRtsForm(f => ({ ...f, meaning: e.target.value }))} required placeholder="e.g. QA Batch Return-to-Service Approval" /></Field>
-            <Field label="Reason for Signature"><input style={inp} value={bulkRtsForm.reason} onChange={e => setBulkRtsForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. All instruments verified in-spec post-maintenance" /></Field>
-            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={bulkSaving} onCancel={() => setShowBulkRts(false)} label={`Approve & Return ${bulkSelected.size} to Service`} />
-          </form>
-        </Modal>
+        <ESignatureDrawer
+          title={`Bulk Return to Service — ${bulkSelected.size} breakdown(s)`}
+          subtitle="A single e-signature covers all selected breakdowns (21 CFR Part 11)"
+          form={bulkRtsForm} onChange={setBulkRtsForm}
+          onSubmit={submitBulkRts}
+          onClose={() => setShowBulkRts(false)}
+          saving={bulkSaving} error={error}
+          label={`Approve & Return ${bulkSelected.size} to Service`}
+          reasonLabel="Reason for Signature"
+          reasonPlaceholder="e.g. All instruments verified in-spec post-maintenance"
+          passwordOnly
+        >
+          <div style={{ padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, marginBottom: 16 }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#92400e', fontWeight: 600 }}>
+              ⚠ Marks all {bulkSelected.size} selected breakdown(s) as resolved — instruments set to Available.
+            </p>
+          </div>
+        </ESignatureDrawer>
       )}
 
       {/* Calibration Records */}
@@ -546,18 +553,24 @@ export default function InstrumentsPage() {
 
       {/* Return to Service — QA §11.50 e-sig */}
       {showRtsForm && selectedBreakdownId && (
-        <Modal title={`Return to Service — Breakdown #${selectedBreakdownId}`} onClose={() => setShowRtsForm(false)}>
-          <p style={{ color: '#6b7280', fontSize: 13, margin: '0 0 16px' }}>
-            ⚠️ This action marks the instrument as Available and triggers OOC impact assessment on all logbook entries during the breakdown window. E-signature required (21 CFR Part 11).
-          </p>
-          <form onSubmit={submitRts}>
-            <Field label="Password (re-enter)"><input style={inp} type="password" value={rtsForm.password} onChange={e => setRtsForm(f => ({ ...f, password: e.target.value }))} required /></Field>
-            <Field label="Meaning of Signature"><input style={inp} value={rtsForm.meaning} onChange={e => setRtsForm(f => ({ ...f, meaning: e.target.value }))} required placeholder="e.g. QA Return-to-Service Approval" /></Field>
-            <Field label="Reason for Signature"><input style={inp} value={rtsForm.reason} onChange={e => setRtsForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Instrument verified in-spec post-repair" /></Field>
-            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowRtsForm(false)} label="Approve & Return to Service" />
-          </form>
-        </Modal>
+        <ESignatureDrawer
+          title={`Return to Service — Breakdown #${selectedBreakdownId}`}
+          subtitle="Marks instrument Available and triggers OOC impact assessment (21 CFR Part 11)"
+          form={rtsForm} onChange={setRtsForm}
+          onSubmit={submitRts}
+          onClose={() => setShowRtsForm(false)}
+          saving={saving} error={error}
+          label="Approve & Return to Service"
+          reasonLabel="Reason for Signature"
+          reasonPlaceholder="e.g. Instrument verified in-spec post-repair"
+          passwordOnly
+        >
+          <div style={{ padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, marginBottom: 16 }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#92400e', fontWeight: 600 }}>
+              ⚠ Triggers OOC impact assessment on all logbook entries during the breakdown window.
+            </p>
+          </div>
+        </ESignatureDrawer>
       )}
     </div>
   )

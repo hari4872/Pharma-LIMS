@@ -189,6 +189,7 @@ export default function App() {
         <Route path="oos-investigations" element={<RequireRole roles={OOS_ROLES}><OosInvestigationsPage /></RequireRole>} />
         <Route path="quality-events"     element={<RequireRole roles={QA_ROLES}><QualityEventsPage /></RequireRole>} />
         <Route path="spc"                element={<RequireRole roles={QA_ROLES}><SpcPage /></RequireRole>} />
+        <Route path="spc-charts"         element={<Navigate to="/spc" replace />} />
 
         {/* Batch release */}
         <Route path="batch-release" element={<RequireRole roles={QA_ROLES}><BatchReleasePage /></RequireRole>} />

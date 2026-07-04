@@ -101,6 +101,8 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<SampleContainer> SampleContainers => Set<SampleContainer>();
     // Module Visibility
     public DbSet<NavVisibilitySetting> NavVisibilitySettings => Set<NavVisibilitySetting>();
+    // E-Signature Configuration
+    public DbSet<ESignConfig> ESignConfigs => Set<ESignConfig>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -110,8 +112,19 @@ public class LimsDbContext : DbContext, ILimsDbContext
         // NavVisibilitySetting — string PK, no FK
         modelBuilder.Entity<NavVisibilitySetting>(e =>
         {
+            e.ToTable("nav_visibility_settings");
             e.HasKey(x => x.Key);
             e.Property(x => x.Key).IsRequired().HasMaxLength(100);
+            e.Property(x => x.UpdatedBy).IsRequired().HasMaxLength(100);
+        });
+
+        // ESignConfig — string PK, no FK
+        modelBuilder.Entity<ESignConfig>(e =>
+        {
+            e.ToTable("esign_configs");
+            e.HasKey(x => x.ActionKey);
+            e.Property(x => x.ActionKey).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Method).HasConversion<string>();
             e.Property(x => x.UpdatedBy).IsRequired().HasMaxLength(100);
         });
 

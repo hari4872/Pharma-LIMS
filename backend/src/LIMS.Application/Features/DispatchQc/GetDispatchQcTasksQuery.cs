@@ -38,9 +38,9 @@ public class GetDispatchQcTasksHandler : IRequestHandler<GetDispatchQcTasksQuery
             t.TaskId, t.DoId,
             t.DeliveryOrder != null ? t.DeliveryOrder.DoNumber : "",
             t.DeliveryOrder?.CustomerName,
-            t.SampleId, t.Sample.SampleNumber,
-            t.Sample.Material != null ? t.Sample.Material.MaterialName : "Unknown",
-            t.Sample.LotNumber,
+            t.SampleId, t.Sample != null ? t.Sample.SampleNumber : "",
+            t.Sample?.Material != null ? t.Sample.Material.MaterialName : "Unknown",
+            t.Sample != null ? t.Sample.LotNumber : "",
             t.FormTemplate != null ? t.FormTemplate.FormName : "Unknown",
             t.ExecutionId, t.Status.ToString(), t.CreatedAt
         )).ToList();

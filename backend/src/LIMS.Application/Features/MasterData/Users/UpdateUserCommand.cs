@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LIMS.Application.Features.MasterData.Users;
 
 public record UpdateUserCommand(int UserId, string FullName, string Email,
-    string Role, int? LabId, string UpdatedBy) : IRequest<Result<int>>;
+    string Role, int? LabId, bool IsActive, string UpdatedBy) : IRequest<Result<int>>;
 
 public class UpdateUserCommandValidator : AbstractValidator<UpdateUserCommand>
 {
@@ -37,14 +37,16 @@ public class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand, Resul
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.UserId == request.UserId, ct);
         if (user is null) return Result<int>.Failure("NOT_FOUND", "User not found.");
-        var old = new { user.FullName, user.Email, user.Role, user.LabId };
+        if (!request.IsActive && user.IsTenantAdmin)
+            return Result<int>.Failure("FORBIDDEN", "Cannot deactivate Tenant Admin.");
+        var old = new { user.FullName, user.Email, user.Role, user.LabId, user.IsActive };
         user.FullName = request.FullName; user.Email = request.Email;
         if (!Enum.TryParse<UserRole>(request.Role, out var parsedRole))
             return Result<int>.Failure("INVALID_ROLE", $"'{request.Role}' is not a valid role.");
-        user.Role = parsedRole; user.LabId = request.LabId;
+        user.Role = parsedRole; user.LabId = request.LabId; user.IsActive = request.IsActive;
         await _db.SaveChangesAsync(ct);
         try { await _audit.LogAsync("User", user.UserId, "Updated", old,
-            new { user.FullName, user.Email, user.Role }, request.UpdatedBy); } catch { /* non-critical */ }
+            new { user.FullName, user.Email, user.Role, user.IsActive }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(user.UserId);
     }
 }

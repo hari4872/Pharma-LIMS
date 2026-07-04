@@ -56,11 +56,9 @@ const GATE_LABEL: Record<string, string> = {
 }
 export const GATE_HELP: Record<string, string> = {
   AllTestsComplete:   'Complete all test executions in Work Queue',
-  NoOpenOOS:          'Close open OOS investigations in QA → OOS Investigations',
   LogbookSigned:      'Sign all logbook entries in Digital Logbook',
   CoAApproved:        'Approve the CoA in Release → CoA Review',
   SRFSigned:          'Sign the SRF in Sample Registration',
-  FormTemplateFilled: 'Fill the monitoring form in Work Queue → Test Execution',
   CheckpointsSigned:  'Sign pending checkpoint slots in Digital Logbook → Process Log',
   SpecAssigned:       'Assign a spec template via 📋 Plan in Sample Registration',
 }

@@ -12,7 +12,7 @@ public record ExecutionParameterDto(
     int ParameterId, string ParameterCode, string ParameterName,
     string Uom, string DataType, bool IsCritical, bool IsMandatory,
     string? InstrumentType, string? ColumnFrequency, string? CalcFormula,
-    int? LookupTableId);
+    int? LookupTableId, string? InputFields, int? DecimalPlaces);
 
 public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParametersQuery, List<ExecutionParameterDto>>
 {
@@ -27,7 +27,54 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
 
         if (execution is null) return [];
 
-        // ── Fetch spec template parameter IDs for this sample ──────────────────────
+        // ── Spec-engine executions: each execution owns exactly one parameter ─────
+        // When ParameterId is set the spec engine already denormalised the correct
+        // parameter for this execution — return it directly to prevent every
+        // execution showing the full template parameter set (causes duplicate entry).
+        if (execution.ParameterId.HasValue)
+        {
+            return await _db.TestMethodParameters
+                .Where(p => p.ParameterId == execution.ParameterId.Value)
+                .AsNoTracking()
+                .Select(p => new ExecutionParameterDto(
+                    p.ParameterId, p.ParameterCode, p.ParameterName,
+                    p.Uom, p.DataType.ToString(), p.IsCritical, p.IsMandatory,
+                    p.InstrumentType,
+                    p.ColumnFrequency.HasValue ? p.ColumnFrequency.Value.ToString() : null,
+                    p.CalcFormula, p.LookupTableId, p.InputFields, p.DecimalPlaces))
+                .ToListAsync(ct);
+        }
+
+        // ── Method-level executions (LabVantage model): one execution per test method ─
+        // When the spec template item has TestMethodId (no ParameterId), return ALL
+        // parameters belonging to that method so the analyst sees the full group.
+        if (execution.SpecTemplateItemId.HasValue)
+        {
+            var methodId = await _db.SpecTemplateItems
+                .AsNoTracking()
+                .Where(i => i.SpecTemplateItemId == execution.SpecTemplateItemId.Value
+                         && i.TestMethodId != null)
+                .Select(i => i.TestMethodId)
+                .FirstOrDefaultAsync(ct);
+
+            if (methodId.HasValue)
+            {
+                return await _db.TestMethodParameters
+                    .Where(p => p.MethodId == methodId.Value)
+                    .AsNoTracking()
+                    .OrderBy(p => p.ParameterId)
+                    .Select(p => new ExecutionParameterDto(
+                        p.ParameterId, p.ParameterCode, p.ParameterName,
+                        p.Uom, p.DataType.ToString(), p.IsCritical, p.IsMandatory,
+                        p.InstrumentType,
+                        p.ColumnFrequency.HasValue ? p.ColumnFrequency.Value.ToString() : null,
+                        p.CalcFormula, p.LookupTableId, p.InputFields, p.DecimalPlaces))
+                    .ToListAsync(ct);
+            }
+        }
+
+        // ── Fallback: manual/legacy executions (no ParameterId) ───────────────────
+        // Fetch spec template parameter IDs for this sample
         var sampleSpec = await _db.Samples
             .AsNoTracking()
             .Where(s => s.SampleId == execution.SampleId && s.SpecTemplateId != null)
@@ -35,11 +82,14 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
             .FirstOrDefaultAsync(ct);
 
         var specParamIds = sampleSpec.HasValue
-            ? await _db.SpecTemplateItems
-                .Where(sti => sti.SpecTemplateId == sampleSpec.Value)
+            ? (await _db.SpecTemplateItems
+                .Where(sti => sti.SpecTemplateId == sampleSpec.Value && sti.ParameterId != null)
                 .Select(sti => sti.ParameterId)
                 .Distinct()
-                .ToListAsync(ct)
+                .ToListAsync(ct))
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .ToList()
             : new List<int>();
 
         // ── Fetch checkpoint parameter IDs for this sample ─────────────────────────
@@ -72,7 +122,7 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
                     p.Uom, p.DataType.ToString(), p.IsCritical, p.IsMandatory,
                     p.InstrumentType,
                     p.ColumnFrequency.HasValue ? p.ColumnFrequency.Value.ToString() : null,
-                    p.CalcFormula, p.LookupTableId))
+                    p.CalcFormula, p.LookupTableId, p.InputFields, p.DecimalPlaces))
                 .ToListAsync(ct);
         }
 
@@ -96,7 +146,7 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
                         p.Uom, p.DataType.ToString(), p.IsCritical, p.IsMandatory,
                         p.InstrumentType,
                         p.ColumnFrequency.HasValue ? p.ColumnFrequency.Value.ToString() : null,
-                        p.CalcFormula, p.LookupTableId))
+                        p.CalcFormula, p.LookupTableId, p.InputFields, p.DecimalPlaces))
                     .ToListAsync(ct);
             }
         }

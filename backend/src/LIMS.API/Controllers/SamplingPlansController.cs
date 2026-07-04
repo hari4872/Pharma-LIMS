@@ -48,8 +48,8 @@ public class SamplingPlansController : ControllerBase
             p.SamplingPlanId, p.PlanName, p.Stage, p.Frequency,
             p.IntervalHours, p.SamplesPerPull, p.Notes, p.IsActive,
             p.CreatedBy, p.CreatedAt, p.UpdatedBy, p.UpdatedAt,
-            Material     = new { p.Material.MaterialId, p.Material.MaterialName },
-            SampleType   = new { p.SampleType.SampleTypeId, p.SampleType.TypeName, p.SampleType.TypeCode },
+            Material     = new { MaterialId = p.Material != null ? p.Material.MaterialId : 0, MaterialName = p.Material != null ? p.Material.MaterialName : "(Deleted)" },
+            SampleType   = new { SampleTypeId = p.SampleType != null ? p.SampleType.SampleTypeId : 0, TypeName = p.SampleType != null ? p.SampleType.TypeName : "(Deleted)", TypeCode = p.SampleType != null ? p.SampleType.TypeCode : "" },
             SpecTemplate = p.SpecTemplate == null ? null : new { p.SpecTemplate.SpecTemplateId, p.SpecTemplate.TemplateName },
         }).ToListAsync();
 

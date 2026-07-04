@@ -11,7 +11,8 @@ public record UpdateParameterCommand(
     int ParameterId, string ParameterName, string ParameterCode,
     string Uom, string DataType, string FormulaType, string? CalcFormula,
     string? InstrumentType, bool IsCritical, bool IsMandatory,
-    string? ColumnFrequency, string UpdatedBy, int? DecimalPlaces = null) : IRequest<Result<int>>;
+    string? ColumnFrequency, string UpdatedBy, int? DecimalPlaces = null,
+    string? InputFields = null) : IRequest<Result<int>>;
 
 public class UpdateParameterCommandValidator : AbstractValidator<UpdateParameterCommand>
 {
@@ -45,6 +46,7 @@ public class UpdateParameterCommandHandler : IRequestHandler<UpdateParameterComm
         param.DataType = Enum.Parse<DataType>(request.DataType);
         param.FormulaType = Enum.Parse<FormulaType>(request.FormulaType);
         param.CalcFormula = request.CalcFormula;
+        param.InputFields = request.InputFields;
         param.InstrumentType = request.InstrumentType;
         param.IsCritical = request.IsCritical;
         param.IsMandatory = request.IsMandatory;

@@ -24,12 +24,15 @@ public class SampleContainersController : LimsControllerBase
     public SampleContainersController(IMediator mediator, ILimsDbContext db)
     { _mediator = mediator; _db = db; }
 
-    // GET api/v1/samples/{sampleId}/containers
+    // GET api/v1/samples/{sampleId}/containers[?status=Available]
     [HttpGet]
-    public async Task<IActionResult> GetContainers(int sampleId)
+    public async Task<IActionResult> GetContainers(int sampleId, [FromQuery] string? status = null)
     {
-        var containers = await _db.SampleContainers
-            .Where(c => c.SampleId == sampleId)
+        var query = _db.SampleContainers.Where(c => c.SampleId == sampleId);
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<ContainerStatus>(status, true, out var statusEnum))
+            query = query.Where(c => c.Status == statusEnum);
+
+        var containers = await query
             .OrderBy(c => c.CreatedAt)
             .Select(c => new {
                 c.SampleContainerId, c.SampleId,

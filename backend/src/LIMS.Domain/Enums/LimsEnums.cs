@@ -2,6 +2,8 @@ namespace LIMS.Domain.Enums;
 
 public enum LabType { QC, RD, Stability, Microbiology }
 
+public enum ESignMethod { None, PasswordOnly, SignatureOnly, PasswordAndSignature }
+
 public enum InstrumentStatus { Available, InUse, Maintenance, OutOfCalibration }
 
 public enum UserType { Admin, RegularUser }

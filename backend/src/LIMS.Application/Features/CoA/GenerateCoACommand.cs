@@ -18,20 +18,22 @@ public class GenerateCoAHandler : IRequestHandler<GenerateCoACommand, Result<int
 
     public async Task<Result<int>> Handle(GenerateCoACommand cmd, CancellationToken ct)
     {
+        // Look up by ExecutionId only — frontend-supplied SampleId may be stale; trust DB's FK
         var execution = await _db.TestExecutions
-            .FirstOrDefaultAsync(e => e.ExecutionId == cmd.ExecutionId && e.SampleId == cmd.SampleId, ct);
+            .FirstOrDefaultAsync(e => e.ExecutionId == cmd.ExecutionId, ct);
         if (execution is null)
             return Result<int>.Failure("NOT_FOUND", "Test execution not found.");
+        var sampleId = execution.SampleId; // authoritative — use DB value, not cmd.SampleId
 
         // Check no existing Draft/Released CoA for this sample
         var existing = await _db.Coas
-            .AnyAsync(c => c.SampleId == cmd.SampleId && (c.Status == Domain.Enums.CoaStatus.Draft || c.Status == Domain.Enums.CoaStatus.Released), ct);
+            .AnyAsync(c => c.SampleId == sampleId && (c.Status == Domain.Enums.CoaStatus.Draft || c.Status == Domain.Enums.CoaStatus.Released), ct);
         if (existing)
             return Result<int>.Failure("COA_EXISTS", "An active CoA already exists for this sample.");
 
         try
         {
-            var coaId = await _coaGen.GenerateDraftAsync(cmd.SampleId, cmd.ExecutionId, ct);
+            var coaId = await _coaGen.GenerateDraftAsync(sampleId, cmd.ExecutionId, ct);
             return Result<int>.Success(coaId);
         }
         catch (Exception ex)

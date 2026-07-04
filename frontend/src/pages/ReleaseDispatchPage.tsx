@@ -2,16 +2,14 @@ import { useState } from 'react'
 import BatchReleasePage from './BatchReleasePage'
 import CoaReviewPage from './CoaReviewPage'
 import DispatchQcPage from './DispatchQcPage'
-import ReportsPage from './ReportsPage'
 
-type TabId = 'coa-review' | 'batch-release' | 'dispatch-qc' | 'reports'
+type TabId = 'coa-review' | 'batch-release' | 'dispatch-qc'
 
-// Tabs ordered by process flow: CoA Review → Batch Release → Dispatch QC → Reports
+// Tabs ordered by process flow: CoA Review → Batch Release → Dispatch QC
 const TABS = [
-  { id: 'coa-review' as TabId,    label: 'CoA Review',       icon: '📄', component: CoaReviewPage },
-  { id: 'batch-release' as TabId, label: 'Batch Release',    icon: '✅', component: BatchReleasePage },
-  { id: 'dispatch-qc' as TabId,   label: 'Dispatch QC',      icon: '🚚', component: DispatchQcPage },
-  { id: 'reports' as TabId,       label: 'Reports & Exports', icon: '📥', component: ReportsPage },
+  { id: 'coa-review' as TabId,    label: 'CoA Review',    icon: '📄', component: CoaReviewPage },
+  { id: 'batch-release' as TabId, label: 'Batch Release', icon: '✅', component: BatchReleasePage },
+  { id: 'dispatch-qc' as TabId,   label: 'Dispatch QC',  icon: '🚚', component: DispatchQcPage },
 ]
 
 export default function ReleaseDispatchPage() {

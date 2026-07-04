@@ -52,7 +52,7 @@ public class RetestSampleCommandHandler : IRequestHandler<RetestSampleCommand, R
                 $"Retest only allowed on Released or Rejected samples. Current status: {src.Status}.");
 
         var now = DateTimeOffset.UtcNow;
-        var sampleNumber = await _sampleIdFormat.GenerateAsync(src.LabId, src.MaterialId, src.SampleTypeNav.TypeCode, src.LotNumber, ct);
+        var sampleNumber = await _sampleIdFormat.GenerateAsync(src.LabId, src.MaterialId, src.SampleTypeNav.TypeCode, src.LotNumber, ct: ct);
 
         var retest = new Sample
         {

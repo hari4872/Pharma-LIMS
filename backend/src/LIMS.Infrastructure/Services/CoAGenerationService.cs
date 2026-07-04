@@ -17,13 +17,11 @@ public class CoAGenerationService : ICoAGenerationService
 
     public async Task<int> GenerateDraftAsync(int sampleId, int executionId, CancellationToken ct = default)
     {
-        var sample = await _db.Samples
-            .Include(s => s.FormTemplate)
-            .FirstOrDefaultAsync(s => s.SampleId == sampleId, ct)
-            ?? throw new InvalidOperationException($"Sample {sampleId} not found.");
-
-        if (sample.FormTemplateId is null)
-            return 0; // No active form template assigned — CoA will need manual generation via POST api/v1/coas/generate
+        // Fetch sample via execution join — avoids broken-FK false-nulls when querying samples directly
+        var sampleRow = await _db.TestExecutions
+            .Where(e => e.ExecutionId == executionId && e.SampleId == sampleId)
+            .Select(e => new { e.Sample!.FormTemplateId })
+            .FirstOrDefaultAsync(ct);
 
         // Idempotency guard — return existing Draft CoA if already generated (prevents duplicates on retry)
         var existing = await _db.Coas.FirstOrDefaultAsync(c => c.SampleId == sampleId && c.Status == CoaStatus.Draft, ct);
@@ -37,7 +35,7 @@ public class CoAGenerationService : ICoAGenerationService
         {
             SampleId       = sampleId,
             CoaNumber      = headerDto.CoaNumber,
-            FormTemplateId = sample.FormTemplateId.Value,
+            FormTemplateId = sampleRow?.FormTemplateId,
             Status         = CoaStatus.Draft,
         };
         _db.Coas.Add(coa);

@@ -1,4 +1,4 @@
-using LIMS.Application.Features.TestExecutions;
+﻿using LIMS.Application.Features.TestExecutions;
 using LIMS.Application.Interfaces;
 using LIMS.Domain.Enums;
 using MediatR;
@@ -54,8 +54,8 @@ public class TestExecutionsController : LimsControllerBase
             MaterialName   = execution.Sample?.Material?.MaterialName ?? "�",
             MaterialId     = execution.Sample?.MaterialId ?? 0,
             LotNumber      = execution.Sample?.LotNumber ?? "�",
-            AnalystName    = execution.Analyst?.FullName ?? "�",
-            InstrumentCode = execution.Instrument?.InstrumentCode ?? "�",
+            AnalystName    = execution.Analyst?.FullName ?? "—",
+            InstrumentCode = execution.Instrument?.InstrumentCode ?? "",
             Status         = execution.Status.ToString(),
             execution.StartedAt,
             DueDate        = execution.DueAt,
@@ -70,7 +70,7 @@ public class TestExecutionsController : LimsControllerBase
         if (!TryGetUserId(out var assignedById)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new AssignWorkQueueItemCommand(
             request.SampleId, request.AnalystId, request.InstrumentId,
-            assignedById, request.PriorityScore));
+            assignedById, request.PriorityScore, request.ContainerId));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound(new { error = result.ErrorCode, message = result.ErrorMessage })
             : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetWorkQueue), new { id = result.Value }, new { executionId = result.Value });
@@ -196,7 +196,16 @@ public class TestExecutionsController : LimsControllerBase
     public async Task<IActionResult> QueueIntelligence([FromQuery] int? labId)
     {
         var effectiveLabId = _lab.IsCrossLab ? (labId ?? 0) : (_lab.LabId ?? 0);
-        if (effectiveLabId == 0) return BadRequest(new { error = "labId required for queue intelligence" });
+        if (effectiveLabId == 0)
+            effectiveLabId = await _db.Laboratories.Where(l => l.IsActive).Select(l => (int?)l.LabId).FirstOrDefaultAsync() ?? 0;
+        // If user's labId doesn't exist in DB, fall back to first active lab
+        if (effectiveLabId != 0)
+        {
+            var labExists = await _db.Laboratories.AnyAsync(l => l.LabId == effectiveLabId && l.IsActive);
+            if (!labExists)
+                effectiveLabId = await _db.Laboratories.Where(l => l.IsActive).Select(l => (int?)l.LabId).FirstOrDefaultAsync() ?? 0;
+        }
+        if (effectiveLabId == 0) return Ok(new { labId = 0, totalOpen = 0, overdue = 0, oosOpen = 0, analystLoads = Array.Empty<object>(), priorityBands = Array.Empty<object>(), avgTatHours = (double?)null });
         var result = await _intel.GetQueueIntelligenceAsync(effectiveLabId);
         return Ok(result);
     }
@@ -207,10 +216,18 @@ public class TestExecutionsController : LimsControllerBase
     public async Task<IActionResult> SuggestAnalyst([FromQuery] int? labId)
     {
         var effectiveLabId = _lab.IsCrossLab ? (labId ?? 0) : (_lab.LabId ?? 0);
-        if (effectiveLabId == 0) return BadRequest(new { error = "labId required" });
+        if (effectiveLabId == 0)
+            effectiveLabId = await _db.Laboratories.Where(l => l.IsActive).Select(l => (int?)l.LabId).FirstOrDefaultAsync() ?? 0;
+        // If user's labId doesn't exist in DB, fall back to first active lab
+        if (effectiveLabId != 0)
+        {
+            var labExists = await _db.Laboratories.AnyAsync(l => l.LabId == effectiveLabId && l.IsActive);
+            if (!labExists)
+                effectiveLabId = await _db.Laboratories.Where(l => l.IsActive).Select(l => (int?)l.LabId).FirstOrDefaultAsync() ?? 0;
+        }
+        if (effectiveLabId == 0) return Ok((object?)null);
         var suggestion = await _intel.SuggestAnalystAsync(effectiveLabId);
-        if (suggestion is null) return NotFound(new { message = "No analysts available in this lab" });
-        return Ok(suggestion);
+        return Ok(suggestion); // null means no suggestion — not an error
     }
 
     // GET api/v1/test-executions/{id}/priority-score
@@ -238,7 +255,7 @@ public class TestExecutionsController : LimsControllerBase
     }
 }
 
-public record AssignWorkQueueRequest(int SampleId, int AnalystId, int? InstrumentId = null, int? PriorityScore = null);
+public record AssignWorkQueueRequest(int SampleId, int AnalystId, int? InstrumentId = null, int? PriorityScore = null, int? ContainerId = null);
 public record AssignTestMethodRequest(int AnalystId, int? InstrumentId = null, int? PriorityScore = null);
 public record SubmitResultsRequest(List<ResultEntryDto> Entries, EntryMethod EntryMethod = EntryMethod.Manual);
 public record BatchRowRequest(int ExecutionId, List<ResultEntryDto> Entries);

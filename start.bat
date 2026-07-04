@@ -5,11 +5,28 @@ title Pharma LIMS — Launcher
 set ROOT=%~dp0
 set BACKEND=%ROOT%backend\src\LIMS.API
 set FRONTEND=%ROOT%frontend
+set SSH_HOST=root@52.230.33.120
+set TUNNEL_PORT=5433
 
 echo.
 echo  =====================================================
 echo   Pharma LIMS  ^|  Local Development Launcher
 echo  =====================================================
+echo.
+
+:: ── 0. SSH Tunnel to Production DB ───────────────────────────────────────────
+
+echo [0/5] Opening SSH tunnel to production DB (localhost:%TUNNEL_PORT% -^> server:5432)...
+echo       Server : %SSH_HOST%
+echo       Password when prompted: limslite
+echo.
+start "Pharma LIMS — SSH Tunnel (KEEP OPEN)" cmd /k "title SSH Tunnel - KEEP THIS OPEN && ssh -L %TUNNEL_PORT%:localhost:5432 %SSH_HOST%"
+
+echo       Waiting 8 seconds for SSH tunnel to connect...
+timeout /t 8 /nobreak >nul
+echo       SSH tunnel should be active. If prompted for password in the other window, enter it now.
+echo       Press any key here AFTER entering the SSH password and seeing the server prompt...
+pause >nul
 echo.
 
 :: ── 1. Pre-flight checks ─────────────────────────────────────────────────────
@@ -42,7 +59,7 @@ echo       npm      : %NPM_VER%
 
 echo.
 
-:: ── 2. Restore + pre-build backend (skips recompile on run) ─────────────────
+:: ── 2. Restore + pre-build backend ───────────────────────────────────────────
 
 echo [2/5] Restoring and building backend...
 cd /d "%ROOT%backend"
@@ -79,12 +96,11 @@ echo.
 :: ── 4. Start backend in a new window ─────────────────────────────────────────
 
 echo [4/5] Starting backend API  (http://localhost:5204)...
-echo       Swagger UI will be at: http://localhost:5204/swagger
+echo       DB via SSH tunnel on localhost:%TUNNEL_PORT%
 echo.
 
 start "Pharma LIMS — Backend API" cmd /k "title Pharma LIMS - Backend API && cd /d "%BACKEND%" && echo Starting .NET API on http://localhost:5204... && dotnet run --no-build --no-restore --urls http://localhost:5204"
 
-:: Give the backend time to compile before launching frontend
 timeout /t 5 /nobreak >nul
 
 :: ── 5. Start frontend in a new window ────────────────────────────────────────
@@ -94,29 +110,29 @@ echo.
 
 start "Pharma LIMS — Frontend" cmd /k "title Pharma LIMS - Frontend && cd /d "%FRONTEND%" && echo Starting Vite dev server on http://localhost:5173... && npm run dev"
 
-:: Give Vite a moment to spin up
 timeout /t 6 /nobreak >nul
 
 :: ── Open browser ─────────────────────────────────────────────────────────────
 
 echo.
 echo  =====================================================
-echo   Both services started in separate windows.
+echo   All services started.
 echo.
 echo   Frontend  :  http://localhost:5173
 echo   Backend   :  http://localhost:5204
 echo   Swagger   :  http://localhost:5204/swagger
-echo   SignalR   :  ws://localhost:5204/hubs/lims
 echo.
-echo   Database  :  Neon PostgreSQL 16 (cloud)
+echo   Database  :  Production DB via SSH tunnel :%TUNNEL_PORT%
 echo   Login     :  admin / Admin@123
+echo.
+echo   IMPORTANT: Keep the SSH Tunnel window open!
 echo  =====================================================
 echo.
 
 start "" "http://localhost:5173"
 
 echo  Press any key to close this launcher window.
-echo  (The backend and frontend windows will keep running.)
+echo  (Backend, Frontend and SSH Tunnel windows will keep running.)
 echo.
 pause >nul
 endlocal

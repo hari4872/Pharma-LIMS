@@ -1,12 +1,13 @@
-﻿import { useEffect, useState, useCallback, useRef } from 'react'
+﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import Barcode from 'react-barcode'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import { fmtDate } from '@/utils/dateFormat'
+import { fmtLabel } from '@/utils/formatLabel'
 import DataTable from '@/components/DataTable'
-import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Field, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { MasterDetail, DetailPane } from '@/components/MasterDetail'
 import { toast } from '@/components/Toast'
@@ -106,16 +107,17 @@ const TAB_STYLE = (active: boolean): React.CSSProperties => ({
 })
 
 export default function SampleRegistrationPage() {
-  const { fullName, labId } = useSelector((s: RootState) => s.auth)
+  const { fullName, labId, role } = useSelector((s: RootState) => s.auth)
+  const canRegister = ['Admin', 'LabManager', 'Analyst'].includes(role ?? '')
   const [tab, setTab] = useState<'single' | 'batch'>('single')
 
   const [data, setData]               = useState<Sample[]>([])
   const [materials, setMaterials]     = useState<Material[]>([])
   const [sampleTypes, setSampleTypes] = useState<SampleType[]>([])
+  const [specTemplateLinks, setSpecTemplateLinks] = useState<{ materialId: number; sampleTypeId: number }[]>([])
   const [loading, setLoading]         = useState(false)
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm]       = useState(false)
-  const [showSRF, setShowSRF]         = useState<number | null>(null)
   const [showReprint,  setShowReprint]  = useState<number | null>(null)
   const [showRetest,     setShowRetest]     = useState<Sample | null>(null)
   const [retestReason,   setRetestReason]   = useState('')
@@ -135,7 +137,6 @@ export default function SampleRegistrationPage() {
   // ── Form state ──────────────────────────────────────────────────────────────
   const [materialId, setMaterialId]       = useState('')
   const [sampleTypeId, setSampleTypeId]   = useState('')
-  const [selectedCps, setSelectedCps]     = useState<number[]>([])
   const [tankSourceId, setTankSourceId]   = useState('')
   const [sampleLabel, setSampleLabel]     = useState('')
   const [lotNumber, setLotNumber]         = useState('')
@@ -208,9 +209,6 @@ export default function SampleRegistrationPage() {
     }
   }
 
-  const [srfForm, setSrfForm] = useState({
-    password: '', meaning: 'I confirm this Sample Registration Form', reason: ''
-  })
 
   // ── Post-registration spec assignment ──────────────────────────────────────
   interface SpecAssignData {
@@ -219,31 +217,6 @@ export default function SampleRegistrationPage() {
     specAssignedBy: string | null; specAssignedAt: string | null
     testsCreated: number; matchOutcome: string
     candidates: SpecCandidate[]
-  }
-  const [showAssignForm, setShowAssignForm]   = useState<number | null>(null)
-  const [formTemplates,  setFormTemplates]   = useState<{formTemplateId: number; formName: string; version: string}[]>([])
-  const [selectedFormId, setSelectedFormId]  = useState<number | null>(null)
-  const [formAssignSaving, setFormAssignSaving] = useState(false)
-  const [formAssignError, setFormAssignError]   = useState('')
-
-  async function openAssignForm(sampleId: number) {
-    setShowAssignForm(sampleId); setSelectedFormId(null); setFormAssignError('')
-    try {
-      const r = await api.get('/form-templates?status=Active')
-      setFormTemplates(r.data ?? [])
-    } catch { setFormTemplates([]) }
-  }
-
-  async function submitAssignForm(e: React.FormEvent) {
-    e.preventDefault()
-    if (!selectedFormId || !showAssignForm) return
-    setFormAssignSaving(true); setFormAssignError('')
-    try {
-      await api.post(`/samples/${showAssignForm}/assign-form-template`, { formTemplateId: selectedFormId })
-      toast('Form template assigned', 'success')
-      setShowAssignForm(null); await load()
-    } catch (err) { setFormAssignError(getErrorMessage(err, 'Assignment failed')) }
-    finally { setFormAssignSaving(false) }
   }
 
   const [showAssignSpec, setShowAssignSpec]   = useState<number | null>(null)
@@ -298,6 +271,16 @@ export default function SampleRegistrationPage() {
   }
   useEffect(() => { load() }, [statusFilter])
 
+  // Load spec template links once — materialId → sampleTypeId mappings for auto-select
+  useEffect(() => {
+    api.get('/specification-templates')
+      .then(r => setSpecTemplateLinks(r.data.map((t: any) => ({
+        materialId: t.material.materialId,
+        sampleTypeId: t.sampleType.sampleTypeId,
+      }))))
+      .catch(() => {})
+  }, [])
+
   // ── Phase A: spec engine preview ─────────────────────────────────────────
   const fetchSpecPreview = useCallback(async (matId: string, stId: string) => {
     if (!matId || !stId) { setSpecPreview(null); return }
@@ -319,13 +302,25 @@ export default function SampleRegistrationPage() {
     return () => clearTimeout(t)
   }, [materialId, sampleTypeId])
 
-  // ── Auto-select default checkpoints when sample type changes ────────────────
+  // Checkpoints removed from sample registration — always send empty array
+
+  // Filter sample types to those with spec templates for the selected material
+  const validSampleTypes = useMemo(() => {
+    if (!materialId || !specTemplateLinks.length) return sampleTypes
+    const validIds = new Set(specTemplateLinks.filter(l => l.materialId === Number(materialId)).map(l => l.sampleTypeId))
+    if (!validIds.size) return sampleTypes // no templates configured → show all
+    return sampleTypes.filter(t => validIds.has(t.sampleTypeId))
+  }, [materialId, specTemplateLinks, sampleTypes])
+
+  // When material changes: reset sample type, then auto-select if exactly one valid option
   useEffect(() => {
-    if (!sampleTypeId) { setSelectedCps([]); return }
-    api.get(`/sample-types/${sampleTypeId}/checkpoints`)
-      .then(r => { if (r.data.length > 0) setSelectedCps(r.data) })
-      .catch(() => {})
-  }, [sampleTypeId])
+    setSampleTypeId('')
+    if (!materialId || !specTemplateLinks.length || !sampleTypes.length) return
+    const validIds = new Set(specTemplateLinks.filter(l => l.materialId === Number(materialId)).map(l => l.sampleTypeId))
+    if (!validIds.size) return
+    const valid = sampleTypes.filter(t => validIds.has(t.sampleTypeId))
+    if (valid.length === 1) setSampleTypeId(String(valid[0].sampleTypeId))
+  }, [materialId]) // intentional — only fires on material change
 
   // Close ⋯ More menu on outside click
   useEffect(() => {
@@ -337,7 +332,6 @@ export default function SampleRegistrationPage() {
   // ── Reset form ──────────────────────────────────────────────────────────────
   function resetForm() {
     setMaterialId(''); setSampleTypeId('')
-    setSelectedCps([])
     setTankSourceId(''); setSampleLabel(''); setLotNumber('')
     setMfgDate(''); setExpDate(''); setError('')
     // Phase A
@@ -365,7 +359,7 @@ export default function SampleRegistrationPage() {
         labId:        labId ?? 1,
         materialId:   Number(materialId),
         lotNumber,
-        mfgDate,
+        mfgDate:      mfgDate || null,
         expDate,
         sampleTypeId: Number(sampleTypeId),
         // Phase A receipt fields
@@ -376,7 +370,7 @@ export default function SampleRegistrationPage() {
         sampleLabel:           sampleLabel || null,
         tankSourceId:          tankSourceId || null,
         overrideSpecTemplateId: overrideSpecId ?? null,
-        checkpointIds:         selectedCps,
+        checkpointIds:         [],
       })
       const result = res.data
       // Offline: request queued — show appropriate message instead of broken barcode modal
@@ -403,22 +397,13 @@ export default function SampleRegistrationPage() {
         registeredAt:  new Date().toISOString().slice(0, 10),
         testsCreated:  result.testsAutoCreated,
       })
-      // Spec engine runs after SRF is signed — registration always returns PendingSignature
-      toast(`✓ ${result.sampleNumber} registered — sign the SRF to activate the testing workflow`, 'success')
+      toast(`✓ ${result.sampleNumber} registered`, 'success')
+      load()
     } catch (err) {
       setError(getErrorMessage(err, 'Registration failed'))
     } finally { setSaving(false) }
   }
 
-  async function submitSRF(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true); setError('')
-    try {
-      await api.post(`/samples/${showSRF}/sign-srf`, srfForm)
-      setSrfForm(f => ({ ...f, password: '', meaning: '', reason: '' }))
-      setShowSRF(null); load()
-    } catch (err) { setError(getErrorMessage(err, 'E-signature failed')) }
-    finally { setSaving(false) }
-  }
 
   async function duplicateSample(sampleId: number) {
     if (duplicating) return
@@ -541,11 +526,13 @@ export default function SampleRegistrationPage() {
             {['Registered', 'PendingTesting', 'InTesting', 'PendingQAReview', 'Released', 'Rejected'].map(s =>
               <option key={s} value={s}>{s}</option>)}
           </select>
-          <button
-            onClick={() => { resetForm(); setShowForm(true) }}
-            style={{ padding: '8px 18px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-            + Register Sample
-          </button>
+          {canRegister && (
+            <button
+              onClick={() => { resetForm(); setShowForm(true) }}
+              style={{ padding: '8px 18px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+              + Register Sample
+            </button>
+          )}
         </div>
       </div>
 
@@ -660,14 +647,6 @@ export default function SampleRegistrationPage() {
 
             {/* Quick actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16, paddingTop: 14, borderTop: '1px solid #e5e7eb' }}>
-              {(selectedSample.status === 'Registered' || selectedSample.status === 'PendingTesting') && !selectedSample.srfSigned && (
-                <button
-                  onClick={() => { setShowSRF(selectedSample.sampleId); setError(''); setSelectedSample(null) }}
-                  style={{ padding: '9px 14px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer', width: '100%' }}
-                >
-                  ✍ Sign SRF
-                </button>
-              )}
               {!selectedSample.specTemplateName && (
                 <button
                   onClick={() => { openAssignSpec(selectedSample.sampleId); setSelectedSample(null) }}
@@ -723,7 +702,7 @@ export default function SampleRegistrationPage() {
         {
           header: 'Status', accessor: r => {
             const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
-            return <span style={{ padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: c.bg, color: c.color }}>{r.status}</span>
+            return <span style={{ padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: c.bg, color: c.color }}>{fmtLabel(r.status)}</span>
           }
         },
         { header: 'Due', accessor: r => r.dueDate ? fmtDate(r.dueDate) : '—' },
@@ -734,31 +713,6 @@ export default function SampleRegistrationPage() {
 
               {/* ── Primary actions: visible only when action is required ── */}
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {(r.status === 'Registered' || r.status === 'PendingTesting') && !r.srfSigned && (
-                  <button onClick={() => { setShowSRF(r.sampleId); setError('') }}
-                    style={{ padding: '4px 10px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                    ✍ Sign SRF
-                  </button>
-                )}
-                {!r.formTemplateName && (
-                  <button onClick={() => openAssignForm(r.sampleId)}
-                    style={{ padding: '4px 10px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                    📄 Form
-                  </button>
-                )}
-                {r.formTemplateName && (
-                  <button onClick={() => setFillFormSample(r)}
-                    title={`Fill: ${r.formTemplateName}`}
-                    style={{ padding: '4px 10px', background: '#0369a1', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                    📝 Fill Form
-                  </button>
-                )}
-                {!r.specTemplateName && (
-                  <button onClick={() => openAssignSpec(r.sampleId)}
-                    style={{ padding: '4px 10px', background: '#0f766e', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                    📋 Plan
-                  </button>
-                )}
                 {(r.status === 'Released' || r.status === 'Rejected') && (
                   <button onClick={async () => {
                     setShowRetest(r); setRetestReason(''); setTestedParams([]); setSelectedParams([])
@@ -858,7 +812,7 @@ export default function SampleRegistrationPage() {
 
                   {/* Product / Material */}
                   <div>
-                    <span style={label}>Product / Test Type <span style={{ color: '#dc2626' }}>*</span></span>
+                    <span style={label}>Product <span style={{ color: '#dc2626' }}>*</span></span>
                     <select style={inp} value={materialId} onChange={e => setMaterialId(e.target.value)} required>
                       <option value="">— Select a product —</option>
                       {materials.map(m => (
@@ -873,13 +827,23 @@ export default function SampleRegistrationPage() {
                 {/* Sample Type — shown after product selected */}
                 {materialId && (
                   <div style={{ marginTop: 16 }}>
-                    <span style={label}>Sample Type <span style={{ color: '#dc2626' }}>*</span></span>
+                    <span style={label}>Test Plan <span style={{ color: '#dc2626' }}>*</span></span>
                     <select style={inp} value={sampleTypeId} onChange={e => setSampleTypeId(e.target.value)} required>
                       <option value="">— Select sample type —</option>
-                      {sampleTypes.map(t => (
+                      {validSampleTypes.map(t => (
                         <option key={t.sampleTypeId} value={t.sampleTypeId}>{t.typeName} ({t.typeCode})</option>
                       ))}
                     </select>
+                    {validSampleTypes.length === 1 && sampleTypeId && (
+                      <p style={{ fontSize: 11, color: '#059669', marginTop: 4, marginBottom: 0 }}>
+                        Auto-selected — only type configured for this material
+                      </p>
+                    )}
+                    {validSampleTypes.length > 1 && validSampleTypes.length < sampleTypes.length && (
+                      <p style={{ fontSize: 11, color: '#6b7280', marginTop: 4, marginBottom: 0 }}>
+                        Showing {validSampleTypes.length} of {sampleTypes.length} types · filtered by material
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -941,15 +905,11 @@ export default function SampleRegistrationPage() {
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
                   Batch Identification
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
                   <div>
                     <span style={label}>Batch / Lot No. <span style={{ color: '#dc2626' }}>*</span></span>
                     <input style={inp} value={lotNumber} onChange={e => setLotNumber(e.target.value)}
                       required placeholder="e.g. B-20260422-03" />
-                  </div>
-                  <div>
-                    <span style={label}>Mfg. Date <span style={{ color: '#dc2626' }}>*</span></span>
-                    <input style={inp} type="date" value={mfgDate} onChange={e => setMfgDate(e.target.value)} required />
                   </div>
                   <div>
                     <span style={label}>Expiry Date <span style={{ color: '#dc2626' }}>*</span></span>
@@ -971,11 +931,6 @@ export default function SampleRegistrationPage() {
                         <option value="Compromised">✗ Compromised — Integrity at risk</option>
                       </select>
                     </div>
-                    <div>
-                      <span style={label}>Received Temp (°C)</span>
-                      <input type="number" step="0.1" style={inp} value={receivedTemp}
-                        onChange={e => setReceivedTemp(e.target.value)} placeholder="e.g. 5.2" />
-                    </div>
                   </div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '10px 14px', borderRadius: 8, border: `1.5px solid ${isRush ? '#fca5a5' : '#e5e7eb'}`, background: isRush ? '#fff5f5' : '#f9fafb', marginBottom: sampleCondition !== 'OK' ? 10 : 0 }}>
                     <input type="checkbox" checked={isRush} onChange={e => setIsRush(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#dc2626', cursor: 'pointer' }} />
@@ -990,28 +945,6 @@ export default function SampleRegistrationPage() {
                     </div>
                   )}
                 </div>
-
-                {/* ── 2c: Optional References (collapsed by default) ────── */}
-                <details style={{ borderTop: '1px solid #f1f5f9', paddingTop: 14 }}>
-                  <summary style={{ fontSize: 12, color: '#6b7280', cursor: 'pointer', fontWeight: 600, userSelect: 'none', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 10 }}>▸</span> Optional References
-                    <span style={{ fontWeight: 400, color: '#9ca3af' }}> — Tank Source, Sample Label, External Batch ID</span>
-                  </summary>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginTop: 12 }}>
-                    <div>
-                      <span style={label}>Tank / Source ID</span>
-                      <input style={inp} value={tankSourceId} onChange={e => setTankSourceId(e.target.value)} placeholder="e.g. 1T4002" />
-                    </div>
-                    <div>
-                      <span style={label}>Sample Label</span>
-                      <input style={inp} value={sampleLabel} onChange={e => setSampleLabel(e.target.value)} placeholder="As written on bottle" />
-                    </div>
-                    <div>
-                      <span style={label}>External Batch ID</span>
-                      <input style={inp} value={externalBatchId} onChange={e => setExternalBatchId(e.target.value)} placeholder="MES / ERP ref" />
-                    </div>
-                  </div>
-                </details>
 
                 <p style={{ fontSize: 11, color: '#9ca3af', margin: '14px 0 0' }}>ℹ Sample ID is server-generated · Barcode auto-printed · 5 GMP checks run server-side</p>
               </Section>
@@ -1044,31 +977,6 @@ export default function SampleRegistrationPage() {
         </div>
       )}
 
-      {/* ── Sign SRF — §11.50 e-sig ──────────────────────────────────────── */}
-      {showSRF && (
-        <Modal title="Sign Sample Registration Form" onClose={() => { setSrfForm(f => ({ ...f, password: '', meaning: '', reason: '' })); setShowSRF(null) }}>
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            Your full name, timestamp, meaning, and reason will be captured and immutably recorded (21 CFR Part 11).
-          </p>
-          <form onSubmit={submitSRF}>
-            <Field label="Password (re-enter)">
-              <input style={inp} type="password" value={srfForm.password}
-                onChange={e => setSrfForm(f => ({ ...f, password: e.target.value }))} required />
-            </Field>
-            <Field label="Meaning">
-              <input style={inp} value={srfForm.meaning}
-                onChange={e => setSrfForm(f => ({ ...f, meaning: e.target.value }))} required />
-            </Field>
-            <Field label="Reason">
-              <input style={inp} value={srfForm.reason}
-                onChange={e => setSrfForm(f => ({ ...f, reason: e.target.value }))} required
-                placeholder="e.g. Sample verified and ready for testing" />
-            </Field>
-            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowSRF(null)} label="Sign & Submit to Work Queue" />
-          </form>
-        </Modal>
-      )}
 
       {/* ── Add Test (Ad-hoc) Drawer ────────────────────────────────────── */}
       {showAddTest && (
@@ -1176,19 +1084,16 @@ export default function SampleRegistrationPage() {
 
       {/* ── Barcode Reprint ───────────────────────────────────────────────── */}
       {showReprint && (
-        <Modal title="Barcode Label Reprint" onClose={() => setShowReprint(null)}>
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            21 CFR 211.170 — Reprint is audit-logged with your name and reason.
-          </p>
+        <Drawer title="Barcode Label Reprint" subtitle="21 CFR 211.170 — Reprint is audit-logged with your name and reason." onClose={() => setShowReprint(null)} blocking>
           <form onSubmit={submitReprint}>
             <Field label="Reason (mandatory)">
               <input style={inp} value={reprintReason} onChange={e => setReprintReason(e.target.value)}
-                required placeholder="e.g. Label damaged during storage" />
+                required placeholder="e.g. Label damaged during storage" autoFocus />
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowReprint(null)} label="Reprint Label" />
+            <DrawerFooter saving={saving} onCancel={() => setShowReprint(null)} label="Reprint Label" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── Barcode Label Modal ─────────────────────────────────────────────── */}
@@ -1340,7 +1245,7 @@ export default function SampleRegistrationPage() {
                         <td style={{ padding: '7px 10px', color: '#374151' }}>{c.containerType}</td>
                         <td style={{ padding: '7px 10px', color: '#374151' }}>{c.volume != null ? `${c.volume} ${c.volumeUom ?? ''}` : '—'}</td>
                         <td style={{ padding: '7px 10px' }}>
-                          <span style={{ padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: sc.bg, color: sc.color }}>{c.status}</span>
+                          <span style={{ padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: sc.bg, color: sc.color }}>{fmtLabel(c.status)}</span>
                         </td>
                         <td style={{ padding: '7px 10px', color: '#6b7280' }}>{c.createdBy}</td>
                         <td style={{ padding: '7px 10px' }}>
@@ -1483,25 +1388,6 @@ export default function SampleRegistrationPage() {
         </Drawer>
       )}
 
-      {/* ── Assign Form Template Drawer ──────────────────────────────────────── */}
-      {showAssignForm && (
-        <Drawer title="Assign Form Template" subtitle="Determines which parameters appear on the COA." onClose={() => setShowAssignForm(null)}>
-          <form onSubmit={submitAssignForm}>
-            <Field label="Form Template *">
-              <select style={inp} value={selectedFormId ?? ''} onChange={e => setSelectedFormId(Number(e.target.value))} required>
-                <option value="">— Select form template —</option>
-                {formTemplates.map(f => (
-                  <option key={f.formTemplateId} value={f.formTemplateId}>
-                    {f.formName} (v{f.version})
-                  </option>
-                ))}
-              </select>
-            </Field>
-            {formAssignError && <p style={{ color: '#dc2626', fontSize: 13 }}>{formAssignError}</p>}
-            <DrawerFooter saving={formAssignSaving} onCancel={() => setShowAssignForm(null)} label="Assign Form Template" />
-          </form>
-        </Drawer>
-      )}
 
       {/* ── Dynamic Form Renderer ────────────────────────────────────────────── */}
       {fillFormSample && (

@@ -88,7 +88,7 @@ public class OosInvestigationsController : LimsControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new CloseOosInvestigationCommand(
-            id, userId, request.RootCause, request.CapaRef, request.Password, request.Meaning, request.Reason));
+            id, userId, request.RootCause, request.CapaRef, request.CapaStatus, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {
             if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
@@ -105,7 +105,7 @@ public class OosInvestigationsController : LimsControllerBase
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new EscalateToPhase2Command(
-            id, userId, request.EscalationReason, request.CapaRef,
+            id, userId, request.EscalationReason, request.CapaRef, request.CapaStatus,
             request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {
@@ -280,7 +280,7 @@ Return JSON only:
     }
 }
 
-public record CloseOosRequest(string RootCause, string? CapaRef, string Password, string Meaning, string Reason);
-public record EscalatePhase2Request(string EscalationReason, string? CapaRef, string Password, string Meaning, string Reason);
+public record CloseOosRequest(string RootCause, string? CapaRef, string? CapaStatus, string Password, string Meaning, string Reason);
+public record EscalatePhase2Request(string EscalationReason, string? CapaRef, string? CapaStatus, string Password, string Meaning, string Reason);
 public record CreateOosRequest(int EntryId, string FlagType);
 

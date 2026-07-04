@@ -19,12 +19,15 @@ export function Drawer({
   onClose,
   children,
   width = 480,
+  blocking = false,
 }: {
   title: string
   subtitle?: string
   onClose: () => void
   children: ReactNode
   width?: number
+  /** If true, backdrop blocks interaction with the page behind (use for e-signatures) */
+  blocking?: boolean
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(false)
@@ -90,18 +93,21 @@ export function Drawer({
         zIndex: 100,
         display: 'flex',
         justifyContent: 'flex-end',
-        pointerEvents: 'none', // outer shell non-blocking — main page stays interactive
+        pointerEvents: blocking ? 'all' : 'none',
       }}
     >
-      {/* Visual separation — non-blocking, no pointer-events */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: 'rgba(0,0,0,0.08)',
-        opacity: mounted ? 1 : 0,
-        transition: 'opacity 280ms ease',
-        pointerEvents: 'none',
-      }} />
+      {/* Backdrop — blocking for e-sig, visual-only otherwise */}
+      <div
+        onClick={blocking ? onClose : undefined}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: blocking ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.08)',
+          opacity: mounted ? 1 : 0,
+          transition: 'opacity 280ms ease',
+          pointerEvents: blocking ? 'all' : 'none',
+          cursor: blocking ? 'default' : undefined,
+        }} />
 
       {/* Drawer panel — interactive */}
       <div

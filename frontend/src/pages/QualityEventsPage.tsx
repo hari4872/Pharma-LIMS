@@ -3,6 +3,8 @@ import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
+import { fmtDate } from '@/utils/dateFormat'
+import { fmtLabel } from '@/utils/formatLabel'
 import DataTable from '@/components/DataTable'
 import { PageHeader, Field, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
@@ -219,17 +221,17 @@ export default function QualityEventsPage() {
         }},
         { header: 'Status', accessor: r => {
           const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
-          return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: c.bg, color: c.color }}>{r.status}</span>
+          return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: c.bg, color: c.color }}>{fmtLabel(r.status)}</span>
         }},
         { header: 'Sample', accessor: r => r.sampleNumber ?? '—' },
         { header: 'Assigned To', accessor: r => r.assignedToName ?? '—' },
         { header: 'Due Date', accessor: r => r.dueDate
           ? <span style={{ color: new Date(r.dueDate) < new Date() && r.status === 'Open' ? '#dc2626' : '#374151', fontSize: 12 }}>
-              {new Date(r.dueDate).toLocaleDateString()}
+              {fmtDate(r.dueDate)}
             </span>
           : '—'
         },
-        { header: 'Opened', accessor: r => <span style={{ fontSize: 11, color: '#6b7280' }}>{new Date(r.openedAt).toLocaleDateString()}</span> },
+        { header: 'Opened', accessor: r => <span style={{ fontSize: 11, color: '#6b7280' }}>{fmtDate(r.openedAt)}</span> },
         { header: 'Actions', accessor: r => (
           <div style={{ display: 'flex', gap: 6 }}>
             {r.status !== 'Closed' && r.status !== 'Void' && (

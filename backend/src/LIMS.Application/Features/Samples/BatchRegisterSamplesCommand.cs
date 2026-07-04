@@ -9,7 +9,7 @@ namespace LIMS.Application.Features.Samples;
 
 public record BatchSampleEntry(
     int MaterialId, string LotNumber,
-    DateOnly MfgDate, DateOnly ExpDate,
+    DateOnly? MfgDate, DateOnly ExpDate,
     int SampleTypeId,
     decimal? ReceivedTemp = null,
     string? SampleCondition = null,
@@ -64,7 +64,7 @@ public class BatchRegisterSamplesHandler : IRequestHandler<BatchRegisterSamplesC
             try
             {
                 var now = DateTimeOffset.UtcNow;
-                var sampleNumber = await _sampleIdFormat.GenerateAsync(cmd.LabId, entry.MaterialId, sampleType.TypeCode, entry.LotNumber, ct);
+                var sampleNumber = await _sampleIdFormat.GenerateAsync(cmd.LabId, entry.MaterialId, sampleType.TypeCode, entry.LotNumber, ct: ct);
 
                 var sample = new Sample
                 {

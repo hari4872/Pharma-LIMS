@@ -3,6 +3,8 @@ import { useSelector } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
 import type { RootState } from '@/store'
 import api from '@/api/client'
+import { fmtDate } from '@/utils/dateFormat'
+import { fmtLabel } from '@/utils/formatLabel'
 import { toast } from '@/components/Toast'
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
@@ -27,8 +29,8 @@ interface QualityKpis {
   oosRate: number; ootRate: number; rftRate: number; retestRate: number; openCapas: number; periodDays: number
 }
 interface InstrumentBoardItem {
-  instrumentId: number; instrumentCode: string; instrumentType: string; statusText: string
-  calibrationDue: string; calDaysRemaining: number; openBreakdownId: number | null; latestUtilPct: number | null
+  instrumentId: number; instrumentCode: string; instrumentType: string; status: string
+  calibrationDue: string; daysUntilCalDue: number; openBreakdownId: number | null; utilisationPct: number | null
 }
 interface ComplianceSummary {
   totalAuditEvents: number; openOos: number; closedOos: number; totalSignatures: number; systemStatus: string
@@ -198,7 +200,9 @@ const instColour = (s: string) => {
 }
 
 export default function DashboardPage() {
-  const fullName = useSelector((s: RootState) => s.auth.fullName)
+  const fullName   = useSelector((s: RootState) => s.auth.fullName)
+  const role       = useSelector((s: RootState) => s.auth.role) ?? ''
+
 
   const [wip,           setWip]           = useState<WipSummary | null>(null)
   const [tat,           setTat]           = useState<TatSummary | null>(null)
@@ -246,7 +250,21 @@ export default function DashboardPage() {
       const samples = Array.isArray(sm.data) ? sm.data : []
       setRecentSamples(samples.slice(-5).reverse())
       const tasks = Array.isArray(wq.data) ? wq.data : []
-      setRecentTasks(tasks.slice(0, 5))
+      // Group by sampleNumber — show one row per sample, not one per test execution
+      const bySample = new Map<string, RecentTask[]>()
+      for (const t of tasks) {
+        if (!bySample.has(t.sampleNumber)) bySample.set(t.sampleNumber, [])
+        bySample.get(t.sampleNumber)!.push(t)
+      }
+      const STATUS_PRIORITY = ['OOSOpen', 'InProgress', 'Assigned', 'Completed', 'QCVerified']
+      const grouped: RecentTask[] = Array.from(bySample.values()).map(execs => {
+        const statuses = execs.map(e => e.status)
+        const status = STATUS_PRIORITY.find(s => statuses.includes(s)) ?? statuses[0]
+        const analysts = [...new Set(execs.map(e => e.analystName).filter(Boolean))]
+        const analystName = analysts.length === 0 ? '—' : analysts.length === 1 ? analysts[0] : 'Multiple'
+        return { executionId: execs[0].executionId, sampleNumber: execs[0].sampleNumber, materialName: execs[0].materialName, status, analystName }
+      })
+      setRecentTasks(grouped.slice(0, 5))
       if (isRefresh) {
         toast('Dashboard refreshed', 'success', 2500)
       } else if (!sessionStorage.getItem('lims_welcomed')) {
@@ -301,12 +319,23 @@ export default function DashboardPage() {
     return () => clearTimeout(t)
   }, [tab])
 
-  const tabs: { key: Tab; label: string; icon: string }[] = [
+  const roleNorm = role.toLowerCase()
+  const isAnalyst = roleNorm === 'analyst'
+  const isQA      = roleNorm === 'qa' || roleNorm === 'qualityassurance' || roleNorm.includes('qa')
+
+  const allTabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'overview',    label: 'Overview',     icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
     { key: 'quality',     label: 'Quality KPIs', icon: 'M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
     { key: 'instruments', label: 'Instruments',  icon: 'M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18' },
     { key: 'compliance',  label: 'Compliance',   icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
   ]
+  const tabs = isAnalyst ? allTabs.filter(t => t.key !== 'compliance') : allTabs
+
+  // Set role-based default tab after first render
+  useEffect(() => {
+    if (isQA) setTab('quality')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 240, color: '#5f6368', fontSize: 14 }}>
@@ -367,6 +396,38 @@ export default function DashboardPage() {
         <StatItem value={comp?.totalSignatures ?? 0} label="E-Signatures"        valueColor={T.primary}
           iconBg={T.light} iconColor={T.primary} iconPath={ICONS.signature} last />
       </div>
+
+      {/* ── Role-based hero strip ── */}
+      {isAnalyst && wip && (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+          {[
+            { label: 'My Tests Pending',   value: wip.testsPending,   bg: '#f5f3ff', accent: '#7c3aed' },
+            { label: 'Overdue',            value: wip.overdue,        bg: wip.overdue > 0 ? '#fef2f2' : '#f0fdf4', accent: wip.overdue > 0 ? '#dc2626' : '#16a34a' },
+            { label: 'Completed Today',    value: wip.completedToday, bg: '#f0fdf4', accent: '#16a34a' },
+            { label: `Avg TAT (${tat?.periodDays ?? 30}d)`, value: `${(tat?.avgTatHours ?? 0).toFixed(1)}h`, bg: '#f8fafc', accent: '#0369a1' },
+          ].map(item => (
+            <div key={item.label} style={{ flex: '1 1 140px', background: item.bg, border: `1.5px solid ${item.accent}22`, borderRadius: 10, padding: '12px 16px' }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: item.accent }}>{item.value}</div>
+              <div style={{ fontSize: 11, color: '#374151', marginTop: 2 }}>{item.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {isQA && (kpis || comp) && (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+          {[
+            { label: 'Open OOS',   value: comp?.openOos ?? 0,    bg: (comp?.openOos ?? 0) > 0 ? '#fef2f2' : '#f0fdf4', accent: (comp?.openOos ?? 0) > 0 ? '#dc2626' : '#16a34a' },
+            { label: 'Open CAPAs', value: kpis?.openCapas ?? 0,  bg: (kpis?.openCapas ?? 0) > 0 ? '#fef9c3' : '#f0fdf4', accent: (kpis?.openCapas ?? 0) > 0 ? '#b45309' : '#16a34a' },
+            { label: 'OOS Rate',   value: `${kpis?.oosRate ?? 0}%`, bg: (kpis?.oosRate ?? 0) > 0 ? '#fef2f2' : '#f0fdf4', accent: (kpis?.oosRate ?? 0) > 0 ? '#dc2626' : '#16a34a' },
+            { label: 'RFT Rate',   value: `${kpis?.rftRate ?? 0}%`, bg: (kpis?.rftRate ?? 0) >= 95 ? '#f0fdf4' : '#fef9c3', accent: (kpis?.rftRate ?? 0) >= 95 ? '#16a34a' : '#b45309' },
+          ].map(item => (
+            <div key={item.label} style={{ flex: '1 1 140px', background: item.bg, border: `1.5px solid ${item.accent}22`, borderRadius: 10, padding: '12px 16px' }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: item.accent }}>{item.value}</div>
+              <div style={{ fontSize: 11, color: '#374151', marginTop: 2 }}>{item.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Tab nav ── */}
       <div style={{
@@ -863,19 +924,19 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {board.map(i => {
-                  const sc = instColour(i.statusText)
+                  const sc = instColour(i.status)
                   return (
                     <tr key={i.instrumentId} style={{ borderBottom: '1px solid #f1f3f4' }}>
                       <td style={{ ...td, color: T.primary, fontWeight: 700 }}>{i.instrumentCode}</td>
                       <td style={td}>{i.instrumentType}</td>
                       <td style={td}>
-                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{i.statusText}</span>
+                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{fmtLabel(i.status)}</span>
                       </td>
                       <td style={td}>{i.calibrationDue}</td>
-                      <td style={{ ...td, fontWeight: 700, color: i.calDaysRemaining <= 7 ? '#dc2626' : i.calDaysRemaining <= 30 ? '#d97706' : '#16a34a' }}>
-                        {i.calDaysRemaining}d
+                      <td style={{ ...td, fontWeight: 700, color: i.daysUntilCalDue <= 7 ? '#dc2626' : i.daysUntilCalDue <= 30 ? '#d97706' : '#16a34a' }}>
+                        {i.daysUntilCalDue}d
                       </td>
-                      <td style={td}>{i.latestUtilPct != null ? `${i.latestUtilPct}%` : '—'}</td>
+                      <td style={td}>{i.utilisationPct != null ? `${i.utilisationPct}%` : '—'}</td>
                       <td style={{ ...td, color: i.openBreakdownId ? '#dc2626' : '#80868b', fontWeight: i.openBreakdownId ? 700 : 400 }}>
                         {i.openBreakdownId ? `#${i.openBreakdownId}` : '—'}
                       </td>
@@ -899,16 +960,16 @@ export default function DashboardPage() {
                 <span style={{ width: 3, height: 14, background: '#f59e0b', borderRadius: 4, display: 'inline-block' }} />
                 Calibration Due — Next 90 Days
               </div>
-              {board.slice().sort((a, b) => a.calDaysRemaining - b.calDaysRemaining).map(inst => {
-                const pct   = Math.min(100, Math.max(0, (inst.calDaysRemaining / 90) * 100))
-                const color = inst.calDaysRemaining < 0 ? '#ef4444'
-                            : inst.calDaysRemaining <= 7 ? '#ef4444'
-                            : inst.calDaysRemaining <= 30 ? '#f59e0b' : '#22c55e'
-                const label = inst.calDaysRemaining < 0 ? `⛔ ${Math.abs(inst.calDaysRemaining)}d overdue`
-                            : inst.calDaysRemaining === 0 ? '🔴 Due today'
-                            : inst.calDaysRemaining <= 7 ? `🔴 ${inst.calDaysRemaining}d`
-                            : inst.calDaysRemaining <= 30 ? `🟡 ${inst.calDaysRemaining}d`
-                            : `🟢 ${inst.calDaysRemaining}d`
+              {board.slice().sort((a, b) => a.daysUntilCalDue - b.daysUntilCalDue).map(inst => {
+                const pct   = Math.min(100, Math.max(0, (inst.daysUntilCalDue / 90) * 100))
+                const color = inst.daysUntilCalDue < 0 ? '#ef4444'
+                            : inst.daysUntilCalDue <= 7 ? '#ef4444'
+                            : inst.daysUntilCalDue <= 30 ? '#f59e0b' : '#22c55e'
+                const label = inst.daysUntilCalDue < 0 ? `⛔ ${Math.abs(inst.daysUntilCalDue)}d overdue`
+                            : inst.daysUntilCalDue === 0 ? '🔴 Due today'
+                            : inst.daysUntilCalDue <= 7 ? `🔴 ${inst.daysUntilCalDue}d`
+                            : inst.daysUntilCalDue <= 30 ? `🟡 ${inst.daysUntilCalDue}d`
+                            : `🟢 ${inst.daysUntilCalDue}d`
                 return (
                   <div key={inst.instrumentId} style={{ marginBottom: 10 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12 }}>
@@ -1013,11 +1074,11 @@ export default function DashboardPage() {
                               fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 20,
                               background: item.status === 'Released' ? '#d1fae5' : item.status === 'Rejected' ? '#fee2e2' : '#f1f5f9',
                               color:      item.status === 'Released' ? '#065f46' : item.status === 'Rejected' ? '#991b1b' : '#374151',
-                            }}>{item.status}</span>
+                            }}>{fmtLabel(item.status)}</span>
                           </td>
                           <td style={td}>{item.qaDecision ?? '—'}</td>
                           <td style={td}>{item.qaSignedBy ?? '—'}</td>
-                          <td style={td}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'}</td>
+                          <td style={td}>{item.createdAt ? fmtDate(item.createdAt) : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1058,7 +1119,7 @@ export default function DashboardPage() {
                     <div style={{ fontSize: 11.5, color: '#80868b', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.materialName}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: sc.bg, color: sc.color }}>{t.status}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: sc.bg, color: sc.color }}>{fmtLabel(t.status)}</span>
                     {t.analystName && <div style={{ fontSize: 10.5, color: '#80868b', marginTop: 2 }}>{t.analystName}</div>}
                   </div>
                 </div>
@@ -1093,7 +1154,7 @@ export default function DashboardPage() {
                     <div style={{ fontSize: 11.5, color: '#80868b', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.materialName}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: sc.bg, color: sc.color }}>{s.status}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: sc.bg, color: sc.color }}>{fmtLabel(s.status)}</span>
                     <div style={{ fontSize: 10.5, color: '#80868b', marginTop: 2 }}>{_timeAgo(s.createdAt)}</div>
                   </div>
                 </div>

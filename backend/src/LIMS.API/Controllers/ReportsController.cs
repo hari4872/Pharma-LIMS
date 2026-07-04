@@ -33,10 +33,10 @@ public class ReportsController : ControllerBase
         [FromQuery] DateTime? from, [FromQuery] DateTime? to,
         [FromQuery] string? status, [FromQuery] int? labId)
     {
+        var labNames = await _db.Laboratories.ToDictionaryAsync(l => l.LabId, l => l.LabName);
         var q = _db.Samples
             .Include(s => s.Material)
             .Include(s => s.SampleTypeNav)
-            .Include(s => s.Lab)
             .AsQueryable();
 
         if (!_lab.IsCrossLab && _lab.LabId.HasValue)
@@ -44,8 +44,8 @@ public class ReportsController : ControllerBase
         else if (labId.HasValue)
             q = q.Where(s => s.LabId == labId);
 
-        if (from.HasValue)  q = q.Where(s => s.CreatedAt >= from.Value);
-        if (to.HasValue)    q = q.Where(s => s.CreatedAt <= to.Value.AddDays(1));
+        if (from.HasValue)  q = q.Where(s => s.CreatedAt >= DateTime.SpecifyKind(from.Value.Date, DateTimeKind.Utc));
+        if (to.HasValue)    q = q.Where(s => s.CreatedAt <= DateTime.SpecifyKind(to.Value.Date.AddDays(1), DateTimeKind.Utc));
         if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<SampleStatus>(status, true, out var sampleStatusEnum))
             q = q.Where(s => s.Status == sampleStatusEnum);
 
@@ -77,7 +77,7 @@ public class ReportsController : ControllerBase
             ws.Cells[r, 4].Value = s.ExternalBatchId ?? "";
             ws.Cells[r, 5].Value = s.SampleTypeNav?.TypeName;
             ws.Cells[r, 6].Value = s.Status.ToString();
-            ws.Cells[r, 7].Value = s.Lab?.LabName;
+            ws.Cells[r, 7].Value = labNames.GetValueOrDefault(s.LabId, $"Lab {s.LabId}");
             ws.Cells[r, 8].Value = s.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd");
             ws.Cells[r, 9].Value = s.DueDate.HasValue ? s.DueDate.Value.ToLocalTime().ToString("yyyy-MM-dd") : "";
         }
@@ -99,7 +99,6 @@ public class ReportsController : ControllerBase
         [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int? labId)
     {
         var q = _db.DigitalLogbookEntries
-            .Include(e => e.Execution).ThenInclude(ex => ex.Sample).ThenInclude(s => s.Lab)
             .Include(e => e.Execution).ThenInclude(ex => ex.Sample).ThenInclude(s => s.Material)
             .Include(e => e.Parameter)
             .Include(e => e.Analyst)
@@ -110,8 +109,8 @@ public class ReportsController : ControllerBase
         else if (labId.HasValue)
             q = q.Where(e => e.Execution.Sample.LabId == labId);
 
-        if (from.HasValue) q = q.Where(e => e.CreatedAt >= from.Value);
-        if (to.HasValue)   q = q.Where(e => e.CreatedAt <= to.Value.AddDays(1));
+        if (from.HasValue) q = q.Where(e => e.CreatedAt >= DateTime.SpecifyKind(from.Value.Date, DateTimeKind.Utc));
+        if (to.HasValue)   q = q.Where(e => e.CreatedAt <= DateTime.SpecifyKind(to.Value.Date.AddDays(1), DateTimeKind.Utc));
 
         var entries = await q.OrderByDescending(e => e.CreatedAt).Take(5000).ToListAsync();
 
@@ -166,8 +165,8 @@ public class ReportsController : ControllerBase
         [FromQuery] string? entityType)
     {
         var q = _db.MasterDataAuditLogs.AsQueryable();
-        if (from.HasValue) q = q.Where(a => a.PerformedAt >= from.Value);
-        if (to.HasValue)   q = q.Where(a => a.PerformedAt <= to.Value.AddDays(1));
+        if (from.HasValue) q = q.Where(a => a.PerformedAt >= DateTime.SpecifyKind(from.Value.Date, DateTimeKind.Utc));
+        if (to.HasValue)   q = q.Where(a => a.PerformedAt <= DateTime.SpecifyKind(to.Value.Date.AddDays(1), DateTimeKind.Utc));
         if (!string.IsNullOrWhiteSpace(entityType)) q = q.Where(a => a.EntityType == entityType);
 
         var logs = await q.OrderByDescending(a => a.PerformedAt).Take(5000).ToListAsync();

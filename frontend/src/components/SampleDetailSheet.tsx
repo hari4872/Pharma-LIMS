@@ -20,6 +20,7 @@ interface SampleDetail {
     executionId: number; status: string; analystName: string
     instrumentCode: string; priorityScore: number | null
     startedAt: string | null; completedAt: string | null; dueDate: string | null
+    testLabel: string | null
   }[]
 }
 
@@ -132,11 +133,29 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
   const [coa,         setCoa]         = useState<CoaSummary | null>(null)
   const [coaLoading,  setCoaLoading]  = useState(false)
 
+  // qa param drill-down
+  const [expandedExecId, setExpandedExecId] = useState<number | null>(null)
+  const [execResults, setExecResults] = useState<Record<number, {
+    parameterId: number; parameterName: string; parameterCode: string
+    rawValue: string; calculatedResult: number | null; uom: string
+    passFail: string; isOos: boolean; isOot: boolean
+  }[]>>({})
+
   // workflow status (workqueue + default)
   const [wfStatus,    setWfStatus]    = useState<WfStatus | null>(null)
   const [wfLoading,   setWfLoading]   = useState(false)
 
   const ctx = CONTEXT_META[context]
+
+  async function toggleExecResults(executionId: number) {
+    if (expandedExecId === executionId) { setExpandedExecId(null); return }
+    setExpandedExecId(executionId)
+    if (execResults[executionId]) return
+    try {
+      const res = await api.get(`/digital-logbook?executionId=${executionId}`)
+      setExecResults(prev => ({ ...prev, [executionId]: res.data ?? [] }))
+    } catch { setExecResults(prev => ({ ...prev, [executionId]: [] })) }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -313,8 +332,9 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
   }, [sampleId, context])
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: '#fff', borderRadius: 14, width: 700, maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.40)', display: 'flex', justifyContent: 'flex-end', zIndex: 1000 }}>
+      <style>{`@keyframes slideInDrawer{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+      <div style={{ background: '#fff', width: 660, height: '100vh', display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 40px rgba(0,0,0,0.22)', animation: 'slideInDrawer 0.22s cubic-bezier(0.16,1,0.3,1)' }}>
 
         {/* ── Header ── */}
         <div style={{ padding: '16px 24px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
@@ -457,6 +477,7 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                             <div style={{ flex: 1 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <span style={{ fontSize: 12, fontFamily: 'monospace', color: '#6b7280' }}>#{e.executionId}</span>
+                                {e.testLabel && <span style={{ fontSize: 12, fontWeight: 600, color: '#1e3a5f' }}>{e.testLabel}</span>}
                                 <Badge status={e.status} />
                                 {e.priorityScore !== null && <span style={{ fontSize: 11, fontWeight: 700, background: e.priorityScore === 1 ? '#fee2e2' : '#f3f4f6', color: e.priorityScore === 1 ? '#991b1b' : '#374151', padding: '1px 6px', borderRadius: 4 }}>P{e.priorityScore}</span>}
                               </div>
@@ -604,24 +625,84 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                     )}
                   </div>
 
-                  {/* Test Executions (read-only for QA) */}
+                  {/* Test Executions (expandable — click to see parameters) */}
                   <div>
                     <SectionHead title="Test Executions" count={detail.testExecutions.length} />
+                    <p style={{ fontSize: 11, color: '#9ca3af', margin: '-6px 0 10px' }}>Click an execution to view parameter results</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {detail.testExecutions.map(e => (
-                        <div key={e.executionId} style={{ display: 'flex', alignItems: 'center', gap: 12, border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 14px', background: '#fff' }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontSize: 12, fontFamily: 'monospace', color: '#6b7280' }}>#{e.executionId}</span>
-                              <Badge status={e.status} />
+                      {detail.testExecutions.map((e, idx) => {
+                        const isExpanded = expandedExecId === e.executionId
+                        const params = execResults[e.executionId]
+                        const hasOos = params?.some(p => p.isOos)
+                        return (
+                          <div key={e.executionId} style={{ border: `1px solid ${hasOos ? '#fca5a5' : isExpanded ? '#bfdbfe' : '#e5e7eb'}`, borderRadius: 8, background: '#fff', overflow: 'hidden' }}>
+                            {/* Execution header row — click to expand */}
+                            <div
+                              onClick={() => toggleExecResults(e.executionId)}
+                              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', background: isExpanded ? '#eff6ff' : '#fff' }}
+                            >
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 11, color: '#9ca3af' }}>Test {idx + 1}</span>
+                                  <span style={{ fontSize: 12, fontFamily: 'monospace', color: '#6b7280' }}>#{e.executionId}</span>
+                                  <Badge status={e.status} />
+                                  {hasOos && <span style={{ fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 6px', borderRadius: 6 }}>OOS</span>}
+                                </div>
+                                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 3 }}>
+                                  👤 {e.analystName} · 🔬 {e.instrumentCode}
+                                </div>
+                              </div>
+                              <span style={{ fontSize: 14, color: '#9ca3af', userSelect: 'none' }}>{isExpanded ? '▲' : '▼'}</span>
                             </div>
-                            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 3 }}>👤 {e.analystName} · 🔬 {e.instrumentCode}</div>
+
+                            {/* Parameter results — shown when expanded */}
+                            {isExpanded && (
+                              <div style={{ borderTop: '1px solid #e5e7eb', padding: '10px 14px', background: '#f8fafc' }}>
+                                {!params ? (
+                                  <div style={{ fontSize: 12, color: '#9ca3af' }}>Loading parameters…</div>
+                                ) : params.length === 0 ? (
+                                  <div style={{ fontSize: 12, color: '#9ca3af' }}>No results recorded for this execution.</div>
+                                ) : (
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                    <thead>
+                                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                        {['Parameter', 'Value', 'Result', 'Pass/Fail'].map(h => (
+                                          <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {params.map(p => {
+                                        const pf = p.passFail
+                                        const pfBg    = pf === 'PASS' ? '#d1fae5' : pf === 'FAIL' ? '#fee2e2' : '#f1f5f9'
+                                        const pfColor = pf === 'PASS' ? '#065f46' : pf === 'FAIL' ? '#991b1b' : '#374151'
+                                        return (
+                                          <tr key={p.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                            <td style={{ padding: '5px 8px', fontWeight: 600, color: '#111827' }}>
+                                              {p.parameterName}
+                                              {p.isOos && <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: 4 }}>OOS</span>}
+                                              {p.isOot && <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4 }}>OOT</span>}
+                                            </td>
+                                            <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>
+                                              {p.rawValue} {p.uom}
+                                            </td>
+                                            <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#6b7280' }}>
+                                              {p.calculatedResult != null ? `${p.calculatedResult} ${p.uom}` : '—'}
+                                            </td>
+                                            <td style={{ padding: '5px 8px' }}>
+                                              {pf ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: pfBg, color: pfColor }}>{pf}</span> : '—'}
+                                            </td>
+                                          </tr>
+                                        )
+                                      })}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          {(e.status === 'Completed' || e.status === 'OOSOpen') && (
-                            <a href={`/test-execution/${e.executionId}`} style={{ padding: '5px 14px', background: '#f0fdf4', color: '#065f46', border: '1px solid #86efac', borderRadius: 6, textDecoration: 'none', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>🔍 View Results</a>
-                          )}
-                        </div>
-                      ))}
+                        )
+                      })}
                       {detail.testExecutions.length === 0 && (
                         <div style={{ fontSize: 13, color: '#9ca3af' }}>No executions recorded.</div>
                       )}
@@ -669,17 +750,77 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                     )}
                   </div>
 
-                  {/* Test executions summary */}
+                  {/* Test executions — expandable parameter results */}
                   <div>
                     <SectionHead title="Test Executions" count={detail.testExecutions.length} />
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {detail.testExecutions.map(e => (
-                        <div key={e.executionId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', fontSize: 12 }}>
-                          <span style={{ fontFamily: 'monospace', color: '#6b7280' }}>#{e.executionId}</span>
-                          <Badge status={e.status} />
-                          <span style={{ color: '#6b7280' }}>👤 {e.analystName}</span>
-                        </div>
-                      ))}
+                    <p style={{ fontSize: 11, color: '#9ca3af', margin: '-6px 0 10px' }}>Click an execution to view parameter results</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {detail.testExecutions.map((e, idx) => {
+                        const isExpanded = expandedExecId === e.executionId
+                        const params = execResults[e.executionId]
+                        const hasOos = params?.some(p => p.isOos)
+                        return (
+                          <div key={e.executionId} style={{ border: `1px solid ${hasOos ? '#fca5a5' : isExpanded ? '#bfdbfe' : '#e5e7eb'}`, borderRadius: 8, background: '#fff', overflow: 'hidden' }}>
+                            <div
+                              onClick={() => toggleExecResults(e.executionId)}
+                              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', background: isExpanded ? '#eff6ff' : '#fff' }}
+                            >
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 11, color: '#9ca3af' }}>Test {idx + 1}</span>
+                                  <span style={{ fontSize: 12, fontFamily: 'monospace', color: '#6b7280' }}>#{e.executionId}</span>
+                                  <Badge status={e.status} />
+                                  {hasOos && <span style={{ fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 6px', borderRadius: 6 }}>OOS</span>}
+                                </div>
+                                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 3 }}>
+                                  👤 {e.analystName} · 🔬 {e.instrumentCode}
+                                </div>
+                              </div>
+                              <span style={{ fontSize: 14, color: '#9ca3af', userSelect: 'none' }}>{isExpanded ? '▲' : '▼'}</span>
+                            </div>
+                            {isExpanded && (
+                              <div style={{ borderTop: '1px solid #e5e7eb', padding: '10px 14px', background: '#f8fafc' }}>
+                                {!params ? (
+                                  <div style={{ fontSize: 12, color: '#9ca3af' }}>Loading parameters…</div>
+                                ) : params.length === 0 ? (
+                                  <div style={{ fontSize: 12, color: '#9ca3af' }}>No results recorded for this execution.</div>
+                                ) : (
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                    <thead>
+                                      <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                        {['Parameter', 'Value', 'Result', 'Pass/Fail'].map(h => (
+                                          <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {params.map(p => {
+                                        const pf = p.passFail
+                                        const pfBg    = pf === 'PASS' ? '#d1fae5' : pf === 'FAIL' ? '#fee2e2' : '#f1f5f9'
+                                        const pfColor = pf === 'PASS' ? '#065f46' : pf === 'FAIL' ? '#991b1b' : '#374151'
+                                        return (
+                                          <tr key={p.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                            <td style={{ padding: '5px 8px', fontWeight: 600, color: '#111827' }}>
+                                              {p.parameterName}
+                                              {p.isOos && <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: 4 }}>OOS</span>}
+                                              {p.isOot && <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4 }}>OOT</span>}
+                                            </td>
+                                            <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>{p.rawValue} {p.uom}</td>
+                                            <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#6b7280' }}>{p.calculatedResult != null ? `${p.calculatedResult} ${p.uom}` : '—'}</td>
+                                            <td style={{ padding: '5px 8px' }}>
+                                              {pf ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: pfBg, color: pfColor }}>{pf}</span> : '—'}
+                                            </td>
+                                          </tr>
+                                        )
+                                      })}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
                       {detail.testExecutions.length === 0 && <span style={{ fontSize: 13, color: '#9ca3af' }}>No executions.</span>}
                     </div>
                   </div>

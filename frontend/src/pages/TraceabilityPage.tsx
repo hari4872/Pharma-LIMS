@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react'
+﻿import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
@@ -113,23 +113,42 @@ function TraceNodeCard({ data }: { data: { node: TraceNode; isCentral?: boolean 
 
 const nodeTypes = { traceNode: TraceNodeCard }
 
+// ── Dedup helper ─────────────────────────────────────────────────────────────
+
+function dedupNodes(nodes: TraceNode[]): TraceNode[] {
+  const seen = new Set<string>()
+  return nodes.filter(n => {
+    const key = `${n.nodeType}:${n.nodeId}`
+    if (seen.has(key)) return false
+    seen.add(key); return true
+  })
+}
+
 // ── Build React Flow layout ──────────────────────────────────────────────────
+
+const LB_LIMIT = 8  // max logbook nodes shown in graph; rest collapsed into summary
 
 function buildFlow(graph: TraceGraph): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = []
   const edges: Edge[] = []
-  const ROW_H = 100
+  const ROW_H = 90
+
+  const upstream   = dedupNodes(graph.upstreamNodes)
+  const downstream = dedupNodes(graph.downstreamNodes)
+  const logbook    = dedupNodes(graph.logbookNodes)
+  const lbShown    = logbook.slice(0, LB_LIMIT)
+  const lbHidden   = logbook.length - lbShown.length
 
   nodes.push({
     id: 'central', type: 'traceNode',
-    position: { x: 420, y: 0 },
+    position: { x: 440, y: 0 },
     data: { node: graph.centralSample, isCentral: true }, draggable: true,
   })
 
-  const upY0 = -(graph.upstreamNodes.length - 1) * ROW_H / 2
-  graph.upstreamNodes.forEach((n, i) => {
+  const upY0 = -(upstream.length - 1) * ROW_H / 2
+  upstream.forEach((n, i) => {
     const id = `up-${i}`
-    nodes.push({ id, type: 'traceNode', position: { x: 80, y: upY0 + i * ROW_H }, data: { node: n }, draggable: true })
+    nodes.push({ id, type: 'traceNode', position: { x: 60, y: upY0 + i * ROW_H }, data: { node: n }, draggable: true })
     edges.push({
       id: `e-up-${i}`, source: id, target: 'central', animated: false,
       markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
@@ -139,10 +158,10 @@ function buildFlow(graph: TraceGraph): { nodes: Node[]; edges: Edge[] } {
     })
   })
 
-  const dnY0 = -(graph.downstreamNodes.length - 1) * ROW_H / 2
-  graph.downstreamNodes.forEach((n, i) => {
+  const dnY0 = -(downstream.length - 1) * ROW_H / 2
+  downstream.forEach((n, i) => {
     const id = `dn-${i}`
-    nodes.push({ id, type: 'traceNode', position: { x: 760, y: dnY0 + i * ROW_H }, data: { node: n }, draggable: true })
+    nodes.push({ id, type: 'traceNode', position: { x: 820, y: dnY0 + i * ROW_H }, data: { node: n }, draggable: true })
     edges.push({
       id: `e-dn-${i}`, source: 'central', target: id, animated: false,
       markerEnd: { type: MarkerType.ArrowClosed, color: '#10b981' },
@@ -152,10 +171,12 @@ function buildFlow(graph: TraceGraph): { nodes: Node[]; edges: Edge[] } {
     })
   })
 
-  const totalH = Math.max(graph.upstreamNodes.length, graph.downstreamNodes.length, 1) * ROW_H
-  graph.logbookNodes.forEach((n, i) => {
+  // Logbook nodes: two columns to the right, not stacked below
+  lbShown.forEach((n, i) => {
+    const col = i % 2
+    const row = Math.floor(i / 2)
     const id = `lb-${i}`
-    nodes.push({ id, type: 'traceNode', position: { x: 420, y: totalH / 2 + 60 + i * ROW_H }, data: { node: n }, draggable: true })
+    nodes.push({ id, type: 'traceNode', position: { x: 1100 + col * 240, y: -((lbShown.length / 2 - 1) * ROW_H / 2) + row * ROW_H }, data: { node: n }, draggable: true })
     edges.push({
       id: `e-lb-${i}`, source: 'central', target: id, animated: false,
       markerEnd: { type: MarkerType.ArrowClosed, color: '#86efac' },
@@ -164,6 +185,18 @@ function buildFlow(graph: TraceGraph): { nodes: Node[]; edges: Edge[] } {
       labelBgStyle: { fill: '#fff', fillOpacity: 0.8 },
     })
   })
+
+  if (lbHidden > 0) {
+    const summaryNode: TraceNode = { nodeType: 'LogbookEntry', nodeId: -1, label: `+${lbHidden} more entries`, detail: 'collapsed for readability' }
+    nodes.push({ id: 'lb-more', type: 'traceNode',
+      position: { x: 1100, y: (Math.ceil(lbShown.length / 2)) * ROW_H },
+      data: { node: summaryNode }, draggable: true })
+    edges.push({
+      id: 'e-lb-more', source: 'central', target: 'lb-more', animated: false,
+      style: { stroke: '#86efac', strokeWidth: 1, strokeDasharray: '4 4' },
+      labelBgStyle: { fill: '#fff', fillOpacity: 0.8 },
+    })
+  }
 
   return { nodes, edges }
 }
@@ -174,16 +207,19 @@ function TraceGraphPanel({ graph }: { graph: TraceGraph }) {
   const { nodes: initNodes, edges: initEdges } = buildFlow(graph)
   const [nodes, , onNodesChange] = useNodesState(initNodes)
   const [edges, , onEdgesChange] = useEdgesState(initEdges)
-  const total = 1 + graph.upstreamNodes.length + graph.downstreamNodes.length + graph.logbookNodes.length
+  const upCount = dedupNodes(graph.upstreamNodes).length
+  const dnCount = dedupNodes(graph.downstreamNodes).length
+  const lbCount = dedupNodes(graph.logbookNodes).length
+  const total = 1 + upCount + dnCount + lbCount
 
   return (
     <div>
       <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
         {[
-          { label: 'Total Nodes', val: total, color: '#374151' },
-          { label: 'Upstream',    val: graph.upstreamNodes.length, color: '#2563eb' },
-          { label: 'Downstream',  val: graph.downstreamNodes.length, color: '#10b981' },
-          { label: 'Logbook',     val: graph.logbookNodes.length, color: '#8b5cf6' },
+          { label: 'Total Nodes', val: total,   color: '#374151' },
+          { label: 'Upstream',    val: upCount,  color: '#2563eb' },
+          { label: 'Downstream',  val: dnCount,  color: '#10b981' },
+          { label: 'Logbook',     val: lbCount,  color: '#8b5cf6' },
         ].map(s => (
           <div key={s.label} style={{ background: '#f9fafb', border: '1px solid #e5e7eb',
             borderRadius: 8, padding: '8px 16px', textAlign: 'center', minWidth: 90 }}>
@@ -222,11 +258,15 @@ function TraceGraphPanel({ graph }: { graph: TraceGraph }) {
 function ChainOfCustody({ graph }: { graph: TraceGraph }) {
   type CocRow = { phase: 'Upstream' | 'Sample' | 'Logbook' | 'Downstream'; node: TraceNode; relation: string }
 
+  const uniqueUpstream    = dedupNodes(graph.upstreamNodes)
+  const uniqueLogbook     = dedupNodes(graph.logbookNodes)
+  const uniqueDownstream  = dedupNodes(graph.downstreamNodes)
+
   const rows: CocRow[] = [
-    ...graph.upstreamNodes.map(n => ({ phase: 'Upstream' as const, node: n, relation: '→ feeds into sample' })),
+    ...uniqueUpstream.map(n   => ({ phase: 'Upstream'   as const, node: n, relation: '→ feeds into sample' })),
     { phase: 'Sample', node: graph.centralSample, relation: '● Central sample' },
-    ...graph.logbookNodes.map(n  => ({ phase: 'Logbook' as const,    node: n, relation: '→ logbook entry' })),
-    ...graph.downstreamNodes.map(n => ({ phase: 'Downstream' as const, node: n, relation: '→ produced from sample' })),
+    ...uniqueLogbook.map(n    => ({ phase: 'Logbook'    as const, node: n, relation: '→ logbook entry' })),
+    ...uniqueDownstream.map(n => ({ phase: 'Downstream' as const, node: n, relation: '→ produced from sample' })),
   ]
 
   const phaseStyle: Record<string, { dot: string; border: string }> = {
@@ -422,7 +462,7 @@ function SampleListPanel({
                   <span style={{
                     fontFamily: 'monospace', fontWeight: 700, fontSize: 12,
                     color: isSelected ? '#1d4ed8' : '#1e40af',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 170,
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220,
                   }}>
                     {s.sampleNumber}
                   </span>
@@ -491,6 +531,7 @@ export default function TraceabilityPage() {
   const canCloseCd = ['Admin', 'QA'].includes(role)
 
   const [tab, setTab] = useState<'graph' | 'recall' | 'cd'>('graph')
+  const loadSeqRef = useRef(0)   // race-condition guard
 
   // ── Left panel sample list ──────────────────────────────────────────────
   const [sampleList, setSampleList]     = useState<SampleListItem[]>([])
@@ -545,9 +586,9 @@ export default function TraceabilityPage() {
 
   // ── Load trace when a sample is selected from left panel ────────────────
   async function loadTrace(item: SampleListItem) {
+    const seq = ++loadSeqRef.current          // cancel any in-flight call
     setSelectedSampleId(item.sampleId)
-    setGraphLoading(true); setGraphError(''); setGraph(null)
-    // Build resolved from list item (avoids extra lookup roundtrip)
+    setGraphLoading(true); setGraphError(''); setGraph(null); setEnvLog(null)
     setResolved({
       sampleId:       item.sampleId,
       sampleNumber:   item.sampleNumber,
@@ -562,11 +603,15 @@ export default function TraceabilityPage() {
         api.get(`/traceability/samples/${item.sampleId}/graph`),
         api.get(`/traceability/samples/${item.sampleId}/environment-log`).catch(() => ({ data: null })),
       ])
+      if (seq !== loadSeqRef.current) return   // superseded — discard stale result
       setGraph(graphRes.data)
       setEnvLog(envRes.data)
     } catch (err) {
+      if (seq !== loadSeqRef.current) return
       setGraphError(getErrorMessage(err, 'Failed to load trace.'))
-    } finally { setGraphLoading(false) }
+    } finally {
+      if (seq === loadSeqRef.current) setGraphLoading(false)
+    }
   }
 
   // ── Recall ──────────────────────────────────────────────────────────────
@@ -692,7 +737,7 @@ export default function TraceabilityPage() {
             )}
 
             {resolved && !graphLoading && (
-              <div style={{ padding: '20px 24px' }}>
+              <div key={resolved.sampleId} style={{ padding: '20px 24px' }}>
 
                 {/* Sample context header */}
                 <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderLeft: '4px solid #eab308',
@@ -755,7 +800,7 @@ export default function TraceabilityPage() {
                     </div>
                     <div style={{ padding: '18px 20px' }}>
                       {activeView === 'coc' && <ChainOfCustody graph={graph} />}
-                      {activeView === 'graph' && <TraceGraphPanel graph={graph} />}
+                      {activeView === 'graph' && <TraceGraphPanel key={graph.centralSample.nodeId} graph={graph} />}
                       {activeView === 'env' && (
                         <div>
                           {envLog?.windowStart && (

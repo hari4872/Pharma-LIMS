@@ -13,7 +13,9 @@ public record WorkQueueItemDto(
     string LotNumber, string AnalystName, string InstrumentCode,
     string Status, int? PriorityScore,
     DateTimeOffset? StartedAt, DateTimeOffset? CompletedAt,
-    DateTimeOffset? DueDate, DateTimeOffset CreatedAt);
+    DateTimeOffset? DueDate, DateTimeOffset CreatedAt,
+    string? TestLabel,
+    int? ContainerId, string? ContainerLabel, string? ContainerType, string? ContainerStatus);
 
 public class GetWorkQueueHandler : IRequestHandler<GetWorkQueueQuery, List<WorkQueueItemDto>>
 {
@@ -22,11 +24,9 @@ public class GetWorkQueueHandler : IRequestHandler<GetWorkQueueQuery, List<WorkQ
 
     public async Task<List<WorkQueueItemDto>> Handle(GetWorkQueueQuery q, CancellationToken ct)
     {
-        var query = _db.TestExecutions
-            .Include(e => e.Sample).ThenInclude(s => s.Material)
-            .Include(e => e.Analyst)
-            .Include(e => e.Instrument)
-            .AsQueryable();
+        // Note: Include() is ignored when Select() reshapes the projection.
+        // EF Core generates LEFT JOINs automatically for navigation properties referenced in Select().
+        var query = _db.TestExecutions.AsQueryable();
 
         if (q.AnalystId.HasValue) query = query.Where(e => e.AnalystId == q.AnalystId.Value);
         if (q.LabId.HasValue) query = query.Where(e => e.Sample.LabId == q.LabId.Value);
@@ -47,15 +47,25 @@ public class GetWorkQueueHandler : IRequestHandler<GetWorkQueueQuery, List<WorkQ
             .ThenBy(e => e.Sample.DueDate ?? DateTimeOffset.MaxValue)
             .ThenByDescending(e => e.CreatedAt)
             .Select(e => new WorkQueueItemDto(
-                e.ExecutionId, e.SampleId, e.Sample.SampleNumber,
-                e.Sample.Material != null ? e.Sample.Material.MaterialName : "Unknown",
-                e.Sample.MaterialId,
-                e.Sample.LotNumber,
+                e.ExecutionId, e.SampleId,
+                e.Sample != null ? e.Sample.SampleNumber : "",
+                e.Sample != null && e.Sample.Material != null ? e.Sample.Material.MaterialName : "Unknown",
+                e.Sample != null ? e.Sample.MaterialId : 0,
+                e.Sample != null ? e.Sample.LotNumber : "",
                 e.Analyst != null ? e.Analyst.FullName : "Unknown",
                 e.Instrument != null ? e.Instrument.InstrumentCode : "",
                 e.Status.ToString(), e.PriorityScore,
                 e.StartedAt, e.CompletedAt,
-                e.Sample.DueDate, e.CreatedAt))
+                e.Sample != null ? e.Sample.DueDate : null, e.CreatedAt,
+                e.SpecTemplateItem != null && e.SpecTemplateItem.TestMethod != null
+                    ? e.SpecTemplateItem.TestMethod.MethodName
+                    : e.SpecTemplateItem != null && e.SpecTemplateItem.Parameter != null
+                        ? e.SpecTemplateItem.Parameter.ParameterName
+                        : null,
+                e.SampleContainerId,
+                e.SampleContainer != null ? e.SampleContainer.ContainerLabel : null,
+                e.SampleContainer != null ? e.SampleContainer.ContainerType.ToString() : null,
+                e.SampleContainer != null ? e.SampleContainer.Status.ToString() : null))
             .ToListAsync(ct);
     }
 }

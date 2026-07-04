@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
+using Microsoft.Extensions.Logging;
 
 namespace LIMS.API.Controllers;
 
@@ -18,7 +19,9 @@ public class ResultsReviewController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ILimsDbContext _db;
-    public ResultsReviewController(IMediator mediator, ILimsDbContext db) { _mediator = mediator; _db = db; }
+    private readonly ILogger<ResultsReviewController> _log;
+    public ResultsReviewController(IMediator mediator, ILimsDbContext db, ILogger<ResultsReviewController> log)
+    { _mediator = mediator; _db = db; _log = log; }
 
     // POST api/v1/results-review/{executionId}/peer-review � 2nd analyst §11.50 e-sig (FR-02, FR-03)
     [HttpPost("{executionId}/peer-review")]
@@ -81,25 +84,39 @@ public class ResultsReviewController : LimsControllerBase
     [HttpGet("{executionId}/pdf")]
     public async Task<IActionResult> GetPdf(int executionId)
     {
-        var exec = await _db.TestExecutions
-            .Include(e => e.Sample).ThenInclude(s => s.Material)
-            .Include(e => e.Sample).ThenInclude(s => s.Lab)
-            .Include(e => e.Analyst)
-            .Include(e => e.Instrument)
-            .Include(e => e.LogbookEntries).ThenInclude(le => le.Parameter)
-            .Include(e => e.ResultsReviews).ThenInclude(r => r.Reviewer)
-            .Include(e => e.ResultsReviews).ThenInclude(r => r.Signature)
-            .Include(e => e.OosInvestigations)
-            .FirstOrDefaultAsync(e => e.ExecutionId == executionId);
+        TestExecution? exec;
+        try
+        {
+            exec = await _db.TestExecutions
+                .Include(e => e.Sample).ThenInclude(s => s.Material)
+                // Note: Sample.Lab excluded — Lab FK may not match a valid laboratory row
+                // (seeded samples use LabId=1 which may not exist). LabName falls back to "—".
+                .Include(e => e.Analyst)
+                .Include(e => e.Instrument)
+                .Include(e => e.LogbookEntries).ThenInclude(le => le.Parameter)
+                .Include(e => e.ResultsReviews).ThenInclude(r => r.Reviewer)
+                .Include(e => e.ResultsReviews).ThenInclude(r => r.Signature)
+                .Include(e => e.OosInvestigations)
+                .FirstOrDefaultAsync(e => e.ExecutionId == executionId);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "PDF query failed for ExecutionId={ExecutionId}", executionId);
+            return StatusCode(500, new { error = "QUERY_FAILED", executionId, message = ex.Message, inner = ex.InnerException?.Message });
+        }
 
-        if (exec is null) return NotFound();
+        if (exec is null)
+        {
+            _log.LogWarning("PDF requested for ExecutionId={ExecutionId} but not found in DB", executionId);
+            return NotFound(new { error = "EXECUTION_NOT_FOUND", executionId, message = $"TestExecution {executionId} not found in database." });
+        }
 
         var data = new BatchAnalysisPdfDocument.BatchAnalysisData(
             ExecutionId:   exec.ExecutionId,
-            SampleNumber:  exec.Sample.SampleNumber,
-            MaterialName:  exec.Sample.Material?.MaterialName ?? "�",
-            LotNumber:     exec.Sample.LotNumber,
-            LabName:       exec.Sample.Lab?.LabName ?? "�",
+            SampleNumber:  exec.Sample?.SampleNumber ?? "",
+            MaterialName:  exec.Sample?.Material?.MaterialName ?? "�",
+            LotNumber:     exec.Sample?.LotNumber ?? "",
+            LabName:       exec.Sample?.Lab?.LabName ?? "—",
             AnalystName:   exec.Analyst?.FullName ?? "Unknown",
             InstrumentCode: exec.Instrument?.InstrumentCode ?? "�",
             InstrumentType: exec.Instrument?.InstrumentType ?? "�",
@@ -126,11 +143,19 @@ public class ResultsReviewController : LimsControllerBase
             OotCount: exec.OosInvestigations.Count(o => o.FlagType.ToString() == "OOT")
         );
 
-        QuestPDF.Settings.License = LicenseType.Community;
-        var doc   = new BatchAnalysisPdfDocument(data);
-        var bytes = doc.GeneratePdf();
-        var fname = $"BatchAnalysis_{exec.ExecutionId:D5}_{exec.Sample.SampleNumber}.pdf";
-        return File(bytes, "application/pdf", fname);
+        try
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+            var doc   = new BatchAnalysisPdfDocument(data);
+            var bytes = doc.GeneratePdf();
+            var fname = $"BatchAnalysis_{exec.ExecutionId:D5}_{exec.Sample?.SampleNumber ?? "unknown"}.pdf";
+            return File(bytes, "application/pdf", fname);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "PDF generation failed for ExecutionId={ExecutionId}", executionId);
+            return StatusCode(500, new { error = "PDF_GENERATION_FAILED", message = ex.Message });
+        }
     }
 
     // POST api/v1/results-review/evidence � FR-14: attach evidence file reference (audit-logged)

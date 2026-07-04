@@ -70,6 +70,7 @@ public class SpecTemplateItemConfiguration : IEntityTypeConfiguration<SpecTempla
         builder.HasOne(i => i.Parameter)
                .WithMany()
                .HasForeignKey(i => i.ParameterId)
+               .IsRequired(false)
                .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(i => i.TestMethod)

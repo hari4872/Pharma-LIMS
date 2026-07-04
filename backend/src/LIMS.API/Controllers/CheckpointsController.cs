@@ -47,16 +47,48 @@ public class CheckpointsController : LimsControllerBase
         return Ok(logs);
     }
 
+    // DELETE api/v1/checkpoints/{id} -- hard-delete (Admin/QA only; blocked if signed audit rows exist)
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct)
+    {
+        var cp = await _db.Checkpoints
+            .Include(c => c.ProcessLogRows).ThenInclude(r => r.Readings)
+            .Include(c => c.CheckpointParameters)
+            .Include(c => c.Locations)
+            .Include(c => c.TriggerLogs)
+            .FirstOrDefaultAsync(c => c.CheckpointId == id, ct);
+        if (cp is null) return NotFound();
+
+        if (cp.ProcessLogRows.Any(r => r.SignatureId.HasValue))
+            return BadRequest(new { error = "HAS_SIGNED_ROWS",
+                message = "Cannot delete — this checkpoint has signed process log rows (21 CFR Part 11 audit trail)." });
+
+        _db.ProcessLogReadings.RemoveRange(cp.ProcessLogRows.SelectMany(r => r.Readings));
+        _db.ProcessLogRows.RemoveRange(cp.ProcessLogRows);
+        _db.CheckpointTriggerLogs.RemoveRange(cp.TriggerLogs);
+        _db.CheckpointParameters.RemoveRange(cp.CheckpointParameters);
+        _db.CheckpointLocations.RemoveRange(cp.Locations);
+        _db.SampleCheckpoints.RemoveRange(
+            await _db.SampleCheckpoints.Where(sc => sc.CheckpointId == id).ToListAsync(ct));
+        _db.Checkpoints.Remove(cp);
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     // POST api/v1/checkpoints -- create checkpoint (Admin/QA, FR-01)
     [HttpPost]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Create([FromBody] CreateCheckpointRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
+        var paramLimits = request.Parameters?
+            .Select(p => new ParameterLimitsInput(p.ParameterId, p.AlertMin, p.AlertMax, p.ActionMin, p.ActionMax))
+            .ToList();
         var result = await _mediator.Send(new CreateCheckpointCommand(
             request.CheckpointCode, request.LabId, request.TriggerMode,
             request.CheckpointType, request.TimeSlots, request.ShiftIntervalHrs,
-            request.FormTemplateId, request.ParameterIds, username));
+            request.FormTemplateId, request.ParameterIds, username, paramLimits));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { checkpointId = result.Value });
     }
@@ -157,9 +189,11 @@ public class CheckpointsController : LimsControllerBase
     }
 }
 
+public record ParameterLimitsRequest(int ParameterId, decimal? AlertMin, decimal? AlertMax, decimal? ActionMin, decimal? ActionMax);
 public record CreateCheckpointRequest(string CheckpointCode, int LabId, string TriggerMode,
     string CheckpointType, string? TimeSlots, int? ShiftIntervalHrs, int? FormTemplateId,
-    List<int>? ParameterIds = null);
+    List<int>? ParameterIds = null,
+    List<ParameterLimitsRequest>? Parameters = null);
 public record TriggerCheckpointRequest(string? DeliveryOrder = null, bool IsOfflineSync = false, int? SampleId = null);
 public record ReadingRequest(int ParameterId, string Value);
 public record SignProcessLogRequest(string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null);

@@ -10,7 +10,8 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import { fmtDateTime } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
-import { inp, Modal, Field, ModalFooter } from './master-data/LaboratoriesPage'
+import { inp, Field } from './master-data/LaboratoriesPage'
+import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'
 import { toast } from '@/components/Toast'
 
@@ -20,18 +21,48 @@ interface CheckpointParam {
   parameterCode: string
   uom:           string | null
   dataType:      string
+  alertMin?:     number | null
+  alertMax?:     number | null
+  actionMin?:    number | null
+  actionMax?:    number | null
+}
+
+type LimitTier = 'ok' | 'alert' | 'action' | 'none'
+
+function checkLimits(value: string, p: CheckpointParam): LimitTier {
+  const n = parseFloat(value)
+  if (isNaN(n)) return 'none'
+  const hasAction = p.actionMin != null || p.actionMax != null
+  const hasAlert  = p.alertMin  != null || p.alertMax  != null
+  if (hasAction) {
+    const outAction = (p.actionMin != null && n < p.actionMin) || (p.actionMax != null && n > p.actionMax)
+    if (outAction) return 'action'
+  }
+  if (hasAlert) {
+    const outAlert = (p.alertMin != null && n < p.alertMin) || (p.alertMax != null && n > p.alertMax)
+    if (outAlert) return 'alert'
+  }
+  return (hasAction || hasAlert) ? 'ok' : 'none'
+}
+
+const TIER_STYLE: Record<LimitTier, { border: string; background: string; badge?: string }> = {
+  ok:     { border: '#16a34a', background: '#f0fdf4', badge: '✓ Within limits' },
+  alert:  { border: '#f59e0b', background: '#fffbeb', badge: '⚠ Alert limit' },
+  action: { border: '#dc2626', background: '#fef2f2', badge: '🔴 Action limit!' },
+  none:   { border: '#d1d5db', background: '#fff' },
 }
 
 interface Checkpoint {
-  checkpointId:    number
-  checkpointCode:  string
-  triggerMode:     string
-  checkpointType:  string
-  shiftIntervalHrs: number | null
-  isActive:        boolean
-  locationCount:   number
-  timeSlots?:      string | null  // JSON string e.g. '["08:00","14:00"]' — now returned by API
-  parameters:      CheckpointParam[]
+  checkpointId:       number
+  checkpointCode:     string
+  triggerMode:        string
+  checkpointType:     string
+  shiftIntervalHrs:   number | null
+  isActive:           boolean
+  locationCount:      number
+  timeSlots?:         string | null  // JSON string e.g. '["08:00","14:00"]' — now returned by API
+  parameters:         CheckpointParam[]
+  executedTodaySlots: string[]  // slot labels already recorded today (from backend)
 }
 
 interface ProcessLogRow {
@@ -68,9 +99,10 @@ function slotStatus(slot: string): 'done' | 'overdue' | 'upcoming' {
 }
 
 // ── Slot status pill ──────────────────────────────────────────────────────────
-function SlotPill({ slot, onExecute }: { slot: string; onExecute?: () => void }) {
-  const s = slotStatus(slot)
+function SlotPill({ slot, onExecute, executed }: { slot: string; onExecute?: () => void; executed?: boolean }) {
+  const s = executed ? 'recorded' : slotStatus(slot)
   const styles: Record<string, { bg: string; color: string; dot: string }> = {
+    recorded: { bg: '#d1fae5', color: '#065f46', dot: '#16a34a' },
     done:     { bg: '#d1fae5', color: '#065f46', dot: '#16a34a' },
     overdue:  { bg: '#fff7ed', color: '#9a3412', dot: '#f97316' },
     upcoming: { bg: '#f1f5f9', color: '#475569', dot: '#94a3b8' },
@@ -87,7 +119,16 @@ function SlotPill({ slot, onExecute }: { slot: string; onExecute?: () => void })
         <span style={{ width: 7, height: 7, borderRadius: '50%', background: st.dot, flexShrink: 0, display: 'inline-block' }} />
         {slot}
       </span>
-      {onExecute && (s === 'done' || s === 'overdue') && (
+      {executed ? (
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          padding: '4px 10px', borderRadius: 7, fontSize: 12, fontWeight: 600,
+          background: '#d1fae5', color: '#065f46',
+          border: '1.5px solid #16a34a44',
+        }}>
+          ✓ Recorded
+        </span>
+      ) : onExecute && (s === 'done' || s === 'overdue') ? (
         <button
           onClick={onExecute}
           style={{
@@ -107,7 +148,7 @@ function SlotPill({ slot, onExecute }: { slot: string; onExecute?: () => void })
           </svg>
           Record
         </button>
-      )}
+      ) : null}
     </span>
   )
 }
@@ -152,7 +193,7 @@ export default function CheckpointExecutionPage() {
 
   // E-signature modal (Process Log sign)
   const [signRow, setSignRow]           = useState<{ checkpointId: number; rowId: number; params: CheckpointParam[] } | null>(null)
-  const [signForm, setSignForm]         = useState({ password: '', meaning: 'I confirm this process log entry', reason: '' })
+  const [signForm, setSignForm]         = useState({ password: '', meaning: 'I confirm this process log entry', reason: 'Routine process log sign-off' })
   const [readings, setReadings]         = useState<Record<number, string>>({})
   const [saving, setSaving]             = useState(false)
   const [error, setError]               = useState('')
@@ -368,8 +409,10 @@ export default function CheckpointExecutionPage() {
           const isAuto   = cp.triggerMode === 'TimeBased'
           const isLog    = cp.triggerMode === 'ProcessLog'
 
-          // Count overdue/due slots for badge
-          const activeSlots = slots.filter(s => slotStatus(s) !== 'upcoming')
+          // Count overdue/due slots for badge — exclude already-recorded slots
+          const activeSlots = slots.filter(s =>
+            slotStatus(s) !== 'upcoming' && !cp.executedTodaySlots?.includes(s)
+          )
 
           return (
             <div key={cp.checkpointId} style={{
@@ -437,7 +480,12 @@ export default function CheckpointExecutionPage() {
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {[...slots].sort().map(slot => (
-                      <SlotPill key={slot} slot={slot} onExecute={() => openExecute(cp, slot)} />
+                      <SlotPill
+                        key={slot}
+                        slot={slot}
+                        executed={cp.executedTodaySlots?.includes(slot)}
+                        onExecute={() => openExecute(cp, slot)}
+                      />
                     ))}
                   </div>
                   {activeSlots.length === 0 && (
@@ -508,11 +556,13 @@ export default function CheckpointExecutionPage() {
         })}
       </div>
 
-      {/* ── Execute Time-Based Checkpoint Modal ──────────────────────────── */}
+      {/* ── Execute Time-Based Checkpoint Drawer ──────────────────────────── */}
       {execFor && (
-        <Modal
+        <Drawer
           title={`Record Check — ${execFor.checkpoint.checkpointCode} @ ${execFor.slotLabel}`}
+          subtitle="Immutable audit entry (21 CFR Part 11)"
           onClose={() => setExecFor(null)}
+          blocking width={480}
         >
           <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
             Record your readings and confirm with e-signature. This creates an immutable audit entry (21 CFR Part 11).
@@ -550,36 +600,72 @@ export default function CheckpointExecutionPage() {
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 10 }}>
                   📊 Enter Parameter Readings
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {execFor.checkpoint.parameters.map(p => (
-                    <div key={p.parameterId} style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: 8, alignItems: 'center' }}>
-                      <label style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>
-                        {p.parameterName}
-                        <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{p.parameterCode}</span>
-                      </label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {p.dataType === 'PassFail' ? (
-                          <select
-                            style={{ ...inp, margin: 0, width: '100%' }}
-                            value={execReadings[p.parameterId] ?? ''}
-                            onChange={e2 => setExecReadings(r => ({ ...r, [p.parameterId]: e2.target.value }))}>
-                            <option value="">—</option>
-                            <option value="Pass">Pass</option>
-                            <option value="Fail">Fail</option>
-                          </select>
-                        ) : (
-                          <input
-                            type="number" step="any"
-                            style={{ ...inp, margin: 0, width: '100%' }}
-                            value={execReadings[p.parameterId] ?? ''}
-                            onChange={e2 => setExecReadings(r => ({ ...r, [p.parameterId]: e2.target.value }))}
-                            placeholder="value"
-                          />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {execFor.checkpoint.parameters.map(p => {
+                    const rawVal = execReadings[p.parameterId] ?? ''
+                    const tier   = rawVal !== '' ? checkLimits(rawVal, p) : 'none'
+                    const ts     = TIER_STYLE[tier]
+                    const hasLimits = p.alertMin != null || p.alertMax != null || p.actionMin != null || p.actionMax != null
+                    return (
+                      <div key={p.parameterId} style={{
+                        border: `1.5px solid ${ts.border}`,
+                        background: ts.background,
+                        borderRadius: 8,
+                        padding: '10px 12px',
+                        transition: 'border-color 0.15s, background 0.15s',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <label style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>
+                            {p.parameterName}
+                            <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af', fontFamily: 'monospace', fontWeight: 400 }}>{p.parameterCode}</span>
+                          </label>
+                          {ts.badge && rawVal !== '' && (
+                            <span style={{
+                              fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                              background: tier === 'action' ? '#fef2f2' : tier === 'alert' ? '#fffbeb' : '#f0fdf4',
+                              color:      tier === 'action' ? '#dc2626' : tier === 'alert' ? '#b45309' : '#15803d',
+                              border:     `1px solid ${tier === 'action' ? '#fca5a5' : tier === 'alert' ? '#fcd34d' : '#86efac'}`,
+                            }}>{ts.badge}</span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {p.dataType === 'PassFail' ? (
+                            <select
+                              style={{ ...inp, margin: 0, flex: 1 }}
+                              value={rawVal}
+                              onChange={e2 => setExecReadings(r => ({ ...r, [p.parameterId]: e2.target.value }))}>
+                              <option value="">— Select —</option>
+                              <option value="Pass">Pass</option>
+                              <option value="Fail">Fail</option>
+                            </select>
+                          ) : (
+                            <input
+                              type="number" step="any"
+                              style={{ ...inp, margin: 0, flex: 1, borderColor: ts.border }}
+                              value={rawVal}
+                              onChange={e2 => setExecReadings(r => ({ ...r, [p.parameterId]: e2.target.value }))}
+                              placeholder="Enter value"
+                            />
+                          )}
+                          {p.uom && <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap', minWidth: 30 }}>{p.uom}</span>}
+                        </div>
+                        {hasLimits && (
+                          <div style={{ marginTop: 5, fontSize: 11, color: '#9ca3af', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                            {(p.alertMin != null || p.alertMax != null) && (
+                              <span style={{ color: '#b45309' }}>
+                                ⚠ Alert: {p.alertMin != null ? `≥${p.alertMin}` : ''}{p.alertMin != null && p.alertMax != null ? ' – ' : ''}{p.alertMax != null ? `≤${p.alertMax}` : ''}
+                              </span>
+                            )}
+                            {(p.actionMin != null || p.actionMax != null) && (
+                              <span style={{ color: '#dc2626' }}>
+                                🔴 Action: {p.actionMin != null ? `≥${p.actionMin}` : ''}{p.actionMin != null && p.actionMax != null ? ' – ' : ''}{p.actionMax != null ? `≤${p.actionMax}` : ''}
+                              </span>
+                            )}
+                          </div>
                         )}
-                        {p.uom && <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>{p.uom}</span>}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 <div style={{ height: 1, background: '#e5e7eb', margin: '14px 0' }} />
               </div>
@@ -599,9 +685,9 @@ export default function CheckpointExecutionPage() {
                 placeholder="e.g. All readings within acceptable range — no anomalies observed" />
             </Field>
             {execError && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>⚠ {execError}</p>}
-            <ModalFooter saving={execSaving} onCancel={() => setExecFor(null)} label="Submit & Sign" />
+            <DrawerFooter saving={execSaving} onCancel={() => setExecFor(null)} label="Submit & Sign" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── OperatorScan: Linked Samples Modal ──────────────────────────── */}
@@ -770,9 +856,9 @@ export default function CheckpointExecutionPage() {
         </div>
       )}
 
-      {/* ── E-Signature Modal (Process Log row) ──────────────────────────── */}
+      {/* ── E-Signature Drawer (Process Log row) ──────────────────────────── */}
       {signRow && (
-        <Modal title="Sign Process Log Row" onClose={() => setSignRow(null)}>
+        <Drawer title="Sign Process Log Row" subtitle="21 CFR Part 11 — permanently recorded" onClose={() => setSignRow(null)} blocking width={460}>
           <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
             21 CFR Part 11 — your signature will be permanently recorded.
           </p>
@@ -784,36 +870,72 @@ export default function CheckpointExecutionPage() {
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 10 }}>
                   📊 Enter Parameter Readings
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {signRow.params.map(p => (
-                    <div key={p.parameterId} style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 8, alignItems: 'center' }}>
-                      <label style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>
-                        {p.parameterName}
-                        <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{p.parameterCode}</span>
-                      </label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {p.dataType === 'PassFail' ? (
-                          <select
-                            style={{ ...inp, margin: 0, width: '100%' }}
-                            value={readings[p.parameterId] ?? ''}
-                            onChange={e => setReadings(r => ({ ...r, [p.parameterId]: e.target.value }))}>
-                            <option value="">—</option>
-                            <option value="Pass">Pass</option>
-                            <option value="Fail">Fail</option>
-                          </select>
-                        ) : (
-                          <input
-                            type="number" step="any"
-                            style={{ ...inp, margin: 0, width: '100%' }}
-                            value={readings[p.parameterId] ?? ''}
-                            onChange={e => setReadings(r => ({ ...r, [p.parameterId]: e.target.value }))}
-                            placeholder="value"
-                          />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {signRow.params.map(p => {
+                    const rawVal = readings[p.parameterId] ?? ''
+                    const tier   = rawVal !== '' ? checkLimits(rawVal, p) : 'none'
+                    const ts     = TIER_STYLE[tier]
+                    const hasLimits = p.alertMin != null || p.alertMax != null || p.actionMin != null || p.actionMax != null
+                    return (
+                      <div key={p.parameterId} style={{
+                        border: `1.5px solid ${ts.border}`,
+                        background: ts.background,
+                        borderRadius: 8,
+                        padding: '10px 12px',
+                        transition: 'border-color 0.15s, background 0.15s',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <label style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>
+                            {p.parameterName}
+                            <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af', fontFamily: 'monospace', fontWeight: 400 }}>{p.parameterCode}</span>
+                          </label>
+                          {ts.badge && rawVal !== '' && (
+                            <span style={{
+                              fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                              background: tier === 'action' ? '#fef2f2' : tier === 'alert' ? '#fffbeb' : '#f0fdf4',
+                              color:      tier === 'action' ? '#dc2626' : tier === 'alert' ? '#b45309' : '#15803d',
+                              border:     `1px solid ${tier === 'action' ? '#fca5a5' : tier === 'alert' ? '#fcd34d' : '#86efac'}`,
+                            }}>{ts.badge}</span>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {p.dataType === 'PassFail' ? (
+                            <select
+                              style={{ ...inp, margin: 0, flex: 1 }}
+                              value={rawVal}
+                              onChange={e => setReadings(r => ({ ...r, [p.parameterId]: e.target.value }))}>
+                              <option value="">— Select —</option>
+                              <option value="Pass">Pass</option>
+                              <option value="Fail">Fail</option>
+                            </select>
+                          ) : (
+                            <input
+                              type="number" step="any"
+                              style={{ ...inp, margin: 0, flex: 1, borderColor: ts.border }}
+                              value={rawVal}
+                              onChange={e => setReadings(r => ({ ...r, [p.parameterId]: e.target.value }))}
+                              placeholder="Enter value"
+                            />
+                          )}
+                          {p.uom && <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap', minWidth: 30 }}>{p.uom}</span>}
+                        </div>
+                        {hasLimits && (
+                          <div style={{ marginTop: 5, fontSize: 11, color: '#9ca3af', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                            {(p.alertMin != null || p.alertMax != null) && (
+                              <span style={{ color: '#b45309' }}>
+                                ⚠ Alert: {p.alertMin != null ? `≥${p.alertMin}` : ''}{p.alertMin != null && p.alertMax != null ? ' – ' : ''}{p.alertMax != null ? `≤${p.alertMax}` : ''}
+                              </span>
+                            )}
+                            {(p.actionMin != null || p.actionMax != null) && (
+                              <span style={{ color: '#dc2626' }}>
+                                🔴 Action: {p.actionMin != null ? `≥${p.actionMin}` : ''}{p.actionMin != null && p.actionMax != null ? ' – ' : ''}{p.actionMax != null ? `≤${p.actionMax}` : ''}
+                              </span>
+                            )}
+                          </div>
                         )}
-                        {p.uom && <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap' }}>{p.uom}</span>}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 <div style={{ height: 1, background: '#e5e7eb', margin: '14px 0' }} />
               </div>
@@ -823,19 +945,10 @@ export default function CheckpointExecutionPage() {
               <input style={inp} type="password" value={signForm.password}
                 onChange={e => setSignForm(f => ({ ...f, password: e.target.value }))} required autoFocus />
             </Field>
-            <Field label="Meaning of Signature">
-              <input style={inp} value={signForm.meaning}
-                onChange={e => setSignForm(f => ({ ...f, meaning: e.target.value }))} required />
-            </Field>
-            <Field label="Reason">
-              <input style={inp} value={signForm.reason}
-                onChange={e => setSignForm(f => ({ ...f, reason: e.target.value }))} required
-                placeholder="e.g. Shift check completed — all values within range" />
-            </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>⚠ {error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setSignRow(null)} label="Sign & Lock Row" />
+            <DrawerFooter saving={saving} onCancel={() => setSignRow(null)} label="Sign & Lock Row" />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

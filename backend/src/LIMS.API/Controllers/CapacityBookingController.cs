@@ -159,12 +159,14 @@ public class CapacityBookingController : LimsControllerBase
     // PATCH api/v1/capacity-bookings/{id}/cancel
     [HttpPatch("{id}/cancel")]
     [Authorize(Roles = "Admin,QA,LabManager,Analyst")]
-    public async Task<IActionResult> Cancel(int id, CancellationToken ct)
+    public async Task<IActionResult> Cancel(int id, [FromBody] CancelBookingRequest? body, CancellationToken ct)
     {
         var b = await _db.CapacityBookings.FindAsync([id], ct);
         if (b is null) return NotFound();
         if (b.Status == "InUse") return BadRequest(new { error = "ALREADY_IN_USE", message = "Cannot cancel a booking that is currently in use." });
         b.Status = "Cancelled";
+        if (!string.IsNullOrWhiteSpace(body?.Reason))
+            b.Notes = string.IsNullOrWhiteSpace(b.Notes) ? $"[Cancelled: {body.Reason}]" : $"{b.Notes} | [Cancelled: {body.Reason}]";
         await _db.SaveChangesAsync(ct);
         return Ok(new { b.CapacityBookingId, b.Status });
     }
@@ -176,3 +178,5 @@ public record CreateBookingRequest(
     DateTimeOffset EndTime,
     int? ExecutionId = null,
     string? Notes    = null);
+
+public record CancelBookingRequest(string? Reason);

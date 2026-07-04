@@ -7,12 +7,15 @@ namespace LIMS.Application.Features.Checkpoints;
 
 public record GetCheckpointsQuery(int? LabId, string? TriggerMode) : IRequest<List<CheckpointDto>>;
 
-public record CheckpointParameterDto(int ParameterId, string ParameterName, string ParameterCode, string? Uom, string DataType);
+public record CheckpointParameterDto(
+    int ParameterId, string ParameterName, string ParameterCode, string? Uom, string DataType,
+    decimal? AlertMin, decimal? AlertMax, decimal? ActionMin, decimal? ActionMax);
 
 public record CheckpointDto(
     int CheckpointId, string CheckpointCode, string TriggerMode,
     string CheckpointType, int? ShiftIntervalHrs, bool IsActive,
-    int LocationCount, string? TimeSlots, List<CheckpointParameterDto> Parameters);
+    int LocationCount, string? TimeSlots, List<CheckpointParameterDto> Parameters,
+    List<string> ExecutedTodaySlots);
 
 public record GetProcessLogQuery(int CheckpointId, DateOnly? Date) : IRequest<List<ProcessLogRowDto>>;
 
@@ -38,14 +41,30 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
         if (!string.IsNullOrEmpty(request.TriggerMode) && Enum.TryParse<TriggerType>(request.TriggerMode, true, out var triggerEnum))
             query = query.Where(c => c.TriggerMode == triggerEnum);
         var list = await query.ToListAsync(ct);
+
+        // Fetch today's already-executed slot labels per checkpoint (UTC day)
+        // GroupBy done in memory — EF Core cannot translate .ToList() inside GroupBy to SQL
+        var todayUtc = DateOnly.FromDateTime(DateTime.UtcNow).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var executedRows = await _db.ProcessLogRows
+            .Where(r => r.SlotTime >= todayUtc && r.SlotTime < todayUtc.AddDays(1))
+            .Select(r => new { r.CheckpointId, r.SlotLabel })
+            .ToListAsync(ct);
+        var executedDict = executedRows
+            .GroupBy(r => r.CheckpointId)
+            .ToDictionary(g => g.Key, g => g.Select(r => r.SlotLabel).ToList());
+
         return list.Select(c => new CheckpointDto(
             c.CheckpointId, c.CheckpointCode, c.TriggerMode.ToString(),
             c.CheckpointType, c.ShiftIntervalHrs, c.IsActive, c.Locations.Count,
             c.TimeSlots,
-            c.CheckpointParameters.Select(cp => new CheckpointParameterDto(
+            c.CheckpointParameters
+                .Where(cp => cp.Parameter != null)
+                .Select(cp => new CheckpointParameterDto(
                 cp.Parameter.ParameterId, cp.Parameter.ParameterName,
                 cp.Parameter.ParameterCode, cp.Parameter.Uom,
-                cp.Parameter.DataType.ToString())).ToList()))
+                cp.Parameter.DataType.ToString(),
+                cp.AlertMin, cp.AlertMax, cp.ActionMin, cp.ActionMax)).ToList(),
+            executedDict.TryGetValue(c.CheckpointId, out var todaySlots) ? todaySlots : []))
             .ToList();
     }
 }
@@ -92,7 +111,7 @@ public class GetAllProcessLogQueryHandler : IRequestHandler<GetAllProcessLogQuer
             r.RowId, r.CheckpointId, r.Checkpoint.CheckpointCode, r.Checkpoint.TriggerMode.ToString(),
             r.SlotTime, r.SlotLabel, r.Status, r.SignatureId.HasValue,
             r.SampleId, r.Sample?.SampleNumber,
-            r.Readings.Select(rd => new ProcessLogReadingDto(
+            r.Readings.Where(rd => rd.Parameter != null).Select(rd => new ProcessLogReadingDto(
                 rd.ReadingId, rd.ParameterId, rd.Parameter.ParameterName,
                 rd.Parameter.ParameterCode, rd.Parameter.Uom, rd.Value)).ToList()))
             .ToList();
@@ -119,7 +138,7 @@ public class GetProcessLogQueryHandler : IRequestHandler<GetProcessLogQuery, Lis
         return rows.Select(r => new ProcessLogRowDto(
             r.RowId, r.SlotTime, r.SlotLabel, r.Status, r.SignatureId.HasValue,
             r.SampleId, r.Sample?.SampleNumber,
-            r.Readings.Select(rd => new ProcessLogReadingDto(
+            r.Readings.Where(rd => rd.Parameter != null).Select(rd => new ProcessLogReadingDto(
                 rd.ReadingId, rd.ParameterId, rd.Parameter.ParameterName,
                 rd.Parameter.ParameterCode, rd.Parameter.Uom, rd.Value)).ToList()))
             .ToList();

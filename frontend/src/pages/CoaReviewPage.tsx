@@ -1,9 +1,10 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
+import { fmtLabel } from '@/utils/formatLabel'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
-import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Field, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { MasterDetail, DetailPane } from '@/components/MasterDetail'
 import { toast } from '@/components/Toast'
@@ -52,7 +53,7 @@ const STAGES = [
 export default function CoaReviewPage() {
   const [data, setData] = useState<CoaItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [statusFilter, setStatusFilter] = useState('Draft')
+  const [statusFilter, setStatusFilter] = useState('All')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [selected, setSelected] = useState<CoaItem | null>(null)
@@ -87,7 +88,7 @@ export default function CoaReviewPage() {
   async function openGenerate() {
     setShowGenerate(true); setGenerateExecId(null); setGenerateError('')
     try {
-      const r = await api.get('/test-executions?status=Completed')
+      const r = await api.get('/test-executions?status=QCVerified')
       const list: ExecOption[] = (Array.isArray(r.data) ? r.data : []).map((e: {
         executionId: number
         sampleId?: number; sampleNumber?: string; materialName?: string; lotNumber?: string
@@ -147,7 +148,7 @@ export default function CoaReviewPage() {
 
   const filtered = useMemo(() => {
     return data.filter(r => {
-      if (statusFilter && r.status !== statusFilter) return false
+      if (statusFilter && statusFilter !== 'All' && r.status !== statusFilter) return false
       if (dateFrom && r.createdAt < dateFrom) return false
       if (dateTo && r.createdAt.slice(0, 10) > dateTo) return false
       return true
@@ -588,7 +589,7 @@ export default function CoaReviewPage() {
           { header: 'Customer / DO', accessor: r => r.customerName ? `${r.customerName} / ${r.doNumber ?? '—'}` : '—' },
           { header: 'Status', accessor: r => {
             const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
-            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 500, background: c.bg, color: c.color }}>{r.status}</span>
+            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 500, background: c.bg, color: c.color }}>{fmtLabel(r.status)}</span>
           }},
           { header: 'QA Signed By', accessor: r => r.qaSignedBy
             ? <span style={{ fontSize: 12 }}>{r.qaSignedBy}<br /><span style={{ color: '#6b7280' }}>{fmtDateTime(r.qaSignedAt!)}</span></span>
@@ -616,25 +617,25 @@ export default function CoaReviewPage() {
         ]} />
       </MasterDetail>
 
-      {/* Approve Modal */}
+      {/* Approve Drawer */}
       {showApprove && selected && (
-        <Modal title="Approve CoA — E-Signature" onClose={() => setShowApprove(false)}>
-          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+        <Drawer title="Approve CoA — E-Signature" onClose={() => { setShowApprove(false); setError('') }} blocking width={440}>
+          <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 14 }}>
             This will lock the CoA PDF atomically and release the sample. All 3 e-signatures embedded in locked PDF (21 CFR Part 11).
           </p>
           <form onSubmit={submitApprove}>
-            <Field label="Password (re-enter)"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+            <Field label="Password (re-enter)"><input style={inp} type="password" autoFocus value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={form.meaning} onChange={e => setForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. All results reviewed and meet specification" /></Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowApprove(false)} label="Sign & Approve CoA" />
+            <DrawerFooter saving={saving} onCancel={() => { setShowApprove(false); setError('') }} label="Sign & Approve CoA" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
-      {/* Conditional Release Modal */}
+      {/* Conditional Release Drawer */}
       {showConditional && selected && (
-        <Modal title="Conditional Release — E-Signature" onClose={() => setShowConditional(false)}>
+        <Drawer title="Conditional Release — E-Signature" onClose={() => { setShowConditional(false); setError('') }} blocking width={440}>
           <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fef3c7', borderRadius: 6, fontSize: 13, color: '#92400e' }}>
             ⚠ Conditional release bypasses soft checklist items (spec version, evidence). Hard gates (signatures, OOS, completeness) are still enforced. Justification is mandatory and embedded in the locked PDF.
           </div>
@@ -650,18 +651,18 @@ export default function CoaReviewPage() {
             <Field label="Justification (mandatory)">
               <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={form.conditionalJustification} onChange={e => setForm(f => ({ ...f, conditionalJustification: e.target.value }))} required placeholder="e.g. Evidence to be submitted within 5 working days per SOP-QC-014…" />
             </Field>
-            <Field label="Password (re-enter)"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+            <Field label="Password (re-enter)"><input style={inp} type="password" autoFocus value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={form.meaning} onChange={e => setForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Batch required for urgent supply — evidence pending" /></Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowConditional(false)} label="Sign & Conditionally Release" />
+            <DrawerFooter saving={saving} onCancel={() => { setShowConditional(false); setError('') }} label="Sign & Conditionally Release" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
-      {/* Reject Modal */}
+      {/* Reject Drawer */}
       {showReject && selected && (
-        <Modal title="Reject CoA — E-Signature" onClose={() => setShowReject(false)}>
+        <Drawer title="Reject CoA — E-Signature" onClose={() => { setShowReject(false); setError('') }} blocking width={440}>
           <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', borderRadius: 6, fontSize: 13, color: '#991b1b' }}>
             ⚠ Rejection is permanent and immutable. Justification is mandatory.
           </div>
@@ -669,13 +670,13 @@ export default function CoaReviewPage() {
             <Field label="Justification (mandatory)">
               <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={form.justification} onChange={e => setForm(f => ({ ...f, justification: e.target.value }))} required placeholder="Reason for rejection…" />
             </Field>
-            <Field label="Password (re-enter)"><input style={inp} type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
+            <Field label="Password (re-enter)"><input style={inp} type="password" autoFocus value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={form.meaning} onChange={e => setForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required /></Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowReject(false)} label="Sign & Reject CoA" />
+            <DrawerFooter saving={saving} onCancel={() => { setShowReject(false); setError('') }} label="Sign & Reject CoA" />
           </form>
-        </Modal>
+        </Drawer>
       )}
 
       {/* ── Generate CoA Modal ────────────────────────────────────────────── */}
@@ -712,9 +713,9 @@ export default function CoaReviewPage() {
         <SampleDetailSheet sampleId={detailSampleId} onClose={() => setDetailSampleId(null)} context="release" />
       )}
 
-      {/* ── Reissue CoA Modal ─────────────────────────────────────────────── */}
+      {/* ── Reissue CoA Drawer ─────────────────────────────────────────────── */}
       {showReissue && reissueTarget && (
-        <Modal title={`Reissue CoA — ${reissueTarget.coaNumber}`} onClose={() => { setShowReissue(false); setReissueTarget(null) }}>
+        <Drawer title={`Reissue CoA — ${reissueTarget.coaNumber}`} onClose={() => { setShowReissue(false); setReissueTarget(null); setReissueError('') }} blocking width={440}>
           <div style={{ marginBottom: 14, padding: '10px 14px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fde68a', fontSize: 13, color: '#92400e', lineHeight: 1.6 }}>
             <strong>Reissue creates a new replacement CoA</strong> in Draft status.<br />
             The current CoA <code>{reissueTarget.coaNumber}</code> will be marked <strong>Superseded</strong>.<br />
@@ -735,14 +736,14 @@ export default function CoaReviewPage() {
                 onChange={e => setReissueEsig(p => ({ ...p, meaning: e.target.value }))} required />
             </Field>
             <Field label="Password (re-enter) *">
-              <input style={inp} type="password" value={reissueEsig.password}
+              <input style={inp} type="password" autoFocus value={reissueEsig.password}
                 onChange={e => setReissueEsig(p => ({ ...p, password: e.target.value }))} required
                 placeholder="Re-enter your login password (21 CFR §11.50)" />
             </Field>
             {reissueError && <p style={{ color: '#dc2626', fontSize: 13, margin: '6px 0 0' }}>{reissueError}</p>}
-            <ModalFooter saving={reissueSaving} onCancel={() => { setShowReissue(false); setReissueTarget(null) }} label="🔄 Reissue CoA" />
+            <DrawerFooter saving={reissueSaving} onCancel={() => { setShowReissue(false); setReissueTarget(null); setReissueError('') }} label="🔄 Reissue CoA" />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

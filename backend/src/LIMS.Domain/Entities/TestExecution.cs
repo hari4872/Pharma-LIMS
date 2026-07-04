@@ -36,6 +36,10 @@ public class TestExecution
     public bool IsAdHoc { get; set; } = false;
     public string? AdHocReason { get; set; }
 
+    // ── Container / Aliquot tracking (LabVantage parity) ─────────────────
+    public int? SampleContainerId { get; set; }
+    public SampleContainer? SampleContainer { get; set; }
+
     public string CreatedBy { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

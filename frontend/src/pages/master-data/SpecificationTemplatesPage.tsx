@@ -7,13 +7,14 @@
 // TestExecution rows — no manual test selection needed.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import api from '@/api/client'
 import { PageHeader, Field, inp } from './LaboratoriesPage'
 import { toast } from '@/components/Toast'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { getErrorMessage } from '@/utils/errors'
 import { Drawer } from '@/components/Drawer'
+import ESignatureDrawer from '@/components/ESignatureDrawer'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -38,9 +39,9 @@ interface SpecTemplate {
 
 interface SpecTemplateItem {
   specTemplateItemId: number
-  parameterId:        number
-  parameterName:      string
-  parameterCode:      string
+  parameterId:        number | null   // null for method-level items (LabVantage model)
+  parameterName:      string | null
+  parameterCode:      string | null
   testMethodId:       number | null
   testMethodName:     string | null
   testMethodCode:     string | null
@@ -51,7 +52,7 @@ interface SpecTemplateItem {
 
 interface Material   { materialId: number; materialName: string }
 interface SampleType { sampleTypeId: number; typeName: string; typeCode: string }
-interface Parameter  { parameterId: number; parameterName: string; parameterCode: string; uom: string }
+interface Parameter  { parameterId: number; methodId: number; parameterName: string; parameterCode: string; uom: string }
 interface TestMethod { methodId: number; methodName: string; methodCode: string }
 
 const STAGES  = ['Incoming', 'InProcess', 'Finished', 'Stability']
@@ -291,45 +292,18 @@ export default function SpecificationTemplatesPage() {
           />
         )}
 
-        {/* E-Signature Approval Modal */}
+        {/* E-Signature Approval Drawer */}
         {approveTarget && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: 420, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
-              <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 800 }}>Approve Specification Template</h3>
-              <p style={{ margin: '0 0 18px', fontSize: 12, color: '#5f6368' }}>
-                <strong>{approveTarget.name}</strong> — e-signature required (21 CFR §11.50)
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Password *</label>
-                  <input type="password" value={esig.password} onChange={e => setEsig(p => ({ ...p, password: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }}
-                    placeholder="Your login password" />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Meaning *</label>
-                  <input type="text" value={esig.meaning} onChange={e => setEsig(p => ({ ...p, meaning: e.target.value }))}
-                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Reason *</label>
-                  <textarea value={esig.reason} onChange={e => setEsig(p => ({ ...p, reason: e.target.value }))}
-                    rows={2} style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }}
-                    placeholder="e.g. Template reviewed and validated against compendial requirements" />
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
-                <button onClick={() => setApproveTarget(null)} disabled={approving}
-                  style={{ padding: '8px 18px', border: '1px solid #d1d5db', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 13 }}>
-                  Cancel
-                </button>
-                <button onClick={submitApprove} disabled={approving}
-                  style={{ padding: '8px 18px', border: 'none', borderRadius: 6, background: '#0d6e6e', color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                  {approving ? 'Approving…' : 'Approve'}
-                </button>
-              </div>
-            </div>
-          </div>
+          <ESignatureDrawer
+            title="Approve Specification Template"
+            subtitle={`${approveTarget.name} — 21 CFR §11.50`}
+            form={esig} onChange={setEsig}
+            onSubmit={e => { e.preventDefault(); submitApprove() }}
+            onClose={() => setApproveTarget(null)}
+            saving={approving} label="Approve"
+            reasonMultiline
+            reasonPlaceholder="e.g. Template reviewed and validated against compendial requirements"
+          />
         )}
       </div>
     </ErrorBoundary>
@@ -436,9 +410,9 @@ function CreateTemplateModal({
 
 interface DraftItem {
   id:              string
-  parameterId:     number
-  parameterName:   string
-  parameterCode:   string
+  parameterId:     number | null   // null = method-level item (LabVantage model)
+  parameterName:   string | null
+  parameterCode:   string | null
   testMethodId:    number | null
   turnaroundHours: number
   isMandatory:     boolean
@@ -464,16 +438,26 @@ function TestItemDesigner({
       isMandatory:     i.isMandatory,
     }))
   )
-  const [paramSearch, setParamSearch] = useState('')
-  const [saving,      setSaving]      = useState(false)
+  const [paramSearch,  setParamSearch]  = useState('')
+  const [methodSearch, setMethodSearch] = useState('')
+  const [saving,       setSaving]       = useState(false)
 
   const isLocked = template.status === 'Approved'
 
+  // Per-param items: exclude params already added (method-level items have null parameterId, skip them)
   const availableParams = parameters.filter(p =>
-    !items.some(i => i.parameterId === p.parameterId) &&
+    !items.some(i => i.parameterId != null && i.parameterId === p.parameterId) &&
     (paramSearch === '' ||
       p.parameterName.toLowerCase().includes(paramSearch.toLowerCase()) ||
       p.parameterCode.toLowerCase().includes(paramSearch.toLowerCase()))
+  )
+
+  // Method-level items: exclude methods already added as a group
+  const availableMethods = testMethods.filter(m =>
+    !items.some(i => i.parameterId == null && i.testMethodId === m.methodId) &&
+    (methodSearch === '' ||
+      m.methodName.toLowerCase().includes(methodSearch.toLowerCase()) ||
+      m.methodCode.toLowerCase().includes(methodSearch.toLowerCase()))
   )
 
   function addParam(p: Parameter) {
@@ -487,6 +471,20 @@ function TestItemDesigner({
       isMandatory:     true,
     }])
     setParamSearch('')
+  }
+
+  // LabVantage model: one execution per method, all params in that method appear together
+  function addMethod(m: TestMethod) {
+    setItems(prev => [...prev, {
+      id:              `new_${Date.now()}`,
+      parameterId:     null,
+      parameterName:   null,
+      parameterCode:   null,
+      testMethodId:    m.methodId,
+      turnaroundHours: 24,
+      isMandatory:     true,
+    }])
+    setMethodSearch('')
   }
 
   function removeItem(id: string) {
@@ -529,7 +527,7 @@ function TestItemDesigner({
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-      <div style={{ background: '#fff', borderRadius: 14, width: 780, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,.25)' }}>
+      <div style={{ background: '#fff', borderRadius: 14, width: 780, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(0,0,0,.25)', overflow: 'hidden' }}>
 
         {/* Header */}
         <div style={{ padding: '18px 24px', borderBottom: '1px solid #e0e0e0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -545,43 +543,81 @@ function TestItemDesigner({
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#5f6368' }}>×</button>
         </div>
 
-        {/* Add parameter — searchable dropdown always visible */}
+        {/* Add controls: two sections side-by-side when not locked */}
         {!isLocked && (
-          <div style={{ padding: '12px 24px', borderBottom: '1px solid #f1f3f4', background: '#fafafa' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#111111', marginBottom: 6 }}>
-              Add Test Parameter
-              <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: 6 }}>({availableParams.length} available)</span>
+          <div style={{ display: 'flex', borderBottom: '1px solid #e0e0e0' }}>
+
+            {/* Add Test Parameter (per-param / classic model) */}
+            <div style={{ flex: 1, padding: '12px 16px 12px 24px', background: '#fafafa', borderRight: '1px solid #e0e0e0' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#111111', marginBottom: 6 }}>
+                Add Test Parameter
+                <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: 6 }}>({availableParams.length} available)</span>
+              </div>
+              <input
+                style={{ ...inp, marginBottom: 6 }}
+                placeholder="🔍  Search parameters…"
+                value={paramSearch}
+                onChange={e => setParamSearch(e.target.value)}
+              />
+              <div style={{ border: '1px solid #e0e0e0', borderRadius: 8, maxHeight: 140, overflowY: 'auto', background: '#fff' }}>
+                {availableParams.length === 0 ? (
+                  <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>
+                    {paramSearch ? 'No matching parameters' : 'All parameters already added'}
+                  </div>
+                ) : availableParams.map(p => (
+                  <div key={p.parameterId}
+                    onClick={() => addParam(p)}
+                    style={{ padding: '7px 12px', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #f9fafb' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f0fdfa')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                  >
+                    <span style={{ fontSize: 11, background: '#f0f4f8', padding: '1px 6px', borderRadius: 4, fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>{p.parameterCode}</span>
+                    <span style={{ color: '#111111', flex: 1 }}>{p.parameterName}</span>
+                    {p.uom && <span style={{ fontSize: 11, color: '#9ca3af' }}>{p.uom}</span>}
+                    <span style={{ fontSize: 11, color: '#0d6e6e', fontWeight: 600, whiteSpace: 'nowrap' }}>+ Add</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <input
-              style={{ ...inp, marginBottom: 6 }}
-              placeholder="🔍  Search parameters by name or code…"
-              value={paramSearch}
-              onChange={e => setParamSearch(e.target.value)}
-            />
-            <div style={{ border: '1px solid #e0e0e0', borderRadius: 8, maxHeight: 160, overflowY: 'auto', background: '#fff' }}>
-              {availableParams.length === 0 ? (
-                <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>
-                  {paramSearch ? 'No matching parameters' : 'All parameters already added'}
-                </div>
-              ) : availableParams.map(p => (
-                <div key={p.parameterId}
-                  onClick={() => addParam(p)}
-                  style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #f9fafb' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#f0fdfa')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
-                >
-                  <span style={{ fontSize: 11, background: '#f0f4f8', padding: '1px 6px', borderRadius: 4, fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>{p.parameterCode}</span>
-                  <span style={{ color: '#111111', flex: 1 }}>{p.parameterName}</span>
-                  {p.uom && <span style={{ fontSize: 11, color: '#9ca3af' }}>{p.uom}</span>}
-                  <span style={{ fontSize: 11, color: '#0d6e6e', fontWeight: 600, whiteSpace: 'nowrap' }}>+ Add</span>
-                </div>
-              ))}
+
+            {/* Add Method Group (LabVantage model: 1 execution per method, all params in one form) */}
+            <div style={{ flex: 1, padding: '12px 24px 12px 16px', background: '#f0fdfa' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#111111', marginBottom: 6 }}>
+                Add Method Group
+                <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: 6 }}>({availableMethods.length} available)</span>
+                <span style={{ fontSize: 10, color: '#0d6e6e', background: '#ccfbf1', padding: '1px 6px', borderRadius: 4, marginLeft: 6, fontWeight: 600 }}>1 execution · all params</span>
+              </div>
+              <input
+                style={{ ...inp, marginBottom: 6 }}
+                placeholder="🔍  Search test methods…"
+                value={methodSearch}
+                onChange={e => setMethodSearch(e.target.value)}
+              />
+              <div style={{ border: '1px solid #99f6e4', borderRadius: 8, maxHeight: 140, overflowY: 'auto', background: '#fff' }}>
+                {availableMethods.length === 0 ? (
+                  <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>
+                    {methodSearch ? 'No matching methods' : 'All methods already added'}
+                  </div>
+                ) : availableMethods.map(m => (
+                  <div key={m.methodId}
+                    onClick={() => addMethod(m)}
+                    style={{ padding: '7px 12px', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid #f9fafb' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f0fdfa')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                  >
+                    <span style={{ fontSize: 11, background: '#e0f2fe', padding: '1px 6px', borderRadius: 4, fontWeight: 700, color: '#0369a1', whiteSpace: 'nowrap' }}>{m.methodCode}</span>
+                    <span style={{ color: '#111111', flex: 1 }}>{m.methodName}</span>
+                    <span style={{ fontSize: 11, color: '#0d6e6e', fontWeight: 600, whiteSpace: 'nowrap' }}>+ Add Group</span>
+                  </div>
+                ))}
+              </div>
             </div>
+
           </div>
         )}
 
         {/* Items list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px', minHeight: 0 }}>
           {items.length === 0 ? (
             <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
               No tests added yet. Select a parameter from the list above to add it.
@@ -596,8 +632,12 @@ function TestItemDesigner({
                 </tr>
               </thead>
               <tbody>
-                {items.map((item, idx) => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid #f1f3f4' }}>
+                {items.map((item, idx) => {
+                  const isGroup = item.parameterId == null && item.testMethodId != null
+                  const groupParams = isGroup ? parameters.filter(p => p.methodId === item.testMethodId) : []
+                  return (
+                  <Fragment key={item.id}>
+                  <tr style={{ borderBottom: isGroup && groupParams.length > 0 ? 'none' : '1px solid #f1f3f4', background: isGroup ? '#f0f9ff' : '#fff' }}>
                     {/* Order */}
                     <td style={{ padding: '8px 10px', width: 70 }}>
                       {!isLocked && (
@@ -610,14 +650,36 @@ function TestItemDesigner({
                       )}
                       {isLocked && <span style={{ fontSize: 12, color: '#5f6368' }}>{idx + 1}</span>}
                     </td>
-                    {/* Parameter */}
+                    {/* Parameter / Method Group label */}
                     <td style={{ padding: '8px 10px' }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#111111' }}>{item.parameterName}</div>
-                      <div style={{ fontSize: 11, color: '#5f6368' }}>{item.parameterCode}</div>
+                      {item.parameterId != null ? (
+                        <>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#111111' }}>{item.parameterName}</div>
+                          <div style={{ fontSize: 11, color: '#5f6368' }}>{item.parameterCode}</div>
+                        </>
+                      ) : (
+                        <>
+                          {(() => {
+                            const m = testMethods.find(x => x.methodId === item.testMethodId)
+                            return (
+                              <div style={{ fontSize: 12, fontWeight: 700, color: '#0369a1', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                <span style={{ background: '#e0f2fe', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, color: '#0369a1' }}>{m?.methodCode ?? 'GROUP'}</span>
+                                {m?.methodName ?? 'Unknown Method'}
+                              </div>
+                            )
+                          })()}
+                          <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>All params in this method — 1 execution</div>
+                        </>
+                      )}
                     </td>
-                    {/* Test Method */}
+                    {/* Test Method (only editable for per-param items; method-level items already have method set) */}
                     <td style={{ padding: '8px 10px', minWidth: 160 }}>
-                      {isLocked ? (
+                      {item.parameterId == null ? (
+                        // Method-level item: method is already the primary key — show method code read-only
+                        <span style={{ fontSize: 11, background: '#e0f2fe', padding: '1px 8px', borderRadius: 4, fontWeight: 700, color: '#0369a1' }}>
+                          {testMethods.find(m => m.methodId === item.testMethodId)?.methodCode ?? '—'}
+                        </span>
+                      ) : isLocked ? (
                         <span style={{ fontSize: 12, color: '#111111' }}>{item.testMethodId ? (testMethods.find(m => m.methodId === item.testMethodId)?.methodName ?? '—') : '—'}</span>
                       ) : (
                         <select style={{ ...inp, fontSize: 12, padding: '4px 8px' }}
@@ -669,7 +731,23 @@ function TestItemDesigner({
                       )}
                     </td>
                   </tr>
-                ))}
+                  {/* Child parameter rows for method groups */}
+                  {isGroup && groupParams.map((p, pi) => (
+                    <tr key={`gp_${p.parameterId}`} style={{ background: '#f8fbff', borderBottom: pi === groupParams.length - 1 ? '2px solid #bae6fd' : '1px solid #e0f2fe' }}>
+                      <td style={{ padding: '5px 10px', width: 70 }} />
+                      <td style={{ padding: '5px 10px 5px 28px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 10, background: '#e0f2fe', padding: '1px 6px', borderRadius: 4, fontWeight: 700, color: '#0369a1' }}>{p.parameterCode}</span>
+                          <span style={{ fontSize: 12, color: '#374151' }}>{p.parameterName}</span>
+                          {p.uom && <span style={{ fontSize: 11, color: '#9ca3af' }}>{p.uom}</span>}
+                        </div>
+                      </td>
+                      <td colSpan={4} style={{ padding: '5px 10px', fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>included in group</td>
+                    </tr>
+                  ))}
+                  </Fragment>
+                  )
+                })}
               </tbody>
             </table>
           )}

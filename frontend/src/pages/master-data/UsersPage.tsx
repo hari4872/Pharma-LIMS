@@ -43,7 +43,7 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [editRow, setEditRow]   = useState<UserRow | null>(null)
-  const [editForm, setEditForm] = useState({ fullName: '', email: '', role: 'Analyst', labId: '' })
+  const [editForm, setEditForm] = useState({ fullName: '', email: '', role: 'Analyst', labId: '', isActive: true })
   const roleChanged = editRow !== null && editForm.role !== editRow.role
   const [permUser, setPermUser] = useState<UserRow | null>(null)
   const [perms, setPerms] = useState<Record<string, boolean>>({})
@@ -74,7 +74,7 @@ export default function UsersPage() {
   function openEdit(r: UserRow) {
     setEditRow(r)
     const lab = labs.find(l => l.labName === r.labName)
-    setEditForm({ fullName: r.fullName, email: r.email, role: r.role, labId: lab ? String(lab.labId) : '' })
+    setEditForm({ fullName: r.fullName, email: r.email, role: r.role, labId: lab ? String(lab.labId) : '', isActive: r.isActive })
   }
 
   async function submitEdit(e: React.FormEvent) {
@@ -246,6 +246,27 @@ export default function UsersPage() {
                 <option value="">None</option>
                 {labs.map(l => <option key={l.labId} value={l.labId}>{l.labName}</option>)}
               </select>
+            </Field>
+            <Field label="Account Status">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  onClick={() => setEditForm(f => ({ ...f, isActive: !f.isActive }))}
+                  style={{
+                    width: 44, height: 24, borderRadius: 12, cursor: 'pointer', transition: 'background 0.2s',
+                    background: editForm.isActive ? '#16a34a' : '#d1d5db',
+                    position: 'relative', flexShrink: 0
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', top: 3, left: editForm.isActive ? 23 : 3,
+                    width: 18, height: 18, borderRadius: '50%', background: '#fff',
+                    transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                  }} />
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: editForm.isActive ? '#16a34a' : '#dc2626' }}>
+                  {editForm.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </div>
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <DrawerFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />

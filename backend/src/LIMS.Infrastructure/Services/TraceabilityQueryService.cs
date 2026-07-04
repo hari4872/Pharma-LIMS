@@ -50,6 +50,8 @@ public class TraceabilityQueryService : ITraceabilityQueryService
             .Include(e => e.Analyst)
             .Include(e => e.Instrument)
             .Include(e => e.Execution).ThenInclude(ex => ex.FormTemplate)
+            .Include(e => e.Execution).ThenInclude(ex => ex.SpecTemplateItem!).ThenInclude(i => i.TestMethod)
+            .Include(e => e.Execution).ThenInclude(ex => ex.SpecTemplateItem!).ThenInclude(i => i.Parameter)
             .Where(e => e.SampleId == sampleId && e.Status != LogbookEntryStatus.Superseded)
             .ToListAsync(ct);
 
@@ -74,12 +76,17 @@ public class TraceabilityQueryService : ITraceabilityQueryService
                     $"Analyst: {entry.Analyst.FullName}",
                     $"Role: {entry.Analyst.Role}"));
 
-            // Upstream: Test Method context
-            var method = entry.Execution?.FormTemplate;
+            // Upstream: TestExecution node — label shows method group name when available
             if (entry.Execution != null)
-                upstream.Add(new TraceabilityNode("TestExecution", entry.ExecutionId,
-                    $"Execution #{entry.ExecutionId}",
-                    $"Status: {entry.Execution.Status}"));
+            {
+                var execLabel = entry.Execution.SpecTemplateItem?.TestMethod?.MethodName
+                    ?? entry.Execution.SpecTemplateItem?.Parameter?.ParameterName
+                    ?? $"Execution #{entry.ExecutionId}";
+                if (!upstream.Any(n => n.NodeType == "TestExecution" && n.NodeId == entry.ExecutionId))
+                    upstream.Add(new TraceabilityNode("TestExecution", entry.ExecutionId,
+                        execLabel,
+                        $"Status: {entry.Execution.Status} | #{entry.ExecutionId}"));
+            }
         }
 
         // Downstream: CoA Lines → CoAs

@@ -74,6 +74,8 @@ public static class DependencyInjection
         services.AddScoped<ICalcFormulaService, CalcFormulaService>();
         // Sprint 4: Levey-Jennings QC chart
         services.AddScoped<IQcChartService, QcChartService>();
+        // E-Signature Configuration
+        services.AddScoped<IESignConfigService, ESignConfigService>();
         // MS-1: HTTP context accessor for ILabContext
         services.AddHttpContextAccessor();
 

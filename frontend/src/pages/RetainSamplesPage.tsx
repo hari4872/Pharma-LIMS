@@ -2,7 +2,8 @@
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
-import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Field, inp } from './master-data/LaboratoriesPage'
+import ESignatureDrawer from '@/components/ESignatureDrawer'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
@@ -37,7 +38,7 @@ export default function RetainSamplesPage() {
   const [addForm, setAddForm] = useState({ sampleId: '', locationId: '', quantity: '', quantityUom: 'g', retainedOn: '' })
   const [sampleSearch, setSampleSearch] = useState('')
   const [sampleDropOpen, setSampleDropOpen] = useState(false)
-  const [destroyForm, setDestroyForm] = useState({ password: '', meaning: 'I authorize destruction of this retain sample', reason: '' })
+  const [destroyForm, setDestroyForm] = useState({ password: '', meaning: 'I authorize destruction of this retain sample', reason: 'Retain sample destruction authorized' })
   const [saving, setSaving]   = useState(false)
   const [error, setError]     = useState('')
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
@@ -226,18 +227,18 @@ export default function RetainSamplesPage() {
       )}
 
       {showDestroy && (
-        <Modal title="Destroy Retain Sample — E-Signature" onClose={() => setShowDestroy(null)}>
-          <p style={{ fontSize: 13, color: '#374151', marginBottom: 12 }}>
+        <ESignatureDrawer
+          title="Destroy Retain Sample — E-Signature"
+          subtitle="Authorise permanent destruction (21 CFR Part 11)"
+          form={destroyForm} onChange={setDestroyForm}
+          onSubmit={submitDestroy} onClose={() => { setShowDestroy(null); setError('') }}
+          saving={saving} error={error} label="Confirm Destruction"
+          reasonLabel="Reason for Destruction" reasonMultiline passwordOnly
+        >
+          <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13, color: '#374151', marginBottom: 16 }}>
             Sample: <strong>{showDestroy.sampleNumber}</strong> · Lot: <strong>{showDestroy.lotNumber}</strong> · Qty: <strong>{showDestroy.quantity} {showDestroy.quantityUom}</strong>
-          </p>
-          <form onSubmit={submitDestroy}>
-            <Field label="Password (re-enter)"><input style={inp} type="password" value={destroyForm.password} onChange={e => setDestroyForm(f => ({ ...f, password: e.target.value }))} required /></Field>
-            <Field label="Meaning"><input style={inp} value={destroyForm.meaning} onChange={e => setDestroyForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
-            <Field label="Reason for Destruction"><textarea style={{ ...inp, height: 64, resize: 'vertical' }} value={destroyForm.reason} onChange={e => setDestroyForm(f => ({ ...f, reason: e.target.value }))} required /></Field>
-            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowDestroy(null)} label="Confirm Destruction" />
-          </form>
-        </Modal>
+          </div>
+        </ESignatureDrawer>
       )}
     </div>
   )

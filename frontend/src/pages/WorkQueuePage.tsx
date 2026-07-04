@@ -12,6 +12,7 @@ import { MasterDetail, DetailPane } from '@/components/MasterDetail'
 import { toast } from '@/components/Toast'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
 import BatchResultEntryPage from './BatchResultEntryPage'
+import DynamicFormRenderer from '@/components/DynamicFormRenderer'
 
 interface WorkItem {
   executionId: number; sampleId: number; sampleNumber: string; materialName: string
@@ -19,6 +20,14 @@ interface WorkItem {
   status: string; priorityScore: number | null
   startedAt: string | null; completedAt: string | null
   dueDate: string | null; createdAt: string
+  testLabel: string | null
+  containerId: number | null; containerLabel: string | null
+  containerType: string | null; containerStatus: string | null
+}
+
+interface SampleContainerOption {
+  sampleContainerId: number; containerLabel: string
+  containerType: string; status: string; volume: number | null; volumeUom: string | null
 }
 
 interface SampleGroup {
@@ -86,7 +95,7 @@ function groupBySample(items: WorkItem[]): SampleGroup[] {
     map.get(item.sampleId)!.push(item)
   }
   return Array.from(map.values()).map(execs => {
-    const completed  = execs.filter(e => e.status === 'Completed').length
+    const completed  = execs.filter(e => e.status === 'Completed' || e.status === 'QCVerified').length
     const inProgress = execs.filter(e => e.status === 'InProgress').length
     const hasOOS     = execs.some(e => e.status === 'OOSOpen')
 
@@ -137,7 +146,8 @@ export default function WorkQueuePage() {
   const [showAssign, setShowAssign] = useState(false)
   const [samples, setSamples] = useState<Sample[]>([])
   const [analysts, setAnalysts] = useState<Analyst[]>([])
-  const [form, setForm] = useState({ sampleId: '', analystId: '', priorityScore: '' })
+  const [form, setForm] = useState({ sampleId: '', analystId: '', priorityScore: '', containerId: '' })
+  const [containers, setContainers] = useState<SampleContainerOption[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [sampleSearch, setSampleSearch] = useState('')
@@ -160,6 +170,12 @@ export default function WorkQueuePage() {
   const scanLastKey                     = useRef(0)
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
   const [selectedGroup, setSelectedGroup] = useState<SampleGroup | null>(null)
+  const [fillFormSample, setFillFormSample] = useState<{ sampleId: number; sampleNumber: string } | null>(null)
+  const [expandedExecId, setExpandedExecId] = useState<number | null>(null)
+  const [execResults, setExecResults] = useState<Record<number, {
+    parameterId: number; parameterName: string; uom: string
+    rawValue: string; calculatedResult: number | null; passFail: string; isOos: boolean; isOot: boolean
+  }[]>>({})
 
   const role = useSelector((s: RootState) => s.auth.role) ?? ''
   const canAssign = ['Admin', 'QA', 'LabManager', 'QCLead'].includes(role)
@@ -231,11 +247,15 @@ export default function WorkQueuePage() {
     setAiLoading(true)
     try {
       const [qr, sr] = await Promise.all([
-        api.get('/test-executions/queue-intelligence'),
-        api.get('/test-executions/suggest-analyst'),
+        api.get('/test-executions/queue-intelligence').catch(() => ({ data: null })),
+        api.get('/test-executions/suggest-analyst').catch(() => ({ data: null })),
       ])
-      setAiData(qr.data)
-      setAiSuggestion(sr.data)
+      if (qr.data === null && sr.data === null) {
+        toast('Failed to load AI intelligence', 'error')
+      } else {
+        setAiData(qr.data)
+        setAiSuggestion(sr.data)
+      }
     } catch {
       toast('Failed to load AI intelligence', 'error')
     } finally { setAiLoading(false) }
@@ -261,8 +281,17 @@ export default function WorkQueuePage() {
       api.get('/users').catch(() => ({ data: [] })),
     ])
     setSamples(sr.data); setAnalysts(ur.data)
-    setForm({ sampleId: '', analystId: '', priorityScore: '' })
+    setContainers([])
+    setForm({ sampleId: '', analystId: '', priorityScore: '', containerId: '' })
     setShowAssign(true)
+  }
+
+  async function loadContainersForSample(sampleId: string) {
+    if (!sampleId) { setContainers([]); return }
+    try {
+      const r = await api.get(`/samples/${sampleId}/containers?status=Available`)
+      setContainers(r.data ?? [])
+    } catch { setContainers([]) }
   }
 
   async function submitAssign(e: React.FormEvent) {
@@ -272,6 +301,7 @@ export default function WorkQueuePage() {
         sampleId: Number(form.sampleId),
         analystId: Number(form.analystId),
         priorityScore: form.priorityScore ? Number(form.priorityScore) : null,
+        containerId: form.containerId ? Number(form.containerId) : null,
       })
       setShowAssign(false); load()
     } catch (err) { setError(getErrorMessage(err, 'Assignment failed')) }
@@ -304,6 +334,16 @@ export default function WorkQueuePage() {
       else if (code === 'INSTRUMENT_OOC') setReassignError('Instrument out of calibration (21 CFR 211.68)')
       else setReassignError(getErrorMessage(err, 'Re-assign failed'))
     } finally { setReassignSaving(false) }
+  }
+
+  async function toggleExecResults(executionId: number) {
+    if (expandedExecId === executionId) { setExpandedExecId(null); return }
+    setExpandedExecId(executionId)
+    if (execResults[executionId]) return
+    try {
+      const res = await api.get(`/digital-logbook?executionId=${executionId}`)
+      setExecResults(prev => ({ ...prev, [executionId]: res.data ?? [] }))
+    } catch { setExecResults(prev => ({ ...prev, [executionId]: [] })) }
   }
 
   async function startTask(executionId: number) {
@@ -522,12 +562,20 @@ export default function WorkQueuePage() {
             subtitle={`${selectedGroup.materialName} · ${selectedGroup.lotNumber}`}
             onClose={() => setSelectedGroup(null)}
             actions={
-              <button
-                onClick={() => setDetailSampleId(selectedGroup.sampleId)}
-                style={{ padding: '4px 10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 5, fontSize: 11, cursor: 'pointer', color: '#374151' }}
-              >
-                Sample Info
-              </button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => setDetailSampleId(selectedGroup.sampleId)}
+                  style={{ padding: '4px 10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 5, fontSize: 11, cursor: 'pointer', color: '#374151' }}
+                >
+                  Sample Info
+                </button>
+                <button
+                  onClick={() => setFillFormSample({ sampleId: selectedGroup.sampleId, sampleNumber: selectedGroup.sampleNumber })}
+                  style={{ padding: '4px 10px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 5, fontSize: 11, cursor: 'pointer', color: '#1d4ed8', fontWeight: 600 }}
+                >
+                  📋 Monitoring Form
+                </button>
+              </div>
             }
           >
             {/* Progress summary */}
@@ -558,49 +606,113 @@ export default function WorkQueuePage() {
                 const sc = STATUS_COLORS[exec.status] ?? { bg: '#f3f4f6', color: '#374151' }
                 const isOverdue = exec.dueDate && new Date(exec.dueDate) < new Date() &&
                   (exec.status === 'Assigned' || exec.status === 'InProgress')
+                const isDone = exec.status === 'Completed' || exec.status === 'QCVerified'
+                const isExpanded = expandedExecId === exec.executionId
+                const params = execResults[exec.executionId]
+                const hasOos = params?.some(p => p.isOos)
                 return (
                   <div key={exec.executionId} style={{
-                    border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px',
-                    background: exec.status === 'Completed' ? '#f0fdf4' : '#fafafa',
+                    border: `1px solid ${hasOos ? '#fca5a5' : isExpanded ? '#bfdbfe' : '#e5e7eb'}`,
+                    borderRadius: 8, overflow: 'hidden',
+                    background: isDone ? '#f0fdf4' : '#fafafa',
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>Test {idx + 1}</span>
-                      <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{exec.status}</span>
-                      {isOverdue && <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b' }}>OVERDUE</span>}
-                      <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9ca3af' }}>#{exec.executionId}</span>
+                    {/* Header row */}
+                    <div style={{ padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>
+                          {exec.testLabel ?? `Test ${idx + 1}`}
+                        </span>
+                        <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{exec.status}</span>
+                        {isOverdue && <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b' }}>OVERDUE</span>}
+                        {hasOos && <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626' }}>OOS</span>}
+                        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9ca3af' }}>#{exec.executionId}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+                        {exec.analystName && <span>👤 {exec.analystName}</span>}
+                        {exec.instrumentCode && <span>🔬 {exec.instrumentCode}</span>}
+                        {exec.dueDate && <span style={{ color: isOverdue ? '#dc2626' : '#6b7280' }}>📅 {fmtDate(exec.dueDate)}</span>}
+                        {exec.startedAt && <span>▶ {fmtDateTime(exec.startedAt)}</span>}
+                        {exec.containerLabel && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            padding: '1px 7px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                            background: '#f0fdf4', color: '#065f46', border: '1px solid #6ee7b7',
+                          }}>
+                            🧪 {exec.containerLabel} · {exec.containerType}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                        {exec.status === 'Assigned' && (
+                          <button onClick={() => startTask(exec.executionId)}
+                            style={{ padding: '5px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                            ▶ Start
+                          </button>
+                        )}
+                        {exec.status === 'InProgress' && (
+                          <a href={`/test-execution/${exec.executionId}`}
+                            style={{ padding: '5px 12px', background: '#7c3aed', color: '#fff', borderRadius: 6, fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
+                            ✏ Enter Results
+                          </a>
+                        )}
+                        {(exec.status === 'Assigned' || exec.status === 'InProgress') && canAssign && (
+                          <button onClick={() => openReassign(exec)}
+                            style={{ padding: '5px 12px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                            ↩ Re-assign
+                          </button>
+                        )}
+                        {exec.status === 'OOSOpen' && (
+                          <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>⚠ OOS Investigation</span>
+                        )}
+                        {isDone && (
+                          <button onClick={() => toggleExecResults(exec.executionId)}
+                            style={{ marginLeft: 'auto', padding: '4px 10px', background: isExpanded ? '#dbeafe' : '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 11, fontWeight: 600, color: isExpanded ? '#1d4ed8' : '#374151', cursor: 'pointer' }}>
+                            {isExpanded ? '▲ Hide Results' : '▼ View Results'}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
-                      {exec.analystName && <span>👤 {exec.analystName}</span>}
-                      {exec.instrumentCode && <span>🔬 {exec.instrumentCode}</span>}
-                      {exec.dueDate && <span style={{ color: isOverdue ? '#dc2626' : '#6b7280' }}>📅 {fmtDate(exec.dueDate)}</span>}
-                      {exec.startedAt && <span>▶ {fmtDateTime(exec.startedAt)}</span>}
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {exec.status === 'Assigned' && (
-                        <button
-                          onClick={() => startTask(exec.executionId)}
-                          style={{ padding: '5px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-                        >▶ Start</button>
-                      )}
-                      {exec.status === 'InProgress' && (
-                        <a
-                          href={`/test-execution/${exec.executionId}`}
-                          style={{ padding: '5px 12px', background: '#7c3aed', color: '#fff', borderRadius: 6, fontWeight: 600, fontSize: 12, textDecoration: 'none' }}
-                        >✏ Enter Results</a>
-                      )}
-                      {(exec.status === 'Assigned' || exec.status === 'InProgress') && canAssign && (
-                        <button
-                          onClick={() => openReassign(exec)}
-                          style={{ padding: '5px 12px', background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-                        >↩ Re-assign</button>
-                      )}
-                      {exec.status === 'Completed' && (
-                        <span style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>✓ Complete</span>
-                      )}
-                      {exec.status === 'OOSOpen' && (
-                        <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>⚠ OOS Investigation</span>
-                      )}
-                    </div>
+
+                    {/* Parameter results — expanded */}
+                    {isExpanded && (
+                      <div style={{ borderTop: '1px solid #e5e7eb', padding: '10px 12px', background: '#f8fafc' }}>
+                        {!params ? (
+                          <div style={{ fontSize: 12, color: '#9ca3af' }}>Loading…</div>
+                        ) : params.length === 0 ? (
+                          <div style={{ fontSize: 12, color: '#9ca3af' }}>No results recorded.</div>
+                        ) : (
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                {['Parameter', 'Value', 'Calculated', 'Pass/Fail'].map(h => (
+                                  <th key={h} style={{ textAlign: 'left', padding: '3px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {params.map(p => {
+                                const pfBg    = p.passFail === 'PASS' ? '#d1fae5' : p.passFail === 'FAIL' ? '#fee2e2' : '#f1f5f9'
+                                const pfColor = p.passFail === 'PASS' ? '#065f46' : p.passFail === 'FAIL' ? '#991b1b' : '#374151'
+                                return (
+                                  <tr key={p.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <td style={{ padding: '5px 8px', fontWeight: 600, color: '#111827' }}>
+                                      {p.parameterName}
+                                      {p.isOos && <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: 4 }}>OOS</span>}
+                                      {p.isOot && <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4 }}>OOT</span>}
+                                    </td>
+                                    <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>{p.rawValue} {p.uom}</td>
+                                    <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#6b7280' }}>{p.calculatedResult != null ? `${p.calculatedResult} ${p.uom}` : '—'}</td>
+                                    <td style={{ padding: '5px 8px' }}>
+                                      {p.passFail ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: pfBg, color: pfColor }}>{p.passFail}</span> : '—'}
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -746,8 +858,9 @@ export default function WorkQueuePage() {
                           <div
                             key={s.sampleId}
                             onClick={() => {
-                              setForm(f => ({ ...f, sampleId: String(s.sampleId) }))
+                              setForm(f => ({ ...f, sampleId: String(s.sampleId), containerId: '' }))
                               setSampleDropOpen(false)
+                              loadContainersForSample(String(s.sampleId))
                             }}
                             style={{
                               padding: '10px 14px', cursor: 'pointer',
@@ -792,6 +905,22 @@ export default function WorkQueuePage() {
             </Field>
             <Field label="Priority Score (lower = higher priority)">
               <input style={inp} type="number" min="1" max="100" value={form.priorityScore} onChange={e => setForm(f => ({ ...f, priorityScore: e.target.value }))} placeholder="e.g. 1 (urgent)" />
+            </Field>
+            <Field label="Container (optional)">
+              {!form.sampleId ? (
+                <div style={{ ...inp, color: '#9ca3af', background: '#f9fafb', cursor: 'not-allowed' }}>Select a sample first…</div>
+              ) : containers.length === 0 ? (
+                <div style={{ ...inp, color: '#9ca3af', background: '#f9fafb' }}>No available containers for this sample</div>
+              ) : (
+                <select style={inp} value={form.containerId} onChange={e => setForm(f => ({ ...f, containerId: e.target.value }))}>
+                  <option value="">No container (unlinked)</option>
+                  {containers.map(c => (
+                    <option key={c.sampleContainerId} value={c.sampleContainerId}>
+                      {c.containerLabel} · {c.containerType}{c.volume ? ` · ${c.volume} ${c.volumeUom ?? ''}` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
             <DrawerFooter saving={saving} onCancel={() => setShowAssign(false)} label="Assign" />
@@ -839,6 +968,16 @@ export default function WorkQueuePage() {
         </Drawer>
       )}
     </div>}
+
+    {/* ── Monitoring Form Drawer ─────────────────────────────────────────── */}
+    {fillFormSample && (
+      <DynamicFormRenderer
+        sampleId={fillFormSample.sampleId}
+        sampleNumber={fillFormSample.sampleNumber}
+        onClose={() => setFillFormSample(null)}
+        onSubmitted={() => { setFillFormSample(null); load() }}
+      />
+    )}
     </div>
   )
 }

@@ -27,8 +27,8 @@ public class Coa
     public int SampleId { get; set; }
     public Sample Sample { get; set; } = null!;
     public string CoaNumber { get; set; } = string.Empty;      // UNIQUE — server-generated from lab_config format
-    public int FormTemplateId { get; set; }
-    public FormTemplate FormTemplate { get; set; } = null!;
+    public int? FormTemplateId { get; set; }
+    public FormTemplate? FormTemplate { get; set; }
     public int? DeliveryOrderId { get; set; }
     public DeliveryOrder? DeliveryOrder { get; set; }
     public CoaStatus Status { get; set; } = CoaStatus.Draft;

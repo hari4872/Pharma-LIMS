@@ -16,6 +16,7 @@ public record EscalateToPhase2Command(
     int UserId,
     string EscalationReason,
     string? CapaRef,
+    string? CapaStatus,
     string Password,
     string Meaning,
     string Reason) : IRequest<Result<int>>;
@@ -58,6 +59,8 @@ public class EscalateToPhase2Handler : IRequestHandler<EscalateToPhase2Command, 
 
         if (!string.IsNullOrWhiteSpace(cmd.CapaRef))
             inv.CapaRef = cmd.CapaRef;
+        if (!string.IsNullOrWhiteSpace(cmd.CapaStatus))
+            inv.CapaStatus = cmd.CapaStatus;
 
         var sampleNo = inv.Execution.Sample.SampleNumber;
         await _db.SaveChangesAsync(ct);

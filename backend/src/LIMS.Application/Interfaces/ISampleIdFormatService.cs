@@ -4,5 +4,5 @@ namespace LIMS.Application.Interfaces;
 // Tokens: {SITE} {LAB} {MAT} {SAMPLETYPE} {DATE} {YYYYMMDD} {LOT} {SEQ} {SEQ3} {SEQ4}
 public interface ISampleIdFormatService
 {
-    Task<string> GenerateAsync(int labId, int materialId, string sampleType, string lotNumber, CancellationToken ct = default);
+    Task<string> GenerateAsync(int labId, int materialId, string sampleType, string lotNumber, int sequenceOffset = 0, CancellationToken ct = default);
 }

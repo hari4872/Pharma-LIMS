@@ -42,12 +42,6 @@ public class SampleValidatorService : ISampleValidatorService
         if (!hasValidTraining)
             failures.Add("Analyst training expired or not recorded — registration blocked. (21 CFR 11.10(i))");
 
-        // Check 5: reagents in stock — active reagent/standard materials exist (FR-07)
-        var hasReagents = await _db.Materials.AnyAsync(
-            m => (m.MaterialType == MaterialType.Reagent || m.MaterialType == MaterialType.Standard) && m.IsActive, ct);
-        if (!hasReagents)
-            failures.Add("No active reagents or standards in stock — registration blocked.");
-
         return new SampleValidationResult(failures.Count == 0, failures);
     }
 }

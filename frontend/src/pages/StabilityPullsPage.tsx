@@ -1,8 +1,9 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
+import { fmtLabel } from '@/utils/formatLabel'
 import DataTable from '@/components/DataTable'
-import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { Field, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 import PipelineBar from '@/components/PipelineBar'
 import SampleDetailSheet from '@/components/SampleDetailSheet'
@@ -243,7 +244,7 @@ export default function StabilityPullsPage() {
         { header: 'Actual',     accessor: r => r.actualQty != null ? `${r.actualQty} ${r.requiredQtyUom}` : <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span> },
         { header: 'Status', accessor: r => {
           const c = STATUS_COLORS[r.status] ?? { bg: '#f3f4f6', color: '#374151' }
-          return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{r.status}</span>
+          return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{fmtLabel(r.status)}</span>
         }},
         { header: 'Shortfall', accessor: r => r.hasShortfall
           ? <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: '#fee2e2', color: '#991b1b' }}>⚠ Short Pull</span>
@@ -285,13 +286,13 @@ export default function StabilityPullsPage() {
       )}
 
       {showExecute && (
-        <Modal title={`Execute Pull — ${showExecute.sampleNumber} / ${showExecute.timePoint}`} onClose={() => setShowExecute(null)}>
+        <Drawer title={`Execute Pull — ${showExecute.sampleNumber} / ${showExecute.timePoint}`} subtitle="Immutable audit entry (21 CFR Part 11)" onClose={() => setShowExecute(null)} blocking width={440}>
           <form onSubmit={submitExecute}>
             <p style={{ fontSize: 13, color: '#374151', marginBottom: 12 }}>
               Required: <strong>{showExecute.requiredQty} {showExecute.requiredQtyUom}</strong>
             </p>
             <Field label="Actual Qty Pulled">
-              <input style={inp} type="number" step="0.001" value={execForm.actualQty} onChange={e => setExecForm(f => ({ ...f, actualQty: e.target.value }))} required />
+              <input style={inp} type="number" step="0.001" autoFocus value={execForm.actualQty} onChange={e => setExecForm(f => ({ ...f, actualQty: e.target.value }))} required />
             </Field>
             {needsShortReason && (
               <Field label="Short Pull Reason (mandatory — ICH Q1A / FR-15)">
@@ -302,7 +303,7 @@ export default function StabilityPullsPage() {
                 </p>
               </Field>
             )}
-            <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginTop: 16, marginBottom: 4 }}>E-Signature</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginTop: 16, marginBottom: 4 }}>E-Signature (21 CFR §11.300)</p>
             <Field label="Password (re-enter)">
               <input style={inp} type="password" value={execForm.password} onChange={e => setExecForm(f => ({ ...f, password: e.target.value }))} required />
             </Field>
@@ -310,9 +311,9 @@ export default function StabilityPullsPage() {
               <input style={inp} value={execForm.meaning} onChange={e => setExecForm(f => ({ ...f, meaning: e.target.value }))} required />
             </Field>
             {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowExecute(null)} label="Confirm Pull" />
+            <DrawerFooter saving={saving} onCancel={() => setShowExecute(null)} label="Confirm Pull" />
           </form>
-        </Modal>
+        </Drawer>
       )}
     </div>
   )

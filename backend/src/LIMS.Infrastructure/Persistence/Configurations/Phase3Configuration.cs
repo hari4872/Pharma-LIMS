@@ -28,6 +28,8 @@ public class TestExecutionConfiguration : IEntityTypeConfiguration<TestExecution
             .OnDelete(DeleteBehavior.Restrict);
         b.HasOne(e => e.FormTemplate).WithMany().HasForeignKey(e => e.FormTemplateId)
             .OnDelete(DeleteBehavior.Restrict);
+        b.HasOne(e => e.SampleContainer).WithMany().HasForeignKey(e => e.SampleContainerId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 

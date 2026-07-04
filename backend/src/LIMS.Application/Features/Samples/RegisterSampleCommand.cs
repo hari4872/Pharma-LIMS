@@ -5,13 +5,14 @@ using LIMS.Domain.Entities;
 using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace LIMS.Application.Features.Samples;
 
 // FR-01: unified command — both manual registration and Checkpoint auto-trigger use this
 public record RegisterSampleCommand(
     int LabId, int MaterialId, string LotNumber,
-    DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId,
+    DateOnly? MfgDate, DateOnly ExpDate, int SampleTypeId,
     int AnalystId, string CreatedBy,
     // Phase A: receipt fields
     decimal? ReceivedTemp     = null,
@@ -24,11 +25,11 @@ public record RegisterSampleCommand(
     int?     OverrideSpecTemplateId = null,
     List<int>? CheckpointIds  = null) : IRequest<Result<RegisterSampleResult>>;
 
-// Returns sample ID + spec match outcome — spec engine runs after SRF sign (SignSRFCommand)
+// Returns sample ID + actual spec match outcome — spec engine runs inline during registration
 public record RegisterSampleResult(
     int    SampleId,
     string SampleNumber,
-    string SpecOutcome,         // "PendingSignature" at registration; spec runs after SRF sign
+    string SpecOutcome,
     string SpecMessage,
     int    TestsAutoCreated);
 
@@ -41,7 +42,8 @@ public class RegisterSampleValidator : AbstractValidator<RegisterSampleCommand>
         RuleFor(x => x.LotNumber).NotEmpty().MaximumLength(100);
         RuleFor(x => x.SampleTypeId).GreaterThan(0).WithMessage("SampleTypeId is required — select from Master Data.");
         RuleFor(x => x.AnalystId).GreaterThan(0);
-        RuleFor(x => x.ExpDate).GreaterThan(x => x.MfgDate)
+        RuleFor(x => x.ExpDate).GreaterThan(x => x.MfgDate!.Value)
+            .When(x => x.MfgDate.HasValue)
             .WithMessage("Expiry date must be after manufacturing date.");
         RuleFor(x => x.SampleCondition)
             .Must(v => v == null || new[] { "OK", "Damaged", "Compromised" }.Contains(v))
@@ -64,14 +66,18 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
     private readonly ISampleValidatorService _validator;
     private readonly IMasterDataAuditService _audit;
     private readonly INotificationService _notifications;
+    private readonly ISpecificationEngineService _specEngine;
+    private readonly ILogger<RegisterSampleCommandHandler> _logger;
 
     public RegisterSampleCommandHandler(
         ILimsDbContext db, ISampleIdFormatService sampleIdFormat,
         IFormTemplateSelectorService templateSelector, ISampleValidatorService validator,
-        IMasterDataAuditService audit, INotificationService notifications)
+        IMasterDataAuditService audit, INotificationService notifications,
+        ISpecificationEngineService specEngine, ILogger<RegisterSampleCommandHandler> logger)
     {
         _db = db; _sampleIdFormat = sampleIdFormat; _templateSelector = templateSelector;
         _validator = validator; _audit = audit; _notifications = notifications;
+        _specEngine = specEngine; _logger = logger;
     }
 
     public async Task<Result<RegisterSampleResult>> Handle(RegisterSampleCommand request, CancellationToken ct)
@@ -90,10 +96,10 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
             return Result<RegisterSampleResult>.Failure("VALIDATION_FAILED", string.Join("; ", validation.Failures));
 
         // Step 4: server-generated Sample ID (ALCOA+ Original)
-        var sampleNumber = await _sampleIdFormat.GenerateAsync(request.LabId, request.MaterialId, sampleType.TypeCode, request.LotNumber, ct);
+        var sampleNumber = await _sampleIdFormat.GenerateAsync(request.LabId, request.MaterialId, sampleType.TypeCode, request.LotNumber, ct: ct);
         var receivedAt   = DateTimeOffset.UtcNow;
 
-        // Step 5: build sample entity with Phase A receipt fields
+        // Step 5: build sample entity — created directly as PendingTesting (SRF auto-signed on registration)
         var sample = new Sample
         {
             SampleNumber     = sampleNumber,
@@ -104,12 +110,11 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
             ExpDate          = request.ExpDate,
             SampleTypeId     = request.SampleTypeId,
             AnalystId        = request.AnalystId,
-            Status           = SampleStatus.Registered,
+            Status           = SampleStatus.PendingTesting,
             BarcodePrinted   = true,
             BarcodePrintedAt = receivedAt,
-            // Phase A receipt fields
             ReceivedTemp     = request.ReceivedTemp,
-            SampleCondition  = request.SampleCondition,   // stored as text; validator ensures "OK"|"Damaged"|"Compromised"
+            SampleCondition  = request.SampleCondition,
             IsRush           = request.IsRush,
             ExternalBatchId  = request.ExternalBatchId,
             SampleLabel      = request.SampleLabel,
@@ -148,26 +153,84 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
             }
         }
 
-        await _db.SaveChangesAsync(ct);
+        // Retry up to 3x on SampleNumber unique-constraint collision (concurrent registrations / double-click)
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                await _db.SaveChangesAsync(ct);
+                break;
+            }
+            catch (DbUpdateException ex) when (attempt < 2 && IsUniqueViolation(ex))
+            {
+                sample.SampleNumber = await _sampleIdFormat.GenerateAsync(
+                    request.LabId, request.MaterialId, sampleType.TypeCode,
+                    request.LotNumber, attempt + 1, ct: ct);
+            }
+        }
 
-        // ── Step 9: Audit + notification ─────────────────────────────────
-        // Spec engine runs in SignSRFCommand — tests created only after SRF is signed (21 CFR GMP)
-        try { await _audit.LogAsync("Sample", sample.SampleId, "Registered", null,
-            new { sample.SampleNumber, sample.LotNumber, SampleType = sampleType.TypeCode,
-                  Status = "Registered",
-                  FormTemplateId = sample.FormTemplateId,
-                  FormTemplateSelectionMethod = sample.FormTemplateId.HasValue ? "AutoMatch" : "NoTemplateFound",
-                  SpecTemplateId = sample.SpecTemplateId,
-                  SpecAssignmentReason = sample.SpecAssignmentReason?.ToString() ?? "Pending" },
-            request.CreatedBy); } catch { /* non-critical */ }
-        try { await _notifications.PushToGroupAsync("LabManager", "SampleRegistered",
-            new { sample.SampleId, sample.SampleNumber, sample.LotNumber,
-                  material.MaterialName }, ct); } catch { /* non-critical */ }
+        // Step 9: Run spec engine to auto-assign tests (previously in SignSRFCommand)
+        int testsCreated = 0;
+        string specOutcome = "NoMatch";
+        string specMessage = "No matching spec template found — assign tests manually.";
+        try
+        {
+            var matchResult = await _specEngine.MatchAsync(
+                request.MaterialId, request.SampleTypeId, sampleType.Stage, ct);
+
+            specOutcome = matchResult.Outcome.ToString();
+            specMessage = matchResult.Message;
+
+            if (matchResult.Outcome == SpecMatchOutcome.SingleMatch && matchResult.TemplateId.HasValue)
+            {
+                var execIds = await _specEngine.ApplyTemplateAsync(
+                    sample.SampleId, matchResult.TemplateId.Value,
+                    request.CreatedBy, SpecAssignmentReason.AutoMatch,
+                    receivedAt, ct);
+                testsCreated = execIds.Count;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Spec engine failed for sample {SampleId} — tests not auto-created", sample.SampleId);
+            specOutcome = "Error";
+            specMessage = "Spec engine error — assign tests manually.";
+        }
+
+        // Step 10: Audit + notifications — non-critical, never fail the main operation
+        try
+        {
+            await _audit.LogAsync("Sample", sample.SampleId, "Registered", null,
+                new { sample.SampleNumber, sample.LotNumber, SampleType = sampleType.TypeCode,
+                      Status = "PendingTesting", TestsAutoCreated = testsCreated,
+                      FormTemplateId = sample.FormTemplateId,
+                      SpecOutcome = specOutcome },
+                request.CreatedBy);
+        }
+        catch { /* non-critical */ }
+
+        try
+        {
+            await _notifications.PushToGroupAsync("LabManager", "SampleRegistered",
+                new { sample.SampleId, sample.SampleNumber, sample.LotNumber, material.MaterialName }, ct);
+        }
+        catch { /* non-critical */ }
+
+        try
+        {
+            await _notifications.PushToGroupAsync("Analyst", "WorkQueueTaskAdded",
+                new { sample.SampleId, sample.SampleNumber, sample.LotNumber, testsCreated }, ct);
+        }
+        catch { /* non-critical */ }
 
         return Result<RegisterSampleResult>.Success(new RegisterSampleResult(
             sample.SampleId, sample.SampleNumber,
-            "PendingSignature",
-            "Sign the SRF to assign tests automatically.",
-            0));
+            specOutcome, specMessage, testsCreated));
+    }
+
+    static bool IsUniqueViolation(DbUpdateException ex)
+    {
+        var msg = ex.InnerException?.Message ?? ex.Message;
+        return msg.Contains("23505") || msg.Contains("unique constraint") || msg.Contains("duplicate key");
     }
 }

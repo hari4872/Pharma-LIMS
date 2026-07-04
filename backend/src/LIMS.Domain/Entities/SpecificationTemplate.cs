@@ -66,9 +66,11 @@ public class SpecTemplateItem
     public SpecificationTemplate SpecTemplate { get; set; } = default!;
 
     // ── What to test ──────────────────────────────────────────────────────
-    public int ParameterId       { get; set; }              // FK → TestMethodParameter (the specific test)
-    public TestMethodParameter Parameter { get; set; } = default!;
-    public int? TestMethodId     { get; set; }              // FK → TestMethod (HPLC, USP, Physical…)
+    // Per-param items: ParameterId set, TestMethodId null  (classic model)
+    // Method-level items: ParameterId null, TestMethodId set (LabVantage model — 1 execution per method)
+    public int? ParameterId      { get; set; }              // FK → TestMethodParameter
+    public TestMethodParameter? Parameter { get; set; }
+    public int? TestMethodId     { get; set; }              // FK → TestMethod
     public TestMethod? TestMethod { get; set; }
 
     // ── Turnaround time (per-test, overrides lab-wide TAT) ────────────────

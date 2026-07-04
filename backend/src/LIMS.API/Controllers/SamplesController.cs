@@ -1,4 +1,4 @@
-using LIMS.API.Attributes;
+﻿using LIMS.API.Attributes;
 using LIMS.Application.Features.Samples;
 using LIMS.Application.Interfaces;
 using LIMS.Domain.Entities;
@@ -29,7 +29,7 @@ public class SamplesController : LimsControllerBase
 
     // POST api/v1/samples � FR-01: unified entry for both manual and checkpoint auto-trigger
     [HttpPost]
-    [Authorize(Roles = "Admin,QA,Analyst,LabManager")]
+    [Authorize(Roles = "Admin,Analyst,LabManager")]
     [RequirePermission("sampleRegistration")]
     public async Task<IActionResult> Register([FromBody] RegisterSampleRequest request)
     {
@@ -122,6 +122,8 @@ public class SamplesController : LimsControllerBase
             .Include(s => s.FormTemplate)
             .Include(s => s.TestExecutions).ThenInclude(e => e.Analyst)
             .Include(s => s.TestExecutions).ThenInclude(e => e.Instrument)
+            .Include(s => s.TestExecutions).ThenInclude(e => e.SpecTemplateItem!).ThenInclude(i => i.TestMethod)
+            .Include(s => s.TestExecutions).ThenInclude(e => e.SpecTemplateItem!).ThenInclude(i => i.Parameter)
             .AsNoTracking()
             .AsSplitQuery()
             .FirstOrDefaultAsync(ct);
@@ -149,20 +151,25 @@ public class SamplesController : LimsControllerBase
             sample.FormTemplateId,
             FormTemplateName = sample.FormTemplate != null ? sample.FormTemplate.FormName : null,
             TestExecutions = sample.TestExecutions
-                .OrderBy(e => e.PriorityScore ?? 999)
+                .OrderBy(e => e.SpecTemplateItem != null ? e.SpecTemplateItem.SortOrder : e.PriorityScore ?? 999)
                 .Select(e => new {
                     e.ExecutionId,
                     Status         = e.Status.ToString(),
                     AnalystName    = e.Analyst != null ? e.Analyst.FullName : "�",
                     InstrumentCode = e.Instrument != null ? e.Instrument.InstrumentCode : "�",
-                    e.PriorityScore, e.StartedAt, e.CompletedAt, DueDate = e.DueAt
+                    e.PriorityScore, e.StartedAt, e.CompletedAt, DueDate = e.DueAt,
+                    TestLabel      = e.SpecTemplateItem != null && e.SpecTemplateItem.TestMethod != null
+                        ? e.SpecTemplateItem.TestMethod.MethodName
+                        : e.SpecTemplateItem != null && e.SpecTemplateItem.Parameter != null
+                            ? e.SpecTemplateItem.Parameter.ParameterName
+                            : null
                 }).ToList()
         });
     }
 
     // POST api/v1/samples/batch-register - register multiple samples at once
     [HttpPost("batch-register")]
-    [Authorize(Roles = "Admin,Analyst,QA,LabManager")]
+    [Authorize(Roles = "Admin,Analyst,LabManager")]
     [RequirePermission("sampleRegistration")]
     public async Task<IActionResult> BatchRegister([FromBody] BatchRegisterRequest request)
     {
@@ -261,7 +268,26 @@ public class SamplesController : LimsControllerBase
         return Ok(new { formTemplateId = req.FormTemplateId, formTemplateName = template.FormName });
     }
 
-    // POST api/v1/samples/{id}/form-entries � record that the monitoring form has been filled (INSERT-only, 21 CFR �11)
+    // GET api/v1/samples/{id}/form-entries — audit trail of past form submissions
+    [HttpGet("{id}/form-entries")]
+    public async Task<IActionResult> GetFormEntries(int id, CancellationToken ct)
+    {
+        var rows = await _db.SampleFormEntries
+            .Where(e => e.SampleId == id)
+            .OrderByDescending(e => e.SubmittedAt)
+            .ToListAsync(ct);
+
+        var result = rows.Select(e => new
+        {
+            entryId     = e.SampleFormEntryId,
+            submittedBy = e.SubmittedBy,
+            submittedAt = e.SubmittedAt,
+            fieldValues = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(e.FieldValuesJson)
+        });
+        return Ok(result);
+    }
+
+    // POST api/v1/samples/{id}/form-entries — record that the monitoring form has been filled (INSERT-only, 21 CFR §11)
     [HttpPost("{id}/form-entries")]
     [Authorize(Roles = "Admin,QA,LabManager,Analyst")]
     public async Task<IActionResult> SubmitFormEntry(int id, [FromBody] SubmitFormEntryRequest req, CancellationToken ct)
@@ -293,7 +319,7 @@ public record SubmitFormEntryRequest(int FormTemplateId, Dictionary<string, stri
 
 public record RegisterSampleRequest(
     int     LabId, int MaterialId, string LotNumber,
-    DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId,
+    DateOnly? MfgDate, DateOnly ExpDate, int SampleTypeId,
     // Phase A receipt fields
     decimal? ReceivedTemp           = null,
     string?  SampleCondition        = null,     // "OK" | "Damaged" | "Compromised"
@@ -307,7 +333,7 @@ public record ReprintBarcodeRequest(string Reason);
 public record ApplySpecRequest(int SpecTemplateId);
 public record RetestRequest(string RetestReason, List<int>? ParameterIds = null);
 public record BatchRegisterEntryRequest(
-    int MaterialId, string LotNumber, DateOnly MfgDate, DateOnly ExpDate, int SampleTypeId,
+    int MaterialId, string LotNumber, DateOnly? MfgDate, DateOnly ExpDate, int SampleTypeId,
     decimal? ReceivedTemp = null, string? SampleCondition = null, bool IsRush = false, string? ExternalBatchId = null);
 public record BatchRegisterRequest(int LabId, List<BatchRegisterEntryRequest> Entries);
 

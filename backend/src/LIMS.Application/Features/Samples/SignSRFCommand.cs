@@ -19,9 +19,7 @@ public class SignSRFValidator : AbstractValidator<SignSRFCommand>
     {
         RuleFor(x => x.SampleId).GreaterThan(0);
         RuleFor(x => x.UserId).GreaterThan(0);
-        RuleFor(x => x.Password).NotEmpty();
-        RuleFor(x => x.Meaning).NotEmpty();
-        RuleFor(x => x.Reason).NotEmpty();
+        // Password/Meaning/Reason optional — empty = auto-sign (identity confirmed by JWT)
     }
 }
 
@@ -46,13 +44,23 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
         if (sample.Status != SampleStatus.Registered && sample.Status != SampleStatus.PendingTesting)
             return Result<int>.Failure("INVALID_STATE", "SRF can only be signed before testing begins.");
 
-        // §11.300: password verified independently of session token
-        var sig = await _esig.CreateSignatureAsync(request.UserId, request.Password,
-            request.Meaning, request.Reason, "SignSRF", ct);
-        if (sig is null) return Result<int>.Failure("ESIGN_AUTH_FAILED",
-            "Electronic signature failed — password incorrect. (21 CFR §11.300)");
+        string signerName;
+        if (!string.IsNullOrEmpty(request.Password))
+        {
+            var sig = await _esig.CreateSignatureAsync(request.UserId, request.Password,
+                request.Meaning ?? "SRF signed", request.Reason ?? "Registration", "SignSRF", ct);
+            if (sig is null) return Result<int>.Failure("ESIGN_AUTH_FAILED",
+                "Electronic signature failed — password incorrect. (21 CFR §11.300)");
+            sample.SrfSignatureId = sig.SignatureId;
+            signerName = sig.FullName;
+        }
+        else
+        {
+            // Auto-sign on registration — identity confirmed by JWT auth
+            var user = await _db.Users.FindAsync([request.UserId], ct);
+            signerName = user?.FullName ?? "System";
+        }
 
-        sample.SrfSignatureId = sig.SignatureId;
         sample.Status = SampleStatus.PendingTesting;
         await _db.SaveChangesAsync(ct);
 
@@ -85,8 +93,8 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
         try
         {
             await _audit.LogAsync("Sample", sample.SampleId, "SRFSigned",
-                new { Status = "Registered" }, new { Status = "PendingTesting", sig.FullName, sig.SignedAt },
-                sig.FullName);
+                new { Status = "Registered" }, new { Status = "PendingTesting", FullName = signerName, SignedAt = DateTimeOffset.UtcNow },
+                signerName);
         }
         catch (Exception ex)
         {

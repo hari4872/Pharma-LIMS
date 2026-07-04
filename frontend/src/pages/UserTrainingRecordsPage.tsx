@@ -8,7 +8,7 @@ import { Drawer, DrawerFooter } from '@/components/Drawer'
 // Master Data FR-11: User Training Records — GMP training gate for test-method assignment
 
 interface TrainingRecord {
-  trainingId: number; userId: number; userName: string
+  trainingId: number; userId: number; userFullName: string
   methodId: number; methodCode: string; methodName: string
   trainingDate: string; validUntil: string | null; recordedBy: string; createdAt: string
 }
@@ -90,7 +90,7 @@ export default function UserTrainingRecordsPage() {
 
       <DataTable loading={loading} data={data} columns={[
         { header: 'ID',            accessor: 'trainingId' },
-        { header: 'Analyst',       accessor: 'userName' },
+        { header: 'Analyst',       accessor: 'userFullName' },
         { header: 'Method Code',   accessor: 'methodCode' },
         { header: 'Method Name',   accessor: 'methodName' },
         { header: 'Training Date', accessor: r => new Date(r.trainingDate).toLocaleDateString() },

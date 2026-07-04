@@ -4,9 +4,9 @@ import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
-import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
-import { getErrorMessage, asApiError } from '@/utils/errors'
-import type { FieldDef } from './master-data/FormTemplatesPage'
+import { inp } from './master-data/LaboratoriesPage'
+import ESignatureDrawer from '@/components/ESignatureDrawer'
+import { getErrorMessage } from '@/utils/errors'
 import { GATE_HELP } from './WorkflowConfigPage'
 
 interface Execution {
@@ -17,7 +17,32 @@ interface Execution {
 interface Parameter {
   parameterId: number; parameterCode: string; parameterName: string
   uom: string; dataType: string; isCritical: boolean; isMandatory: boolean
-  calcFormula: string | null; decimalPlaces: number | null
+  instrumentType: string | null
+  calcFormula: string | null; inputFields: string | null; decimalPlaces: number | null
+}
+interface InputField { key: string; label: string }
+
+function parseInputFields(raw: string | null | undefined): InputField[] {
+  if (!raw) return []
+  try { return JSON.parse(raw) } catch { return [] }
+}
+
+function evalFormula(formula: string, vars: Record<string, string>): string | null {
+  try {
+    let expr = formula.trim()
+      .replace(/[–—−]/g, '-')  // en-dash, em-dash, Unicode minus → ASCII minus
+      .replace(/×/g, '*')       // multiplication sign → *
+      .replace(/÷/g, '/')       // division sign → /
+    for (const [k, v] of Object.entries(vars)) {
+      const num = parseFloat(v)
+      if (isNaN(num)) return null
+      expr = expr.replace(new RegExp(`\\b${k}\\b`, 'g'), String(num))
+    }
+    // eslint-disable-next-line no-new-func
+    const result = Function('"use strict"; return (' + expr + ')')()
+    if (typeof result !== 'number' || !isFinite(result)) return null
+    return String(result)
+  } catch { return null }
 }
 interface EvidenceFile {
   evidenceId: number; fileRef: string; description: string | null
@@ -37,15 +62,6 @@ interface ResultRow {
 
 const DRAFT_KEY = (id: string) => `lims-draft-exec-${id}`
 
-const TAB_ST = (active: boolean): React.CSSProperties => ({
-  padding: '9px 20px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-  borderBottom: active ? '2px solid #0d9488' : '2px solid transparent',
-  background: 'transparent', marginBottom: -2,
-  color: active ? '#0d9488' : '#6b7280',
-  fontWeight: active ? 700 : 500, fontSize: 14,
-  display: 'flex', alignItems: 'center', gap: 7,
-  transition: 'all 0.15s',
-})
 
 function formatSpec(s: SpecLimit | undefined): string {
   if (!s) return '—'
@@ -88,6 +104,7 @@ export default function TestExecutionPage() {
   const [parameters,   setParameters]  = useState<Parameter[]>([])
   const [specLimits,   setSpecLimits]  = useState<SpecLimit[]>([])
   const [entries,      setEntries]     = useState<Record<number, string>>({})
+  const [rawInputs,    setRawInputs]   = useState<Record<number, Record<string, string>>>({})
   const [evidence,     setEvidence]    = useState<Record<number, string>>({})
   const [paramInstruments, setParamInstruments] = useState<Record<number, number>>({}) // parameterId → instrumentId
   const [instruments,  setInstruments] = useState<{ instrumentId: number; instrumentCode: string; instrumentName: string; instrumentType: string }[]>([])
@@ -107,15 +124,6 @@ export default function TestExecutionPage() {
   // ── Step 4: Gate blocking ─────────────────────────────────────────────────
   const [gateBlocks, setGateBlocks] = useState<{ gate: string; reason: string; help: string }[]>([])
 
-  // ── Monitoring Form (Tab 2) ────────────────────────────────────────────────
-  const [activeTab,        setActiveTab]        = useState<'results' | 'form'>('results')
-  const [formFields,       setFormFields]       = useState<FieldDef[]>([])
-  const [formName,         setFormName]         = useState('')
-  const [formTemplateId,   setFormTemplateId]   = useState<number | null>(null)
-  const [formValues,       setFormValues]       = useState<Record<string, string | boolean>>({})
-  const [formSubmitted,    setFormSubmitted]    = useState(false)
-  const [formSubmitting,   setFormSubmitting]   = useState(false)
-  const [formError,        setFormError]        = useState('')
 
   // Elapsed timer — recompute once per second from the start time. Kept inside
   // the effect (not during render) so the Date.now() read stays pure.
@@ -173,26 +181,6 @@ export default function TestExecutionPage() {
       })
       .catch(() => setError('Failed to load execution.'))
 
-    // Load form template if sample has one assigned (non-blocking, cancelled on unmount)
-    let formCancelled = false
-    api.get(`/test-executions/${id}`)
-      .then(r => !formCancelled && r.data?.sampleId && api.get(`/samples/${r.data.sampleId}`))
-      .then((r: { data: { formTemplateId?: number } } | false | undefined) => {
-        if (formCancelled || !r || !r.data?.formTemplateId) return
-        const ftId = r.data.formTemplateId
-        return api.get(`/form-templates/${ftId}`).then(tpl => {
-          if (formCancelled) return
-          setFormTemplateId(ftId)
-          setFormName(tpl.data.formName ?? 'Monitoring Form')
-          let fields: FieldDef[] = []
-          try { fields = JSON.parse(tpl.data.fieldDefinitionsJson ?? '[]') } catch { fields = [] }
-          setFormFields(fields)
-          const init: Record<string, string | boolean> = {}
-          fields.forEach(f => { init[f.id] = f.fieldType === 'Checkbox' ? false : '' })
-          setFormValues(init)
-        })
-      })
-      .catch(() => { /* form template optional — non-blocking */ })
 
     // Load parameters
     api.get(`/test-executions/${id}/parameters`)
@@ -203,8 +191,26 @@ export default function TestExecutionPage() {
       .then(r => setInstruments(r.data))
       .catch(() => {/* non-blocking */})
 
-    return () => { formCancelled = true }
   }, [id])
+
+  // Auto-select instrument per parameter based on InstrumentType match
+  useEffect(() => {
+    if (parameters.length === 0 || instruments.length === 0) return
+    setParamInstruments(prev => {
+      const auto: Record<number, number> = {}
+      parameters.forEach(p => {
+        if (prev[p.parameterId]) return // don't override manual selection
+        if (!p.instrumentType) return
+        const match = instruments.find(i =>
+          i.instrumentType.toLowerCase() === p.instrumentType!.toLowerCase() ||
+          i.instrumentType.toLowerCase().includes(p.instrumentType!.toLowerCase()) ||
+          p.instrumentType!.toLowerCase().includes(i.instrumentType.toLowerCase())
+        )
+        if (match) auto[p.parameterId] = match.instrumentId
+      })
+      return { ...auto, ...prev }
+    })
+  }, [parameters, instruments])
 
   // Load spec limits once we have materialId
   useEffect(() => {
@@ -302,36 +308,11 @@ export default function TestExecutionPage() {
     // Check common gates client-side
     const allComplete = results.length > 0 && !hasOos && !hasOot
     if (!allComplete && results.length === 0) blocks.push({ gate: 'AllTestsComplete', reason: 'Results have not been submitted yet', help: GATE_HELP['AllTestsComplete'] ?? '' })
-    if (hasOos) blocks.push({ gate: 'NoOpenOOS', reason: 'OOS result detected — investigation must be resolved first', help: GATE_HELP['NoOpenOOS'] ?? '' })
-    if (formFields.length > 0 && !formSubmitted) blocks.push({ gate: 'FormTemplateFilled', reason: `Monitoring form "${formName}" has not been submitted`, help: GATE_HELP['FormTemplateFilled'] ?? '' })
 
     setGateBlocks(blocks)
     if (blocks.length === 0) { setShowSignOff(true); setError('') }
   }
 
-  async function submitMonitoringForm(e: React.FormEvent) {
-    e.preventDefault()
-    if (!formTemplateId || !execution) return
-    setFormSubmitting(true); setFormError('')
-    try {
-      const fieldValues: Record<string, string> = {}
-      for (const [k, v] of Object.entries(formValues)) {
-        fieldValues[k] = typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v)
-      }
-      await api.post(`/samples/${execution.sampleId}/form-entries`, {
-        formTemplateId, fieldValues,
-        password: '', meaning: 'I confirm this monitoring form entry is accurate', reason: 'Recorded during test execution',
-      })
-      setFormSubmitted(true)
-      setFormError('')
-    } catch (err) {
-      const ae = asApiError(err)
-      if (ae.response?.data?.error === 'ESIGN_AUTH_FAILED')
-        setFormError('Password incorrect')
-      else
-        setFormError(getErrorMessage(err, 'Form submission failed'))
-    } finally { setFormSubmitting(false) }
-  }
 
   async function submitSignOff(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
@@ -387,7 +368,6 @@ export default function TestExecutionPage() {
         </div>
         <div style={{ display: 'flex', gap: 24, fontSize: 13, opacity: 0.85, flexWrap: 'wrap' }}>
           <span>📦 Lot: <strong>{execution.lotNumber}</strong></span>
-          <span>🔬 Instrument: <strong>{execution.instrumentCode}</strong></span>
           <span>👤 Analyst: <strong>{execution.analystName}</strong></span>
           {execution.dueDate && (
             <span style={{ color: isOverdue ? '#fca5a5' : 'inherit' }}>
@@ -412,32 +392,10 @@ export default function TestExecutionPage() {
       )}
 
       {/* ── Tab strip ──────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid #e2e8f0', marginBottom: 0, background: '#fff', borderRadius: '12px 12px 0 0', paddingTop: 4, paddingLeft: 16, paddingRight: 16 }}>
-        <button style={TAB_ST(activeTab === 'results')} onClick={() => setActiveTab('results')}>
-          <svg viewBox="0 0 20 20" fill="none" width="14" height="14"><path d="M9 12l2 2 4-4M4 6h12M4 10h7M4 14h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
-          Test Results
-          <span style={{ fontSize: 11, background: activeTab === 'results' ? '#f0fdfa' : '#f1f5f9', color: activeTab === 'results' ? '#0d9488' : '#9ca3af', padding: '1px 7px', borderRadius: 8, fontWeight: 700 }}>
-            {parameters.length}
-          </span>
-        </button>
-        {formFields.length > 0 && (
-          <button style={TAB_ST(activeTab === 'form')} onClick={() => setActiveTab('form')}>
-            <svg viewBox="0 0 20 20" fill="none" width="14" height="14"><path d="M4 4h12v12H4V4zm3 4h6M7 10h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
-            {formName}
-            {formSubmitted && (
-              <span style={{ fontSize: 10, background: '#d1fae5', color: '#065f46', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>✓ Done</span>
-            )}
-            {!formSubmitted && (
-              <span style={{ fontSize: 10, background: '#fef3c7', color: '#92400e', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>Required</span>
-            )}
-          </button>
-        )}
-      </div>
 
       {/* ── Result Entry Form ──────────────────────────────────────────── */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderTopWidth: 0, borderRadius: '0 0 12px 12px', padding: '24px 28px', marginBottom: 20,
-        opacity: execution.status === 'Completed' ? 0.6 : 1, pointerEvents: execution.status === 'Completed' ? 'none' : 'auto',
-        display: activeTab === 'results' ? 'block' : 'none' }}>
+        opacity: execution.status === 'Completed' ? 0.6 : 1, pointerEvents: execution.status === 'Completed' ? 'none' : 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>
             📋 Enter Results
@@ -529,36 +487,96 @@ export default function TestExecutionPage() {
                       <div style={{ fontSize: 11, color: '#9ca3af' }}>{p.uom || '—'}</div>
                     </div>
 
-                    {/* Value input */}
-                    <input
-                      type={isNum ? 'number' : 'text'}
-                      step={isNum ? 'any' : undefined}
-                      value={raw}
-                      onChange={e => setEntries(prev => ({ ...prev, [p.parameterId]: e.target.value }))}
-                      required={p.isMandatory}
-                      placeholder={isNum ? '0.000' : 'Enter value…'}
-                      style={{
-                        ...inp,
-                        margin: 0,
-                        borderColor: status === 'fail' ? '#fca5a5' : status === 'oot' ? '#fde68a' : status === 'pass' ? '#bbf7d0' : '#d1d5db',
-                        fontFamily: 'monospace', fontWeight: 600, fontSize: 14,
-                        background: '#fafafa',
-                      }}
-                    />
+                    {/* Value input — single or multi-field formula mode */}
+                    {(() => {
+                      const fields = parseInputFields(p.inputFields)
+                      if (fields.length > 0 && p.calcFormula) {
+                        const inputs = rawInputs[p.parameterId] ?? {}
+                        const computed = evalFormula(p.calcFormula, inputs)
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            {fields.map(f => (
+                              <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span style={{ fontSize: 13, color: '#6b7280', minWidth: 80, textAlign: 'right' }}>{f.label}</span>
+                                <input
+                                  type="number" step="any"
+                                  value={inputs[f.key] ?? ''}
+                                  onChange={e => {
+                                    const updated = { ...inputs, [f.key]: e.target.value }
+                                    setRawInputs(prev => ({ ...prev, [p.parameterId]: updated }))
+                                    const result = evalFormula(p.calcFormula!, updated)
+                                    if (result !== null) setEntries(prev => ({ ...prev, [p.parameterId]: result }))
+                                  }}
+                                  placeholder="0.000"
+                                  style={{ ...inp, margin: 0, width: '100%', fontFamily: 'monospace', fontSize: 14, padding: '6px 8px' }}
+                                />
+                              </div>
+                            ))}
+                            <div style={{ fontSize: 13, color: computed !== null ? '#0d6e6e' : '#9ca3af', fontFamily: 'monospace', fontWeight: 700, paddingLeft: 84 }}>
+                              {computed !== null
+                                ? `= ${p.decimalPlaces !== null ? Number(computed).toFixed(p.decimalPlaces!) : computed}`
+                                : 'fill inputs above'}
+                            </div>
+                          </div>
+                        )
+                      }
+                      return (
+                        <input
+                          type={isNum ? 'number' : 'text'}
+                          step={isNum ? 'any' : undefined}
+                          value={raw}
+                          onChange={e => setEntries(prev => ({ ...prev, [p.parameterId]: e.target.value }))}
+                          required={p.isMandatory}
+                          placeholder={isNum ? '0.000' : 'Enter value…'}
+                          style={{
+                            ...inp,
+                            margin: 0,
+                            borderColor: status === 'fail' ? '#fca5a5' : status === 'oot' ? '#fde68a' : status === 'pass' ? '#bbf7d0' : '#d1d5db',
+                            fontFamily: 'monospace', fontWeight: 600, fontSize: 14,
+                            background: '#fafafa',
+                          }}
+                        />
+                      )
+                    })()}
 
-                    {/* Instrument selector per parameter */}
-                    <select
-                      value={paramInstruments[p.parameterId] ?? ''}
-                      onChange={e => setParamInstruments(prev => ({ ...prev, [p.parameterId]: Number(e.target.value) }))}
-                      style={{ ...inp, margin: 0, fontSize: 12, padding: '6px 8px' }}
-                    >
-                      <option value="">— Instrument —</option>
-                      {instruments.map(i => (
-                        <option key={i.instrumentId} value={i.instrumentId}>
-                          {i.instrumentCode} ({i.instrumentType})
-                        </option>
-                      ))}
-                    </select>
+                    {/* Instrument selector — auto-filtered if parameter has InstrumentType, else full manual list */}
+                    {(() => {
+                      const typeMatched = p.instrumentType
+                        ? instruments.filter(i =>
+                            i.instrumentType.toLowerCase() === p.instrumentType!.toLowerCase() ||
+                            i.instrumentType.toLowerCase().includes(p.instrumentType!.toLowerCase()) ||
+                            p.instrumentType!.toLowerCase().includes(i.instrumentType.toLowerCase())
+                          )
+                        : instruments
+                      // Fall back to all instruments when type filtering returns nothing
+                      const filtered = typeMatched.length > 0 ? typeMatched : instruments
+                      const isAutoMapped = !!p.instrumentType && typeMatched.length > 0
+                      return (
+                        <select
+                          value={paramInstruments[p.parameterId] ?? ''}
+                          onChange={e => setParamInstruments(prev => ({ ...prev, [p.parameterId]: Number(e.target.value) }))}
+                          style={{ ...inp, margin: 0, fontSize: 12, padding: '6px 8px', borderColor: isAutoMapped ? '#99f6e4' : undefined }}
+                        >
+                          <option value="">{isAutoMapped ? '— Select matched instrument —' : '— Select instrument (manual) —'}</option>
+                          {filtered.map(i => (
+                            <option key={i.instrumentId} value={i.instrumentId}>
+                              {i.instrumentCode} — {i.instrumentType}
+                            </option>
+                          ))}
+                          {/* If auto-mapped, allow analyst to override with any instrument */}
+                          {isAutoMapped && filtered.length < instruments.length && (
+                            <>
+                              <option disabled>──── Other instruments ────</option>
+                              {instruments.filter(i => !filtered.find(f => f.instrumentId === i.instrumentId)).map(i => (
+                                <option key={i.instrumentId} value={i.instrumentId}>
+                                  {i.instrumentCode} — {i.instrumentType}
+                                </option>
+                              ))}
+                            </>
+                          )}
+                        </select>
+                      )
+                    })()}
 
                     {/* Live status badge */}
                     <span style={{
@@ -645,86 +663,6 @@ export default function TestExecutionPage() {
         </form>
       </div>
 
-      {/* ── Monitoring Form Tab ────────────────────────────────────────── */}
-      {formFields.length > 0 && activeTab === 'form' && (
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderTopWidth: 0, borderRadius: '0 0 12px 12px', padding: '24px 28px', marginBottom: 20 }}>
-
-          {formSubmitted ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 0', gap: 10 }}>
-              <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>✓</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#15803d' }}>Monitoring Form Submitted</div>
-              <div style={{ fontSize: 13, color: '#6b7280' }}>Form data recorded. You can now sign off the test results.</div>
-              <button
-                onClick={() => setActiveTab('results')}
-                style={{ marginTop: 4, padding: '8px 20px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                Continue to Sign-Off →
-              </button>
-              <button onClick={() => setFormSubmitted(false)} style={{ fontSize: 12, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
-                Re-submit form
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={submitMonitoringForm}>
-              <div style={{ marginBottom: 20 }}>
-                {formFields.map((field, idx) => (
-                  <div key={field.id} style={{ marginBottom: idx < formFields.length - 1 ? 18 : 0 }}>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>
-                      {field.label}
-                      {field.required && <span style={{ color: '#dc2626', marginLeft: 3 }}>*</span>}
-                      {field.fieldType === 'Parameter' && field.parameterCode && (
-                        <span style={{ marginLeft: 6, fontSize: 10, color: '#9ca3af', fontFamily: 'monospace', textTransform: 'none', fontWeight: 400 }}>{field.parameterCode}</span>
-                      )}
-                    </label>
-
-                    {field.fieldType === 'Checkbox' ? (
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '9px 14px', borderRadius: 8, border: `1.5px solid ${formValues[field.id] ? '#99f6e4' : '#e5e7eb'}`, background: formValues[field.id] ? '#f0fdfa' : '#fafafa' }}>
-                        <input type="checkbox" checked={!!formValues[field.id]} onChange={e => setFormValues(p => ({ ...p, [field.id]: e.target.checked }))} style={{ width: 16, height: 16, accentColor: '#0d9488', cursor: 'pointer' }} />
-                        <span style={{ fontSize: 13, color: formValues[field.id] ? '#0f766e' : '#374151', fontWeight: formValues[field.id] ? 700 : 500 }}>
-                          {formValues[field.id] ? 'Yes — confirmed' : 'Not yet confirmed'}
-                        </span>
-                      </label>
-                    ) : field.fieldType === 'Dropdown' ? (
-                      <select style={inp} value={formValues[field.id] as string ?? ''} onChange={e => setFormValues(p => ({ ...p, [field.id]: e.target.value }))}>
-                        <option value="">— Select —</option>
-                        {(field.options ?? '').split(',').map(o => o.trim()).filter(Boolean).map(o => <option key={o}>{o}</option>)}
-                      </select>
-                    ) : field.fieldType === 'Date' ? (
-                      <input type="date" style={inp} value={formValues[field.id] as string ?? ''} onChange={e => setFormValues(p => ({ ...p, [field.id]: e.target.value }))} />
-                    ) : field.fieldType === 'Textarea' ? (
-                      <textarea rows={3} style={{ ...inp, resize: 'vertical' as const }} value={formValues[field.id] as string ?? ''} onChange={e => setFormValues(p => ({ ...p, [field.id]: e.target.value }))} placeholder={`Enter ${field.label.toLowerCase()}…`} />
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <input
-                          type={field.fieldType === 'Number' ? 'number' : field.fieldType === 'Decimal' || field.fieldType === 'Parameter' ? 'number' : 'text'}
-                          step={field.fieldType === 'Decimal' || field.fieldType === 'Parameter' ? 'any' : field.fieldType === 'Number' ? '1' : undefined}
-                          style={{ ...inp, flex: 1 }}
-                          value={formValues[field.id] as string ?? ''}
-                          onChange={e => setFormValues(p => ({ ...p, [field.id]: e.target.value }))}
-                          placeholder={field.fieldType === 'Parameter' ? `Enter ${field.parameterName ?? field.label}` : ''}
-                          required={field.required}
-                        />
-                        {(field.unit || field.parameterUom) && (
-                          <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap', flexShrink: 0 }}>{field.unit || field.parameterUom}</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {formError && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 12 }}>⚠ {formError}</p>}
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-                <button type="submit" disabled={formSubmitting}
-                  style={{ padding: '9px 24px', background: formSubmitting ? '#9ca3af' : '#0d9488', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: formSubmitting ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                  {formSubmitting ? 'Saving…' : '✓ Submit Monitoring Form'}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      )}
 
       {/* ── OOS/OOT Results ────────────────────────────────────────────── */}
       {results.length > 0 && (
@@ -824,33 +762,22 @@ export default function TestExecutionPage() {
         </div>
       )}
 
-      {/* ── E-Signature Modal ──────────────────────────────────────────── */}
+      {/* ── E-Signature Drawer ──────────────────────────────────────────── */}
       {showSignOff && (
-        <Modal title="Analyst Sign-Off — E-Signature" onClose={() => setShowSignOff(false)}>
-          <div style={{ padding: '4px 0 12px', fontSize: 13, color: '#6b7280' }}>
+        <ESignatureDrawer
+          title="Analyst Sign-Off — E-Signature"
+          subtitle="Results are immutably recorded (21 CFR Part 11)"
+          form={signForm} onChange={setSignForm}
+          onSubmit={submitSignOff} onClose={() => { setShowSignOff(false); setError('') }}
+          saving={saving} error={error} label="✍ Sign & Submit"
+          actionKey="TestResult.MarkComplete"
+          reasonPlaceholder="e.g. All parameters verified and results confirmed"
+        >
+          <div style={{ padding: '8px 12px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, fontSize: 13, color: '#0369a1', marginBottom: 12 }}>
             Your name, timestamp (UTC), meaning and reason are immutably recorded.
             {hasOos && <span style={{ color: '#dc2626', fontWeight: 600 }}> OOS investigations will be auto-raised.</span>}
           </div>
-          {formFields.length > 0 && !formSubmitted && (
-            <div style={{ marginBottom: 14, padding: '10px 14px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 13, color: '#92400e', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>⚠</span>
-              <span>The <strong>{formName}</strong> monitoring form has not been submitted yet. You can still sign off, but it is recommended to fill the form first.</span>
-            </div>
-          )}
-          <form onSubmit={submitSignOff}>
-            <Field label="Password (re-enter to confirm identity)">
-              <input style={inp} type="password" value={signForm.password} onChange={e => setSignForm(f => ({ ...f, password: e.target.value }))} required autoFocus />
-            </Field>
-            <Field label="Meaning of signature">
-              <input style={inp} value={signForm.meaning} onChange={e => setSignForm(f => ({ ...f, meaning: e.target.value }))} required />
-            </Field>
-            <Field label="Reason">
-              <input style={inp} value={signForm.reason} onChange={e => setSignForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. All parameters verified and results confirmed" />
-            </Field>
-            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowSignOff(false)} label="✍ Sign & Submit" />
-          </form>
-        </Modal>
+        </ESignatureDrawer>
       )}
     </div>
   )

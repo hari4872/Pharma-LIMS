@@ -51,7 +51,7 @@ public class StabilityProtocolsController : ControllerBase
             p.RegulatoryBasis, p.StudyDurationMonths,
             p.TargetTempC, p.TargetRhPct, p.Description, p.IsActive,
             p.CreatedBy, p.CreatedAt, p.UpdatedBy, p.UpdatedAt,
-            Material     = new { p.Material.MaterialId, p.Material.MaterialName },
+            Material     = new { MaterialId = p.Material != null ? p.Material.MaterialId : 0, MaterialName = p.Material != null ? p.Material.MaterialName : "(Deleted)" },
             SpecTemplate = p.SpecTemplate == null ? null : new { p.SpecTemplate.SpecTemplateId, p.SpecTemplate.TemplateName },
             IntervalCount = p.Intervals.Count,
             Intervals = p.Intervals.OrderBy(i => i.MonthOffset).Select(i => new

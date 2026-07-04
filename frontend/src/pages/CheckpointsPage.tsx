@@ -3,15 +3,22 @@ import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
+import { fmtDateTime } from '@/utils/dateFormat'
+import { fmtLabel } from '@/utils/formatLabel'
 import DataTable from '@/components/DataTable'
-import { Modal, Field, ModalFooter, inp } from './master-data/LaboratoriesPage'
+import { inp } from './master-data/LaboratoriesPage'
+import ESignatureDrawer from '@/components/ESignatureDrawer'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 import { Panel } from '@/components/Panel'
 import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'
 import { toast } from '@/components/Toast'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface CheckpointParam { parameterId: number; parameterCode: string; parameterName: string; uom: string | null }
+interface CheckpointParam {
+  parameterId: number; parameterCode: string; parameterName: string; uom: string | null
+  alertMin?: number | null; alertMax?: number | null
+  actionMin?: number | null; actionMax?: number | null
+}
 interface TriggerLog { triggerId: number; triggerMode: string; triggeredBy: string | null; triggeredAt: string; deliveryOrder: string | null; isOfflineSync: boolean }
 interface Checkpoint {
   checkpointId: number; checkpointCode: string; triggerMode: string
@@ -44,6 +51,30 @@ const PRESETS = [
   { label: 'Every 4 hours',      slots: ['00:00','04:00','08:00','12:00','16:00','20:00'] },
   { label: 'Every 2 hours',      slots: ALL_SLOTS },
 ]
+
+// ── Two-tier limit check ──────────────────────────────────────────────────────
+type LimitTier = 'ok' | 'alert' | 'action' | 'none'
+function checkLimits(value: string, p: CheckpointParam): LimitTier {
+  const n = parseFloat(value)
+  if (isNaN(n)) return 'none'
+  const hasAction = p.actionMin != null || p.actionMax != null
+  const hasAlert  = p.alertMin  != null || p.alertMax  != null
+  if (hasAction) {
+    const outAction = (p.actionMin != null && n < p.actionMin) || (p.actionMax != null && n > p.actionMax)
+    if (outAction) return 'action'
+  }
+  if (hasAlert) {
+    const outAlert = (p.alertMin != null && n < p.alertMin) || (p.alertMax != null && n > p.alertMax)
+    if (outAlert) return 'alert'
+  }
+  return (hasAction || hasAlert) ? 'ok' : 'none'
+}
+const TIER_STYLE: Record<LimitTier, { border: string; background: string; badge?: string }> = {
+  ok:     { border: '#16a34a', background: '#f0fdf4', badge: 'Within limits' },
+  alert:  { border: '#f59e0b', background: '#fffbeb', badge: '⚠ Alert limit' },
+  action: { border: '#dc2626', background: '#fef2f2', badge: '🔴 Action limit!' },
+  none:   { border: '#d1d5db', background: '#fff' },
+}
 
 // ── Time slot chip component ──────────────────────────────────────────────────
 function SlotChip({ time, selected, onToggle }: { time: string; selected: boolean; onToggle: () => void }) {
@@ -103,10 +134,83 @@ export default function CheckpointsPage() {
   const [manualSlot, setManualSlot]       = useState('')        // manual time entry
   const [manualSlotError, setManualSlotError] = useState('')
   const [selectedParams, setSelectedParams] = useState<number[]>([])
+  const [paramLimits, setParamLimits] = useState<Record<number, { alertMin: string; alertMax: string; actionMin: string; actionMax: string }>>({})
+  const [showParamLimits, setShowParamLimits] = useState<number | null>(null)
 
   const [signForm, setSignForm] = useState({
-    password: '', meaning: 'I confirm this process log entry', reason: ''
+    password: '', meaning: 'I confirm this process log entry', reason: 'Routine checkpoint sign-off'
   })
+  const [signReadings, setSignReadings]     = useState<Record<number, string>>({})
+  const [signParams, setSignParams]         = useState<CheckpointParam[]>([])
+
+  // Record Check — Time-Based mode 1
+  const [showRecordCheck, setShowRecordCheck] = useState<Checkpoint | null>(null)
+  const [recordReadings, setRecordReadings]   = useState<Record<number, string>>({})
+  const [recordSlotLabel, setRecordSlotLabel] = useState('')
+  const [recordSampleId, setRecordSampleId]   = useState('')
+  const [recordSamples, setRecordSamples]     = useState<{ sampleId: number; sampleNumber: string; materialName: string }[]>([])
+  const [recordSaving, setRecordSaving]       = useState(false)
+  const [recordError, setRecordError]         = useState('')
+  const [recordEsig, setRecordEsig]           = useState({ password: '', meaning: 'I confirm this time-based checkpoint reading is accurate and complete', reason: '' })
+
+  async function openRecordCheck(cp: Checkpoint) {
+    const now = new Date()
+    const hh  = now.getHours().toString().padStart(2, '0')
+    const mm  = now.getMinutes().toString().padStart(2, '0')
+    setRecordSlotLabel(`${hh}:${mm}`)
+    setRecordReadings({}); setRecordSampleId(''); setRecordError('')
+    setRecordEsig({ password: '', meaning: 'I confirm this time-based checkpoint reading is accurate and complete', reason: '' })
+    setShowRecordCheck(cp)
+    try {
+      const r = await api.get(`/checkpoints/${cp.checkpointId}/linked-samples`)
+      setRecordSamples(r.data)
+    } catch { setRecordSamples([]) }
+  }
+
+  async function submitRecordCheck(e: React.FormEvent) {
+    e.preventDefault()
+    if (!showRecordCheck) return
+    setRecordSaving(true); setRecordError('')
+    try {
+      const readings = showRecordCheck.parameters
+        .map(p => ({ parameterId: p.parameterId, value: (recordReadings[p.parameterId] ?? '').trim() }))
+        .filter(r => r.value !== '')
+      await api.post(`/checkpoints/${showRecordCheck.checkpointId}/execute`, {
+        slotLabel: recordSlotLabel,
+        password:  recordEsig.password,
+        meaning:   recordEsig.meaning,
+        reason:    recordEsig.reason,
+        readings,
+        sampleId: recordSampleId ? Number(recordSampleId) : null,
+      })
+      toast(`Checkpoint "${showRecordCheck.checkpointCode}" recorded ✓`, 'success')
+      setShowRecordCheck(null)
+      load()
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Record failed')
+      setRecordError(msg); toast(msg, 'error')
+    } finally { setRecordSaving(false) }
+  }
+
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<Checkpoint | null>(null)
+  const [deleting, setDeleting]         = useState(false)
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await api.delete(`/checkpoints/${deleteTarget.checkpointId}`)
+      toast(`Checkpoint "${deleteTarget.checkpointCode}" deleted`, 'success')
+      setDeleteTarget(null)
+      load()
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Delete failed')
+      toast(msg, 'error')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   // ── Load ────────────────────────────────────────────────────────────────────
   async function load() {
@@ -130,7 +234,7 @@ export default function CheckpointsPage() {
     setCpName(''); setCpId(''); setLabId(''); setPerBatch(false)
     setTriggerMode('TimeBased'); setCpType('Single'); setShiftHrs('')
     setSelectedSlots(['08:00']); setManualSlot(''); setManualSlotError('')
-    setSelectedParams([]); setError('')
+    setSelectedParams([]); setParamLimits({}); setShowParamLimits(null); setError('')
     setEditTarget(null); setShowForm(true)
   }
 
@@ -181,7 +285,16 @@ export default function CheckpointsPage() {
         checkpointType: cpType,
         timeSlots,
         shiftIntervalHrs: shiftHrs ? Number(shiftHrs) : null,
-        parameterIds: selectedParams,
+        parameters: selectedParams.map(id => {
+          const lim = paramLimits[id] ?? {}
+          return {
+            parameterId: id,
+            alertMin:  lim.alertMin  ? parseFloat(lim.alertMin)  : null,
+            alertMax:  lim.alertMax  ? parseFloat(lim.alertMax)  : null,
+            actionMin: lim.actionMin ? parseFloat(lim.actionMin) : null,
+            actionMax: lim.actionMax ? parseFloat(lim.actionMax) : null,
+          }
+        }),
       })
       setShowForm(false)
       toast(`Checkpoint "${cpName}" added successfully`, 'success')
@@ -204,8 +317,14 @@ export default function CheckpointsPage() {
     e.preventDefault(); setSaving(true); setError('')
     if (!showSignRow) return
     try {
-      await api.post(`/checkpoints/${showSignRow.checkpointId}/process-log/${showSignRow.rowId}/sign`, signForm)
+      const readings = signParams
+        .map(p => ({ parameterId: p.parameterId, value: (signReadings[p.parameterId] ?? '').trim() }))
+        .filter(r => r.value !== '')
+      await api.post(`/checkpoints/${showSignRow.checkpointId}/process-log/${showSignRow.rowId}/sign`, {
+        ...signForm, readings,
+      })
       setSignForm({ password: '', meaning: '', reason: '' })
+      setSignReadings({}); setSignParams([])
       setShowSignRow(null)
       toast('Process log row signed and locked ✓', 'success')
       loadProcessLog(showSignRow.checkpointId)
@@ -297,6 +416,12 @@ export default function CheckpointsPage() {
         {
           header: 'Actions', accessor: r => (
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {r.triggerMode === 'TimeBased' && (
+                <button onClick={() => openRecordCheck(r)}
+                  style={{ padding: '3px 9px', background: '#0369a1', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                  📋 Record Check
+                </button>
+              )}
               {(r.triggerMode === 'OperatorScan' || r.triggerMode === 'DispatchEvent') && (
                 <button onClick={() => { triggerCheckpoint(r.checkpointId); toast(`Checkpoint "${r.checkpointCode}" triggered`, 'success') }}
                   style={{ padding: '3px 9px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
@@ -313,6 +438,12 @@ export default function CheckpointsPage() {
                 style={{ padding: '3px 9px', background: '#f1f5f9', color: '#374151', border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
                 📜 History
               </button>
+              {(role === 'Admin' || role === 'QA') && (
+                <button onClick={() => setDeleteTarget(r)}
+                  style={{ padding: '3px 9px', background: '#fff', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                  🗑 Delete
+                </button>
+              )}
             </div>
           )
         },
@@ -470,28 +601,63 @@ export default function CheckpointsPage() {
                       No parameters found. Add test method parameters first.
                     </p>
                   ) : params.map((p, i) => {
-                    const checked = selectedParams.includes(p.parameterId)
+                    const checked   = selectedParams.includes(p.parameterId)
+                    const limitsOpen = showParamLimits === p.parameterId
+                    const lim       = paramLimits[p.parameterId] ?? {}
+                    const hasLim    = checked && (lim.alertMin || lim.alertMax || lim.actionMin || lim.actionMax)
                     return (
-                      <label key={p.parameterId}
-                        style={{
+                      <div key={p.parameterId} style={{ borderBottom: i < params.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                        <div style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                           padding: '10px 14px', cursor: 'pointer',
-                          borderBottom: i < params.length - 1 ? '1px solid #f3f4f6' : 'none',
                           background: checked ? '#f0f9ff' : '#fff',
                           transition: 'background 0.1s'
                         }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <input type="checkbox" checked={checked} onChange={() => toggleParam(p.parameterId)}
-                            style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#1e3a5f' }} />
-                          <span style={{ fontSize: 13, color: '#111827' }}>{p.parameterName}</span>
-                          {p.parameterCode && (
-                            <span style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{p.parameterCode}</span>
-                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} onClick={() => toggleParam(p.parameterId)}>
+                            <input type="checkbox" checked={checked} onChange={() => toggleParam(p.parameterId)}
+                              style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#1e3a5f' }} />
+                            <span style={{ fontSize: 13, color: '#111827' }}>{p.parameterName}</span>
+                            {p.parameterCode && (
+                              <span style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{p.parameterCode}</span>
+                            )}
+                            {hasLim && (
+                              <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 6, background: '#fef3c7', color: '#92400e', fontWeight: 600 }}>limits set</span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {p.uom && (
+                              <span style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>{p.uom}</span>
+                            )}
+                            {checked && (
+                              <button type="button"
+                                onClick={e => { e.stopPropagation(); setShowParamLimits(limitsOpen ? null : p.parameterId) }}
+                                style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, border: '1px solid #d1d5db', background: limitsOpen ? '#1e3a5f' : '#f9fafb', color: limitsOpen ? '#fff' : '#374151', cursor: 'pointer', fontWeight: 600 }}>
+                                {limitsOpen ? '▲ Limits' : '▼ Limits'}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        {p.uom && (
-                          <span style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic', flexShrink: 0 }}>{p.uom}</span>
+                        {checked && limitsOpen && (
+                          <div style={{ padding: '10px 14px 14px', background: '#fffbeb', borderTop: '1px solid #fde68a' }}>
+                            <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: '#92400e' }}>Two-Tier Limits (LabVantage parity)</p>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              {(['alertMin','alertMax','actionMin','actionMax'] as const).map(field => (
+                                <div key={field}>
+                                  <label style={{ display: 'block', fontSize: 11, color: '#6b7280', marginBottom: 3, fontWeight: 600 }}>
+                                    {field === 'alertMin' ? '⚠ Alert Min' : field === 'alertMax' ? '⚠ Alert Max' : field === 'actionMin' ? '🔴 Action Min' : '🔴 Action Max'}
+                                  </label>
+                                  <input
+                                    style={{ ...inp, margin: 0, fontSize: 12, padding: '6px 10px', fontFamily: 'monospace' }}
+                                    type="number" step="any" placeholder="—"
+                                    value={lim[field] ?? ''}
+                                    onChange={e => setParamLimits(prev => ({ ...prev, [p.parameterId]: { ...prev[p.parameterId] ?? {}, [field]: e.target.value } }))}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         )}
-                      </label>
+                      </div>
                     )
                   })}
                 </div>
@@ -524,7 +690,7 @@ export default function CheckpointsPage() {
                 <div>
                   <strong style={{ fontSize: 14 }}>{row.slotLabel}</strong>
                   <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 8 }}>
-                    {new Date(row.slotTime).toLocaleString()}
+                    {fmtDateTime(row.slotTime)}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -532,9 +698,15 @@ export default function CheckpointsPage() {
                     fontSize: 12, padding: '2px 8px', borderRadius: 10,
                     background: row.status === 'Locked' ? '#d1fae5' : '#fef9c3',
                     color: row.status === 'Locked' ? '#065f46' : '#854d0e'
-                  }}>{row.status}</span>
+                  }}>{fmtLabel(row.status)}</span>
                   {row.status === 'Open' && (
-                    <button onClick={() => { setShowSignRow({ checkpointId: showProcessLog, rowId: row.rowId }); setError('') }}
+                    <button onClick={() => {
+                      const cp = data.find(c => c.checkpointId === showProcessLog)
+                      setSignParams(cp?.parameters ?? [])
+                      setSignReadings({})
+                      setShowSignRow({ checkpointId: showProcessLog, rowId: row.rowId })
+                      setError('')
+                    }}
                       style={{ padding: '3px 8px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
                       Sign Row
                     </button>
@@ -548,24 +720,207 @@ export default function CheckpointsPage() {
 
       {/* ── Sign Process Log Row §11.50 ───────────────────────────────────── */}
       {showSignRow && (
-        <Modal title="Sign Process Log Row" onClose={() => { setSignForm({ password: '', meaning: '', reason: '' }); setShowSignRow(null) }}>
-          <form onSubmit={submitSignRow}>
-            <Field label="Password (re-enter)">
-              <input style={inp} type="password" value={signForm.password}
-                onChange={e => setSignForm(f => ({ ...f, password: e.target.value }))} required />
-            </Field>
-            <Field label="Meaning">
-              <input style={inp} value={signForm.meaning}
-                onChange={e => setSignForm(f => ({ ...f, meaning: e.target.value }))} required />
-            </Field>
-            <Field label="Reason">
-              <input style={inp} value={signForm.reason}
-                onChange={e => setSignForm(f => ({ ...f, reason: e.target.value }))} required />
-            </Field>
-            {error && <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p>}
-            <ModalFooter saving={saving} onCancel={() => setShowSignRow(null)} label="Sign & Lock Row" />
+        <ESignatureDrawer
+          title="Sign Process Log Row"
+          subtitle="Immutable audit entry (21 CFR §11.50)"
+          form={signForm} onChange={setSignForm}
+          onSubmit={submitSignRow}
+          onClose={() => { setSignForm({ password: '', meaning: '', reason: '' }); setSignReadings({}); setSignParams([]); setShowSignRow(null); setError('') }}
+          saving={saving} error={error} label="Sign & Lock Row"
+          actionKey="Checkpoint.Acknowledge"
+        >
+          {signParams.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: '#374151' }}>Parameter Readings</p>
+              {signParams.map(p => {
+                const val  = signReadings[p.parameterId] ?? ''
+                const tier = checkLimits(val, p)
+                const ts   = TIER_STYLE[tier]
+                const hasLimits = p.alertMin != null || p.alertMax != null || p.actionMin != null || p.actionMax != null
+                return (
+                  <div key={p.parameterId} style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, border: `1.5px solid ${ts.border}`, background: ts.background, transition: 'border-color 0.15s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+                        {p.parameterName}{p.uom ? ` (${p.uom})` : ''}
+                      </label>
+                      {ts.badge && val !== '' && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 8, background: tier === 'ok' ? '#d1fae5' : tier === 'alert' ? '#fef3c7' : '#fee2e2', color: tier === 'ok' ? '#065f46' : tier === 'alert' ? '#92400e' : '#991b1b' }}>
+                          {ts.badge}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      style={{ ...inp, margin: 0, fontFamily: 'monospace' }}
+                      type="text"
+                      placeholder="Enter measured value…"
+                      value={val}
+                      onChange={e => setSignReadings(prev => ({ ...prev, [p.parameterId]: e.target.value }))}
+                    />
+                    {hasLimits && (
+                      <p style={{ margin: '3px 0 0', fontSize: 10, color: '#9ca3af' }}>
+                        {[
+                          p.actionMin != null ? `Action ≥${p.actionMin}` : null,
+                          p.alertMin  != null ? `Alert ≥${p.alertMin}`  : null,
+                          p.alertMax  != null ? `Alert ≤${p.alertMax}`  : null,
+                          p.actionMax != null ? `Action ≤${p.actionMax}` : null,
+                        ].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </ESignatureDrawer>
+      )}
+
+      {/* ── Record Check — Mode 1 Time-Based ────────────────────────────── */}
+      {showRecordCheck && (
+        <Drawer title={`Record Check — ${showRecordCheck.checkpointCode}`} width={520}
+          onClose={() => setShowRecordCheck(null)}>
+          <form onSubmit={submitRecordCheck}>
+            {/* Slot label */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                Slot Time (HH:MM)
+              </label>
+              <input style={{ ...inp, fontFamily: 'monospace', letterSpacing: '0.06em' }}
+                value={recordSlotLabel} onChange={e => setRecordSlotLabel(e.target.value)}
+                required placeholder="08:00" maxLength={5} />
+            </div>
+
+            {/* Sample link */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                Link to Sample <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>(optional)</span>
+              </label>
+              <select style={inp} value={recordSampleId} onChange={e => setRecordSampleId(e.target.value)}>
+                <option value="">— No sample link —</option>
+                {recordSamples.map(s => (
+                  <option key={s.sampleId} value={s.sampleId}>
+                    {s.sampleNumber} · {s.materialName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Parameter readings with two-tier limit feedback */}
+            {showRecordCheck.parameters.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: '#374151' }}>
+                  Parameter Readings
+                </p>
+                {showRecordCheck.parameters.map(p => {
+                  const val  = recordReadings[p.parameterId] ?? ''
+                  const tier = checkLimits(val, p)
+                  const ts   = TIER_STYLE[tier]
+                  const hasLimits = p.alertMin != null || p.alertMax != null || p.actionMin != null || p.actionMax != null
+                  return (
+                    <div key={p.parameterId} style={{ marginBottom: 12, padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${ts.border}`, background: ts.background, transition: 'border-color 0.15s, background 0.15s' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <label style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+                          {p.parameterName}{p.uom ? <span style={{ fontWeight: 400, color: '#6b7280' }}> ({p.uom})</span> : ''}
+                        </label>
+                        {ts.badge && val !== '' && (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: tier === 'ok' ? '#d1fae5' : tier === 'alert' ? '#fef3c7' : '#fee2e2', color: tier === 'ok' ? '#065f46' : tier === 'alert' ? '#92400e' : '#991b1b' }}>
+                            {ts.badge}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        style={{ ...inp, margin: 0, fontFamily: 'monospace' }}
+                        type="text"
+                        placeholder="Enter measured value…"
+                        value={val}
+                        onChange={e => setRecordReadings(prev => ({ ...prev, [p.parameterId]: e.target.value }))}
+                      />
+                      {hasLimits && (
+                        <p style={{ margin: '4px 0 0', fontSize: 11, color: '#6b7280' }}>
+                          {[
+                            p.actionMin != null ? `Action ≥${p.actionMin}` : null,
+                            p.alertMin  != null ? `Alert ≥${p.alertMin}`  : null,
+                            p.alertMax  != null ? `Alert ≤${p.alertMax}`  : null,
+                            p.actionMax != null ? `Action ≤${p.actionMax}` : null,
+                          ].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* E-signature */}
+            <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 16, marginBottom: 16 }}>
+              <p style={{ margin: '0 0 12px', fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Electronic Signature — 21 CFR §11.300
+              </p>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Password (re-enter)</label>
+                <input style={inp} type="password" required autoComplete="current-password"
+                  value={recordEsig.password}
+                  onChange={e => setRecordEsig(f => ({ ...f, password: e.target.value }))} />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Meaning of Signature</label>
+                <input style={inp} required value={recordEsig.meaning}
+                  onChange={e => setRecordEsig(f => ({ ...f, meaning: e.target.value }))} />
+              </div>
+              <div style={{ marginBottom: 4 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Reason / Observation</label>
+                <textarea style={{ ...inp, height: 72, resize: 'vertical' }} required
+                  placeholder="e.g. Routine time-based check — all readings within spec"
+                  value={recordEsig.reason}
+                  onChange={e => setRecordEsig(f => ({ ...f, reason: e.target.value }))} />
+              </div>
+            </div>
+
+            {recordError && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6, padding: '10px 14px', marginBottom: 12 }}>
+                <p style={{ margin: 0, fontSize: 13, color: '#dc2626' }}>⚠ {recordError}</p>
+              </div>
+            )}
+            <DrawerFooter saving={recordSaving} onCancel={() => setShowRecordCheck(null)} label="✅ Submit & Sign" />
           </form>
-        </Modal>
+        </Drawer>
+      )}
+
+      {/* ── Delete Confirmation Dialog ───────────────────────────────────── */}
+      {deleteTarget && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 12, padding: '28px 32px',
+            maxWidth: 420, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+          }}>
+            <div style={{ fontSize: 32, marginBottom: 12, textAlign: 'center' }}>🗑</div>
+            <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 800, color: '#111827', textAlign: 'center' }}>
+              Delete Checkpoint?
+            </h3>
+            <p style={{ margin: '0 0 6px', fontSize: 14, color: '#374151', textAlign: 'center' }}>
+              <strong style={{ fontFamily: 'monospace' }}>{deleteTarget.checkpointCode}</strong>
+            </p>
+            <p style={{ margin: '0 0 24px', fontSize: 13, color: '#6b7280', textAlign: 'center' }}>
+              This permanently removes the checkpoint and all its trigger history.
+              Blocked if signed audit rows exist.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setDeleteTarget(null)}
+                style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: '1px solid #d1d5db',
+                  background: '#f9fafb', color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button onClick={confirmDelete} disabled={deleting}
+                style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: 'none',
+                  background: deleting ? '#fca5a5' : '#dc2626', color: '#fff',
+                  fontSize: 13, fontWeight: 700, cursor: deleting ? 'not-allowed' : 'pointer' }}>
+                {deleting ? 'Deleting…' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Trigger History Modal ────────────────────────────────────────── */}
@@ -594,7 +949,7 @@ export default function CheckpointsPage() {
                 {historyLogs.map((t, i) => (
                   <tr key={t.triggerId} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
                     <td style={{ padding: '8px 10px', fontFamily: 'monospace', color: '#111827' }}>
-                      {new Date(t.triggeredAt).toLocaleString()}
+                      {fmtDateTime(t.triggeredAt)}
                     </td>
                     <td style={{ padding: '8px 10px', color: '#374151' }}>{t.triggeredBy ?? '—'}</td>
                     <td style={{ padding: '8px 10px' }}>
