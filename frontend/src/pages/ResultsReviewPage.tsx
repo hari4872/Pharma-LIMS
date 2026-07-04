@@ -13,6 +13,7 @@ interface Execution {
   executionId: number; sampleId: number; sampleNumber: string; materialName: string
   lotNumber: string; analystName: string; status: string; startedAt?: string; completedAt?: string
   testLabel: string | null
+  containerId: number | null; containerLabel: string | null; containerType: string | null
 }
 
 interface SampleReviewGroup {
@@ -134,6 +135,33 @@ export default function ResultsReviewPage() {
   const [error, setError]           = useState('')
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
   const [pdfDropdown, setPdfDropdown] = useState<number | null>(null)
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+
+  function toggleExpand(sampleId: number) {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      next.has(sampleId) ? next.delete(sampleId) : next.add(sampleId)
+      return next
+    })
+  }
+
+  function groupByContainer(execs: Execution[]) {
+    const map = new Map<string, { key: string; label: string; type: string | null; execs: Execution[] }>()
+    for (const ex of execs) {
+      const key = ex.containerId != null ? String(ex.containerId) : '__none__'
+      if (!map.has(key)) map.set(key, {
+        key,
+        label: ex.containerLabel ?? 'No Container',
+        type: ex.containerType ?? null,
+        execs: [],
+      })
+      map.get(key)!.execs.push(ex)
+    }
+    // containers first, no-container last
+    return [...map.values()].sort((a, b) =>
+      a.key === '__none__' ? 1 : b.key === '__none__' ? -1 : a.label.localeCompare(b.label)
+    )
+  }
 
   const role = useSelector((s: RootState) => s.auth.role) ?? ''
   const canPeerReview = ['Admin', 'Analyst', 'QCLead', 'QA'].includes(role)
@@ -288,6 +316,7 @@ export default function ResultsReviewPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
           <thead>
             <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
+              <th style={{ width: 32 }} />
               {['SAMPLE NUMBER', 'MATERIAL', 'LOT', 'ANALYST', 'REVIEW STAGE', 'STATUS', 'COMPLETED', 'ACTIONS'].map(h => (
                 <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11,
                   fontWeight: 700, color: '#6b7280', textTransform: 'uppercase',
@@ -308,13 +337,24 @@ export default function ResultsReviewPage() {
               filtered.map((g, i) => {
                 const canPeer = g.pendingPeerIds.length > 0
                 const canQC   = g.pendingQCIds.length > 0
+                const isExpanded = expanded.has(g.sampleId)
+                const containerGroups = groupByContainer(g.executions)
+                const hasContainers = containerGroups.some(c => c.key !== '__none__')
                 return (
+                  <>
                   <tr key={g.sampleId}
-                    style={{ borderBottom: '1px solid #f3f4f6',
+                    style={{ borderBottom: isExpanded ? 'none' : '1px solid #f3f4f6',
                       background: i % 2 === 0 ? '#fff' : '#fafafa', transition: 'background 0.1s' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#eff6ff')}
                     onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? '#fff' : '#fafafa')}
                   >
+                    <td style={{ padding: '0 0 0 12px', width: 32 }}>
+                      <button onClick={() => toggleExpand(g.sampleId)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+                          color: '#9ca3af', fontSize: 10, lineHeight: 1 }}>
+                        {isExpanded ? '▼' : '▶'}
+                      </button>
+                    </td>
                     <td style={{ padding: '10px 16px' }}>
                       <div onClick={() => setDetailSampleId(g.sampleId)}
                         style={{ fontSize: 13, fontWeight: 700, color: '#2563eb',
@@ -323,6 +363,7 @@ export default function ResultsReviewPage() {
                       </div>
                       <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
                         {g.executions.length} test{g.executions.length !== 1 ? 's' : ''}
+                        {hasContainers && <span style={{ marginLeft: 4 }}>· {containerGroups.filter(c => c.key !== '__none__').length} container{containerGroups.filter(c => c.key !== '__none__').length !== 1 ? 's' : ''}</span>}
                       </div>
                     </td>
                     <td style={{ padding: '10px 16px' }}>
@@ -408,6 +449,67 @@ export default function ResultsReviewPage() {
                       </div>
                     </td>
                   </tr>
+                  {/* Container sub-rows */}
+                  {isExpanded && (
+                    <tr key={`${g.sampleId}-expanded`} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      <td />
+                      <td colSpan={8} style={{ padding: '0 16px 12px 16px', background: '#f8fafc' }}>
+                        {containerGroups.map(cg => {
+                          const cgStatuses = cg.execs.map(e => e.status)
+                          const allDone = cgStatuses.every(s => s === 'QCVerified' || s === 'PeerReviewed')
+                          const hasOos  = cgStatuses.some(s => s === 'OOSOpen')
+                          const containerIcon = cg.type === 'Aliquot' ? '🧪' : cg.type === 'RetainSample' ? '📦' : cg.type === 'BulkContainer' ? '🏭' : cg.key === '__none__' ? '📋' : '🔬'
+                          return (
+                            <div key={cg.key} style={{ marginTop: 10, border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+                              {/* Container header */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8,
+                                padding: '6px 12px', background: cg.key === '__none__' ? '#f9fafb' : '#eff6ff',
+                                borderBottom: '1px solid #e5e7eb' }}>
+                                <span style={{ fontSize: 14 }}>{containerIcon}</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'monospace', color: '#1e3a5f' }}>
+                                  {cg.label}
+                                </span>
+                                {cg.type && cg.key !== '__none__' && (
+                                  <span style={{ fontSize: 10, color: '#6b7280', background: '#e0f2fe',
+                                    padding: '1px 6px', borderRadius: 8, fontWeight: 600 }}>
+                                    {cg.type}
+                                  </span>
+                                )}
+                                <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9ca3af' }}>
+                                  {cg.execs.length} test{cg.execs.length !== 1 ? 's' : ''}
+                                </span>
+                                {hasOos && <span style={{ fontSize: 10, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: 8 }}>OOS</span>}
+                                {allDone && !hasOos && <span style={{ fontSize: 10, fontWeight: 700, color: '#166534', background: '#dcfce7', padding: '1px 6px', borderRadius: 8 }}>✓ Done</span>}
+                              </div>
+                              {/* Tests within container */}
+                              {cg.execs.map((ex, idx) => {
+                                const sc = STATUS_CFG[ex.status] ?? STATUS_CFG.default
+                                return (
+                                  <div key={ex.executionId}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 12,
+                                      padding: '7px 12px', borderBottom: idx < cg.execs.length - 1 ? '1px solid #f3f4f6' : 'none',
+                                      background: '#fff', fontSize: 12 }}>
+                                    <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#9ca3af', minWidth: 80 }}>
+                                      EXE-{String(ex.executionId).padStart(5, '0')}
+                                    </span>
+                                    <span style={{ fontWeight: 600, color: '#111827', flex: 1 }}>
+                                      {ex.testLabel ?? ex.materialName ?? `Test ${idx + 1}`}
+                                    </span>
+                                    <span style={{ fontSize: 11, color: '#6b7280' }}>{ex.analystName}</span>
+                                    <span style={{ padding: '1px 8px', borderRadius: 8, fontSize: 10,
+                                      fontWeight: 700, background: sc.bg, color: sc.color, whiteSpace: 'nowrap' }}>
+                                      {sc.label || ex.status}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )
+                        })}
+                      </td>
+                    </tr>
+                  )}
+                  </>
                 )
               })
             )}
