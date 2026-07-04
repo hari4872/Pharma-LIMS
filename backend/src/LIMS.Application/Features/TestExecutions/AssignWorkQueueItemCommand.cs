@@ -78,22 +78,60 @@ public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCom
         }
         else
         {
-            // No spec-engine executions exist — create one (manual assignment path)
-            var newExec = new TestExecution
+            // No spec-engine executions exist. If the sample has a spec template,
+            // create one execution per spec item so test names are populated.
+            var createdFromSpec = false;
+            if (sample.SpecTemplateId.HasValue)
             {
-                SampleId          = cmd.SampleId,
-                InstrumentId      = cmd.InstrumentId ?? null,
-                AnalystId         = cmd.AnalystId,
-                AssignedById      = cmd.AssignedById,
-                FormTemplateId    = sample.FormTemplateId,
-                PriorityScore     = cmd.PriorityScore,
-                SampleContainerId = cmd.ContainerId,
-                Status            = TestExecutionStatus.Assigned,
-                CreatedBy         = analyst.FullName,
-                CreatedAt         = DateTimeOffset.UtcNow
-            };
-            _db.TestExecutions.Add(newExec);
-            executions.Add(newExec);
+                var template = await _db.SpecificationTemplates
+                    .Include(t => t.Items)
+                    .FirstOrDefaultAsync(t => t.SpecTemplateId == sample.SpecTemplateId.Value, ct);
+
+                if (template is not null && template.Items.Count > 0)
+                {
+                    foreach (var item in template.Items.OrderBy(i => i.SortOrder))
+                    {
+                        var exec = new TestExecution
+                        {
+                            SampleId          = cmd.SampleId,
+                            SpecTemplateItemId = item.SpecTemplateItemId,
+                            ParameterId       = item.ParameterId,
+                            InstrumentId      = cmd.InstrumentId,
+                            AnalystId         = cmd.AnalystId,
+                            AssignedById      = cmd.AssignedById,
+                            FormTemplateId    = sample.FormTemplateId,
+                            PriorityScore     = cmd.PriorityScore ?? item.SortOrder,
+                            SampleContainerId = cmd.ContainerId,
+                            Status            = TestExecutionStatus.Assigned,
+                            CreatedBy         = analyst.FullName,
+                            CreatedAt         = DateTimeOffset.UtcNow
+                        };
+                        _db.TestExecutions.Add(exec);
+                        executions.Add(exec);
+                    }
+                    createdFromSpec = true;
+                }
+            }
+
+            if (!createdFromSpec)
+            {
+                // No spec template — create one bare execution (manual/ad-hoc path)
+                var newExec = new TestExecution
+                {
+                    SampleId          = cmd.SampleId,
+                    InstrumentId      = cmd.InstrumentId,
+                    AnalystId         = cmd.AnalystId,
+                    AssignedById      = cmd.AssignedById,
+                    FormTemplateId    = sample.FormTemplateId,
+                    PriorityScore     = cmd.PriorityScore,
+                    SampleContainerId = cmd.ContainerId,
+                    Status            = TestExecutionStatus.Assigned,
+                    CreatedBy         = analyst.FullName,
+                    CreatedAt         = DateTimeOffset.UtcNow
+                };
+                _db.TestExecutions.Add(newExec);
+                executions.Add(newExec);
+            }
         }
 
         // Flip container status → InUse
