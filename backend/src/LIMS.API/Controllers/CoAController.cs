@@ -4,6 +4,7 @@ using LIMS.Application.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
 
@@ -16,8 +17,9 @@ public class CoAController : LimsControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IQAReviewGateService _qaGate;
-    public CoAController(IMediator mediator, IQAReviewGateService qaGate)
-    { _mediator = mediator; _qaGate = qaGate; }
+    private readonly ILimsDbContext _db;
+    public CoAController(IMediator mediator, IQAReviewGateService qaGate, ILimsDbContext db)
+    { _mediator = mediator; _qaGate = qaGate; _db = db; }
 
 
     // GET api/v1/coas?sampleId=&status=
@@ -88,9 +90,19 @@ public class CoAController : LimsControllerBase
         if (coa.Status == "Draft")
             return BadRequest(new { error = "DRAFT_COA", message = "CoA must be approved (Released) before the PDF can be downloaded." });
 
+        // Fetch logo from lab_config (optional — CoA renders without it)
+        string? logoBase64 = null;
+        var labId = await _db.Samples.Where(s => s.SampleId == coa.SampleId)
+            .Select(s => s.LabId).FirstOrDefaultAsync();
+        var logoCfg = await _db.LabConfigs
+            .Where(c => c.LabId == labId && c.ConfigKey == "coa_logo_base64")
+            .OrderByDescending(c => c.UpdatedAt)
+            .FirstOrDefaultAsync();
+        if (logoCfg is not null) logoBase64 = logoCfg.ConfigValue;
+
         // Generate PDF on-the-fly using QuestPDF (Community license)
         QuestPDF.Settings.License = LicenseType.Community;
-        var doc   = new CoAPdfDocument(coa);
+        var doc   = new CoAPdfDocument(coa, logoBase64);
         var bytes = doc.GeneratePdf();
 
         return File(bytes, "application/pdf", $"CoA_{coa.CoaNumber}.pdf");

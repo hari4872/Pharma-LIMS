@@ -41,11 +41,11 @@ public class CoAGenerationService : ICoAGenerationService
         _db.Coas.Add(coa);
         await _db.SaveChangesAsync(ct);  // get CoaId
 
-        // Build CoA lines from digital_logbook_entries (FK join — no copy — Contract 1)
+        // Build CoA lines from ALL signed logbook entries for the sample (all executions)
         var entries = await _db.DigitalLogbookEntries
             .Include(e => e.Parameter)
-            .Where(e => e.ExecutionId == executionId && e.Status == LogbookEntryStatus.Signed)
-            .OrderBy(e => e.ParameterId)
+            .Where(e => e.Execution.SampleId == sampleId && e.Status == LogbookEntryStatus.Signed)
+            .OrderBy(e => e.ParameterId).ThenBy(e => e.EntryId)
             .ToListAsync(ct);
 
         int order = 1;

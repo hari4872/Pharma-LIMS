@@ -34,7 +34,7 @@ interface CoaItem {
 }
 
 interface ChecklistItem { label: string; pass: boolean }
-interface ExecOption { executionId: number; sampleId: number; sampleNumber: string; materialName: string; lotNumber: string }
+interface SampleOption { sampleId: number; executionId: number; sampleNumber: string; materialName: string; lotNumber: string }
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Draft:      { bg: '#fef9c3', color: '#854d0e' },
@@ -70,12 +70,20 @@ export default function CoaReviewPage() {
   // Sample detail sheet
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
 
-  // Generate CoA state
-  const [showGenerate,    setShowGenerate]    = useState(false)
-  const [generateExecs,   setGenerateExecs]   = useState<ExecOption[]>([])
-  const [generateExecId,  setGenerateExecId]  = useState<number | null>(null)
-  const [generateSaving,  setGenerateSaving]  = useState(false)
-  const [generateError,   setGenerateError]   = useState('')
+  // Generate CoA state (sample-level)
+  const [showGenerate,      setShowGenerate]      = useState(false)
+  const [generateSamples,   setGenerateSamples]   = useState<SampleOption[]>([])
+  const [generateSampleId,  setGenerateSampleId]  = useState<number | null>(null)
+  const [generateSaving,    setGenerateSaving]    = useState(false)
+  const [generateError,     setGenerateError]     = useState('')
+
+  // Logo settings state
+  const [showLogoSettings,  setShowLogoSettings]  = useState(false)
+  const [logoPreview,       setLogoPreview]       = useState<string | null>(null)
+  const [logoDragging,      setLogoDragging]      = useState(false)
+  const [logoSaving,        setLogoSaving]        = useState(false)
+  const [logoError,         setLogoError]         = useState('')
+  const [logoFile,          setLogoFile]          = useState<File | null>(null)
 
   // Reissue CoA state
   const [showReissue,    setShowReissue]    = useState(false)
@@ -84,39 +92,77 @@ export default function CoaReviewPage() {
   const [reissueSaving,  setReissueSaving]  = useState(false)
   const [reissueError,   setReissueError]   = useState('')
 
-  // ── Generate CoA ──────────────────────────────────────────────────────────
+  // ── Generate CoA (sample-level) ───────────────────────────────────────────
   async function openGenerate() {
-    setShowGenerate(true); setGenerateExecId(null); setGenerateError('')
+    setShowGenerate(true); setGenerateSampleId(null); setGenerateError('')
     try {
       const r = await api.get('/test-executions?status=QCVerified')
-      const list: ExecOption[] = (Array.isArray(r.data) ? r.data : []).map((e: {
-        executionId: number
-        sampleId?: number; sampleNumber?: string; materialName?: string; lotNumber?: string
-        sample?: { sampleId?: number; sampleNumber?: string; materialName?: string; lotNumber?: string }
-      }) => ({
-        executionId: e.executionId,
-        sampleId:    e.sampleId ?? e.sample?.sampleId ?? 0,
-        sampleNumber: e.sampleNumber ?? e.sample?.sampleNumber ?? '',
-        materialName: e.materialName ?? e.sample?.materialName ?? '',
-        lotNumber:   e.lotNumber    ?? e.sample?.lotNumber    ?? '',
-      }))
-      setGenerateExecs(list)
-      if (list.length > 0) setGenerateExecId(list[0].executionId)
-    } catch { setGenerateExecs([]) }
+      const execs = Array.isArray(r.data) ? r.data : []
+      // Deduplicate by sampleId — keep first execution per sample as the representative
+      const seen = new Set<number>()
+      const samples: SampleOption[] = []
+      for (const e of execs) {
+        const sid = e.sampleId ?? e.sample?.sampleId ?? 0
+        if (!seen.has(sid)) {
+          seen.add(sid)
+          samples.push({
+            sampleId:    sid,
+            executionId: e.executionId,
+            sampleNumber: e.sampleNumber ?? e.sample?.sampleNumber ?? '',
+            materialName: e.materialName ?? e.sample?.materialName ?? '',
+            lotNumber:    e.lotNumber    ?? e.sample?.lotNumber    ?? '',
+          })
+        }
+      }
+      setGenerateSamples(samples)
+      if (samples.length > 0) setGenerateSampleId(samples[0].sampleId)
+    } catch { setGenerateSamples([]) }
   }
 
   async function submitGenerate(ev: React.FormEvent) {
     ev.preventDefault()
-    const exec = generateExecs.find(e => e.executionId === generateExecId)
-    if (!exec) return
+    const sample = generateSamples.find(s => s.sampleId === generateSampleId)
+    if (!sample) return
     setGenerateSaving(true); setGenerateError('')
     try {
-      const r = await api.post('/coas/generate', { sampleId: exec.sampleId, executionId: exec.executionId })
-      toast(`CoA generated successfully — CoA #${r.data?.coaId ?? ''}`, 'success')
+      const r = await api.post('/coas/generate', { sampleId: sample.sampleId, executionId: sample.executionId })
+      toast(`CoA generated — CoA #${r.data?.coaId ?? ''}`, 'success')
       setShowGenerate(false); load()
     } catch (err) {
       setGenerateError(getErrorMessage(err, 'CoA generation failed'))
     } finally { setGenerateSaving(false) }
+  }
+
+  // ── Logo upload ────────────────────────────────────────────────────────────
+  function handleLogoFile(file: File) {
+    if (!file.type.startsWith('image/')) { setLogoError('Only image files (PNG, JPG, SVG) are accepted.'); return }
+    setLogoError('')
+    setLogoFile(file)
+    const reader = new FileReader()
+    reader.onload = e => setLogoPreview(e.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  async function saveLogo() {
+    if (!logoFile) return
+    setLogoSaving(true); setLogoError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', logoFile)
+      await api.post('/lab-config/logo?labId=1', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      toast('Company logo saved — will appear on all future CoA PDFs', 'success')
+      setShowLogoSettings(false)
+    } catch (err) {
+      setLogoError(getErrorMessage(err, 'Logo upload failed'))
+    } finally { setLogoSaving(false) }
+  }
+
+  async function openLogoSettings() {
+    setShowLogoSettings(true); setLogoFile(null); setLogoError('')
+    try {
+      const r = await api.get('/lab-config/logo?labId=1')
+      setLogoPreview(r.data?.logoBase64 ?? null)
+    } catch { setLogoPreview(null) }
   }
 
   // ── Reissue CoA ───────────────────────────────────────────────────────────
@@ -429,6 +475,13 @@ export default function CoaReviewPage() {
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ fontSize: 12, color: '#6b7280' }}>{filtered.length} record{filtered.length !== 1 ? 's' : ''}</span>
+          <button onClick={openLogoSettings} title="CoA Logo Settings" style={{
+            padding: '7px 10px', background: '#f1f5f9', color: '#374151',
+            border: '1px solid #e2e8f0', borderRadius: 7, cursor: 'pointer', fontSize: 13,
+            fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5,
+          }}>
+            🖼 Logo
+          </button>
           <button onClick={openGenerate} style={{
             padding: '7px 16px', background: '#7c3aed', color: '#fff',
             border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13,
@@ -679,24 +732,24 @@ export default function CoaReviewPage() {
         </Drawer>
       )}
 
-      {/* ── Generate CoA Modal ────────────────────────────────────────────── */}
+      {/* ── Generate CoA Modal (sample-level) ────────────────────────────── */}
       {showGenerate && (
-        <Drawer title="Generate Certificate of Analysis" subtitle="Creates a Draft CoA from a completed test execution." onClose={() => setShowGenerate(false)}>
+        <Drawer title="Generate Certificate of Analysis" subtitle="One CoA per sample — all QC-verified test results included." onClose={() => setShowGenerate(false)}>
           <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 14, lineHeight: 1.6 }}>
-            Generates a new CoA in <strong>Draft</strong> status from a completed test execution.
-            Select the execution below — the CoA will pull all test results and can then be reviewed and approved.
+            Generates a <strong>Draft</strong> CoA for the selected sample. All signed test results across
+            every QC-verified execution for that sample will be included automatically.
           </p>
           <form onSubmit={submitGenerate}>
-            <Field label="Select Completed Execution *">
-              {generateExecs.length === 0 ? (
+            <Field label="Select Sample *">
+              {generateSamples.length === 0 ? (
                 <div style={{ padding: '10px 12px', background: '#fef9c3', borderRadius: 6, fontSize: 12, color: '#92400e' }}>
-                  No completed executions found. Complete a test execution first (Work Queue → Start → Submit Results).
+                  No QC-verified samples found. Complete QC Lead verification first (Quality Assurance → QC Verify).
                 </div>
               ) : (
-                <select style={inp} value={generateExecId ?? ''} onChange={e => setGenerateExecId(Number(e.target.value))} required>
-                  {generateExecs.map(ex => (
-                    <option key={ex.executionId} value={ex.executionId}>
-                      #{ex.executionId} — {ex.sampleNumber} · {ex.materialName}{ex.lotNumber ? ` / ${ex.lotNumber}` : ''}
+                <select style={inp} value={generateSampleId ?? ''} onChange={e => setGenerateSampleId(Number(e.target.value))} required>
+                  {generateSamples.map(s => (
+                    <option key={s.sampleId} value={s.sampleId}>
+                      {s.sampleNumber} — {s.materialName} · {s.lotNumber}
                     </option>
                   ))}
                 </select>
@@ -705,6 +758,68 @@ export default function CoaReviewPage() {
             {generateError && <p style={{ color: '#dc2626', fontSize: 13, margin: '6px 0 0' }}>{generateError}</p>}
             <DrawerFooter saving={generateSaving} onCancel={() => setShowGenerate(false)} label="Generate CoA" />
           </form>
+        </Drawer>
+      )}
+
+      {/* ── Logo Settings Drawer ─────────────────────────────────────────── */}
+      {showLogoSettings && (
+        <Drawer title="CoA Logo Settings" subtitle="Logo appears in the top-left of all generated CoA PDFs." onClose={() => setShowLogoSettings(false)}>
+          <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 14, lineHeight: 1.6 }}>
+            Upload your company logo (PNG, JPG or SVG, max 2 MB). It will appear on every CoA PDF next to the document title.
+          </p>
+
+          {/* Current logo preview */}
+          {logoPreview && !logoFile && (
+            <div style={{ marginBottom: 14, padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Current Logo</div>
+              <img src={logoPreview} alt="Current logo" style={{ maxHeight: 60, maxWidth: '100%', objectFit: 'contain' }} />
+            </div>
+          )}
+
+          {/* New logo preview */}
+          {logoFile && logoPreview && (
+            <div style={{ marginBottom: 14, padding: 12, border: '1px solid #86efac', borderRadius: 8, background: '#f0fdf4' }}>
+              <div style={{ fontSize: 11, color: '#16a34a', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>New Logo — Preview</div>
+              <img src={logoPreview} alt="New logo preview" style={{ maxHeight: 60, maxWidth: '100%', objectFit: 'contain' }} />
+              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 6 }}>{logoFile.name} · {(logoFile.size / 1024).toFixed(0)} KB</div>
+            </div>
+          )}
+
+          {/* Drag-and-drop zone */}
+          <div
+            onDragOver={e => { e.preventDefault(); setLogoDragging(true) }}
+            onDragLeave={() => setLogoDragging(false)}
+            onDrop={e => { e.preventDefault(); setLogoDragging(false); const f = e.dataTransfer.files[0]; if (f) handleLogoFile(f) }}
+            onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.onchange = (e: any) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f) }; inp.click() }}
+            style={{
+              border: `2px dashed ${logoDragging ? '#2563eb' : '#d1d5db'}`,
+              borderRadius: 10, padding: '28px 16px', textAlign: 'center', cursor: 'pointer',
+              background: logoDragging ? '#eff6ff' : '#fafafa',
+              transition: 'all 0.15s',
+            }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🖼</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+              {logoDragging ? 'Drop to upload' : 'Drag & drop your logo here'}
+            </div>
+            <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>or click to browse · PNG, JPG, SVG · max 2 MB</div>
+          </div>
+
+          {logoError && (
+            <div style={{ marginTop: 10, padding: '8px 12px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6, fontSize: 13, color: '#dc2626' }}>
+              {logoError}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <button onClick={() => setShowLogoSettings(false)}
+              style={{ flex: 1, padding: '8px 0', border: '1px solid #e5e7eb', borderRadius: 7, background: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: '#374151' }}>
+              Cancel
+            </button>
+            <button onClick={saveLogo} disabled={!logoFile || logoSaving}
+              style={{ flex: 1, padding: '8px 0', border: 'none', borderRadius: 7, background: logoFile ? '#2563eb' : '#e5e7eb', color: logoFile ? '#fff' : '#9ca3af', cursor: logoFile ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 700, fontFamily: 'inherit' }}>
+              {logoSaving ? 'Saving…' : 'Save Logo'}
+            </button>
+          </div>
         </Drawer>
       )}
 
