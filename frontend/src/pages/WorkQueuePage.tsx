@@ -46,8 +46,22 @@ interface SampleGroup {
   anyOverdue: boolean
 }
 
+interface ContainerGroup {
+  containerId: number
+  containerLabel: string
+  containerType: string
+  containerStatus: string
+  executions: WorkItem[]
+  sampleNumbers: string[]
+  overallStatus: string
+  analystName: string
+  totalCount: number
+  completedCount: number
+}
+
 interface Sample { sampleId: number; sampleNumber: string; materialName: string; lotNumber: string; specTemplateId?: number }
 interface Analyst { userId: number; fullName: string }
+interface InstrumentOption { instrumentId: number; instrumentCode: string; instrumentName: string; status: string }
 
 interface AnalystLoad { userId: number; fullName: string; assigned: number; inProgress: number; overdue: number }
 interface PriorityBand { band: string; count: number }
@@ -137,23 +151,65 @@ function groupBySample(items: WorkItem[]): SampleGroup[] {
   })
 }
 
+const CONTAINER_STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
+  Available: { bg: '#d1fae5', color: '#065f46', border: '#6ee7b7' },
+  InUse:     { bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' },
+  Consumed:  { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
+  Destroyed: { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' },
+}
+
+function groupByContainer(items: WorkItem[]): ContainerGroup[] {
+  const linked = items.filter(i => i.containerId !== null)
+  const map = new Map<number, WorkItem[]>()
+  for (const item of linked) {
+    const key = item.containerId!
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(item)
+  }
+  return Array.from(map.values()).map(execs => {
+    const completed  = execs.filter(e => e.status === 'Completed' || e.status === 'QCVerified').length
+    const inProgress = execs.filter(e => e.status === 'InProgress').length
+    const hasOOS     = execs.some(e => e.status === 'OOSOpen')
+    let overallStatus = 'Assigned'
+    if (hasOOS)                         overallStatus = 'OOSOpen'
+    else if (inProgress > 0)            overallStatus = 'InProgress'
+    else if (completed === execs.length) overallStatus = 'Completed'
+    const analysts   = [...new Set(execs.map(e => e.analystName).filter(Boolean))]
+    const analystName = analysts.length === 0 ? '—' : analysts.length === 1 ? analysts[0] : 'Multiple'
+    const sampleNumbers = [...new Set(execs.map(e => e.sampleNumber))]
+    return {
+      containerId:     execs[0].containerId!,
+      containerLabel:  execs[0].containerLabel  ?? `#${execs[0].containerId}`,
+      containerType:   execs[0].containerType   ?? '—',
+      containerStatus: execs[0].containerStatus ?? '—',
+      executions: execs,
+      sampleNumbers,
+      overallStatus,
+      analystName,
+      totalCount: execs.length,
+      completedCount: completed,
+    }
+  })
+}
+
 export default function WorkQueuePage() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState<'queue' | 'batch'>('queue')
+  const [tab, setTab] = useState<'queue' | 'container' | 'batch'>('queue')
   const [data, setData] = useState<WorkItem[]>([])
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState('')
   const [showAssign, setShowAssign] = useState(false)
   const [samples, setSamples] = useState<Sample[]>([])
   const [analysts, setAnalysts] = useState<Analyst[]>([])
-  const [form, setForm] = useState({ sampleId: '', analystId: '', priorityScore: '', containerId: '' })
+  const [form, setForm] = useState({ sampleId: '', analystId: '', instrumentId: '', priorityScore: '', containerId: '' })
   const [containers, setContainers] = useState<SampleContainerOption[]>([])
+  const [instruments, setInstruments] = useState<InstrumentOption[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [sampleSearch, setSampleSearch] = useState('')
   const [sampleDropOpen, setSampleDropOpen] = useState(false)
   const [reassignItem, setReassignItem]   = useState<WorkItem | null>(null)
-  const [reassignForm, setReassignForm]   = useState({ analystId: '', priorityScore: '' })
+  const [reassignForm, setReassignForm]   = useState({ analystId: '', instrumentId: '', priorityScore: '' })
   const [reassignSaving, setReassignSaving] = useState(false)
   const [reassignError, setReassignError]   = useState('')
   const [showAi, setShowAi]           = useState(false)
@@ -170,6 +226,7 @@ export default function WorkQueuePage() {
   const scanLastKey                     = useRef(0)
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
   const [selectedGroup, setSelectedGroup] = useState<SampleGroup | null>(null)
+  const [selectedContainerGroup, setSelectedContainerGroup] = useState<ContainerGroup | null>(null)
   const [fillFormSample, setFillFormSample] = useState<{ sampleId: number; sampleNumber: string } | null>(null)
   const [expandedExecId, setExpandedExecId] = useState<number | null>(null)
   const [execResults, setExecResults] = useState<Record<number, {
@@ -195,6 +252,7 @@ export default function WorkQueuePage() {
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [statusFilter])
 
   const groups = groupBySample(data)
+  const containerGroups = groupByContainer(data)
 
   const displayGroups = scanSampleIds !== null
     ? groups.filter(g => scanSampleIds.has(g.sampleId))
@@ -276,13 +334,15 @@ export default function WorkQueuePage() {
   }
 
   async function openAssign() {
-    const [sr, ur] = await Promise.all([
+    const [sr, ur, ir] = await Promise.all([
       api.get('/samples?status=PendingTesting').catch(() => ({ data: [] })),
       api.get('/users').catch(() => ({ data: [] })),
+      api.get('/instruments').catch(() => ({ data: [] })),
     ])
     setSamples(sr.data); setAnalysts(ur.data)
+    setInstruments((ir.data as InstrumentOption[]).filter(i => i.status !== 'OutOfCalibration' && i.status !== 'Maintenance'))
     setContainers([])
-    setForm({ sampleId: '', analystId: '', priorityScore: '', containerId: '' })
+    setForm({ sampleId: '', analystId: '', instrumentId: '', priorityScore: '', containerId: '' })
     setShowAssign(true)
   }
 
@@ -300,6 +360,7 @@ export default function WorkQueuePage() {
       await api.post('/test-executions', {
         sampleId: Number(form.sampleId),
         analystId: Number(form.analystId),
+        instrumentId: form.instrumentId ? Number(form.instrumentId) : null,
         priorityScore: form.priorityScore ? Number(form.priorityScore) : null,
         containerId: form.containerId ? Number(form.containerId) : null,
       })
@@ -309,12 +370,12 @@ export default function WorkQueuePage() {
   }
 
   async function openReassign(item: WorkItem) {
-    if (analysts.length === 0) {
-      const ur = await api.get('/users').catch(() => ({ data: [] }))
-      setAnalysts(ur.data)
-    }
+    const loads: Promise<any>[] = []
+    if (analysts.length === 0) loads.push(api.get('/users').catch(() => ({ data: [] })).then(r => setAnalysts(r.data)))
+    if (instruments.length === 0) loads.push(api.get('/instruments').catch(() => ({ data: [] })).then(r => setInstruments((r.data as InstrumentOption[]).filter((i: InstrumentOption) => i.status !== 'OutOfCalibration' && i.status !== 'Maintenance'))))
+    await Promise.all(loads)
     setReassignItem(item)
-    setReassignForm({ analystId: '', priorityScore: item.priorityScore != null ? String(item.priorityScore) : '' })
+    setReassignForm({ analystId: '', instrumentId: '', priorityScore: item.priorityScore != null ? String(item.priorityScore) : '' })
     setReassignError('')
   }
 
@@ -322,7 +383,8 @@ export default function WorkQueuePage() {
     e.preventDefault(); setReassignSaving(true); setReassignError('')
     try {
       await api.post(`/test-executions/${reassignItem!.executionId}/assign`, {
-        analystId:    Number(reassignForm.analystId),
+        analystId:     Number(reassignForm.analystId),
+        instrumentId:  reassignForm.instrumentId ? Number(reassignForm.instrumentId) : null,
         priorityScore: reassignForm.priorityScore ? Number(reassignForm.priorityScore) : null,
       })
       toast('Execution re-assigned successfully', 'success')
@@ -365,12 +427,166 @@ export default function WorkQueuePage() {
         <button style={TAB_STYLE(tab === 'queue')} onClick={() => setTab('queue')}>
           <span>📋</span> Queue
         </button>
+        <button style={TAB_STYLE(tab === 'container')} onClick={() => setTab('container')}>
+          <span>🧪</span> By Container
+          {containerGroups.length > 0 && (
+            <span style={{ fontSize: 10, fontWeight: 700, background: '#0d9488', color: '#fff', borderRadius: 10, padding: '1px 6px', marginLeft: 2 }}>
+              {containerGroups.length}
+            </span>
+          )}
+        </button>
         <button style={TAB_STYLE(tab === 'batch')} onClick={() => setTab('batch')}>
           <span>🔬</span> Batch Entry
         </button>
       </div>
 
       {tab === 'batch' && <BatchResultEntryPage />}
+
+      {tab === 'container' && (
+        <MasterDetail
+          onCloseDetail={() => setSelectedContainerGroup(null)}
+          detailTitle="Container Tests"
+          detail={selectedContainerGroup ? (
+            <DetailPane
+              title={selectedContainerGroup.containerLabel}
+              subtitle={`${selectedContainerGroup.containerType} · ${selectedContainerGroup.containerStatus}`}
+              onClose={() => setSelectedContainerGroup(null)}
+            >
+              {/* Container status badge */}
+              <div style={{ marginBottom: 16 }}>
+                {(() => {
+                  const c = CONTAINER_STATUS_COLORS[selectedContainerGroup.containerStatus] ?? { bg: '#f1f5f9', color: '#374151', border: '#e2e8f0' }
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>
+                        🧪 {selectedContainerGroup.containerStatus}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#6b7280' }}>Type: {selectedContainerGroup.containerType}</span>
+                      <span style={{ fontSize: 12, color: '#6b7280' }}>Samples: {selectedContainerGroup.sampleNumbers.join(', ')}</span>
+                    </div>
+                  )
+                })()}
+                {/* Progress bar */}
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
+                    {selectedContainerGroup.completedCount} of {selectedContainerGroup.totalCount} tests complete
+                  </div>
+                  <div style={{ background: '#e5e7eb', borderRadius: 6, height: 8, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: 6, transition: 'width 0.3s',
+                      background: selectedContainerGroup.completedCount === selectedContainerGroup.totalCount ? '#10b981' : '#3b82f6',
+                      width: `${selectedContainerGroup.totalCount > 0 ? (selectedContainerGroup.completedCount / selectedContainerGroup.totalCount) * 100 : 0}%`,
+                    }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Linked executions */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {selectedContainerGroup.executions.map((exec, idx) => {
+                  const sc = STATUS_COLORS[exec.status] ?? { bg: '#f3f4f6', color: '#374151' }
+                  const isDone = exec.status === 'Completed' || exec.status === 'QCVerified'
+                  return (
+                    <div key={exec.executionId} style={{
+                      border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px',
+                      background: isDone ? '#f0fdf4' : '#fafafa',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>
+                          {exec.testLabel ?? exec.materialName ?? `Test ${idx + 1}`}
+                        </span>
+                        <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{exec.status}</span>
+                        <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontSize: 11, color: '#9ca3af' }}>#{exec.executionId}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#1e3a5f' }}>{exec.sampleNumber}</span>
+                        {exec.analystName && <span>👤 {exec.analystName}</span>}
+                        {exec.instrumentCode && <span>🔬 {exec.instrumentCode}</span>}
+                        {exec.dueDate && <span>📅 {fmtDate(exec.dueDate)}</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {exec.status === 'Assigned' && (
+                          <button onClick={() => startTask(exec.executionId)}
+                            style={{ padding: '4px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                            ▶ Start
+                          </button>
+                        )}
+                        {exec.status === 'InProgress' && (
+                          <a href={`/test-execution/${exec.executionId}`}
+                            style={{ padding: '4px 12px', background: '#7c3aed', color: '#fff', borderRadius: 6, fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
+                            ✏ Enter Results
+                          </a>
+                        )}
+                        {isDone && (
+                          <a href={`/test-execution/${exec.executionId}`}
+                            style={{ padding: '4px 12px', background: '#f0fdf4', color: '#065f46', border: '1px solid #86efac', borderRadius: 6, fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
+                            🔍 View Results
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </DetailPane>
+          ) : null}
+        >
+          {containerGroups.length === 0 ? (
+            <div style={{ padding: '40px 0', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>🧪</div>
+              No containers linked to any test execution yet.<br />
+              <span style={{ fontSize: 12 }}>Assign a task with a container to see it here.</span>
+            </div>
+          ) : (
+            <DataTable
+              loading={loading}
+              data={containerGroups}
+              onRowClick={row => setSelectedContainerGroup(row)}
+              selectedRow={selectedContainerGroup ?? undefined}
+              columns={[
+                { header: 'Container', accessor: r => (
+                  <div>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f' }}>{r.containerLabel}</span>
+                    <span style={{ marginLeft: 8, fontSize: 12, color: '#6b7280' }}>{r.containerType}</span>
+                  </div>
+                )},
+                { header: 'Container Status', accessor: r => {
+                  const c = CONTAINER_STATUS_COLORS[r.containerStatus] ?? { bg: '#f1f5f9', color: '#374151', border: '#e2e8f0' }
+                  return <span style={{ padding: '2px 9px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>{r.containerStatus}</span>
+                }},
+                { header: 'Samples', accessor: r => (
+                  <div>
+                    {r.sampleNumbers.slice(0, 2).map(sn => (
+                      <span key={sn} style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 600, color: '#1e3a5f', marginRight: 6 }}>{sn}</span>
+                    ))}
+                    {r.sampleNumbers.length > 2 && <span style={{ fontSize: 11, color: '#9ca3af' }}>+{r.sampleNumbers.length - 2} more</span>}
+                  </div>
+                )},
+                { header: 'Progress', accessor: r => (
+                  <div style={{ minWidth: 100 }}>
+                    <div style={{ fontSize: 12, color: '#374151', marginBottom: 3, fontWeight: 600 }}>
+                      {r.completedCount}/{r.totalCount} tests
+                    </div>
+                    <div style={{ background: '#e5e7eb', borderRadius: 4, height: 5, overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%', borderRadius: 4,
+                        background: r.completedCount === r.totalCount ? '#10b981' : '#3b82f6',
+                        width: `${r.totalCount > 0 ? (r.completedCount / r.totalCount) * 100 : 0}%`,
+                      }} />
+                    </div>
+                  </div>
+                )},
+                { header: 'Analyst', accessor: 'analystName' },
+                { header: 'Status', accessor: r => {
+                  const c = STATUS_COLORS[r.overallStatus] ?? { bg: '#f3f4f6', color: '#374151' }
+                  return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{r.overallStatus}</span>
+                }},
+              ]}
+            />
+          )}
+        </MasterDetail>
+      )}
+
       {tab === 'queue' && <div>
 
       {/* ── Barcode Scan Bar ───────────────────────────────────────────────── */}
@@ -620,7 +836,7 @@ export default function WorkQueuePage() {
                     <div style={{ padding: '10px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                         <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>
-                          {exec.testLabel ?? `Test ${idx + 1}`}
+                          {exec.testLabel ?? exec.materialName ?? `Test ${idx + 1}`}
                         </span>
                         <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{exec.status}</span>
                         {isOverdue && <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b' }}>OVERDUE</span>}
@@ -786,6 +1002,16 @@ export default function WorkQueuePage() {
                 {analysts.map(u => <option key={u.userId} value={u.userId}>{u.fullName}</option>)}
               </select>
             </Field>
+            <Field label="Equipment / Instrument (optional)">
+              <select style={inp} value={reassignForm.instrumentId} onChange={e => setReassignForm(f => ({ ...f, instrumentId: e.target.value }))}>
+                <option value="">Keep current / No instrument</option>
+                {instruments.map(i => (
+                  <option key={i.instrumentId} value={i.instrumentId}>
+                    {i.instrumentCode}{i.instrumentName ? ` — ${i.instrumentName}` : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Priority Score (optional)">
               <input style={inp} type="number" min="1" max="100" value={reassignForm.priorityScore}
                 onChange={e => setReassignForm(f => ({ ...f, priorityScore: e.target.value }))} placeholder="1–100 (lower = higher priority)" />
@@ -902,6 +1128,21 @@ export default function WorkQueuePage() {
                 <option value="">Select analyst…</option>
                 {analysts.map(u => <option key={u.userId} value={u.userId}>{u.fullName}</option>)}
               </select>
+            </Field>
+            <Field label="Equipment / Instrument (optional)">
+              <select style={inp} value={form.instrumentId} onChange={e => setForm(f => ({ ...f, instrumentId: e.target.value }))}>
+                <option value="">No instrument selected</option>
+                {instruments.map(i => (
+                  <option key={i.instrumentId} value={i.instrumentId}>
+                    {i.instrumentCode}{i.instrumentName ? ` — ${i.instrumentName}` : ''}
+                  </option>
+                ))}
+              </select>
+              {instruments.length === 0 && (
+                <p style={{ fontSize: 11, color: '#f59e0b', margin: '4px 0 0' }}>
+                  No calibrated instruments available
+                </p>
+              )}
             </Field>
             <Field label="Priority Score (lower = higher priority)">
               <input style={inp} type="number" min="1" max="100" value={form.priorityScore} onChange={e => setForm(f => ({ ...f, priorityScore: e.target.value }))} placeholder="e.g. 1 (urgent)" />

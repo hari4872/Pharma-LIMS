@@ -369,6 +369,9 @@ export default function TestExecutionPage() {
         <div style={{ display: 'flex', gap: 24, fontSize: 13, opacity: 0.85, flexWrap: 'wrap' }}>
           <span>📦 Lot: <strong>{execution.lotNumber}</strong></span>
           <span>👤 Analyst: <strong>{execution.analystName}</strong></span>
+          {execution.instrumentCode && (
+            <span>🔬 Instrument: <strong>{execution.instrumentCode}</strong></span>
+          )}
           {execution.dueDate && (
             <span style={{ color: isOverdue ? '#fca5a5' : 'inherit' }}>
               📅 Due: <strong>{fmtDate(execution.dueDate)}</strong>

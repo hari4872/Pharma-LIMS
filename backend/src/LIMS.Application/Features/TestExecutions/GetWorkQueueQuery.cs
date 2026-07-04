@@ -61,7 +61,9 @@ public class GetWorkQueueHandler : IRequestHandler<GetWorkQueueQuery, List<WorkQ
                     ? e.SpecTemplateItem.TestMethod.MethodName
                     : e.SpecTemplateItem != null && e.SpecTemplateItem.Parameter != null
                         ? e.SpecTemplateItem.Parameter.ParameterName
-                        : null,
+                        : e.Parameter != null
+                            ? e.Parameter.ParameterName
+                            : null,
                 e.SampleContainerId,
                 e.SampleContainer != null ? e.SampleContainer.ContainerLabel : null,
                 e.SampleContainer != null ? e.SampleContainer.ContainerType.ToString() : null,
