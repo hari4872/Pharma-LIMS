@@ -175,9 +175,9 @@ public class CoAPdfDocument : IDocument
 
                     var specText = (line.SpecMin, line.SpecMax) switch
                     {
-                        (not null, not null) => $"{line.SpecMin} – {line.SpecMax}",
-                        (not null, null)     => $"NLT {line.SpecMin}",
-                        (null, not null)     => $"NMT {line.SpecMax}",
+                        (not null, not null) => $"{line.SpecMin:G6} – {line.SpecMax:G6}",
+                        (not null, null)     => $"NLT {line.SpecMin:G6}",
+                        (null, not null)     => $"NMT {line.SpecMax:G6}",
                         _                   => "—"
                     };
 
