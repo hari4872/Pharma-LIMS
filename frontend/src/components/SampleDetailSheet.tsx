@@ -24,6 +24,12 @@ interface SampleDetail {
   }[]
 }
 
+interface SampleContainerInfo {
+  sampleContainerId: number; containerLabel: string
+  containerType: string; status: string
+  volume: number | null; volumeUom: string | null
+}
+
 interface LinkedCheckpoint {
   checkpointId: number; checkpointCode: string
   triggerMode: string; checkpointType: string
@@ -121,6 +127,10 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
   const [loading,     setLoading]     = useState(true)
   const [error,       setError]       = useState('')
 
+  // containers (all contexts)
+  const [containers,       setContainers]       = useState<SampleContainerInfo[]>([])
+  const [containersLoading, setContainersLoading] = useState(false)
+
   // workqueue context
   const [checkpoints, setCheckpoints] = useState<LinkedCheckpoint[]>([])
   const [cpLoading,   setCpLoading]   = useState(false)
@@ -171,6 +181,13 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
           .catch((err: unknown) => { if (!cancelled) setError(getErrorMessage(err, 'Failed to load sample details.')) })
           .finally(() => { if (!cancelled) setLoading(false) })
       }
+
+      // ── Containers (all contexts) ───────────────────────────────────────
+      setContainersLoading(true)
+      api.get(`/samples/${sampleId}/containers`)
+        .then(r => { if (!cancelled) setContainers(r.data ?? []) })
+        .catch(() => { if (!cancelled) setContainers([]) })
+        .finally(() => { if (!cancelled) setContainersLoading(false) })
 
       // ── Work Queue: checkpoints + today's slots ─────────────────────────
       if (context === 'workqueue') {
@@ -533,6 +550,53 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                       </div>
                     )}
                   </div>
+                  {/* Containers */}
+                  <div style={{ marginTop: 20 }}>
+                    <SectionHead title="Sample Containers" count={containersLoading ? '…' : containers.length} />
+                    {containersLoading && <div style={{ fontSize: 13, color: '#9ca3af' }}>Loading containers…</div>}
+                    {!containersLoading && containers.length === 0 && (
+                      <div style={{ padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, color: '#9ca3af' }}>
+                        No containers registered for this sample.
+                      </div>
+                    )}
+                    {!containersLoading && containers.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        {containers.map(c => {
+                          const statusMap: Record<string, { bg: string; color: string; border: string }> = {
+                            Available: { bg: '#d1fae5', color: '#065f46', border: '#6ee7b7' },
+                            InUse:     { bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' },
+                            Consumed:  { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
+                            Destroyed: { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' },
+                          }
+                          const cs = statusMap[c.status] ?? { bg: '#f1f5f9', color: '#6b7280', border: '#e2e8f0' }
+                          return (
+                            <div key={c.sampleContainerId} style={{
+                              display: 'flex', alignItems: 'center', gap: 12,
+                              border: `1px solid ${cs.border}`, borderRadius: 8,
+                              padding: '9px 14px', background: '#fff',
+                            }}>
+                              <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: '#0f172a', minWidth: 80 }}>
+                                {c.containerLabel}
+                              </span>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>{c.containerType}</div>
+                                {c.volume != null && (
+                                  <div style={{ fontSize: 11, color: '#9ca3af' }}>{c.volume} {c.volumeUom ?? ''}</div>
+                                )}
+                              </div>
+                              <span style={{
+                                padding: '3px 12px', borderRadius: 20,
+                                background: cs.bg, color: cs.color,
+                                fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
+                                border: `1px solid ${cs.border}`,
+                              }}>{c.status}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Step 3: Workflow Progress */}
                   {(wfLoading || wfStatus) && (
                     <div style={{ marginTop: 20 }}>

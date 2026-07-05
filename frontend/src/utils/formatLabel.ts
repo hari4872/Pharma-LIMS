@@ -23,7 +23,12 @@ const LABEL_MAP: Record<string, string> = {
   // Work queue / tasks
   Completed:        'Completed',
   Assigned:         'Assigned',
+  InProgress:       'In Progress',
+  QCVerified:       'QC Verified',
   Overdue:          'Overdue',
+  // OOS phases
+  Phase1:           'Phase 1',
+  Phase2:           'Phase 2',
   // Checkpoint trigger modes
   TimeBased:        'Time-Based',
   OperatorScan:     'Operator Scan',

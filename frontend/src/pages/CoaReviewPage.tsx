@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import api from '@/api/client'
 import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
 import { fmtLabel } from '@/utils/formatLabel'
@@ -51,6 +51,7 @@ const STAGES = [
 ]
 
 export default function CoaReviewPage() {
+  const logoInputRef = useRef<HTMLInputElement>(null)
   const [data, setData] = useState<CoaItem[]>([])
   const [loading, setLoading] = useState(false)
   const [statusFilter, setStatusFilter] = useState('All')
@@ -786,12 +787,22 @@ export default function CoaReviewPage() {
             </div>
           )}
 
+          {/* Hidden static file input — targeted by Playwright tests */}
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept="image/*"
+            data-testid="logo-file-input"
+            style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = '' }}
+          />
+
           {/* Drag-and-drop zone */}
           <div
             onDragOver={e => { e.preventDefault(); setLogoDragging(true) }}
             onDragLeave={() => setLogoDragging(false)}
             onDrop={e => { e.preventDefault(); setLogoDragging(false); const f = e.dataTransfer.files[0]; if (f) handleLogoFile(f) }}
-            onClick={() => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.onchange = (e: any) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f) }; inp.click() }}
+            onClick={() => logoInputRef.current?.click()}
             style={{
               border: `2px dashed ${logoDragging ? '#2563eb' : '#d1d5db'}`,
               borderRadius: 10, padding: '28px 16px', textAlign: 'center', cursor: 'pointer',

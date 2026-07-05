@@ -494,7 +494,7 @@ export default function DashboardPage() {
           <SectionHead title="Turnaround Time" tag={`Last ${tat?.periodDays ?? 30} days`} />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
             <KpiCard label="Avg TAT (hrs)"  value={(tat?.avgTatHours ?? 0).toFixed(1)} accent="teal"  icon="clock" />
-            <KpiCard label="Target (hrs)"   value={(tat?.targetHours ?? 0).toFixed(0)} accent="slate" icon="chart" sub="From lab_config tat_target_hrs" />
+            <KpiCard label="Target (hrs)"   value={(tat?.targetHours ?? 0).toFixed(0)} accent="slate" icon="chart" sub="Configured in lab settings" />
             <KpiCard label="Breach Count"   value={tat?.breachCount ?? 0}              accent="red"   icon="alert" sub="Completed tests over target" badge={tat && tat.breachCount > 0 ? { text: '⚠ Breached', type: 'bad' } : { text: '✓ On Track', type: 'ok' }} />
           </div>
 

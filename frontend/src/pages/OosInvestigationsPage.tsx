@@ -239,7 +239,7 @@ export default function OosInvestigationsPage() {
           const c = FLAG_COLORS[r.flagType] ?? { bg: '#f3f4f6', color: '#374151' }
           return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color }}>{r.flagType}</span>
         }},
-        { header: 'Phase', accessor: r => <span style={{ fontSize: 12, color: '#6b7280' }}>{r.phase}</span> },
+        { header: 'Phase', accessor: r => <span style={{ fontSize: 12, color: '#6b7280' }}>{fmtLabel(r.phase)}</span> },
         { header: 'Status', accessor: r => (
           <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12,
             background: r.status === 'Open' ? '#fee2e2' : '#d1fae5',

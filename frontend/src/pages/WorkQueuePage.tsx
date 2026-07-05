@@ -5,6 +5,7 @@ import { getErrorMessage, asApiError } from '@/utils/errors'
 import { useNavigate } from 'react-router-dom'
 import api from '@/api/client'
 import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
+import { fmtLabel } from '@/utils/formatLabel'
 import DataTable from '@/components/DataTable'
 import { Field, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
@@ -495,7 +496,7 @@ export default function WorkQueuePage() {
                         <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>
                           {exec.testLabel ?? exec.materialName ?? `Test ${idx + 1}`}
                         </span>
-                        <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{exec.status}</span>
+                        <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{fmtLabel(exec.status)}</span>
                         <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontSize: 11, color: '#9ca3af' }}>#{exec.executionId}</span>
                       </div>
                       <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -579,7 +580,7 @@ export default function WorkQueuePage() {
                 { header: 'Analyst', accessor: 'analystName' },
                 { header: 'Status', accessor: r => {
                   const c = STATUS_COLORS[r.overallStatus] ?? { bg: '#f3f4f6', color: '#374151' }
-                  return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{r.overallStatus}</span>
+                  return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{fmtLabel(r.overallStatus)}</span>
                 }},
               ]}
             />
@@ -631,7 +632,7 @@ export default function WorkQueuePage() {
         <div style={{ flex: 1 }} />
         <select style={{ ...inp, width: 180, marginTop: 0 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">All Statuses</option>
-          {['Assigned', 'InProgress', 'Completed', 'OOSOpen'].map(s => <option key={s}>{s}</option>)}
+          {['Assigned', 'InProgress', 'Completed', 'OOSOpen'].map(s => <option key={s} value={s}>{fmtLabel(s)}</option>)}
         </select>
         <button
           onClick={toggleAi}
@@ -799,7 +800,7 @@ export default function WorkQueuePage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                 {(() => {
                   const c = STATUS_COLORS[selectedGroup.overallStatus] ?? { bg: '#f3f4f6', color: '#374151' }
-                  return <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color }}>{selectedGroup.overallStatus}</span>
+                  return <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color }}>{fmtLabel(selectedGroup.overallStatus)}</span>
                 })()}
                 {selectedGroup.anyOverdue && <span style={{ padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b' }}>OVERDUE</span>}
               </div>
@@ -838,7 +839,7 @@ export default function WorkQueuePage() {
                         <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>
                           {exec.testLabel ?? exec.materialName ?? `Test ${idx + 1}`}
                         </span>
-                        <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{exec.status}</span>
+                        <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{fmtLabel(exec.status)}</span>
                         {isOverdue && <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b' }}>OVERDUE</span>}
                         {hasOos && <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626' }}>OOS</span>}
                         <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9ca3af' }}>#{exec.executionId}</span>
@@ -978,7 +979,7 @@ export default function WorkQueuePage() {
             }},
             { header: 'Status', accessor: r => {
               const c = STATUS_COLORS[r.overallStatus] ?? { bg: '#f3f4f6', color: '#374151' }
-              return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{r.overallStatus}</span>
+              return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, background: c.bg, color: c.color }}>{fmtLabel(r.overallStatus)}</span>
             }},
             { header: 'Due', accessor: r => r.earliestDue
               ? <span style={{ color: r.anyOverdue ? '#dc2626' : '#374151' }}>{fmtDate(r.earliestDue)}</span>
