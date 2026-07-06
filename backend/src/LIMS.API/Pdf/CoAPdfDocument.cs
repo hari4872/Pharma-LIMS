@@ -40,7 +40,7 @@ public class CoAPdfDocument : IDocument
         {
             page.Size(PageSizes.A4);
             page.Margin(36);
-            page.DefaultTextStyle(x => x.FontSize(9.5f).FontFamily("Arial"));
+            page.DefaultTextStyle(x => x.FontSize(9.5f));
 
             page.Header().Element(ComposeHeader);
             page.Content().PaddingTop(10).Element(ComposeContent);
