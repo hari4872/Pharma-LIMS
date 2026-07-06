@@ -538,12 +538,12 @@ export default function ResultsReviewPage() {
           </p>
           <form onSubmit={submitReview}>
             <Field label={showReview.type === 'peer' ? 'Reviewer Username (if different from you)' : 'QC Lead Username (if different from you)'}>
-              <input style={inp} value={reviewForm.reviewerUsername}
+              <input style={inp} value={reviewForm.reviewerUsername} autoComplete="off"
                 onChange={e => setReviewForm(f => ({ ...f, reviewerUsername: e.target.value }))}
                 placeholder="e.g. srikanth — leave blank to use your own account" />
             </Field>
             <Field label="Password (re-enter to confirm identity)">
-              <input style={inp} type="password" autoFocus value={reviewForm.password}
+              <input style={inp} type="password" autoFocus autoComplete="current-password" value={reviewForm.password}
                 onChange={e => setReviewForm(f => ({ ...f, password: e.target.value }))} required />
             </Field>
             <Field label="Meaning">

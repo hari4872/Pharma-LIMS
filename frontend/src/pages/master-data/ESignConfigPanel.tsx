@@ -31,7 +31,7 @@ const DEFAULTS: Record<string, ESignMethod> = {
   'CoA.Release':               'PasswordAndSignature',
   'OosInvestigation.Close':    'PasswordAndSignature',
   'QualityEvent.ApproveCapa':  'PasswordOnly',
-  'TestResult.MarkComplete':   'None',
+  'TestResult.MarkComplete':   'PasswordOnly',
   'Checkpoint.Acknowledge':    'None',
   'DigitalLogbook.SignEntry':  'SignatureOnly',
   'SampleRegistration.Submit': 'PasswordOnly',

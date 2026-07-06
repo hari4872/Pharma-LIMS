@@ -137,9 +137,12 @@ api.interceptors.response.use(
       return Promise.reject(new Error('You are offline and no cached data is available for this request.'))
     }
 
-    // 401 → redirect to login
+    // 401 → redirect to login, UNLESS it is an e-signature password failure.
+    // ESIGN_AUTH_FAILED means "wrong password on re-authentication" — the user's
+    // session is still valid; the form should show an inline error, not log them out.
     if (err.response?.status === 401) {
-      if (!_redirectingToLogin) {
+      const isEsigFailure = err.response?.data?.error === 'ESIGN_AUTH_FAILED'
+      if (!isEsigFailure && !_redirectingToLogin) {
         _redirectingToLogin = true
         localStorage.removeItem('lims_token')
         window.location.href = '/login'
