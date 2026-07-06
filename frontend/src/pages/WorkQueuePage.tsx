@@ -269,17 +269,21 @@ export default function WorkQueuePage() {
     if (!q) { setScanSampleIds(null); setScanContainerIds(null); return }
 
     if (tab === 'container') {
-      // Container tab: scan directly against container labels
+      // Container tab: accumulate — each scan adds to the selection
       const matched = data.filter(w => w.containerLabel?.toUpperCase().includes(q))
       if (matched.length > 0) {
         setScanSampleIds(null)
-        const cids = new Set(matched.map(w => w.containerId).filter((id): id is number => id !== null))
-        setScanContainerIds(cids)
-        const cGroups = groupByContainer(matched)
-        if (cGroups.length === 1) setSelectedContainerGroup(cGroups[0])
+        const newCids = matched.map(w => w.containerId).filter((id): id is number => id !== null)
+        setScanContainerIds(prev => {
+          const merged = new Set(prev ?? [])
+          for (const id of newCids) merged.add(id)
+          return merged
+        })
+        // Clear the input so the user can immediately scan the next barcode
+        setScanQuery('')
+        if (scanInputRef.current) scanInputRef.current.value = ''
       } else {
-        toast(`No containers found for "${value.trim()}"`, 'error')
-        setScanContainerIds(new Set())
+        toast(`Container "${value.trim()}" not found`, 'error')
       }
       return
     }
@@ -507,7 +511,16 @@ export default function WorkQueuePage() {
             style={{ padding: '7px 16px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
             Search
           </button>
-          {(scanSampleIds !== null || scanContainerIds !== null) && (
+          {scanContainerIds !== null && scanContainerIds.size > 0 && (
+            <span style={{
+              padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+              background: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a',
+              whiteSpace: 'nowrap',
+            }}>
+              🧪 {scanContainerIds.size} container{scanContainerIds.size > 1 ? 's' : ''} scanned
+            </span>
+          )}
+          {(scanSampleIds !== null || (scanContainerIds !== null && scanContainerIds.size > 0)) && (
             <button
               onClick={() => { setScanSampleIds(null); setScanContainerIds(null); setScanQuery(''); if (scanInputRef.current) scanInputRef.current.value = '' }}
               style={{ padding: '7px 12px', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
