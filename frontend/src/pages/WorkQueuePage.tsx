@@ -268,16 +268,30 @@ export default function WorkQueuePage() {
     const q = value.trim().toUpperCase()
     if (!q) { setScanSampleIds(null); setScanContainerIds(null); return }
 
-    // Try sample number match first
+    if (tab === 'container') {
+      // Container tab: scan directly against container labels
+      const matched = data.filter(w => w.containerLabel?.toUpperCase().includes(q))
+      if (matched.length > 0) {
+        setScanSampleIds(null)
+        const cids = new Set(matched.map(w => w.containerId).filter((id): id is number => id !== null))
+        setScanContainerIds(cids)
+        const cGroups = groupByContainer(matched)
+        if (cGroups.length === 1) setSelectedContainerGroup(cGroups[0])
+      } else {
+        toast(`No containers found for "${value.trim()}"`, 'error')
+        setScanContainerIds(new Set())
+      }
+      return
+    }
+
+    // Queue tab: match by sample number, fall back to container label (auto-switch tab)
     const matchedBySample = data.filter(w => w.sampleNumber.toUpperCase().includes(q))
     if (matchedBySample.length > 0) {
       setScanContainerIds(null)
       setScanSampleIds(new Set(matchedBySample.map(w => w.sampleId)))
-      setTab('queue')
       return
     }
 
-    // Fall back to container label match
     const matchedByContainer = data.filter(w => w.containerLabel?.toUpperCase().includes(q))
     if (matchedByContainer.length > 0) {
       setScanSampleIds(null)
@@ -292,7 +306,7 @@ export default function WorkQueuePage() {
     toast(`No work items found for "${value.trim()}"`, 'error')
     setScanSampleIds(new Set())
     setScanContainerIds(null)
-  }, [data])
+  }, [data, tab])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -475,7 +489,9 @@ export default function WorkQueuePage() {
             id="wq-scan-input"
             ref={scanInputRef}
             type="text"
-            placeholder="Scan barcode — sample number (LAB-ST-…) or container label (ALQ-…)"
+            placeholder={tab === 'container'
+            ? 'Scan container barcode (ALQ-…) — filters this tab directly'
+            : 'Scan sample barcode (LAB-ST-…) — or scan container label to switch tab'}
             value={scanQuery}
             onChange={e => setScanQuery(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { runScan(scanQuery); e.preventDefault() } }}
