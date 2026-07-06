@@ -222,6 +222,7 @@ export default function WorkQueuePage() {
   const [handoverLoading, setHandoverLoading] = useState(false)
   const [scanQuery, setScanQuery]       = useState('')
   const [scanSampleIds, setScanSampleIds] = useState<Set<number> | null>(null)
+  const [scanContainerIds, setScanContainerIds] = useState<Set<number> | null>(null)
   const scanInputRef                    = useRef<HTMLInputElement>(null)
   const scanBuffer                      = useRef('')
   const scanLastKey                     = useRef(0)
@@ -259,16 +260,38 @@ export default function WorkQueuePage() {
     ? groups.filter(g => scanSampleIds.has(g.sampleId))
     : groups
 
+  const displayContainerGroups = scanContainerIds !== null
+    ? containerGroups.filter(g => scanContainerIds.has(g.containerId))
+    : containerGroups
+
   const runScan = useCallback((value: string) => {
     const q = value.trim().toUpperCase()
-    if (!q) { setScanSampleIds(null); return }
-    const matched = data.filter(w => w.sampleNumber.toUpperCase().includes(q))
-    if (matched.length === 0) {
-      toast(`No work items found for "${value.trim()}"`, 'error')
-      setScanSampleIds(new Set())
-    } else {
-      setScanSampleIds(new Set(matched.map(w => w.sampleId)))
+    if (!q) { setScanSampleIds(null); setScanContainerIds(null); return }
+
+    // Try sample number match first
+    const matchedBySample = data.filter(w => w.sampleNumber.toUpperCase().includes(q))
+    if (matchedBySample.length > 0) {
+      setScanContainerIds(null)
+      setScanSampleIds(new Set(matchedBySample.map(w => w.sampleId)))
+      setTab('queue')
+      return
     }
+
+    // Fall back to container label match
+    const matchedByContainer = data.filter(w => w.containerLabel?.toUpperCase().includes(q))
+    if (matchedByContainer.length > 0) {
+      setScanSampleIds(null)
+      const cids = new Set(matchedByContainer.map(w => w.containerId).filter((id): id is number => id !== null))
+      setScanContainerIds(cids)
+      setTab('container')
+      const cGroups = groupByContainer(matchedByContainer)
+      if (cGroups.length === 1) setSelectedContainerGroup(cGroups[0])
+      return
+    }
+
+    toast(`No work items found for "${value.trim()}"`, 'error')
+    setScanSampleIds(new Set())
+    setScanContainerIds(null)
   }, [data])
 
   useEffect(() => {
@@ -441,6 +464,46 @@ export default function WorkQueuePage() {
         </button>
       </div>
 
+      {/* ── Barcode Scan Bar (visible on Queue and Container tabs) ───────── */}
+      {tab !== 'batch' && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+          background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 10, padding: '10px 14px',
+        }}>
+          <span style={{ fontSize: 18 }}>📷</span>
+          <input
+            id="wq-scan-input"
+            ref={scanInputRef}
+            type="text"
+            placeholder="Scan barcode — sample number (LAB-ST-…) or container label (ALQ-…)"
+            value={scanQuery}
+            onChange={e => setScanQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { runScan(scanQuery); e.preventDefault() } }}
+            style={{
+              flex: 1, border: '1px solid #cbd5e1', borderRadius: 7, padding: '7px 12px',
+              fontSize: 13, fontFamily: 'monospace', outline: 'none', background: '#fff',
+            }}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            onClick={() => runScan(scanQuery)}
+            style={{ padding: '7px 16px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            Search
+          </button>
+          {(scanSampleIds !== null || scanContainerIds !== null) && (
+            <button
+              onClick={() => { setScanSampleIds(null); setScanContainerIds(null); setScanQuery(''); if (scanInputRef.current) scanInputRef.current.value = '' }}
+              style={{ padding: '7px 12px', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
+              ✕ Clear
+            </button>
+          )}
+          <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+            Click field · scan label · Enter
+          </span>
+        </div>
+      )}
+
       {tab === 'batch' && <BatchResultEntryPage />}
 
       {tab === 'container' && (
@@ -532,7 +595,7 @@ export default function WorkQueuePage() {
             </DetailPane>
           ) : null}
         >
-          {containerGroups.length === 0 ? (
+          {displayContainerGroups.length === 0 ? (
             <div style={{ padding: '40px 0', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>🧪</div>
               No containers linked to any test execution yet.<br />
@@ -541,14 +604,19 @@ export default function WorkQueuePage() {
           ) : (
             <DataTable
               loading={loading}
-              data={containerGroups}
+              data={displayContainerGroups}
               onRowClick={row => setSelectedContainerGroup(row)}
               selectedRow={selectedContainerGroup ?? undefined}
+              rowStyle={row => scanContainerIds !== null && scanContainerIds.has(row.containerId)
+                ? { background: '#fffbeb', outline: '2px solid #fcd34d', outlineOffset: '-2px' }
+                : {}
+              }
               columns={[
                 { header: 'Container', accessor: r => (
                   <div>
                     <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f' }}>{r.containerLabel}</span>
                     <span style={{ marginLeft: 8, fontSize: 12, color: '#6b7280' }}>{r.containerType}</span>
+                    {scanContainerIds?.has(r.containerId) && <span style={{ marginLeft: 6, fontSize: 11, background: '#fef9c3', color: '#854d0e', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>● MATCHED</span>}
                   </div>
                 )},
                 { header: 'Container Status', accessor: r => {
@@ -589,44 +657,6 @@ export default function WorkQueuePage() {
       )}
 
       {tab === 'queue' && <div>
-
-      {/* ── Barcode Scan Bar ───────────────────────────────────────────────── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
-        background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 10, padding: '10px 14px',
-      }}>
-        <span style={{ fontSize: 18 }}>📷</span>
-        <input
-          id="wq-scan-input"
-          ref={scanInputRef}
-          type="text"
-          placeholder="Scan barcode or type sample number and press Enter…"
-          value={scanQuery}
-          onChange={e => setScanQuery(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { runScan(scanQuery); e.preventDefault() } }}
-          style={{
-            flex: 1, border: '1px solid #cbd5e1', borderRadius: 7, padding: '7px 12px',
-            fontSize: 13, fontFamily: 'monospace', outline: 'none', background: '#fff',
-          }}
-          autoComplete="off"
-          spellCheck={false}
-        />
-        <button
-          onClick={() => runScan(scanQuery)}
-          style={{ padding: '7px 16px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-          Search
-        </button>
-        {scanSampleIds !== null && (
-          <button
-            onClick={() => { setScanSampleIds(null); setScanQuery(''); if (scanInputRef.current) scanInputRef.current.value = '' }}
-            style={{ padding: '7px 12px', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>
-            ✕ Clear
-          </button>
-        )}
-        <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>
-          Click field · scan label · Enter
-        </span>
-      </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <div style={{ flex: 1 }} />
