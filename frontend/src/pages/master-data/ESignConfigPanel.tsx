@@ -87,9 +87,9 @@ export default function ESignConfigPanel() {
       }))
       await api.put('/admin/esign-config', rows)
       invalidateESignCache()
-      toast.success('E-signature configuration saved')
+      toast('E-signature configuration saved', 'success')
     } catch {
-      toast.error('Failed to save — try again')
+      toast('Failed to save — try again', 'error')
     } finally {
       setSaving(false)
     }

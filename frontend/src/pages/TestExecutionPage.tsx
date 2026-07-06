@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
+import { fmtLabel } from '@/utils/formatLabel'
 import { inp } from './master-data/LaboratoriesPage'
 import ESignatureDrawer from '@/components/ESignatureDrawer'
 import { getErrorMessage } from '@/utils/errors'
@@ -347,7 +348,7 @@ export default function TestExecutionPage() {
               </span>
               {execution.status && (
                 <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20, background: 'rgba(255,255,255,0.2)' }}>
-                  {execution.status}
+                  {fmtLabel(execution.status)}
                 </span>
               )}
               {isOverdue && (

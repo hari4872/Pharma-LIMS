@@ -450,7 +450,7 @@ export default function WorkQueuePage() {
           detail={selectedContainerGroup ? (
             <DetailPane
               title={selectedContainerGroup.containerLabel}
-              subtitle={`${selectedContainerGroup.containerType} · ${selectedContainerGroup.containerStatus}`}
+              subtitle={`${selectedContainerGroup.containerType} · ${fmtLabel(selectedContainerGroup.containerStatus)}`}
               onClose={() => setSelectedContainerGroup(null)}
             >
               {/* Container status badge */}
@@ -460,7 +460,7 @@ export default function WorkQueuePage() {
                   return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                       <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>
-                        🧪 {selectedContainerGroup.containerStatus}
+                        🧪 {fmtLabel(selectedContainerGroup.containerStatus)}
                       </span>
                       <span style={{ fontSize: 12, color: '#6b7280' }}>Type: {selectedContainerGroup.containerType}</span>
                       <span style={{ fontSize: 12, color: '#6b7280' }}>Samples: {selectedContainerGroup.sampleNumbers.join(', ')}</span>
@@ -553,7 +553,7 @@ export default function WorkQueuePage() {
                 )},
                 { header: 'Container Status', accessor: r => {
                   const c = CONTAINER_STATUS_COLORS[r.containerStatus] ?? { bg: '#f1f5f9', color: '#374151', border: '#e2e8f0' }
-                  return <span style={{ padding: '2px 9px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>{r.containerStatus}</span>
+                  return <span style={{ padding: '2px 9px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: c.bg, color: c.color, border: `1px solid ${c.border}` }}>{fmtLabel(r.containerStatus)}</span>
                 }},
                 { header: 'Samples', accessor: r => (
                   <div>
