@@ -254,6 +254,8 @@ public class BatchAnalysisPdfDocument : IDocument
                                 inner.Item().PaddingTop(4).Text(rv.ReviewerName).FontSize(9).Bold();
                                 inner.Item().Text(rv.ReviewType == "PeerReview" ? "Peer Reviewer" : "QC Lead")
                                     .FontSize(8).FontColor("#6b7280");
+                                inner.Item().Text(rv.ReviewedAt.ToString("yyyy-MM-dd HH:mm") + " UTC")
+                                    .FontSize(8).FontColor("#6b7280");
                             });
                             row.ConstantItem(24);
                         }

@@ -212,6 +212,7 @@ export function buildFriendlyMessage(err: unknown): string {
 
     if (serverMsg && !serverMsg.toLowerCase().includes('at system.') &&
         serverMsg.length < 500) {
+      if (serverMsg === 'ESIGN_AUTH_FAILED') return 'Password incorrect. Please try again.'
       return serverMsg
     }
 

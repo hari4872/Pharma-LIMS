@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
+import { useESignConfig } from '@/hooks/useESignConfig'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import Barcode from 'react-barcode'
 import { useSelector } from 'react-redux'
@@ -46,6 +47,21 @@ interface SpecPreview {
   candidates: SpecCandidate[]
   message:    string
 }
+
+// Post-registration wizard
+interface WizardSample {
+  sampleId: number; sampleNumber: string; materialName: string
+  lotNumber: string; sampleTypeName: string; registeredAt: string; testsCreated: number
+}
+interface WizardSpecTest {
+  id: string; name: string; code: string; turnaroundHours: number; isMandatory: boolean
+}
+interface WizardAssignment {
+  containerId: number | null; containerLabel: string; analystId: string; instrumentId: string
+  tests: WizardSpecTest[]
+}
+interface AnalystOption  { userId: number; fullName: string }
+interface InstrumentOption { instrumentId: number; instrumentCode: string; instrumentType: string; status: string }
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Registered:      { bg: '#dbeafe', color: '#1e40af' },
@@ -153,6 +169,32 @@ export default function SampleRegistrationPage() {
   const [overrideSpecId, setOverrideSpecId] = useState<number | null>(null)
   const [, setLastSpecResult] = useState<{ outcome: string; message: string; testsCreated: number } | null>(null)
 
+  // E-sign config for SRF step
+  const { method: srfMethod } = useESignConfig('SampleRegistration.Submit')
+
+  // Post-registration wizard state
+  const [wizard, setWizard]               = useState<WizardSample | null>(null)
+  const [wizardStep, setWizardStep]       = useState<1|2|3|4>(1)
+  const [wizardSplitDone, setWizardSplitDone]   = useState(false)
+  const [wizardContainers, setWizardContainers] = useState<SampleContainer[]>([])
+  const [wizardSplitting, setWizardSplitting]   = useState(false)
+  // Drag-and-drop spec test grouping
+  const [wizardSpecTests, setWizardSpecTests]     = useState<WizardSpecTest[]>([])
+  const [wizardSpecLoading, setWizardSpecLoading] = useState(false)
+  const [wizardTestGroups, setWizardTestGroups]   = useState<string[][]>([[], []])
+  const [wizardDragItem, setWizardDragItem]       = useState<string | null>(null)
+  const [wizardDragOverGroup, setWizardDragOverGroup] = useState<number | null>(null)
+  const [wizardAssignments, setWizardAssignments] = useState<WizardAssignment[]>([])
+  const [wizardAnalysts, setWizardAnalysts]       = useState<AnalystOption[]>([])
+  const [wizardInstruments, setWizardInstruments] = useState<InstrumentOption[]>([])
+  const [wizardAssigning, setWizardAssigning]     = useState(false)
+  const [wizardAssignError, setWizardAssignError] = useState('')
+  const [wizardActiveTab, setWizardActiveTab]     = useState(0)
+  const [wizardSrfToggle, setWizardSrfToggle]     = useState(false)
+  const [wizardESign, setWizardESign]             = useState({ password: '', meaning: '', reason: '' })
+  const [wizardSigning, setWizardSigning]         = useState(false)
+  const [wizardSignError, setWizardSignError]     = useState('')
+
   // Container management state
   const [containerSample, setContainerSample] = useState<Sample | null>(null)
   const [containers, setContainers]           = useState<SampleContainer[]>([])
@@ -163,6 +205,8 @@ export default function SampleRegistrationPage() {
   const [destroyForm, setDestroyForm]         = useState({ password: '', reason: '' })
   const [destroyError, setDestroyError]       = useState('')
   const [printSample, setPrintSample]         = useState<PrintSample | null>(null)
+  const [printContainer, setPrintContainer]   = useState<SampleContainer | null>(null)
+  const containerLabelRef = useRef<HTMLDivElement>(null)
   const labelRef = useRef<HTMLDivElement>(null)
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
   const [detailExtraInfo, setDetailExtraInfo] = useState<SampleDetailExtraInfo | undefined>(undefined)
@@ -207,6 +251,159 @@ export default function SampleRegistrationPage() {
       if (e.response?.data?.error === 'ESIGN_AUTH_FAILED') setDestroyError('Password incorrect (21 CFR Part 11)')
       else setDestroyError(msg)
     }
+  }
+
+  // ── Wizard functions ──────────────────────────────────────────────────────────
+  function openWizard(result: { sampleId: number; sampleNumber: string; testsAutoCreated: number }, mat: Material | undefined, st: SampleType | undefined, lot: string) {
+    setWizard({ sampleId: result.sampleId, sampleNumber: result.sampleNumber, materialName: mat?.materialName ?? '', lotNumber: lot, sampleTypeName: st?.typeName ?? '', registeredAt: new Date().toISOString().slice(0, 10), testsCreated: result.testsAutoCreated })
+    setWizardStep(1); setWizardSplitDone(false); setWizardContainers([])
+    setWizardSpecTests([]); setWizardTestGroups([[], []]); setWizardSpecLoading(true)
+    setWizardAssignments([]); setWizardActiveTab(0); setWizardSrfToggle(srfMethod !== 'None')
+    setWizardESign({ password: '', meaning: '', reason: '' })
+    setWizardSignError(''); setWizardAssignError('')
+    if (wizardAnalysts.length === 0) api.get('/users').then(r => setWizardAnalysts(r.data)).catch(() => {})
+    if (wizardInstruments.length === 0) api.get('/instruments').then(r => setWizardInstruments((r.data as InstrumentOption[]).filter(i => i.status !== 'OutOfCalibration' && i.status !== 'Maintenance'))).catch(() => {})
+    // Fetch spec template tests for the drag-and-drop pool
+    // Note: /specification-templates/{id} can 500 on prod — use list endpoint and filter instead
+    api.get(`/samples/${result.sampleId}/spec-assignment`)
+      .then(r => r.data.specTemplateId
+        ? api.get('/specification-templates').then(listResp => {
+            const match = (listResp.data as Array<{ specTemplateId: number; items?: unknown[] }>)
+              .find(t => t.specTemplateId === r.data.specTemplateId)
+            return { data: match ?? { items: [] } }
+          })
+        : Promise.resolve({ data: { items: [] } }))
+      .then(r => {
+        const items = (r.data.items ?? []) as Array<{ specTemplateItemId: number; parameterName: string; parameterCode: string; turnaroundHours: number; isMandatory: boolean }>
+        setWizardSpecTests(items.map(it => ({ id: String(it.specTemplateItemId), name: it.parameterName, code: it.parameterCode ?? '', turnaroundHours: it.turnaroundHours ?? 24, isMandatory: it.isMandatory ?? false })))
+      })
+      .catch(err => toast(getErrorMessage(err, 'Could not load spec template tests'), 'error'))
+      .finally(() => setWizardSpecLoading(false))
+  }
+
+  // Called when analyst confirms the test grouping and clicks "Next — Assign Analysts"
+  async function wizardConfirmGroups() {
+    setWizardSplitting(true)
+    try {
+      const nonEmpty = wizardTestGroups.filter(g => g.length > 0)
+      // When no spec tests, create all defined groups (even empty); otherwise only non-empty groups
+      const count = wizardSpecTests.length === 0 ? wizardTestGroups.length : nonEmpty.length
+      const r = await api.post(`/samples/${wizard!.sampleId}/containers`, { count, containerType: 'QC' })
+      toast(`${r.data.count} QC containers created`, 'success')
+      const cr = await api.get(`/samples/${wizard!.sampleId}/containers`)
+      const created: SampleContainer[] = cr.data
+      setWizardContainers(created); setWizardSplitDone(true)
+      wizardGoToAssign(created, nonEmpty)
+    } catch (err) { toast(getErrorMessage(err, 'Split failed'), 'error') }
+    finally { setWizardSplitting(false) }
+  }
+
+  function wizardGoToAssign(containers: SampleContainer[], groups?: string[][]) {
+    const rows: WizardAssignment[] = containers.length > 0
+      ? containers.map((c, i) => ({
+          containerId: c.sampleContainerId,
+          containerLabel: c.containerLabel,
+          analystId: '',
+          instrumentId: '',
+          tests: (groups?.[i] ?? []).map(tid => wizardSpecTests.find(t => t.id === tid)).filter(Boolean) as WizardSpecTest[],
+        }))
+      : [{ containerId: null, containerLabel: wizard!.sampleNumber, analystId: '', instrumentId: '', tests: wizardSpecTests }]
+    setWizardAssignments(rows); setWizardAssignError(''); setWizardStep(srfMethod !== 'None' ? 2 : 3)
+  }
+
+  // Drag-and-drop helpers
+  function wizardDropTest(groupIndex: number) {
+    if (!wizardDragItem) return
+    const tid = wizardDragItem
+    setWizardTestGroups(prev => {
+      const next = prev.map(g => g.filter(t => t !== tid))
+      next[groupIndex] = [...next[groupIndex], tid]
+      return next
+    })
+    setWizardDragItem(null); setWizardDragOverGroup(null)
+  }
+
+  function wizardRemoveTestFromGroup(groupIndex: number, tid: string) {
+    setWizardTestGroups(prev => prev.map((g, i) => i === groupIndex ? g.filter(t => t !== tid) : g))
+  }
+
+  function wizardAddGroup() {
+    if (wizardTestGroups.length >= 6) return
+    setWizardTestGroups(prev => [...prev, []])
+  }
+
+  function wizardRemoveGroup(groupIndex: number) {
+    if (wizardTestGroups.length <= 1) return
+    setWizardTestGroups(prev => prev.filter((_, i) => i !== groupIndex))
+  }
+
+  async function wizardConfirmAssignments() {
+    if (wizardAssignments.some(a => !a.analystId)) { setWizardAssignError('Select an analyst for every row.'); return }
+    setWizardAssigning(true); setWizardAssignError('')
+    try {
+      for (const a of wizardAssignments) {
+        // Send the spec template item IDs for this container so the backend only updates
+        // the targeted executions — each container gets its own analyst row in the work queue.
+        const specTemplateItemIds = a.tests.length > 0
+          ? a.tests.map(t => parseInt(t.id))
+          : null
+        try {
+          await api.post('/test-executions', {
+            sampleId: wizard!.sampleId,
+            analystId: Number(a.analystId),
+            instrumentId: a.instrumentId ? Number(a.instrumentId) : null,
+            containerId: a.containerId,
+            specTemplateItemIds,
+          })
+        } catch (innerErr) {
+          // Graceful fallback for undeployed production backend: if the backend does not yet
+          // support SpecTemplateItemIds and returns INVALID_STATE (InTesting) on the second
+          // call, skip remaining rows — the first call already covered all executions.
+          const d = (innerErr as any)?.response?.data
+          if (d?.error === 'INVALID_STATE' && typeof d?.message === 'string' && d.message.includes('InTesting')) break
+          throw innerErr
+        }
+      }
+      setWizardStep(4)
+    } catch (err) { setWizardAssignError(getErrorMessage(err, 'Assignment failed')) }
+    finally { setWizardAssigning(false) }
+  }
+
+  async function wizardFinish() {
+    if (wizardSrfToggle) {
+      if (srfMethod !== 'SignatureOnly' && !wizardESign.password) { setWizardSignError('Password is required.'); return }
+      setWizardSigning(true); setWizardSignError('')
+      try {
+        await api.post(`/samples/${wizard!.sampleId}/sign-srf`, { password: wizardESign.password, meaning: wizardESign.meaning, reason: wizardESign.reason })
+        toast('SRF signed', 'success')
+      } catch (err) {
+        const e = asApiError(err)
+        setWizardSignError(e.response?.data?.error === 'ESIGN_AUTH_FAILED' ? 'Password incorrect (21 CFR Part 11)' : getErrorMessage(err, 'SRF sign failed'))
+        setWizardSigning(false); return
+      } finally { setWizardSigning(false) }
+    }
+    setWizardStep(3)
+  }
+
+  function wizardClose() {
+    const sn = wizard?.sampleNumber
+    setWizard(null)
+    toast(`${sn} setup complete — added to Work Queue`, 'success')
+    load()
+  }
+
+  function wizardDismiss() {
+    setWizard(null)
+    load()
+  }
+
+  function wizardPrintAll(sampleNumber: string, containers: SampleContainer[]) {
+    const style = document.createElement('style')
+    style.id = 'lims-wizard-print'
+    style.textContent = `@media print { body > * { visibility: hidden !important; } #lims-wizard-barcodes, #lims-wizard-barcodes * { visibility: visible !important; } #lims-wizard-barcodes { position: fixed !important; top: 0; left: 0; width: 100%; background: white; } }`
+    document.head.appendChild(style)
+    window.print()
+    document.head.removeChild(style)
   }
 
 
@@ -388,16 +585,8 @@ export default function SampleRegistrationPage() {
       setShowForm(false)
       resetForm()
       setStatusFilter('Registered')   // switch filter so new sample is immediately visible
-      // Show barcode label modal
-      setPrintSample({
-        sampleNumber:  result.sampleNumber,
-        materialName:  mat?.materialName ?? '',
-        lotNumber:     lot,
-        sampleTypeName: st?.typeName ?? '',
-        registeredAt:  new Date().toISOString().slice(0, 10),
-        testsCreated:  result.testsAutoCreated,
-      })
       toast(`✓ ${result.sampleNumber} registered`, 'success')
+      openWizard(result, mat, st, lot)
       load()
     } catch (err) {
       setError(getErrorMessage(err, 'Registration failed'))
@@ -489,6 +678,26 @@ export default function SampleRegistrationPage() {
         body > * { visibility: hidden !important; }
         #lims-barcode-label, #lims-barcode-label * { visibility: visible !important; }
         #lims-barcode-label {
+          position: fixed !important; top: 10mm; left: 10mm;
+          width: 80mm; background: white;
+        }
+      }
+    `
+    document.head.appendChild(style)
+    window.print()
+    document.head.removeChild(style)
+  }
+
+  function doContainerPrint() {
+    const el = containerLabelRef.current
+    if (!el) return
+    const style = document.createElement('style')
+    style.id = 'lims-print-only'
+    style.textContent = `
+      @media print {
+        body > * { visibility: hidden !important; }
+        #lims-container-barcode-label, #lims-container-barcode-label * { visibility: visible !important; }
+        #lims-container-barcode-label {
           position: fixed !important; top: 10mm; left: 10mm;
           width: 80mm; background: white;
         }
@@ -969,7 +1178,7 @@ export default function SampleRegistrationPage() {
               </button>
               <button form="sample-reg-form" type="submit" disabled={saving}
                 style={{ padding: '9px 22px', background: saving ? '#9ca3af' : '#1e3a5f', color: '#fff', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-                {saving ? 'Registering…' : 'Register + Print Barcode'}
+                {saving ? 'Registering…' : 'Register'}
               </button>
             </div>
 
@@ -1178,6 +1387,441 @@ export default function SampleRegistrationPage() {
         </div>
       )}
 
+      {/* ── Post-Registration Wizard ─────────────────────────────────────── */}
+      {wizard && (() => {
+        const srfEnabled = srfMethod !== 'None'
+        const stepLabels = srfEnabled
+          ? ['Container Split', 'SRF E-Sign', 'Assign Tests', 'Print Barcodes']
+          : ['Container Split', 'Assign Tests', 'Print Barcodes']
+        const totalSteps = stepLabels.length
+        // Map actual step (1/2/3/4) to display index (0-based), accounting for SRF skip
+        const displayIdx = srfEnabled ? wizardStep - 1 : (wizardStep === 1 ? 0 : wizardStep === 3 ? 1 : 2)
+        const btnBase: React.CSSProperties = { padding: '8px 20px', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }
+        return (
+          <Drawer
+            title={`Setup — ${wizard.sampleNumber}`}
+            subtitle={`Step ${displayIdx + 1} of ${totalSteps} · ${stepLabels[displayIdx]}`}
+            width={720}
+            onClose={wizardDismiss}
+            blocking={wizardStep === 2 && srfEnabled}
+          >
+            {/* ── Step progress bar ── */}
+            <div style={{ display: 'flex', gap: 0, marginBottom: 24, paddingBottom: 20, borderBottom: '1px solid #e5e7eb' }}>
+              {stepLabels.map((s, i) => (
+                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, background: displayIdx > i ? '#10b981' : displayIdx === i ? '#0369a1' : '#e5e7eb', color: displayIdx >= i ? '#fff' : '#9ca3af', transition: 'all 0.2s' }}>
+                    {displayIdx > i ? '✓' : i + 1}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: displayIdx === i ? 700 : 400, color: displayIdx === i ? '#0369a1' : '#9ca3af', textAlign: 'center' }}>{s}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Step 1: Group Tests into Containers ── */}
+            {wizardStep === 1 && (() => {
+              const assignedIds = new Set(wizardTestGroups.flat())
+              const unassigned = wizardSpecTests.filter(t => !assignedIds.has(t.id))
+              const allAssigned = wizardSpecTests.length > 0 && unassigned.length === 0
+              const GROUP_COLORS = ['#0369a1','#7c3aed','#b45309','#15803d','#be123c','#0e7490']
+              const GROUP_BG    = ['#eff6ff','#faf5ff','#fffbeb','#f0fdf4','#fff1f2','#ecfeff']
+              return (
+                <div>
+                  <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+                    Drag each test into a container group. Each group becomes one physical QC container in the work queue.
+                  </p>
+
+                  {wizardSpecLoading && (
+                    <div style={{ textAlign: 'center', padding: '28px 0', color: '#9ca3af', fontSize: 13 }}>Loading spec tests…</div>
+                  )}
+
+                  {!wizardSpecLoading && wizardSpecTests.length === 0 && (
+                    <div style={{ background: '#fef9c3', border: '1px solid #fde68a', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: 12, color: '#92400e' }}>
+                      No spec template found for this sample. Proceed as single sample or split below.
+                    </div>
+                  )}
+
+                  {!wizardSpecLoading && (
+                    <div style={{ display: 'grid', gridTemplateColumns: wizardSpecTests.length > 0 ? '220px 1fr' : '1fr', gap: 0, border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}>
+                      {/* Left: test pool — only when spec tests exist */}
+                      {wizardSpecTests.length > 0 && <div style={{ borderRight: '1px solid #e5e7eb', padding: 12, background: '#f9fafb' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: '#6b7280', marginBottom: 10 }}>
+                          Spec Tests
+                          {unassigned.length > 0 && <span style={{ marginLeft: 6, background: '#fbbf24', color: '#78350f', borderRadius: 10, padding: '1px 6px', fontSize: 9 }}>{unassigned.length} left</span>}
+                          {allAssigned && <span style={{ marginLeft: 6, background: '#d1fae5', color: '#065f46', borderRadius: 10, padding: '1px 6px', fontSize: 9 }}>✓ all placed</span>}
+                        </div>
+                        {wizardSpecTests.map(test => {
+                          const isAssigned = assignedIds.has(test.id)
+                          const groupIdx = wizardTestGroups.findIndex(g => g.includes(test.id))
+                          return (
+                            <div key={test.id}
+                              draggable={!isAssigned}
+                              onDragStart={() => setWizardDragItem(test.id)}
+                              onDragEnd={() => { setWizardDragItem(null); setWizardDragOverGroup(null) }}
+                              style={{
+                                background: isAssigned ? '#f3f4f6' : '#fff',
+                                border: `1.5px solid ${isAssigned ? '#e5e7eb' : '#d1d5db'}`,
+                                borderRadius: 6, padding: '8px 10px', marginBottom: 6,
+                                cursor: isAssigned ? 'default' : 'grab', opacity: isAssigned ? .45 : 1,
+                                transition: 'opacity .15s',
+                              }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: isAssigned ? '#9ca3af' : '#111827' }}>
+                                {test.name}
+                                {test.isMandatory && <span style={{ marginLeft: 5, fontSize: 9, background: '#fee2e2', color: '#991b1b', borderRadius: 3, padding: '1px 5px' }}>Mandatory</span>}
+                              </div>
+                              <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2, fontFamily: 'monospace' }}>{test.code}</div>
+                              <div style={{ fontSize: 10, color: '#6b7280', marginTop: 3 }}>
+                                {test.turnaroundHours}h TAT
+                                {isAssigned && groupIdx >= 0 && <span style={{ marginLeft: 6, color: GROUP_COLORS[groupIdx % GROUP_COLORS.length], fontWeight: 700 }}>→ Q{String(groupIdx + 1).padStart(3, '0')}</span>}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>}
+
+                      {/* Right: container buckets — always shown */}
+                      <div style={{ padding: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: '#6b7280' }}>
+                            Container Groups · {wizardTestGroups.filter(g => g.length > 0).length || wizardTestGroups.length} containers
+                          </div>
+                          {wizardTestGroups.length < 6 && (
+                            <button type="button" onClick={wizardAddGroup}
+                              style={{ fontSize: 11, padding: '3px 10px', background: '#eff6ff', color: '#0369a1', border: '1px solid #bfdbfe', borderRadius: 5, cursor: 'pointer' }}>
+                              + Add Container
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                          {wizardTestGroups.map((group, gi) => {
+                            const color = GROUP_COLORS[gi % GROUP_COLORS.length]
+                            const bg    = GROUP_BG[gi % GROUP_BG.length]
+                            const isDragOver = wizardDragOverGroup === gi
+                            return (
+                              <div key={gi}
+                                onDragOver={e => { e.preventDefault(); setWizardDragOverGroup(gi) }}
+                                onDragLeave={() => setWizardDragOverGroup(null)}
+                                onDrop={() => wizardDropTest(gi)}
+                                style={{
+                                  width: 160, minHeight: 130, borderRadius: 8, padding: 10,
+                                  border: `2px ${group.length > 0 ? 'solid' : 'dashed'} ${isDragOver ? color : group.length > 0 ? color : '#d1d5db'}`,
+                                  background: isDragOver ? bg : group.length > 0 ? bg : 'transparent',
+                                  transition: 'border-color .15s, background .15s',
+                                }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                  <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700, background: color, color: '#fff', borderRadius: 3, padding: '1px 7px' }}>
+                                    Q{String(gi + 1).padStart(3, '0')}
+                                  </span>
+                                  {wizardTestGroups.length > 1 && (
+                                    <button type="button" onClick={() => wizardRemoveGroup(gi)}
+                                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 14, lineHeight: 1, padding: '0 2px' }}>×</button>
+                                  )}
+                                </div>
+                                {group.map(tid => {
+                                  const t = wizardSpecTests.find(x => x.id === tid)
+                                  if (!t) return null
+                                  return (
+                                    <div key={tid} style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 5, padding: '5px 7px', marginBottom: 4 }}>
+                                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                                      <div style={{ fontSize: 11, fontWeight: 600, flex: 1, lineHeight: 1.3 }}>{t.name}</div>
+                                      <button type="button" onClick={() => wizardRemoveTestFromGroup(gi, tid)}
+                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 12, padding: 0, lineHeight: 1 }}>×</button>
+                                    </div>
+                                  )
+                                })}
+                                {group.length === 0 && (
+                                  <div style={{ border: '1px dashed #d1d5db', borderRadius: 5, padding: '12px 8px', textAlign: 'center', fontSize: 10, color: '#9ca3af' }}>
+                                    {wizardSpecTests.length > 0 ? 'Drop tests here' : 'Empty container'}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {!allAssigned && wizardSpecTests.length > 0 && (
+                          <div style={{ marginTop: 10, fontSize: 11, color: '#92400e', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '6px 10px' }}>
+                            ⚠ {unassigned.length} test{unassigned.length > 1 ? 's' : ''} not placed — assign all tests before continuing.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
+                    <button type="button" onClick={() => { setWizardSplitDone(true); wizardGoToAssign([]) }}
+                      style={{ ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>
+                      No Split — Single Sample
+                    </button>
+                    <button type="button"
+                      disabled={wizardSplitting || (!allAssigned && wizardSpecTests.length > 0)}
+                      onClick={wizardConfirmGroups}
+                      style={{ ...btnBase, background: (wizardSplitting || (!allAssigned && wizardSpecTests.length > 0)) ? '#9ca3af' : '#15803d', color: '#fff' }}>
+                      {wizardSplitting ? 'Creating containers…' : 'Create Containers →'}
+                    </button>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* ── Step 2: SRF E-Sign ── */}
+            {wizardStep === 2 && srfEnabled && (
+              <div>
+                <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '16px 20px', marginBottom: 20 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0369a1', marginBottom: 4 }}>Sign Sample Receipt Form (SRF)?</div>
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>21 CFR Part 11 — e-signature is audit-logged and immutable.</div>
+                </div>
+                {/* Toggle */}
+                <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+                  {[false, true].map(v => (
+                    <button key={String(v)} type="button" onClick={() => { setWizardSrfToggle(v); setWizardSignError('') }}
+                      style={{ ...btnBase, flex: 1, border: `2px solid ${wizardSrfToggle === v ? (v ? '#0369a1' : '#9ca3af') : '#e5e7eb'}`, background: wizardSrfToggle === v ? (v ? '#eff6ff' : '#f9fafb') : '#fff', color: wizardSrfToggle === v ? (v ? '#0369a1' : '#374151') : '#9ca3af' }}>
+                      {v ? '✓ Yes — Sign Now' : '✕ No — Sign Later'}
+                    </button>
+                  ))}
+                </div>
+                {/* E-sign fields — shown only when toggle = Yes */}
+                {wizardSrfToggle && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+                    {srfMethod !== 'SignatureOnly' && (
+                      <Field label="Password (21 CFR §11.300)">
+                        <input type="password" style={inp} value={wizardESign.password} autoComplete="current-password"
+                          onChange={e => setWizardESign(f => ({ ...f, password: e.target.value }))} placeholder="Enter your password" />
+                      </Field>
+                    )}
+                    {srfMethod !== 'PasswordOnly' && (
+                      <>
+                        <Field label="Meaning of Signature">
+                          <input style={inp} value={wizardESign.meaning}
+                            onChange={e => setWizardESign(f => ({ ...f, meaning: e.target.value }))} placeholder='e.g. "I certify this sample was received in acceptable condition"' />
+                        </Field>
+                        <Field label="Reason">
+                          <input style={inp} value={wizardESign.reason}
+                            onChange={e => setWizardESign(f => ({ ...f, reason: e.target.value }))} placeholder="e.g. Sample registration complete" />
+                        </Field>
+                      </>
+                    )}
+                    {wizardSignError && <p style={{ color: '#dc2626', fontSize: 12, margin: 0 }}>{wizardSignError}</p>}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
+                  <button onClick={() => setWizardStep(1)} style={{ ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>← Back</button>
+                  <button onClick={wizardFinish} disabled={wizardSigning}
+                    style={{ ...btnBase, background: wizardSigning ? '#9ca3af' : '#15803d', color: '#fff' }}>
+                    {wizardSigning ? 'Signing…' : (wizardSrfToggle ? 'Sign & Continue →' : 'Skip — Continue →')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Step 3: Assign Tests ── */}
+            {wizardStep === 3 && (
+              <div>
+                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+                  Assign an analyst and instrument for each {wizardAssignments.length > 1 ? 'container' : 'sample'}.
+                </p>
+
+                {/* Tabs — Container tabs for split flow, single Sample tab for no-split */}
+                <div style={{ display: 'flex', borderBottom: '2px solid #e2e8f0', marginBottom: 20, overflowX: 'auto', gap: 0 }}>
+                  {wizardAssignments.map((a, i) => {
+                    const isContainer = a.containerId !== null
+                    const accentColor = isContainer ? '#0369a1' : '#7c3aed'
+                    const isActive = wizardActiveTab === i
+                    return (
+                      <button key={i} type="button" onClick={() => setWizardActiveTab(i)}
+                        style={{
+                          padding: '8px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit',
+                          borderBottom: isActive ? `2px solid ${accentColor}` : '2px solid transparent',
+                          marginBottom: -2, whiteSpace: 'nowrap',
+                          color: isActive ? accentColor : '#6b7280',
+                          fontWeight: isActive ? 700 : 400, fontSize: 12,
+                          display: 'flex', alignItems: 'center', gap: 6,
+                        }}>
+                        <span style={{ fontSize: 10, background: isActive ? accentColor : '#e5e7eb', color: isActive ? '#fff' : '#6b7280', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>
+                          {isContainer ? 'Container' : 'Sample'}
+                        </span>
+                        <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{a.containerLabel}</span>
+                        {a.analystId && <span style={{ color: '#10b981', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Analyst + Instrument */}
+                {(() => {
+                  const idx = wizardActiveTab < wizardAssignments.length ? wizardActiveTab : 0
+                  const a = wizardAssignments[idx]
+                  if (!a) return null
+                  return (
+                    <div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                        <Field label="Analyst *">
+                          <select style={{ ...inp, margin: 0 }} value={a.analystId}
+                            onChange={e => setWizardAssignments(prev => prev.map((r, j) => j === idx ? { ...r, analystId: e.target.value } : r))}>
+                            <option value="">— Select Analyst —</option>
+                            {wizardAnalysts.map(u => <option key={u.userId} value={u.userId}>{u.fullName}</option>)}
+                          </select>
+                        </Field>
+                        <Field label="Instrument (optional)">
+                          <select style={{ ...inp, margin: 0 }} value={a.instrumentId}
+                            onChange={e => setWizardAssignments(prev => prev.map((r, j) => j === idx ? { ...r, instrumentId: e.target.value } : r))}>
+                            <option value="">— None —</option>
+                            {wizardInstruments.map(inst => <option key={inst.instrumentId} value={inst.instrumentId}>{inst.instrumentCode} ({inst.instrumentType})</option>)}
+                          </select>
+                        </Field>
+                      </div>
+                      {/* Tests in this container */}
+                      {a.tests.length > 0 && (
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>
+                            Tests in this container ({a.tests.length})
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {a.tests.map(t => (
+                              <span key={t.id} style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', borderRadius: 5, padding: '3px 8px', fontSize: 11, fontWeight: 500 }}>
+                                {t.name}
+                                {t.isMandatory && <span style={{ marginLeft: 4, fontSize: 9, background: '#fee2e2', color: '#991b1b', borderRadius: 3, padding: '1px 4px' }}>M</span>}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* Progress indicator for multi-container */}
+                      {wizardAssignments.length > 1 && (
+                        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
+                          <span style={{ color: wizardAssignments.every(a => a.analystId) ? '#10b981' : '#d97706', fontWeight: 600 }}>
+                            {wizardAssignments.filter(a => a.analystId).length} of {wizardAssignments.length}
+                          </span>
+                          {' '}containers assigned
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {wizardAssignError && <p style={{ color: '#dc2626', fontSize: 12, marginBottom: 12 }}>{wizardAssignError}</p>}
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 8 }}>
+                  <button onClick={() => setWizardStep(srfEnabled ? 2 : 1)} style={{ ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>← Back</button>
+                  <button onClick={wizardConfirmAssignments} disabled={wizardAssigning}
+                    style={{ ...btnBase, background: wizardAssigning ? '#9ca3af' : '#0369a1', color: '#fff' }}>
+                    {wizardAssigning ? 'Assigning…' : 'Next — Print Barcodes →'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Step 4: Print Barcodes ── */}
+            {wizardStep === 4 && (
+              <div>
+                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+                  Print labels for the sample{wizardContainers.length > 0 ? ' and each QC container' : ''}.
+                  You can also reprint later from the sample list.
+                </p>
+                <div id="lims-wizard-barcodes" style={{ display: 'grid', gridTemplateColumns: wizardContainers.length > 0 ? 'repeat(auto-fill, minmax(200px, 1fr))' : '200px', gap: 16, marginBottom: 20 }}>
+                  {/* Sample barcode */}
+                  <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, background: '#fff', textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase' }}>Sample</div>
+                    <Barcode value={wizard.sampleNumber} format="CODE128" width={1.4} height={48} fontSize={10} margin={0} />
+                    <div style={{ fontSize: 10, color: '#374151', marginTop: 4 }}>{wizard.materialName}</div>
+                    <div style={{ fontSize: 9, color: '#9ca3af' }}>Lot: {wizard.lotNumber}</div>
+                    <button onClick={() => { setPrintSample({ sampleNumber: wizard.sampleNumber, materialName: wizard.materialName, lotNumber: wizard.lotNumber, sampleTypeName: wizard.sampleTypeName, registeredAt: wizard.registeredAt, testsCreated: wizard.testsCreated }) }}
+                      style={{ marginTop: 8, padding: '3px 10px', background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                      🖨 Print
+                    </button>
+                  </div>
+                  {/* Container barcodes */}
+                  {wizardContainers.map(c => (
+                    <div key={c.sampleContainerId} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, background: '#fff', textAlign: 'center' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#166534', marginBottom: 6, textTransform: 'uppercase' }}>QC Container</div>
+                      <Barcode value={c.containerLabel} format="CODE128" width={1.4} height={48} fontSize={10} margin={0} />
+                      <div style={{ fontSize: 10, color: '#374151', marginTop: 4, fontFamily: 'monospace', fontWeight: 600 }}>{c.containerLabel}</div>
+                      <div style={{ fontSize: 9, color: '#9ca3af' }}>{c.containerType} · {c.status}</div>
+                      <button onClick={() => setPrintContainer(c)}
+                        style={{ marginTop: 8, padding: '3px 10px', background: '#f0fdf4', color: '#166534', border: '1px solid #86efac', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                        🖨 Print
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {wizardContainers.length > 0 && (
+                  <button onClick={() => wizardPrintAll(wizard.sampleNumber, wizardContainers)}
+                    style={{ ...btnBase, background: '#374151', color: '#fff', marginBottom: 16 }}>
+                    🖨 Print All Labels
+                  </button>
+                )}
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
+                  <button onClick={() => setWizardStep(3)} style={{ ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>← Back</button>
+                  <button onClick={wizardClose} style={{ ...btnBase, background: '#0369a1', color: '#fff' }}>
+                    Finish ✓
+                  </button>
+                </div>
+              </div>
+            )}
+          </Drawer>
+        )
+      })()}
+
+      {/* ── Container Barcode Modal ─────────────────────────────────────── */}
+      {printContainer && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 12, width: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#111827' }}>🖨 Container Barcode Label</h3>
+              <button onClick={() => setPrintContainer(null)} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#9ca3af' }}>×</button>
+            </div>
+            <div style={{ padding: '20px 24px' }}>
+              <div id="lims-container-barcode-label" ref={containerLabelRef} style={{
+                border: '1.5px solid #d1d5db', borderRadius: 8, padding: '16px 20px',
+                background: '#fff', textAlign: 'center', fontFamily: 'monospace'
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: '#6b7280', marginBottom: 10, textTransform: 'uppercase' }}>
+                  Pharma LIMS · Container Label
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                  <Barcode
+                    value={printContainer.containerLabel}
+                    format="CODE128"
+                    width={1.6}
+                    height={56}
+                    fontSize={11}
+                    margin={0}
+                    background="#ffffff"
+                    lineColor="#111827"
+                  />
+                </div>
+                <div style={{ borderTop: '1px dashed #d1d5db', margin: '10px 0' }} />
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 11 }}>
+                  <tbody>
+                    {[
+                      ['Container', printContainer.containerLabel],
+                      ['Type',      printContainer.containerType],
+                      ['Status',    printContainer.status],
+                      ...(printContainer.volume != null ? [['Volume', `${printContainer.volume} ${printContainer.volumeUom ?? ''}`]] : []),
+                    ].map(([k, v]) => (
+                      <tr key={k}>
+                        <td style={{ color: '#6b7280', paddingRight: 8, paddingBottom: 3, whiteSpace: 'nowrap', width: '38%' }}>{k}</td>
+                        <td style={{ color: '#111827', fontWeight: 600, paddingBottom: 3 }}>{v}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ marginTop: 10, fontSize: 9, color: '#9ca3af', borderTop: '1px solid #f3f4f6', paddingTop: 6 }}>
+                  Printed by system · ALCOA+ compliant · Do not alter label
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: '12px 24px 20px', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setPrintContainer(null)}
+                style={{ padding: '8px 18px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, color: '#374151', cursor: 'pointer' }}>
+                Close
+              </button>
+              <button onClick={doContainerPrint}
+                style={{ padding: '8px 22px', background: '#1e3a5f', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                🖨 Print Label
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Container Management Drawer ─────────────────────────────────── */}
       {containerSample && (
         <Drawer title={`Containers — ${containerSample.sampleNumber}`} subtitle="Split into aliquots or manage existing sub-containers." width={680} onClose={() => setContainerSample(null)}>
@@ -1248,7 +1892,11 @@ export default function SampleRegistrationPage() {
                           <span style={{ padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: sc.bg, color: sc.color }}>{fmtLabel(c.status)}</span>
                         </td>
                         <td style={{ padding: '7px 10px', color: '#6b7280' }}>{c.createdBy}</td>
-                        <td style={{ padding: '7px 10px' }}>
+                        <td style={{ padding: '7px 10px', display: 'flex', gap: 6 }}>
+                          <button onClick={() => setPrintContainer(c)}
+                            style={{ padding: '2px 8px', background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                            🖨 Barcode
+                          </button>
                           {c.status !== 'Destroyed' && (
                             <button onClick={() => { setDestroyingId(c.sampleContainerId); setDestroyForm({ password: '', reason: '' }); setDestroyError('') }}
                               style={{ padding: '2px 8px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>

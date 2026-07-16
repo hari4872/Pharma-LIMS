@@ -190,7 +190,7 @@ public class SpcService : ISpcService
         var orderedEntries = entries.OrderBy(e => e.CreatedAt).ToList();
         var dataPoints = orderedEntries.Select(e => new SpcDataPoint(
             e.ExecutionId,
-            e.Execution.Sample.SampleNumber,
+            e.Execution?.Sample?.SampleNumber ?? $"Entry-{e.EntryId}",
             e.CreatedAt,
             (double)e.CalculatedResult!.Value,
             e.IsOos,

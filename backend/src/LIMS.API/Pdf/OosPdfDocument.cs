@@ -218,6 +218,8 @@ public class OosPdfDocument : IDocument
                             inner.Item().LineHorizontal(1).LineColor("#0f172a");
                             inner.Item().PaddingTop(4).Text(_d.ClosedByName).FontSize(9).Bold();
                             inner.Item().Text("Authorised Signatory — QA/QCLead").FontSize(8).FontColor("#6b7280");
+                            inner.Item().Text(_d.ClosedAt.HasValue ? _d.ClosedAt.Value.ToString("yyyy-MM-dd HH:mm") + " UTC" : "Date: _______________")
+                                .FontSize(8).FontColor("#6b7280");
                         });
                         row.RelativeItem();
                     });

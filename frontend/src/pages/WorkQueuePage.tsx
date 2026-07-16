@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
+import { useTranslation } from '@/i18n/TranslationContext'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import { useNavigate } from 'react-router-dom'
 import api from '@/api/client'
@@ -195,6 +196,7 @@ function groupByContainer(items: WorkItem[]): ContainerGroup[] {
 
 export default function WorkQueuePage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [tab, setTab] = useState<'queue' | 'container' | 'batch'>('queue')
   const [data, setData] = useState<WorkItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -272,8 +274,12 @@ export default function WorkQueuePage() {
       // Container tab: accumulate — each scan adds to the selection
       const matched = data.filter(w => w.containerLabel?.toUpperCase().includes(q))
       if (matched.length > 0) {
-        setScanSampleIds(null)
         const newCids = matched.map(w => w.containerId).filter((id): id is number => id !== null)
+        if (newCids.length === 0) {
+          toast(`Container "${value.trim()}" has no assigned container ID`, 'error')
+          return
+        }
+        setScanSampleIds(null)
         setScanContainerIds(prev => {
           const merged = new Set(prev ?? [])
           for (const id of newCids) merged.add(id)
@@ -288,8 +294,10 @@ export default function WorkQueuePage() {
       return
     }
 
+    if (tab === 'batch') return
+
     // Queue tab: match by sample number, fall back to container label (auto-switch tab)
-    const matchedBySample = data.filter(w => w.sampleNumber.toUpperCase().includes(q))
+    const matchedBySample = data.filter(w => w.sampleNumber?.toUpperCase().includes(q))
     if (matchedBySample.length > 0) {
       setScanContainerIds(null)
       setScanSampleIds(new Set(matchedBySample.map(w => w.sampleId)))
@@ -302,14 +310,17 @@ export default function WorkQueuePage() {
       const cids = new Set(matchedByContainer.map(w => w.containerId).filter((id): id is number => id !== null))
       setScanContainerIds(cids)
       setTab('container')
-      const cGroups = groupByContainer(matchedByContainer)
-      if (cGroups.length === 1) setSelectedContainerGroup(cGroups[0])
+      if (cids.size === 1) {
+        const [cid] = [...cids]
+        const autoGroup = groupByContainer(data).find(g => g.containerId === cid)
+        if (autoGroup) setSelectedContainerGroup(autoGroup)
+      }
       return
     }
 
     toast(`No work items found for "${value.trim()}"`, 'error')
     setScanSampleIds(new Set())
-    setScanContainerIds(null)
+    setScanContainerIds(new Set())
   }, [data, tab])
 
   useEffect(() => {
@@ -467,10 +478,10 @@ export default function WorkQueuePage() {
       {/* ── Tab strip ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid #e2e8f0', marginBottom: 20 }}>
         <button style={TAB_STYLE(tab === 'queue')} onClick={() => setTab('queue')}>
-          <span>📋</span> Queue
+          <span>📋</span> {t('wq.queue')}
         </button>
         <button style={TAB_STYLE(tab === 'container')} onClick={() => setTab('container')}>
-          <span>🧪</span> By Container
+          <span>🧪</span> {t('wq.byContainer')}
           {containerGroups.length > 0 && (
             <span style={{ fontSize: 10, fontWeight: 700, background: '#0d9488', color: '#fff', borderRadius: 10, padding: '1px 6px', marginLeft: 2 }}>
               {containerGroups.length}
@@ -478,7 +489,7 @@ export default function WorkQueuePage() {
           )}
         </button>
         <button style={TAB_STYLE(tab === 'batch')} onClick={() => setTab('batch')}>
-          <span>🔬</span> Batch Entry
+          <span>🔬</span> {t('wq.batchEntry')}
         </button>
       </div>
 
@@ -520,7 +531,10 @@ export default function WorkQueuePage() {
               🧪 {scanContainerIds.size} container{scanContainerIds.size > 1 ? 's' : ''} scanned
             </span>
           )}
-          {(scanSampleIds !== null || (scanContainerIds !== null && scanContainerIds.size > 0)) && (
+          {(tab === 'container'
+            ? (scanContainerIds !== null && scanContainerIds.size > 0)
+            : scanSampleIds !== null
+          ) && (
             <button
               onClick={() => { setScanSampleIds(null); setScanContainerIds(null); setScanQuery(''); if (scanInputRef.current) scanInputRef.current.value = '' }}
               style={{ padding: '7px 12px', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}>

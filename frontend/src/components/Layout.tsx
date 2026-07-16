@@ -1,4 +1,6 @@
 ﻿import { useState, useEffect, useRef, Suspense } from 'react'
+import { useTranslation } from '@/i18n/TranslationContext'
+import type { StringKey } from '@/i18n/strings'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import type { AppDispatch, RootState } from '@/store'
@@ -7,6 +9,7 @@ import { loadNavVisibility, isNavEnabled } from '@/store/navVisibilitySlice'
 import { fetchPermissions } from '@/store/authSlice'
 import { ToastContainer, toast } from '@/components/Toast'
 import CommandPalette from '@/components/CommandPalette'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 import OfflineSyncButton from '@/components/OfflineSyncButton'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import ChatbotWidget from '@/components/ChatbotWidget'
@@ -49,7 +52,7 @@ type NavSection = {
 // ── Role constants ────────────────────────────────────────────────────────
 const LAB_ROLES  = ['Admin', 'Analyst', 'QA', 'QCLead', 'LabManager', 'Supervisor']
 const QA_ROLES   = ['Admin', 'QA', 'QCLead', 'LabManager']
-const MGMT_ROLES = ['Admin', 'LabManager']
+const MGMT_ROLES = ['SuperAdmin', 'Admin', 'LabManager']
 
 // ── Nav definitions ───────────────────────────────────────────────────────
 const NAV_SECTIONS: NavSection[] = [
@@ -186,7 +189,8 @@ function navItemStyle(isActive: boolean, dm: boolean, collapsed: boolean): React
 }
 
 // ── Section heading ───────────────────────────────────────────────────────
-function SectionHead({ label, first = false, dm, collapsed }: { label: string; first?: boolean; dm: boolean; collapsed: boolean }) {
+function SectionHead({ label, sectionKey, first = false, dm, collapsed, tFn }: { label: string; sectionKey?: string; first?: boolean; dm: boolean; collapsed: boolean; tFn: (k: StringKey) => string }) {
+  const displayLabel = sectionKey && NAV_SECTION_KEYS[sectionKey] ? tFn(NAV_SECTION_KEYS[sectionKey]) : label
   if (collapsed) {
     return <div style={{ height: first ? 0 : 6, margin: first ? '8px 12px' : '2px 0', background: first ? (dm ? '#1e293b' : '#f1f3f4') : 'transparent', borderRadius: 1 }} />
   }
@@ -200,18 +204,20 @@ function SectionHead({ label, first = false, dm, collapsed }: { label: string; f
       borderBottom: first ? `1px solid ${dm ? '#1e293b' : '#f1f3f4'}` : 'none',
       marginBottom: first ? 4 : 0,
     }}>
-      {label}
+      {displayLabel}
     </div>
   )
 }
 
 // ── Nav group ─────────────────────────────────────────────────────────────
-function NavGroup({ items, dm, collapsed, onNavigate }: { items: NavItem[]; dm: boolean; collapsed: boolean; onNavigate?: () => void }) {
+function NavGroup({ items, dm, collapsed, onNavigate, getLabel }: { items: NavItem[]; dm: boolean; collapsed: boolean; onNavigate?: () => void; getLabel: (n: NavItem) => string }) {
   return (
     <>
-      {items.map(n => (
+      {items.map(n => {
+        const label = getLabel(n)
+        return (
         <NavLink key={n.path} to={n.path}
-          title={collapsed ? n.label : undefined}
+          title={collapsed ? label : undefined}
           onClick={onNavigate}
           style={({ isActive }) => navItemStyle(isActive, dm, collapsed)}>
           <div style={{
@@ -222,7 +228,7 @@ function NavGroup({ items, dm, collapsed, onNavigate }: { items: NavItem[]; dm: 
           }}>
             {n.icon}
           </div>
-          {!collapsed && n.label}
+          {!collapsed && label}
           {!collapsed && n.badge != null && n.badge > 0 && (
             <span style={{
               marginLeft: 'auto', minWidth: 18, height: 18,
@@ -233,13 +239,45 @@ function NavGroup({ items, dm, collapsed, onNavigate }: { items: NavItem[]; dm: 
             }}>{n.badge}</span>
           )}
         </NavLink>
-      ))}
+        )
+      })}
     </>
   )
 }
 
 // ── Layout ────────────────────────────────────────────────────────────────
+// ── Nav translation maps ──────────────────────────────────────────────────
+const NAV_PATH_KEYS: Record<string, StringKey> = {
+  '/dashboard':            'nav.dashboard',
+  '/compliance':           'nav.compliance',
+  '/multi-site-dashboard': 'nav.multiSite',
+  '/samples':              'nav.sampleRegistration',
+  '/work-queue':           'nav.workQueue',
+  '/capacity-booking':     'nav.capacityBooking',
+  '/checkpoint-tasks':     'nav.checkpoints',
+  '/digital-logbook':      'nav.digitalLogbook',
+  '/quality-assurance':    'nav.qualityAssurance',
+  '/release-dispatch':     'nav.releaseDispatch',
+  '/stability-retention':  'nav.stabilityRetention',
+  '/reports':              'nav.reports',
+  '/report-builder':       'nav.reportBuilder',
+  '/traceability':         'nav.traceability',
+  '/site-transfers':       'nav.siteTransfers',
+  '/settings':             'nav.masterData',
+}
+
+const NAV_SECTION_KEYS: Record<string, StringKey> = {
+  'sec.overview':      'nav.overview',
+  'sec.lab-ops':       'nav.labOperations',
+  'sec.quality':       'nav.quality',
+  'sec.release':       'nav.releaseDispatch',
+  'sec.stability':     'nav.stabilityRetention',
+  'sec.analytics':     'nav.analytics',
+  'sec.traceability':  'nav.traceabilitySection',
+}
+
 export default function Layout() {
+  const { t } = useTranslation()
   const dispatch   = useDispatch<AppDispatch>()
   const navigate   = useNavigate()
   const location   = useLocation()
@@ -447,11 +485,58 @@ export default function Layout() {
             if (visibleItems.length === 0) return null
             return (
               <div key={sec.sectionKey}>
-                <SectionHead label={sec.label} first={sec.first} dm={dm} collapsed={collapsed} />
-                <NavGroup items={visibleItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} />
+                <SectionHead label={sec.label} sectionKey={sec.sectionKey} first={sec.first} dm={dm} collapsed={collapsed} tFn={t} />
+                <NavGroup items={visibleItems} dm={dm} collapsed={collapsed} onNavigate={isMobile ? () => setMobileOpen(false) : undefined} getLabel={n => NAV_PATH_KEYS[n.path] ? t(NAV_PATH_KEYS[n.path]) : n.label} />
               </div>
             )
           })}
+
+          {/* ── SuperAdmin — platform-level control, WebSynergies only ── */}
+          {role === 'SuperAdmin' && (
+            <div style={{ padding: collapsed ? '4px 4px 0' : '4px 8px 0' }}>
+              {!collapsed && (
+                <div style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                  color: dm ? '#475569' : '#94a3b8',
+                  padding: '6px 4px 2px',
+                  textTransform: 'uppercase',
+                }}>SuperAdmin</div>
+              )}
+              <NavLink to="/superadmin"
+                title={collapsed ? 'SuperAdmin Panel' : undefined}
+                onClick={isMobile ? () => setMobileOpen(false) : undefined}
+                style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center',
+                  gap: collapsed ? 0 : 8,
+                  padding: collapsed ? '8px' : '9px 12px',
+                  borderRadius: 10,
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  textDecoration: 'none',
+                  border: `1.5px solid ${isActive ? '#93c5fd' : (dm ? '#1e3a5f' : '#bfdbfe')}`,
+                  background: isActive ? '#1e3a5f' : (dm ? '#0f1f36' : '#eff6ff'),
+                  color: isActive ? '#fff' : (dm ? '#93c5fd' : '#1e40af'),
+                  fontWeight: 700, fontSize: 13,
+                  transition: 'background 0.12s',
+                  overflow: 'hidden', whiteSpace: 'nowrap',
+                  marginBottom: 4,
+                })}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                  background: '#1e3a5f',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <svg viewBox="0 0 24 24" fill="none" width="15" height="15">
+                    <path d="M12 1l3 6h6l-5 4 2 6-6-4-6 4 2-6L3 7h6z" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                {!collapsed && (
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    SuperAdmin Panel
+                  </span>
+                )}
+              </NavLink>
+            </div>
+          )}
 
           {/* ── Master Data / Settings — Admin and LabManager only ── */}
           {MGMT_ROLES.includes(role) && <div style={{ padding: collapsed ? '4px 4px 0' : '4px 8px 0' }}>
@@ -461,10 +546,10 @@ export default function Layout() {
                 color: dm ? '#475569' : '#94a3b8',
                 padding: '6px 4px 2px',
                 textTransform: 'uppercase',
-              }}>Master Data</div>
+              }}>{t('nav.masterData')}</div>
             )}
             <NavLink to="/settings"
-              title={collapsed ? 'Master Data / Settings' : undefined}
+              title={collapsed ? t('nav.masterData') : undefined}
               onClick={isMobile ? () => setMobileOpen(false) : undefined}
               style={({ isActive }) => ({
                 display: 'flex', alignItems: 'center',
@@ -490,7 +575,7 @@ export default function Layout() {
               </div>
               {!collapsed && (
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  Master Data / Settings
+                  {t('nav.masterData')}
                 </span>
               )}
             </NavLink>
@@ -616,6 +701,9 @@ export default function Layout() {
                 fontFamily: 'inherit',
               }}>⌘K</kbd>
             </button>
+
+            {/* Language switcher */}
+            <LanguageSwitcher />
 
             {/* Notification bell */}
             <div ref={notifRef} style={{ position: 'relative' }}>

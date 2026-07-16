@@ -2,6 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+const useLocalApi = process.env.USE_LOCAL_API === 'true'
+const apiTarget = useLocalApi ? 'http://localhost:5204' : 'https://limslite.websynergiesdigital.com'
+const wsTarget  = useLocalApi ? 'ws://localhost:5204'  : 'wss://limslite.websynergiesdigital.com'
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -10,8 +14,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: 'http://localhost:5204', changeOrigin: true },
-      '/hubs': { target: 'http://localhost:5204', ws: true, changeOrigin: true }
+      '/api':  { target: apiTarget, changeOrigin: true, secure: !useLocalApi },
+      '/hubs': { target: wsTarget,  ws: true, changeOrigin: true, secure: !useLocalApi }
     }
   },
   build: {

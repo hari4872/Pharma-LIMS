@@ -74,10 +74,13 @@ const StabilityRetentionPage    = lazy(() => import('@/pages/StabilityRetentionP
 // Standalone full-page views (no sidebar — for direct linking / printing)
 const CoaDetailPage             = lazy(() => import('@/pages/CoaDetailPage'))
 
+// SuperAdmin page (lazy)
+const SuperAdminPage = lazy(() => import('@/pages/SuperAdminPage'))
+
 // ─── Role constants (mirrors Layout.tsx sidebar filtering) ────────────────────
 // Keep in sync with backend UserRole enum in LimsEnums.cs
-const LAB_ROLES   = ['Admin', 'Analyst', 'QA', 'QCLead', 'LabManager']
-const QA_ROLES    = ['Admin', 'QA', 'QCLead', 'LabManager']
+const LAB_ROLES   = ['SuperAdmin', 'Admin', 'Analyst', 'QA', 'QCLead', 'LabManager']
+const QA_ROLES    = ['SuperAdmin', 'Admin', 'QA', 'QCLead', 'LabManager']
 const MGMT_ROLES  = ['Admin', 'LabManager']
 // Master data: Admin + QA by default permission matrix; LabManager if granted override
 const MASTER_DATA_ROLES = ['Admin', 'QA', 'LabManager']
@@ -115,6 +118,13 @@ export default function App() {
 
       <Route path="/" element={<RequireAuth><Layout /></RequireAuth>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
+
+        {/* SuperAdmin panel — platform-level control, WebSynergies only */}
+        <Route path="superadmin" element={
+          <RequireRole roles={['SuperAdmin']}>
+            <SuperAdminPage />
+          </RequireRole>
+        } />
 
         {/* Dashboard — accessible to all authenticated roles including Viewer */}
         <Route path="dashboard" element={<DashboardPage />} />

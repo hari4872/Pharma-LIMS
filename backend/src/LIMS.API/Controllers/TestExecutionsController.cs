@@ -70,7 +70,7 @@ public class TestExecutionsController : LimsControllerBase
         if (!TryGetUserId(out var assignedById)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new AssignWorkQueueItemCommand(
             request.SampleId, request.AnalystId, request.InstrumentId,
-            assignedById, request.PriorityScore, request.ContainerId));
+            assignedById, request.PriorityScore, request.ContainerId, request.SpecTemplateItemIds));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound(new { error = result.ErrorCode, message = result.ErrorMessage })
             : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetWorkQueue), new { id = result.Value }, new { executionId = result.Value });
@@ -255,7 +255,7 @@ public class TestExecutionsController : LimsControllerBase
     }
 }
 
-public record AssignWorkQueueRequest(int SampleId, int AnalystId, int? InstrumentId = null, int? PriorityScore = null, int? ContainerId = null);
+public record AssignWorkQueueRequest(int SampleId, int AnalystId, int? InstrumentId = null, int? PriorityScore = null, int? ContainerId = null, int[]? SpecTemplateItemIds = null);
 public record AssignTestMethodRequest(int AnalystId, int? InstrumentId = null, int? PriorityScore = null);
 public record SubmitResultsRequest(List<ResultEntryDto> Entries, EntryMethod EntryMethod = EntryMethod.Manual);
 public record BatchRowRequest(int ExecutionId, List<ResultEntryDto> Entries);

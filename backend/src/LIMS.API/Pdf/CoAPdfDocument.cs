@@ -61,7 +61,7 @@ public class CoAPdfDocument : IDocument
                     if (_logoBytes is not null)
                     {
                         inner.ConstantItem(64).PaddingRight(10)
-                            .Image(_logoBytes).FitHeight();
+                            .Image(_logoBytes).FitWidth();
                     }
                     inner.RelativeItem().Column(c =>
                     {
@@ -214,11 +214,11 @@ public class CoAPdfDocument : IDocument
                 .Border(0.5f).BorderColor(allPass ? "#86efac" : _coa.Lines.Any() ? "#fca5a5" : "#e2e8f0")
                 .Padding(10).Row(row =>
                 {
-                    row.ConstantItem(14).AlignMiddle()
+                    row.ConstantItem(20)
                         .Text(allPass ? "✓" : _coa.Lines.Any() ? "✗" : "–")
                         .FontSize(13).Bold()
                         .FontColor(allPass ? "#166534" : _coa.Lines.Any() ? "#991b1b" : "#6b7280");
-                    row.RelativeItem().PaddingLeft(8).AlignMiddle().Column(c =>
+                    row.RelativeItem().PaddingLeft(8).Column(c =>
                     {
                         c.Item().Text("CONCLUSION").FontSize(8.5f).Bold()
                             .FontColor(allPass ? "#166534" : _coa.Lines.Any() ? "#991b1b" : "#374151");

@@ -26,7 +26,7 @@ public class NavVisibilityController : ControllerBase
 
     // Admin only — saves the full visibility map
     [HttpPut]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> SaveAll([FromBody] List<NavVisibilityDto> items)
     {
         if (items is null || items.Count == 0)
@@ -34,13 +34,25 @@ public class NavVisibilityController : ControllerBase
 
         var username = User.Identity?.Name ?? "system";
         var now = DateTimeOffset.UtcNow;
+        var isSuperAdmin = User.IsInRole("SuperAdmin");
 
         // Protected keys that can never be turned off — prevents Admin self-lockout
         var protectedKeys = new HashSet<string> { "sec.master-data", "md.nav-visibility", "nav.dashboard" };
 
+        // Keys locked OFF by SuperAdmin — Admin cannot re-enable them
+        var lockedKeys = isSuperAdmin
+            ? new HashSet<string>()
+            : (await _db.RoleModuleVisibilities
+                .Where(r => r.IsLockedBySuperAdmin && !r.IsEnabled)
+                .Select(r => r.NavKey)
+                .ToListAsync())
+                .ToHashSet();
+
         foreach (var item in items)
         {
             if (protectedKeys.Contains(item.Key)) continue;
+            // Non-SuperAdmin cannot override a SuperAdmin lock
+            if (!isSuperAdmin && lockedKeys.Contains(item.Key) && item.IsEnabled) continue;
 
             var existing = await _db.NavVisibilitySettings.FindAsync(item.Key);
             if (existing is null)

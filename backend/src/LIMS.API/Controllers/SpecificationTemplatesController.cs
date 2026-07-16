@@ -77,7 +77,25 @@ public class SpecificationTemplatesController : LimsControllerBase
             .Include(x => x.Items).ThenInclude(i => i.TestMethod)
             .Include(x => x.Material)
             .Include(x => x.SampleType)
-            .FirstOrDefaultAsync(x => x.SpecTemplateId == id);
+            .Where(x => x.SpecTemplateId == id)
+            .Select(t => new
+            {
+                t.SpecTemplateId, t.TemplateName, t.Version, t.Description, t.CompendialStandard,
+                t.Stage, t.Status, t.EffectiveFrom, t.ApprovedBy, t.ApprovedAt,
+                Material   = new { MaterialId = t.Material != null ? t.Material.MaterialId : 0, MaterialName = t.Material != null ? t.Material.MaterialName : "(Deleted)" },
+                SampleType = new { SampleTypeId = t.SampleType != null ? t.SampleType.SampleTypeId : 0, TypeName = t.SampleType != null ? t.SampleType.TypeName : "(Deleted)", TypeCode = t.SampleType != null ? t.SampleType.TypeCode : "" },
+                t.CreatedBy, t.CreatedAt, t.UpdatedBy, t.UpdatedAt,
+                ItemCount  = t.Items.Count,
+                Items = t.Items.OrderBy(i => i.SortOrder).Select(i => new
+                {
+                    i.SpecTemplateItemId, i.ParameterId, i.TestMethodId, i.TurnaroundHours, i.IsMandatory, i.SortOrder,
+                    ParameterName  = i.Parameter != null ? i.Parameter.ParameterName : null,
+                    ParameterCode  = i.Parameter != null ? i.Parameter.ParameterCode : null,
+                    TestMethodName = i.TestMethod != null ? i.TestMethod.MethodName : null,
+                    TestMethodCode = i.TestMethod != null ? i.TestMethod.MethodCode : null,
+                })
+            })
+            .FirstOrDefaultAsync();
 
         if (t is null) return NotFound();
         return Ok(t);

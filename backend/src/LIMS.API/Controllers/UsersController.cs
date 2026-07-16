@@ -17,7 +17,7 @@ public class UsersController : LimsControllerBase
     public UsersController(IMediator mediator, ILimsDbContext db) { _mediator = mediator; _db = db; }
 
     [HttpGet]
-    [Authorize(Roles = "Admin,QA,LabManager")]   // QA & LabManager need user list for task assignment
+    [Authorize(Roles = "SuperAdmin,Admin,QA,LabManager")]   // QA & LabManager need user list for task assignment; SuperAdmin audits all users
     public async Task<IActionResult> GetAll([FromQuery] int? labId, [FromQuery] bool includeInactive = false)
         => Ok(await _mediator.Send(new GetUsersQuery(labId, includeInactive)));
 
@@ -128,6 +128,7 @@ public class UsersController : LimsControllerBase
 
     private static Dictionary<string, bool> GetDefaultPermissions(string role) => role switch
     {
+        "SuperAdmin" => new() { ["masterData"]=true,  ["sampleRegistration"]=true,  ["workQueue"]=true,  ["resultsReview"]=true,  ["coaApproval"]=true,  ["batchRelease"]=true,  ["oosCapa"]=true,  ["compliance"]=true,  ["dispatchQc"]=true  },
         "Admin"      => new() { ["masterData"]=true,  ["sampleRegistration"]=true,  ["workQueue"]=true,  ["resultsReview"]=true,  ["coaApproval"]=true,  ["batchRelease"]=true,  ["oosCapa"]=true,  ["compliance"]=true,  ["dispatchQc"]=true  },
         "QA"         => new() { ["masterData"]=true,  ["sampleRegistration"]=false, ["workQueue"]=false, ["resultsReview"]=true,  ["coaApproval"]=true,  ["batchRelease"]=true,  ["oosCapa"]=true,  ["compliance"]=true,  ["dispatchQc"]=true  },
         "Analyst"    => new() { ["masterData"]=false, ["sampleRegistration"]=true,  ["workQueue"]=true,  ["resultsReview"]=false, ["coaApproval"]=false, ["batchRelease"]=false, ["oosCapa"]=false, ["compliance"]=false, ["dispatchQc"]=false },

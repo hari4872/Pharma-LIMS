@@ -12,6 +12,7 @@ import { Provider } from 'react-redux'
 import { BrowserRouter } from 'react-router-dom'
 import { store } from '@/store'
 import App from './App'
+import { TranslationProvider } from '@/i18n/TranslationContext'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import ErrorPage from '@/pages/ErrorPage'
 import '@fontsource/plus-jakarta-sans/300.css'
@@ -72,7 +73,9 @@ createRoot(rootEl).render(
             />
           }
         >
-          <App />
+          <TranslationProvider>
+            <App />
+          </TranslationProvider>
         </ErrorBoundary>
       </BrowserRouter>
     </Provider>

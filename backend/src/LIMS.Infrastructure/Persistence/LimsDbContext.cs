@@ -103,6 +103,9 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<NavVisibilitySetting> NavVisibilitySettings => Set<NavVisibilitySetting>();
     // E-Signature Configuration
     public DbSet<ESignConfig> ESignConfigs => Set<ESignConfig>();
+    // SuperAdmin
+    public DbSet<SuperAdminFeatureFlag> SuperAdminFeatureFlags => Set<SuperAdminFeatureFlag>();
+    public DbSet<RoleModuleVisibility> RoleModuleVisibilities => Set<RoleModuleVisibility>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -125,6 +128,26 @@ public class LimsDbContext : DbContext, ILimsDbContext
             e.HasKey(x => x.ActionKey);
             e.Property(x => x.ActionKey).IsRequired().HasMaxLength(100);
             e.Property(x => x.Method).HasConversion<string>();
+            e.Property(x => x.UpdatedBy).IsRequired().HasMaxLength(100);
+        });
+
+        // SuperAdmin feature flags — string PK, no FK
+        modelBuilder.Entity<SuperAdminFeatureFlag>(e =>
+        {
+            e.ToTable("super_admin_feature_flags");
+            e.HasKey(x => x.Key);
+            e.Property(x => x.Key).IsRequired().HasMaxLength(100);
+            e.Property(x => x.UpdatedBy).IsRequired().HasMaxLength(100);
+        });
+
+        // Role module visibility — per-role per-nav-key toggle with SuperAdmin lock
+        modelBuilder.Entity<RoleModuleVisibility>(e =>
+        {
+            e.ToTable("role_module_visibility");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Role, x.NavKey }).IsUnique();
+            e.Property(x => x.Role).IsRequired().HasMaxLength(50);
+            e.Property(x => x.NavKey).IsRequired().HasMaxLength(100);
             e.Property(x => x.UpdatedBy).IsRequired().HasMaxLength(100);
         });
 

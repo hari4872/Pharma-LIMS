@@ -41,8 +41,8 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
     {
         var sample = await _db.Samples.FindAsync([request.SampleId], ct);
         if (sample is null) return Result<int>.Failure("NOT_FOUND", "Sample not found.");
-        if (sample.Status != SampleStatus.Registered && sample.Status != SampleStatus.PendingTesting)
-            return Result<int>.Failure("INVALID_STATE", "SRF can only be signed before testing begins.");
+        if (sample.Status == SampleStatus.Released || sample.Status == SampleStatus.Rejected)
+            return Result<int>.Failure("INVALID_STATE", "SRF cannot be signed after sample is released or rejected.");
 
         string signerName;
         if (!string.IsNullOrEmpty(request.Password))
@@ -61,39 +61,48 @@ public class SignSRFCommandHandler : IRequestHandler<SignSRFCommand, Result<int>
             signerName = user?.FullName ?? "System";
         }
 
-        sample.Status = SampleStatus.PendingTesting;
+        // Capture status before mutation for accurate audit trail (21 CFR Part 11)
+        var statusBefore = sample.Status.ToString();
+
+        // Only advance to PendingTesting if not already assigned/in-testing (wizard assigns before SRF)
+        if (sample.Status == SampleStatus.Registered || sample.Status == SampleStatus.PendingTesting)
+            sample.Status = SampleStatus.PendingTesting;
         await _db.SaveChangesAsync(ct);
 
-        // ── Run spec engine NOW (after SRF signed — correct GMP order) ──────
+        // ── Run spec engine only if no executions exist yet ──────────────────
         int testsCreated = 0;
-        try
+        var hasExecutions = await _db.TestExecutions.AnyAsync(e => e.SampleId == request.SampleId, ct);
+        if (!hasExecutions)
         {
-            var sampleType = await _db.SampleTypes.FindAsync([sample.SampleTypeId], ct);
-            if (sampleType is not null)
+            try
             {
-                var matchResult = await _specEngine.MatchAsync(
-                    sample.MaterialId, sample.SampleTypeId, sampleType.Stage, ct);
-
-                if (matchResult.Outcome == SpecMatchOutcome.SingleMatch && matchResult.TemplateId.HasValue)
+                var sampleType = await _db.SampleTypes.FindAsync([sample.SampleTypeId], ct);
+                if (sampleType is not null)
                 {
-                    var execIds = await _specEngine.ApplyTemplateAsync(
-                        sample.SampleId, matchResult.TemplateId.Value,
-                        "System", SpecAssignmentReason.AutoMatch,
-                        DateTimeOffset.UtcNow, ct);
-                    testsCreated = execIds.Count;
+                    var matchResult = await _specEngine.MatchAsync(
+                        sample.MaterialId, sample.SampleTypeId, sampleType.Stage, ct);
+
+                    if (matchResult.Outcome == SpecMatchOutcome.SingleMatch && matchResult.TemplateId.HasValue)
+                    {
+                        var execIds = await _specEngine.ApplyTemplateAsync(
+                            sample.SampleId, matchResult.TemplateId.Value,
+                            "System", SpecAssignmentReason.AutoMatch,
+                            DateTimeOffset.UtcNow, ct);
+                        testsCreated = execIds.Count;
+                    }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Spec engine failed for sample {SampleId} after SRF sign — tests not auto-created", request.SampleId);
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Spec engine failed for sample {SampleId} after SRF sign — tests not auto-created", request.SampleId);
+            }
         }
 
         // Audit and notification are non-critical — wrap so they never fail the main operation
         try
         {
             await _audit.LogAsync("Sample", sample.SampleId, "SRFSigned",
-                new { Status = "Registered" }, new { Status = "PendingTesting", FullName = signerName, SignedAt = DateTimeOffset.UtcNow },
+                new { Status = statusBefore }, new { Status = sample.Status.ToString(), FullName = signerName, SignedAt = DateTimeOffset.UtcNow },
                 signerName);
         }
         catch (Exception ex)

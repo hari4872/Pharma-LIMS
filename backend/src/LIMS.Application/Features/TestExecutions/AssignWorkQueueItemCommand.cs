@@ -10,7 +10,8 @@ namespace LIMS.Application.Features.TestExecutions;
 // Lab Manager assigns a sample to an analyst before analyst opens Work Queue (WAP FR-13)
 public record AssignWorkQueueItemCommand(
     int SampleId, int AnalystId, int? InstrumentId,
-    int AssignedById, int? PriorityScore, int? ContainerId = null) : IRequest<Result<int>>;
+    int AssignedById, int? PriorityScore, int? ContainerId = null,
+    int[]? SpecTemplateItemIds = null) : IRequest<Result<int>>;
 
 public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCommand, Result<int>>
 {
@@ -22,8 +23,8 @@ public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCom
     {
         var sample = await _db.Samples.FirstOrDefaultAsync(s => s.SampleId == cmd.SampleId, ct);
         if (sample is null) return Result<int>.Failure("NOT_FOUND", "Sample not found.");
-        if (sample.Status != SampleStatus.PendingTesting)
-            return Result<int>.Failure("INVALID_STATE", $"Sample status is '{sample.Status}' — must be PendingTesting.");
+        if (sample.Status != SampleStatus.PendingTesting && sample.Status != SampleStatus.Registered && sample.Status != SampleStatus.InTesting)
+            return Result<int>.Failure("INVALID_STATE", $"Sample status is '{sample.Status}' — must be PendingTesting, Registered, or InTesting.");
 
         var analyst = await _db.Users.FirstOrDefaultAsync(u => u.UserId == cmd.AnalystId && u.IsActive, ct);
         if (analyst is null) return Result<int>.Failure("NOT_FOUND", "Analyst not found or inactive.");
@@ -57,11 +58,14 @@ public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCom
                 return Result<int>.Failure("INVALID_STATE", $"Container is {container.Status} — only Available containers can be assigned.");
         }
 
-        // Re-use ALL executions the spec engine created at registration (one per spec test item).
-        // Update every Assigned/InProgress execution for this sample with the analyst.
+        // Re-use executions the spec engine created at registration.
+        // When SpecTemplateItemIds is provided (container split), only update the targeted executions
+        // so each container gets its own analyst. When null, update all (single-container / no-split path).
         var executions = await _db.TestExecutions
             .Where(e => e.SampleId == cmd.SampleId
-                && (e.Status == TestExecutionStatus.Assigned || e.Status == TestExecutionStatus.InProgress))
+                && (e.Status == TestExecutionStatus.Assigned || e.Status == TestExecutionStatus.InProgress)
+                && (cmd.SpecTemplateItemIds == null
+                    || cmd.SpecTemplateItemIds.Contains(e.SpecTemplateItemId ?? 0)))
             .ToListAsync(ct);
 
         if (executions.Count > 0)

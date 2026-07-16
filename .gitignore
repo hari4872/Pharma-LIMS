@@ -33,3 +33,5 @@ tests/report-temp.html
 # OS
 .DS_Store
 Thumbs.db
+
+publish_latest/

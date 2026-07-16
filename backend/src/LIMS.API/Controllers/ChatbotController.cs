@@ -118,6 +118,91 @@ public class ChatbotController : ControllerBase
         return Ok(new { reply });
     }
 
+    // ── Translate — bulk UI string translation via Groq ──────────────────────
+    [HttpPost("translate")]
+    public async Task<IActionResult> Translate([FromBody] TranslateRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.TargetLanguage))
+            return BadRequest(new { error = "TargetLanguage is required." });
+        if (req.Strings == null || req.Strings.Count == 0)
+            return BadRequest(new { error = "Strings map is empty." });
+
+        var langName = req.TargetLanguage switch
+        {
+            "ja" => "Japanese",
+            "id" => "Bahasa Indonesia",
+            _    => req.TargetLanguage
+        };
+
+        var inputJson = JsonSerializer.Serialize(req.Strings);
+
+        var groqBody = new
+        {
+            model = "llama-3.3-70b-versatile",
+            messages = new[]
+            {
+                new {
+                    role = "system",
+                    content = $"""
+                        You are a precise translation engine for pharmaceutical laboratory software (LIMS).
+                        Translate every JSON value from English to {langName}.
+                        Rules:
+                        - Return ONLY valid JSON — no markdown, no code fences, no explanations.
+                        - Keep every JSON key exactly as-is.
+                        - Only translate the values.
+                        - Keep pharma/GxP abbreviations in English: OOS, OOT, CoA, GMP, QA, QC, ALCOA+, SPC, GC, HPLC, ICH.
+                        - Keep proper nouns and brand names unchanged.
+                        - Match the tone: professional, concise, UI-label style (not full sentences where the original is a label).
+                        """
+                },
+                new { role = "user", content = inputJson }
+            },
+            max_tokens  = 4096,
+            temperature = 0.1
+        };
+
+        var client = _http.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", _config["Groq:ApiKey"]);
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await client.PostAsync(
+                "https://api.groq.com/openai/v1/chat/completions",
+                new StringContent(JsonSerializer.Serialize(groqBody), Encoding.UTF8, "application/json"));
+        }
+        catch
+        {
+            return StatusCode(503, new { error = "AI translation service unreachable." });
+        }
+
+        if (!response.IsSuccessStatusCode)
+            return StatusCode(500, new { error = "AI translation failed." });
+
+        try
+        {
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            var content = doc.RootElement
+                .GetProperty("choices")[0]
+                .GetProperty("message")
+                .GetProperty("content")
+                .GetString() ?? "{}";
+
+            // Strip markdown fences if the model wrapped the JSON
+            content = content.Trim();
+            if (content.StartsWith("```")) content = content.Split('\n', 2)[1];
+            if (content.EndsWith("```")) content = content[..content.LastIndexOf("```")].TrimEnd();
+
+            using var translated = JsonDocument.Parse(content);
+            return Ok(translated.RootElement.Clone());
+        }
+        catch
+        {
+            return StatusCode(500, new { error = "Failed to parse translation response." });
+        }
+    }
+
     // ── Quick action handlers ────────────────────────────────────────────────
 
     private async Task<object> GetAttentionAsync()
@@ -263,3 +348,4 @@ public class ChatbotController : ControllerBase
 
 public record QuickActionRequest(string Action);
 public record ChatRequest(string Message);
+public record TranslateRequest(string TargetLanguage, Dictionary<string, string> Strings);

@@ -8,7 +8,7 @@ public enum InstrumentStatus { Available, InUse, Maintenance, OutOfCalibration }
 
 public enum UserType { Admin, RegularUser }
 
-public enum UserRole { Admin, QA, QCLead, Analyst, LabManager, Viewer }
+public enum UserRole { SuperAdmin, Admin, QA, QCLead, Analyst, LabManager, Viewer }
 
 public enum ApprovalStatus { Draft, Approved, Retired }
 
