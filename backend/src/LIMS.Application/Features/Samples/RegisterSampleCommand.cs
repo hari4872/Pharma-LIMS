@@ -9,6 +9,8 @@ using Microsoft.Extensions.Logging;
 
 namespace LIMS.Application.Features.Samples;
 
+public record ScheduleItemDto(int InstrumentId, DateTimeOffset StartTime, DateTimeOffset EndTime, string? TestName = null);
+
 // FR-01: unified command — both manual registration and Checkpoint auto-trigger use this
 public record RegisterSampleCommand(
     int LabId, int MaterialId, string LotNumber,
@@ -23,7 +25,8 @@ public record RegisterSampleCommand(
     string?  TankSourceId     = null,      // source tank or vessel identifier
     // Phase A: spec engine override — null = auto-match, set = manual pick
     int?     OverrideSpecTemplateId = null,
-    List<int>? CheckpointIds  = null) : IRequest<Result<RegisterSampleResult>>;
+    List<int>? CheckpointIds  = null,
+    List<ScheduleItemDto>? ScheduleItems = null) : IRequest<Result<RegisterSampleResult>>;
 
 // Returns sample ID + actual spec match outcome — spec engine runs inline during registration
 public record RegisterSampleResult(
@@ -197,7 +200,58 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
             specMessage = "Spec engine error — assign tests manually.";
         }
 
-        // Step 10: Audit + notifications — non-critical, never fail the main operation
+        // Step 10: Create capacity bookings from schedule items (optional, non-critical)
+        if (request.ScheduleItems is { Count: > 0 })
+        {
+            try
+            {
+                var execIds = await _db.TestExecutions
+                    .Where(e => e.SampleId == sample.SampleId)
+                    .OrderBy(e => e.ExecutionId)
+                    .Select(e => e.ExecutionId)
+                    .ToListAsync(ct);
+
+                for (int i = 0; i < request.ScheduleItems.Count; i++)
+                {
+                    var item = request.ScheduleItems[i];
+                    // Check instrument exists
+                    var instrumentExists = await _db.Instruments.AnyAsync(ins => ins.InstrumentId == item.InstrumentId, ct);
+                    if (!instrumentExists) continue;
+
+                    // Conflict check — skip if instrument already booked in this window
+                    var conflict = await _db.CapacityBookings.AnyAsync(b =>
+                        b.InstrumentId == item.InstrumentId &&
+                        b.Status != "Cancelled" && b.Status != "Released" &&
+                        b.StartTime < item.EndTime && b.EndTime > item.StartTime, ct);
+                    if (conflict)
+                    {
+                        _logger.LogWarning("Capacity booking skipped — instrument {InstrumentId} already booked {Start}–{End}", item.InstrumentId, item.StartTime, item.EndTime);
+                        continue;
+                    }
+
+                    var booking = new CapacityBooking
+                    {
+                        InstrumentId   = item.InstrumentId,
+                        BookedByUserId = request.AnalystId,
+                        SampleId       = sample.SampleId,
+                        ExecutionId    = i < execIds.Count ? execIds[i] : null,
+                        StartTime      = item.StartTime,
+                        EndTime        = item.EndTime,
+                        Notes          = item.TestName ?? sample.SampleNumber,
+                        Status         = "Booked",
+                        CreatedAt      = DateTimeOffset.UtcNow,
+                    };
+                    _db.CapacityBookings.Add(booking);
+                }
+                await _db.SaveChangesAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Capacity booking creation failed for sample {SampleId} — bookings skipped", sample.SampleId);
+            }
+        }
+
+        // Step 11: Audit + notifications — non-critical, never fail the main operation
         try
         {
             await _audit.LogAsync("Sample", sample.SampleId, "Registered", null,

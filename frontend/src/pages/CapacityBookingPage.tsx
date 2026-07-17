@@ -58,22 +58,24 @@ interface PendingExecution {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function dateToLocal(d: Date) {
-  return d.toISOString().slice(0, 10)
+  // Use local calendar date (not UTC date) so timezones > UTC don't show wrong day
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function slotBooking(bookings: Booking[], instrumentId: number, hour: number, dateStr: string): Booking | null {
   return bookings.find(b => {
     if (b.instrumentId !== instrumentId) return false
     const s = new Date(b.startTime), e = new Date(b.endTime)
-    const slotS = new Date(`${dateStr}T${String(hour).padStart(2,'0')}:00:00Z`)
-    const slotE = new Date(`${dateStr}T${String(hour+1).padStart(2,'0')}:00:00Z`)
+    // Use local time (no Z) so slot hours match what user sees in their timezone
+    const slotS = new Date(`${dateStr}T${String(hour).padStart(2,'0')}:00:00`)
+    const slotE = new Date(`${dateStr}T${String(hour+1).padStart(2,'0')}:00:00`)
     return s < slotE && e > slotS
   }) ?? null
 }
 
 function isSlotStart(booking: Booking, hour: number, dateStr: string) {
   const s = new Date(booking.startTime)
-  return s.getUTCHours() === hour && dateToLocal(s) === dateStr
+  return s.getHours() === hour && dateToLocal(s) === dateStr
 }
 
 function isPast(hour: number, dateStr: string) {
@@ -81,7 +83,7 @@ function isPast(hour: number, dateStr: string) {
   const today = dateToLocal(now)
   if (dateStr < today) return true
   if (dateStr > today) return false
-  return now.getUTCHours() > hour
+  return now.getHours() > hour
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -136,8 +138,8 @@ export default function CapacityBookingPage() {
   useEffect(() => { load() }, [load])
 
   function shiftDate(days: number) {
-    const d = new Date(dateStr + 'T00:00:00Z')
-    d.setUTCDate(d.getUTCDate() + days)
+    const d = new Date(dateStr + 'T00:00:00')  // local midnight
+    d.setDate(d.getDate() + days)
     setDateStr(dateToLocal(d))
     setDetail(null)
   }
@@ -150,8 +152,8 @@ export default function CapacityBookingPage() {
   async function submitBooking(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setModalErr('')
     try {
-      const startTime = new Date(`${dateStr}T${String(modalHour).padStart(2,'0')}:00:00Z`)
-      const endTime   = new Date(`${dateStr}T${String(modalHour + modalDur).padStart(2,'0')}:00:00Z`)
+      const startTime = new Date(`${dateStr}T${String(modalHour).padStart(2,'0')}:00:00`)
+      const endTime   = new Date(`${dateStr}T${String(modalHour + modalDur).padStart(2,'0')}:00:00`)
       await api.post('/capacity-bookings', {
         instrumentId: modalInstr,
         startTime:    startTime.toISOString(),

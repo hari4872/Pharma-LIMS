@@ -12,6 +12,8 @@ public class CapacityBooking
     public User BookedByUser { get; set; } = default!;
     public int? ExecutionId { get; set; }
     public TestExecution? Execution { get; set; }
+    public int? SampleId { get; set; }
+    public Sample? Sample { get; set; }
     public DateTimeOffset StartTime { get; set; }
     public DateTimeOffset EndTime { get; set; }
     /// <summary>Booked | InUse | Released | Cancelled</summary>

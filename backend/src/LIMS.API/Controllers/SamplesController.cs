@@ -35,6 +35,9 @@ public class SamplesController : LimsControllerBase
     {
         var username = User.Identity?.Name ?? "Unknown";
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
+        var scheduleItems = request.ScheduleItems?
+            .Select(s => new ScheduleItemDto(s.InstrumentId, s.StartTime, s.EndTime, s.TestName))
+            .ToList();
         var result   = await _mediator.Send(new RegisterSampleCommand(
             request.LabId, request.MaterialId, request.LotNumber,
             request.MfgDate, request.ExpDate, request.SampleTypeId,
@@ -42,7 +45,8 @@ public class SamplesController : LimsControllerBase
             // Phase A fields
             request.ReceivedTemp, request.SampleCondition, request.IsRush,
             request.ExternalBatchId, request.SampleLabel, request.TankSourceId,
-            request.OverrideSpecTemplateId, request.CheckpointIds));
+            request.OverrideSpecTemplateId, request.CheckpointIds,
+            scheduleItems));
 
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
 
@@ -317,6 +321,12 @@ public class SamplesController : LimsControllerBase
 public record AssignFormTemplateRequest(int FormTemplateId);
 public record SubmitFormEntryRequest(int FormTemplateId, Dictionary<string, string> FieldValues);
 
+public record ScheduleItemRequest(
+    int InstrumentId,
+    DateTimeOffset StartTime,
+    DateTimeOffset EndTime,
+    string? TestName = null);
+
 public record RegisterSampleRequest(
     int     LabId, int MaterialId, string LotNumber,
     DateOnly? MfgDate, DateOnly ExpDate, int SampleTypeId,
@@ -328,7 +338,8 @@ public record RegisterSampleRequest(
     string?  SampleLabel            = null,     // physical label as written on container
     string?  TankSourceId           = null,     // source tank or vessel identifier
     int?     OverrideSpecTemplateId = null,     // set when user manually picks from MultipleMatches
-    List<int>? CheckpointIds        = null);
+    List<int>? CheckpointIds        = null,
+    List<ScheduleItemRequest>? ScheduleItems = null);
 public record ReprintBarcodeRequest(string Reason);
 public record ApplySpecRequest(int SpecTemplateId);
 public record RetestRequest(string RetestReason, List<int>? ParameterIds = null);

@@ -13,7 +13,7 @@ namespace LIMS.API.Controllers;
 public class CapacityBookingController : LimsControllerBase
 {
     private readonly ILimsDbContext _db;
-    public CapacityBookingController(ILimsDbContext db) { _db = db; }
+    public CapacityBookingController(ILimsDbContext db) => _db = db;
 
     // GET api/v1/capacity-bookings?date=2026-06-07
     [HttpGet]
@@ -27,6 +27,7 @@ public class CapacityBookingController : LimsControllerBase
             .Include(b => b.Instrument)
             .Include(b => b.BookedByUser)
             .Include(b => b.Execution).ThenInclude(e => e!.Sample)
+            .Include(b => b.Sample)
             .AsNoTracking()
             .ToListAsync(ct);
 
@@ -37,7 +38,8 @@ public class CapacityBookingController : LimsControllerBase
             InstrumentName = b.Instrument?.InstrumentName ?? "[Deleted]",
             BookedBy       = b.BookedByUser?.FullName ?? "[Unknown]",
             b.ExecutionId,
-            SampleNumber   = b.Execution?.Sample?.SampleNumber,
+            b.SampleId,
+            SampleNumber   = b.Execution?.Sample?.SampleNumber ?? b.Sample?.SampleNumber,
             StartTime      = b.StartTime,
             EndTime        = b.EndTime,
             b.Status,
@@ -64,7 +66,6 @@ public class CapacityBookingController : LimsControllerBase
     [HttpGet("pending-executions")]
     public async Task<IActionResult> GetPendingExecutions(CancellationToken ct)
     {
-        // Already-booked execution IDs
         var bookedIds = await _db.CapacityBookings
             .Where(b => b.ExecutionId != null && b.Status != "Cancelled" && b.Status != "Released")
             .Select(b => b.ExecutionId!.Value)
@@ -94,20 +95,17 @@ public class CapacityBookingController : LimsControllerBase
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         if (req.EndTime <= req.StartTime) return BadRequest(new { error = "END_BEFORE_START", message = "End time must be after start time." });
 
-        // Validate ExecutionId if provided
         if (req.ExecutionId.HasValue)
         {
             var exec = await _db.TestExecutions.FindAsync([req.ExecutionId.Value], ct);
             if (exec is null) return BadRequest(new { error = "INVALID_EXECUTION", message = "Test execution not found." });
 
-            // Prevent same execution being booked twice
             var execAlreadyBooked = await _db.CapacityBookings.AnyAsync(b =>
                 b.ExecutionId == req.ExecutionId && b.Status != "Cancelled", ct);
             if (execAlreadyBooked)
                 return Conflict(new { error = "EXECUTION_ALREADY_BOOKED", message = "This test execution already has an active booking." });
         }
 
-        // Conflict check — no overlapping booking for same instrument
         var conflict = await _db.CapacityBookings.AnyAsync(b =>
             b.InstrumentId == req.InstrumentId &&
             b.Status != "Cancelled" && b.Status != "Released" &&

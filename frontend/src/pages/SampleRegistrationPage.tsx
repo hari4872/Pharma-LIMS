@@ -61,7 +61,7 @@ interface WizardAssignment {
   tests: WizardSpecTest[]
 }
 interface AnalystOption  { userId: number; fullName: string }
-interface InstrumentOption { instrumentId: number; instrumentCode: string; instrumentType: string; status: string }
+interface InstrumentOption { instrumentId: number; instrumentCode: string; instrumentName: string; instrumentType: string; status: string }
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Registered:      { bg: '#dbeafe', color: '#1e40af' },
@@ -174,8 +174,8 @@ export default function SampleRegistrationPage() {
 
   // Post-registration wizard state
   const [wizard, setWizard]               = useState<WizardSample | null>(null)
-  const [wizardStep, setWizardStep]       = useState<1|2|3|4>(1)
-  const [wizardSplitDone, setWizardSplitDone]   = useState(false)
+  const [wizardStep, setWizardStep]       = useState<1|2|3|4|5>(1)
+  const [_wizardSplitDone, setWizardSplitDone]   = useState(false)
   const [wizardContainers, setWizardContainers] = useState<SampleContainer[]>([])
   const [wizardSplitting, setWizardSplitting]   = useState(false)
   // Drag-and-drop spec test grouping
@@ -194,6 +194,12 @@ export default function SampleRegistrationPage() {
   const [wizardESign, setWizardESign]             = useState({ password: '', meaning: '', reason: '' })
   const [wizardSigning, setWizardSigning]         = useState(false)
   const [wizardSignError, setWizardSignError]     = useState('')
+
+  // Wizard Step 4 — Schedule (capacity booking linked to assigned instruments)
+  interface WizardScheduleRow { containerId: number | null; containerLabel: string; instrumentId: string; instrumentCode: string; startDate: string; startTime: string; endDate: string; endTime: string }
+  const [wizardScheduleRows, setWizardScheduleRows]       = useState<WizardScheduleRow[]>([])
+  const [wizardScheduleBooking, setWizardScheduleBooking] = useState(false)
+  const [wizardScheduleError, setWizardScheduleError]     = useState('')
 
   // Container management state
   const [containerSample, setContainerSample] = useState<Sample | null>(null)
@@ -364,9 +370,42 @@ export default function SampleRegistrationPage() {
           throw innerErr
         }
       }
+      // Build schedule rows from assignments that have an instrument selected
+      const schedRows = wizardAssignments
+        .filter(a => a.instrumentId)
+        .map(a => {
+          const inst = wizardInstruments.find(i => String(i.instrumentId) === a.instrumentId)
+          return {
+            containerId: a.containerId,
+            containerLabel: a.containerLabel,
+            instrumentId: a.instrumentId,
+            instrumentCode: inst ? `${inst.instrumentCode} — ${inst.instrumentName || inst.instrumentType}` : a.instrumentId,
+            startDate: '', startTime: '', endDate: '', endTime: '',
+          }
+        })
+      setWizardScheduleRows(schedRows)
+      setWizardScheduleError('')
       setWizardStep(4)
     } catch (err) { setWizardAssignError(getErrorMessage(err, 'Assignment failed')) }
     finally { setWizardAssigning(false) }
+  }
+
+  async function wizardConfirmSchedule() {
+    setWizardScheduleBooking(true); setWizardScheduleError('')
+    try {
+      const rowsToBook = wizardScheduleRows.filter(r => r.instrumentId && r.startDate && r.startTime && r.endDate && r.endTime)
+      for (const row of rowsToBook) {
+        await api.post('/capacity-bookings', {
+          instrumentId: Number(row.instrumentId),
+          startTime: new Date(`${row.startDate}T${row.startTime}:00`).toISOString(),
+          endTime:   new Date(`${row.endDate}T${row.endTime}:00`).toISOString(),
+          notes: row.containerLabel,
+        })
+      }
+      setWizardStep(5)
+    } catch (err) {
+      setWizardScheduleError(getErrorMessage(err, 'Booking failed'))
+    } finally { setWizardScheduleBooking(false) }
   }
 
   async function wizardFinish() {
@@ -397,7 +436,7 @@ export default function SampleRegistrationPage() {
     load()
   }
 
-  function wizardPrintAll(sampleNumber: string, containers: SampleContainer[]) {
+  function wizardPrintAll(_sampleNumber: string, _containers: SampleContainer[]) {
     const style = document.createElement('style')
     style.id = 'lims-wizard-print'
     style.textContent = `@media print { body > * { visibility: hidden !important; } #lims-wizard-barcodes, #lims-wizard-barcodes * { visibility: visible !important; } #lims-wizard-barcodes { position: fixed !important; top: 0; left: 0; width: 100%; background: white; } }`
@@ -1391,11 +1430,11 @@ export default function SampleRegistrationPage() {
       {wizard && (() => {
         const srfEnabled = srfMethod !== 'None'
         const stepLabels = srfEnabled
-          ? ['Container Split', 'SRF E-Sign', 'Assign Tests', 'Print Barcodes']
-          : ['Container Split', 'Assign Tests', 'Print Barcodes']
+          ? ['Container Split', 'SRF E-Sign', 'Assign Tests', 'Schedule', 'Print Barcodes']
+          : ['Container Split', 'Assign Tests', 'Schedule', 'Print Barcodes']
         const totalSteps = stepLabels.length
-        // Map actual step (1/2/3/4) to display index (0-based), accounting for SRF skip
-        const displayIdx = srfEnabled ? wizardStep - 1 : (wizardStep === 1 ? 0 : wizardStep === 3 ? 1 : 2)
+        // Map actual step (1/2/3/4/5) to display index (0-based), accounting for SRF skip
+        const displayIdx = srfEnabled ? wizardStep - 1 : (wizardStep === 1 ? 0 : wizardStep === 3 ? 1 : wizardStep === 4 ? 2 : 3)
         const btnBase: React.CSSProperties = { padding: '8px 20px', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }
         return (
           <Drawer
@@ -1702,14 +1741,67 @@ export default function SampleRegistrationPage() {
                   <button onClick={() => setWizardStep(srfEnabled ? 2 : 1)} style={{ ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>← Back</button>
                   <button onClick={wizardConfirmAssignments} disabled={wizardAssigning}
                     style={{ ...btnBase, background: wizardAssigning ? '#9ca3af' : '#0369a1', color: '#fff' }}>
-                    {wizardAssigning ? 'Assigning…' : 'Next — Print Barcodes →'}
+                    {wizardAssigning ? 'Assigning…' : 'Next — Schedule →'}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* ── Step 4: Print Barcodes ── */}
+            {/* ── Step 4: Schedule ── */}
             {wizardStep === 4 && (
+              <div>
+                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+                  Book time slots for the instruments assigned in the previous step. This is optional — you can also book later in Capacity Booking.
+                </p>
+                {wizardScheduleRows.length === 0 ? (
+                  <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '20px 16px', textAlign: 'center', color: '#9ca3af', fontSize: 13, marginBottom: 16 }}>
+                    No instruments were assigned — nothing to schedule.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                    {wizardScheduleRows.map((row, idx) => (
+                      <div key={idx} style={{ border: '1px solid #e5e7eb', borderRadius: 8, background: '#fafafa', padding: '10px 14px' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: 11, background: '#eff6ff', color: '#0369a1', border: '1px solid #bfdbfe', borderRadius: 4, padding: '1px 6px' }}>{row.containerLabel}</span>
+                          <span style={{ color: '#6b7280', fontWeight: 400 }}>{row.instrumentCode}</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
+                          {[
+                            { label: 'Start Date', type: 'date', val: row.startDate, key: 'startDate' },
+                            { label: 'Start Time', type: 'time', val: row.startTime, key: 'startTime' },
+                            { label: 'End Date',   type: 'date', val: row.endDate,   key: 'endDate' },
+                            { label: 'End Time',   type: 'time', val: row.endTime,   key: 'endTime' },
+                          ].map(({ label, type, val, key }) => (
+                            <div key={key}>
+                              <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>{label}</div>
+                              <input type={type} style={{ ...inp, margin: 0, fontSize: 12, width: '100%' }} value={val}
+                                onChange={e => setWizardScheduleRows(prev => prev.map((r, i) => i === idx ? { ...r, [key]: e.target.value } : r))} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {wizardScheduleError && <p style={{ color: '#dc2626', fontSize: 12, marginBottom: 10 }}>{wizardScheduleError}</p>}
+                <p style={{ fontSize: 11, color: '#9ca3af', margin: '0 0 12px' }}>ℹ Booked slots appear on the Capacity Booking calendar immediately.</p>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
+                  <button onClick={() => setWizardStep(3)} style={{ ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>← Back</button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => setWizardStep(5)} style={{ ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>
+                      Skip →
+                    </button>
+                    <button onClick={wizardConfirmSchedule} disabled={wizardScheduleBooking || wizardScheduleRows.length === 0}
+                      style={{ ...btnBase, background: (wizardScheduleBooking || wizardScheduleRows.length === 0) ? '#9ca3af' : '#0369a1', color: '#fff' }}>
+                      {wizardScheduleBooking ? 'Booking…' : 'Confirm & Continue →'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Step 5: Print Barcodes ── */}
+            {wizardStep === 5 && (
               <div>
                 <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
                   Print labels for the sample{wizardContainers.length > 0 ? ' and each QC container' : ''}.
@@ -1748,7 +1840,7 @@ export default function SampleRegistrationPage() {
                   </button>
                 )}
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
-                  <button onClick={() => setWizardStep(3)} style={{ ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>← Back</button>
+                  <button onClick={() => setWizardStep(4)} style={{ ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>← Back</button>
                   <button onClick={wizardClose} style={{ ...btnBase, background: '#0369a1', color: '#fff' }}>
                     Finish ✓
                   </button>
