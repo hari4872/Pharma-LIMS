@@ -510,7 +510,7 @@ export default function CapacityBookingPage() {
                   </div>
                   {[
                     ['Instrument', `${detail.instrumentCode} — ${detail.instrumentName}`],
-                    ['Time',       `${hrLabel(s.getUTCHours())} – ${hrLabel(e.getUTCHours())} (${dur}h)`],
+                    ['Time',       `${hrLabel(s.getHours())} – ${hrLabel(e.getHours())} (${dur}h)`],
                     ...(detail.sampleNumber ? [['Linked Test', detail.sampleNumber]] : []),
                     ...(detail.notes ? [['Notes', detail.notes]] : []),
                   ].map(([k, v]) => (
