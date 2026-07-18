@@ -362,11 +362,11 @@ export default function SampleRegistrationPage() {
             specTemplateItemIds,
           })
         } catch (innerErr) {
-          // Graceful fallback for undeployed production backend: if the backend does not yet
-          // support SpecTemplateItemIds and returns INVALID_STATE (InTesting) on the second
-          // call, skip remaining rows — the first call already covered all executions.
           const d = (innerErr as any)?.response?.data
-          if (d?.error === 'INVALID_STATE' && typeof d?.message === 'string' && d.message.includes('InTesting')) break
+          if (d?.error === 'INVALID_STATE' && typeof d?.message === 'string') {
+            if (d.message.includes('InTesting')) break   // all executions already assigned → stop
+            if (d.message.includes('InUse')) continue    // this container already assigned → skip to next
+          }
           throw innerErr
         }
       }
