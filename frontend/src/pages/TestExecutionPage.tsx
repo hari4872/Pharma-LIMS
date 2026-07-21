@@ -741,7 +741,7 @@ export default function TestExecutionPage() {
                             </span>
                           </span>
                         ) : (
-                          <span style={{ color: '#16a34a', fontWeight: 600 }}>✓</span>
+                          <span style={{ color: '#9ca3af' }}>—</span>
                         )}
                       </td>
                       <td style={{ padding: '10px 12px', color: r.hasEvidence ? '#16a34a' : '#9ca3af' }}>
