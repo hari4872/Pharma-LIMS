@@ -25,7 +25,8 @@ public record LogbookEntryResult(
     int EntryId, int ParameterId, string ParameterName,
     string RawValue, decimal? CalculatedResult, string PassFail,
     bool IsOos, bool IsOot, bool IsCritical, bool HasEvidence,
-    decimal? SpecMin = null, decimal? SpecMax = null);
+    decimal? SpecMin = null, decimal? SpecMax = null,
+    decimal? TrendLow = null, decimal? TrendHigh = null);
 
 public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand, Result<SubmitTestResultsResponse>>
 {
@@ -181,7 +182,8 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
             s.Entry.RawValue, s.Entry.CalculatedResult, s.Detection.PassFail,
             s.Detection.IsOos, s.Detection.IsOot,
             s.Param.IsCritical, s.Entry.EvidenceFileRef is not null,
-            s.Entry.SpecMinSnapshot, s.Entry.SpecMaxSnapshot)).ToList();
+            s.Entry.SpecMinSnapshot, s.Entry.SpecMaxSnapshot,
+            s.Detection.TrendLow, s.Detection.TrendHigh)).ToList();
 
         return Result<SubmitTestResultsResponse>.Success(
             new SubmitTestResultsResponse(cmd.ExecutionId, results, hasOos, hasOot));

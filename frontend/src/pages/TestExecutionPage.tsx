@@ -59,6 +59,7 @@ interface ResultRow {
   rawValue: string; calculatedResult: number | null
   passFail: string; isOos: boolean; isOot: boolean; isCritical: boolean; hasEvidence: boolean
   specMin: number | null; specMax: number | null
+  trendLow?: number | null; trendHigh?: number | null
 }
 
 const DRAFT_KEY = (id: string) => `lims-draft-exec-${id}`
@@ -174,6 +175,8 @@ export default function TestExecutionPage() {
                   hasEvidence: (e as any).hasEvidence ?? false,
                   specMin: (e as any).specMinSnapshot ?? null,
                   specMax: (e as any).specMaxSnapshot ?? null,
+                  trendLow:  (e as any).ootMinSnapshot ?? null,
+                  trendHigh: (e as any).ootMaxSnapshot ?? null,
                 })))
               })
               .catch(() => {/* non-blocking — form still shows, just without prefilled values */})
@@ -718,7 +721,22 @@ export default function TestExecutionPage() {
                         }}>{r.passFail}</span>
                       </td>
                       <td style={{ padding: '10px 12px', color: r.isOos ? '#dc2626' : '#16a34a', fontWeight: 600 }}>{r.isOos ? '⚠ OOS' : '✓'}</td>
-                      <td style={{ padding: '10px 12px', color: r.isOot ? '#d97706' : '#16a34a', fontWeight: 600 }}>{r.isOot ? '⚠ OOT' : '✓'}</td>
+                      <td style={{ padding: '10px 12px' }}>
+                        {r.isOos ? (
+                          <span style={{ color: '#9ca3af' }}>—</span>
+                        ) : r.isOot ? (
+                          <span style={{ color: '#d97706', fontWeight: 700 }}>⚠ OOT</span>
+                        ) : r.trendLow != null && r.trendHigh != null ? (
+                          <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                            ✓
+                            <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 400, color: '#6b7280' }}>
+                              [{r.trendLow.toFixed(1)}–{r.trendHigh.toFixed(1)}]
+                            </span>
+                          </span>
+                        ) : (
+                          <span style={{ color: '#16a34a', fontWeight: 600 }}>✓</span>
+                        )}
+                      </td>
                       <td style={{ padding: '10px 12px', color: r.hasEvidence ? '#16a34a' : '#9ca3af' }}>
                         {r.hasEvidence ? '✓ Filed' : '—'}
                       </td>

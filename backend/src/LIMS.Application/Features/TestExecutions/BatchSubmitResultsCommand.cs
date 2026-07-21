@@ -146,7 +146,8 @@ public class BatchSubmitResultsHandler : IRequestHandler<BatchSubmitResultsComma
                 s.Entry.EntryId, s.Param.ParameterId, s.Param.ParameterName,
                 s.Entry.RawValue, s.Entry.CalculatedResult, s.Detection.PassFail,
                 s.Detection.IsOos, s.Detection.IsOot,
-                s.Param.IsCritical, s.Entry.EvidenceFileRef is not null)).ToList();
+                s.Param.IsCritical, s.Entry.EvidenceFileRef is not null,
+                TrendLow: s.Detection.TrendLow, TrendHigh: s.Detection.TrendHigh)).ToList();
 
             rows.Add(new BatchRowResult(execEntry.ExecutionId, execution.Sample?.SampleNumber ?? "?", results, hasOos, hasOot, null));
             success++;
