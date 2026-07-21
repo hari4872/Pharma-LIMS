@@ -106,7 +106,7 @@ public class BatchSubmitResultsHandler : IRequestHandler<BatchSubmitResultsComma
                 var detection = _oos.Detect(
                     calculated,
                     specLimit?.MinValue, specLimit?.MaxValue,
-                    specLimit?.OotMinValue, specLimit?.OotMaxValue);
+                    Array.Empty<decimal>()); // batch path — trend history not fetched on this path
 
                 if (detection.IsOos) hasOos = true;
                 if (detection.IsOot) hasOot = true;
@@ -123,8 +123,8 @@ public class BatchSubmitResultsHandler : IRequestHandler<BatchSubmitResultsComma
                     CorrectionDetail      = correctionDetail,
                     SpecMinSnapshot       = specLimit?.MinValue,
                     SpecMaxSnapshot       = specLimit?.MaxValue,
-                    OotMinSnapshot        = specLimit?.OotMinValue,
-                    OotMaxSnapshot        = specLimit?.OotMaxValue,
+                    OotMinSnapshot        = detection.TrendLow,
+                    OotMaxSnapshot        = detection.TrendHigh,
                     PassFail              = detection.PassFail,
                     IsOos                 = detection.IsOos,
                     IsOot                 = detection.IsOot,

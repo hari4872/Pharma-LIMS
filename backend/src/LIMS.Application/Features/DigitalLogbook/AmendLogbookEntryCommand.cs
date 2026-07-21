@@ -70,7 +70,7 @@ public class AmendLogbookEntryHandler : IRequestHandler<AmendLogbookEntryCommand
             : null;
         var detection = _oos.Detect(calculated,
             specLimit?.MinValue, specLimit?.MaxValue,
-            specLimit?.OotMinValue, specLimit?.OotMaxValue);
+            Array.Empty<decimal>()); // amend path — no trend history
 
         // Create new entry (Pending — must be re-signed by analyst)
         var amended = new DigitalLogbookEntry

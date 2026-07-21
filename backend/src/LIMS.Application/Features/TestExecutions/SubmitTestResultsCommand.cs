@@ -66,6 +66,28 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
 
         bool hasOos = false, hasOot = false;
 
+        // Batch-fetch OOT history: last 20 Signed, non-OOS results per parameter for this material.
+        // Single query across all parameters — avoids N+1 inside the loop.
+        var paramIds = cmd.Entries.Select(e => e.ParameterId).ToHashSet();
+        var materialId = execution.Sample.MaterialId;
+        var rawHistory = await _db.DigitalLogbookEntries
+            .Where(e => paramIds.Contains(e.ParameterId)
+                     && e.Sample.MaterialId == materialId
+                     && e.Status == LogbookEntryStatus.Signed
+                     && !e.IsOos
+                     && e.CalculatedResult.HasValue
+                     && e.SupersededById == null)
+            .OrderByDescending(e => e.CreatedAt)
+            .Select(e => new { e.ParameterId, Value = e.CalculatedResult!.Value })
+            .ToListAsync(ct);
+
+        // Keep only the 20 most-recent per parameter (already ordered desc, take stops at 20)
+        var historyByParam = rawHistory
+            .GroupBy(e => e.ParameterId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<decimal>)g.Take(20).Select(e => e.Value).ToList());
+
         // Collect (entry entity, param, detection) — save once after loop to avoid partial commits
         var staged = new List<(DigitalLogbookEntry Entry, TestMethodParameter Param, OosDetectionResult Detection)>();
 
@@ -110,10 +132,13 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
                 calculated = _rounding.ApplyRounding(calculated.Value, param.DecimalPlaces);
 
             // OOS / OOT detection — single service for both (Contract 1)
+            // History = Signed non-OOS results for same parameter + material (up to 20)
+            var history = historyByParam.TryGetValue(item.ParameterId, out var h)
+                ? h : Array.Empty<decimal>();
             var detection = _oos.Detect(
                 calculated,
                 specLimit?.MinValue, specLimit?.MaxValue,
-                specLimit?.OotMinValue, specLimit?.OotMaxValue);
+                history);
 
             if (detection.IsOos) hasOos = true;
             if (detection.IsOot) hasOot = true;
@@ -130,8 +155,8 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
                 CorrectionDetail = correctionDetail,
                 SpecMinSnapshot = specLimit?.MinValue,
                 SpecMaxSnapshot = specLimit?.MaxValue,
-                OotMinSnapshot = specLimit?.OotMinValue,
-                OotMaxSnapshot = specLimit?.OotMaxValue,
+                OotMinSnapshot = detection.TrendLow,   // mean - 2σ at detection time (audit trail)
+                OotMaxSnapshot = detection.TrendHigh,  // mean + 2σ at detection time (audit trail)
                 RegulatoryTierSnapshot = specLimit?.RegulatoryTier?.ToString(),
                 PassFail = detection.PassFail,
                 IsOos = detection.IsOos,
