@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import { isNavEnabled } from '@/store/navVisibilitySlice'
-import NavVisibilityPanel from './master-data/NavVisibilityPanel'
-import ESignConfigPanel   from './master-data/ESignConfigPanel'
+import NavVisibilityPanel   from './master-data/NavVisibilityPanel'
+import ESignConfigPanel     from './master-data/ESignConfigPanel'
+import WorkflowStepsPanel   from './master-data/WorkflowStepsPanel'
 import LaboratoriesPage       from './master-data/LaboratoriesPage'
 import InstrumentsPage        from './master-data/InstrumentsPage'
 import InstrumentMappingPage  from './master-data/InstrumentMappingPage'
@@ -91,8 +92,9 @@ const TAB_GROUPS: TabGroup[] = [
   {
     id: 'nav-visibility', label: 'Module Visibility', icon: '👁', color: '#7c3aed', bg: '#f3e8ff',
     subtabs: [
-      { id: 'nav-visibility', label: 'Module Visibility', icon: '👁', component: NavVisibilityPanel },
-      { id: 'esign-config',   label: 'E-Sign Config',    icon: '✍', component: ESignConfigPanel   },
+      { id: 'nav-visibility',   label: 'Module Visibility', icon: '👁', component: NavVisibilityPanel  },
+      { id: 'esign-config',     label: 'E-Sign Config',    icon: '✍', component: ESignConfigPanel    },
+      { id: 'workflow-steps',   label: 'Workflow Steps',   icon: '🔀', component: WorkflowStepsPanel  },
     ],
     adminOnly: true,
   },

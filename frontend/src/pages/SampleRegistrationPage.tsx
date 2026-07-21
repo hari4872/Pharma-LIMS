@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useESignConfig } from '@/hooks/useESignConfig'
+import { useLabConfig } from '@/hooks/useLabConfig'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import Barcode from 'react-barcode'
 import { useSelector } from 'react-redux'
@@ -171,6 +172,8 @@ export default function SampleRegistrationPage() {
 
   // E-sign config for SRF step
   const { method: srfMethod } = useESignConfig('SampleRegistration.Submit')
+  const { value: skipScheduleRaw } = useLabConfig(labId, 'skip_schedule_step', 'false')
+  const skipSchedule = skipScheduleRaw === 'true'
 
   // Post-registration wizard state
   const [wizard, setWizard]               = useState<WizardSample | null>(null)
@@ -268,7 +271,7 @@ export default function SampleRegistrationPage() {
     setWizardESign({ password: '', meaning: '', reason: '' })
     setWizardSignError(''); setWizardAssignError('')
     if (wizardAnalysts.length === 0) api.get('/users').then(r => setWizardAnalysts(r.data)).catch(() => {})
-    if (wizardInstruments.length === 0) api.get('/instruments').then(r => setWizardInstruments((r.data as InstrumentOption[]).filter(i => i.status !== 'OutOfCalibration' && i.status !== 'Maintenance'))).catch(() => {})
+    if (wizardInstruments.length === 0) api.get('/instruments').then(r => setWizardInstruments((r.data as InstrumentOption[]).filter(i => i.status === 'Available'))).catch(() => {})
     // Fetch spec template tests for the drag-and-drop pool
     // Note: /specification-templates/{id} can 500 on prod — use list endpoint and filter instead
     api.get(`/samples/${result.sampleId}/spec-assignment`)
@@ -385,27 +388,32 @@ export default function SampleRegistrationPage() {
         })
       setWizardScheduleRows(schedRows)
       setWizardScheduleError('')
-      setWizardStep(4)
+      setWizardStep(skipSchedule ? 5 : 4)
     } catch (err) { setWizardAssignError(getErrorMessage(err, 'Assignment failed')) }
     finally { setWizardAssigning(false) }
   }
 
   async function wizardConfirmSchedule() {
     setWizardScheduleBooking(true); setWizardScheduleError('')
+    const skipped: string[] = []
     try {
       const rowsToBook = wizardScheduleRows.filter(r => r.instrumentId && r.startDate && r.startTime && r.endDate && r.endTime)
       for (const row of rowsToBook) {
-        await api.post('/capacity-bookings', {
-          instrumentId: Number(row.instrumentId),
-          startTime: new Date(`${row.startDate}T${row.startTime}:00`).toISOString(),
-          endTime:   new Date(`${row.endDate}T${row.endTime}:00`).toISOString(),
-          notes: row.containerLabel,
-        })
+        try {
+          await api.post('/capacity-bookings', {
+            instrumentId: Number(row.instrumentId),
+            startTime: new Date(`${row.startDate}T${row.startTime}:00`).toISOString(),
+            endTime:   new Date(`${row.endDate}T${row.endTime}:00`).toISOString(),
+            notes: row.containerLabel,
+          })
+        } catch (err) {
+          // Conflict on one slot — record it as a warning but continue
+          skipped.push(getErrorMessage(err, `${row.containerLabel ?? 'slot'} booking failed`))
+        }
       }
-      setWizardStep(5)
-    } catch (err) {
-      setWizardScheduleError(getErrorMessage(err, 'Booking failed'))
     } finally { setWizardScheduleBooking(false) }
+    if (skipped.length > 0) setWizardScheduleError(`⚠ Some slots skipped (book later in Capacity Booking): ${skipped.join(' · ')}`)
+    setWizardStep(5)
   }
 
   async function wizardFinish() {
@@ -424,10 +432,14 @@ export default function SampleRegistrationPage() {
     setWizardStep(3)
   }
 
-  function wizardClose() {
+  async function wizardClose() {
     const sn = wizard?.sampleNumber
+    const sid = wizard?.sampleId
+    try {
+      if (sid) await api.post(`/samples/${sid}/start-testing`)
+    } catch { /* non-critical — status update best-effort */ }
     setWizard(null)
-    toast(`${sn} setup complete — added to Work Queue`, 'success')
+    toast(`${sn} setup complete — status changed to In Testing`, 'success')
     load()
   }
 
@@ -1430,11 +1442,17 @@ export default function SampleRegistrationPage() {
       {wizard && (() => {
         const srfEnabled = srfMethod !== 'None'
         const stepLabels = srfEnabled
-          ? ['Container Split', 'SRF E-Sign', 'Assign Tests', 'Schedule', 'Print Barcodes']
-          : ['Container Split', 'Assign Tests', 'Schedule', 'Print Barcodes']
+          ? (skipSchedule ? ['Container Split', 'SRF E-Sign', 'Assign Analyst', 'Print Barcodes'] : ['Container Split', 'SRF E-Sign', 'Assign Analyst', 'Schedule', 'Print Barcodes'])
+          : (skipSchedule ? ['Container Split', 'Assign Analyst', 'Print Barcodes'] : ['Container Split', 'Assign Analyst', 'Schedule', 'Print Barcodes'])
         const totalSteps = stepLabels.length
-        // Map actual step (1/2/3/4/5) to display index (0-based), accounting for SRF skip
-        const displayIdx = srfEnabled ? wizardStep - 1 : (wizardStep === 1 ? 0 : wizardStep === 3 ? 1 : wizardStep === 4 ? 2 : 3)
+        // Map actual step (1/2/3/4/5) to display index (0-based), accounting for SRF + schedule skips
+        const displayIdx = (() => {
+          if (srfEnabled && !skipSchedule) return wizardStep - 1
+          if (srfEnabled &&  skipSchedule) return wizardStep === 1 ? 0 : wizardStep === 2 ? 1 : wizardStep === 3 ? 2 : 3
+          if (!srfEnabled && !skipSchedule) return wizardStep === 1 ? 0 : wizardStep === 3 ? 1 : wizardStep === 4 ? 2 : 3
+          // !srfEnabled && skipSchedule
+          return wizardStep === 1 ? 0 : wizardStep === 3 ? 1 : 2
+        })()
         const btnBase: React.CSSProperties = { padding: '8px 20px', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }
         return (
           <Drawer
@@ -1741,14 +1759,14 @@ export default function SampleRegistrationPage() {
                   <button onClick={() => setWizardStep(srfEnabled ? 2 : 1)} style={{ ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>← Back</button>
                   <button onClick={wizardConfirmAssignments} disabled={wizardAssigning}
                     style={{ ...btnBase, background: wizardAssigning ? '#9ca3af' : '#0369a1', color: '#fff' }}>
-                    {wizardAssigning ? 'Assigning…' : 'Next — Schedule →'}
+                    {wizardAssigning ? 'Assigning…' : skipSchedule ? 'Next — Print Barcodes →' : 'Next — Schedule →'}
                   </button>
                 </div>
               </div>
             )}
 
             {/* ── Step 4: Schedule ── */}
-            {wizardStep === 4 && (
+            {wizardStep === 4 && !skipSchedule && (
               <div>
                 <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
                   Book time slots for the instruments assigned in the previous step. This is optional — you can also book later in Capacity Booking.
@@ -1804,8 +1822,8 @@ export default function SampleRegistrationPage() {
             {wizardStep === 5 && (
               <div>
                 <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-                  Print labels for the sample{wizardContainers.length > 0 ? ' and each QC container' : ''}.
-                  You can also reprint later from the sample list.
+                  Print labels for the {wizardContainers.length > 0 ? 'QC containers' : 'sample'}.
+                  Once you click <strong>Finish</strong>, the sample status will change to <strong>In Testing</strong>.
                 </p>
                 <div id="lims-wizard-barcodes" style={{ display: 'grid', gridTemplateColumns: wizardContainers.length > 0 ? 'repeat(auto-fill, minmax(200px, 1fr))' : '200px', gap: 16, marginBottom: 20 }}>
                   {/* Sample barcode */}
@@ -1840,9 +1858,9 @@ export default function SampleRegistrationPage() {
                   </button>
                 )}
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
-                  <button onClick={() => setWizardStep(4)} style={{ ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>← Back</button>
-                  <button onClick={wizardClose} style={{ ...btnBase, background: '#0369a1', color: '#fff' }}>
-                    Finish ✓
+                  <button onClick={() => setWizardStep(skipSchedule ? 3 : 4)} style={{ ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }}>← Back</button>
+                  <button onClick={wizardClose} style={{ ...btnBase, background: '#15803d', color: '#fff' }}>
+                    Finish — Set In Testing ✓
                   </button>
                 </div>
               </div>
