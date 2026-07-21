@@ -475,6 +475,7 @@ export default function Layout() {
         {/* Nav */}
         <nav style={{ flex: 1, paddingBottom: 10 }}>
           {NAV_SECTIONS.map(sec => {
+            if (role === 'SuperAdmin') return null  // platform-only role — only SuperAdmin panel shown
             if (!isNavEnabled(visMap, sec.sectionKey)) return null
             if (sec.roles && !sec.roles.includes(role)) return null
             const visibleItems = sec.items.filter(n =>
