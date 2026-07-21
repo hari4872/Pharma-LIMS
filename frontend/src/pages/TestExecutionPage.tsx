@@ -725,7 +725,14 @@ export default function TestExecutionPage() {
                         {r.isOos ? (
                           <span style={{ color: '#9ca3af' }}>—</span>
                         ) : r.isOot ? (
-                          <span style={{ color: '#d97706', fontWeight: 700 }}>⚠ OOT</span>
+                          <span style={{ color: '#d97706', fontWeight: 700 }}>
+                            ⚠ OOT
+                            {r.trendLow != null && r.trendHigh != null && (
+                              <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 400, color: '#9ca3af' }}>
+                                [{r.trendLow.toFixed(1)}–{r.trendHigh.toFixed(1)}]
+                              </span>
+                            )}
+                          </span>
                         ) : r.trendLow != null && r.trendHigh != null ? (
                           <span style={{ color: '#16a34a', fontWeight: 600 }}>
                             ✓
