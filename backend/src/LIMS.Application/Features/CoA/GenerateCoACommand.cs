@@ -38,7 +38,9 @@ public class GenerateCoAHandler : IRequestHandler<GenerateCoACommand, Result<int
         }
         catch (Exception ex)
         {
-            return Result<int>.Failure("COA_GEN_FAILED", ex.Message);
+            // Surface inner exception so callers see the real DB constraint/trigger error
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            return Result<int>.Failure("COA_GEN_FAILED", detail);
         }
     }
 }

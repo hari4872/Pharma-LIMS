@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using LIMS.Domain.Entities;
 using LIMS.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -21,6 +22,19 @@ public class NavVisibilityController : ControllerBase
         var rows = await _db.NavVisibilitySettings.ToListAsync();
         // Return as { key: isEnabled } map — absence means enabled (default ON)
         var map = rows.ToDictionary(r => r.Key, r => r.IsEnabled);
+
+        // Apply SuperAdmin module-visibility locks for the current user's role.
+        // Locked entries override whatever the Admin-level map says — SuperAdmin wins.
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? User.FindFirstValue("role") ?? "";
+        if (!string.IsNullOrEmpty(role) && role != "SuperAdmin")
+        {
+            var locked = await _db.RoleModuleVisibilities
+                .Where(r => r.Role == role && r.IsLockedBySuperAdmin)
+                .ToListAsync();
+            foreach (var entry in locked)
+                map[entry.NavKey] = entry.IsEnabled;
+        }
+
         return Ok(map);
     }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 
@@ -334,7 +334,7 @@ function ModuleVisibilityTab() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// TAB: E-Sign Config (read-only overview — deep edit is in Admin panel)
+// TAB: E-Sign Config (read-only audit view — editable in Admin Settings)
 // ══════════════════════════════════════════════════════════════════════════════
 function ESignConfigTab() {
   const token = useToken()
@@ -352,11 +352,11 @@ function ESignConfigTab() {
     <div>
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 14, fontWeight: 500, color: '#111827', marginBottom: 3 }}>E-sign configuration</div>
-        <div style={{ fontSize: 12, color: '#6b7280' }}>Which actions require an electronic signature. Edit in the Admin panel — SuperAdmin can audit here.</div>
+        <div style={{ fontSize: 12, color: '#6b7280' }}>Which actions require an electronic signature. Editable in Admin → System Config.</div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 12px', background: '#f5f3ff', border: '0.5px solid #ddd6fe', borderRadius: 7, fontSize: 11, color: '#6d28d9', marginBottom: 14 }}>
-        ✍ E-sign settings are managed per-lab by Admin. SuperAdmin audits the configuration below.
+        ✍ E-sign settings are managed by Admin. SuperAdmin can audit the configuration below.
       </div>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>

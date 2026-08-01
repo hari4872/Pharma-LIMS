@@ -67,11 +67,21 @@ public class CoAHeaderService : ICoAHeaderService
         var year   = DateTime.UtcNow.Year.ToString();
         var yearShort = year.Substring(2);
 
-        var result = format
+        string Render(int n) => format
             .Replace("{YYYY}", year)
             .Replace("{YY}", yearShort)
-            .Replace("{SEQ5}", count.ToString("D5"))
-            .Replace("{SEQ4}", count.ToString("D4"));
+            .Replace("{SEQ5}", n.ToString("D5"))
+            .Replace("{SEQ4}", n.ToString("D4"));
+
+        var result = Render(count);
+
+        // Guard: if count-based number already exists (e.g. from a previous failed generation
+        // that committed the Coa row but not the lines), keep incrementing until unique.
+        while (await _db.Coas.AnyAsync(c => c.CoaNumber == result, ct))
+        {
+            count++;
+            result = Render(count);
+        }
 
         return result;
     }

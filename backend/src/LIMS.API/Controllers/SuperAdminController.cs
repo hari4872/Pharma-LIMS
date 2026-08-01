@@ -118,7 +118,7 @@ public class SuperAdminController : ControllerBase
             .Where(l => l.EventType.StartsWith("SuperAdmin") || l.PerformedBy == "superadmin")
             .OrderByDescending(l => l.PerformedAt)
             .Take(limit)
-            .Select(l => new { l.EntityType, l.EventType, l.PerformedBy, l.PerformedAt, l.NewValue })
+            .Select(l => new { l.EntityType, Action = l.EventType, ChangedBy = l.PerformedBy, ChangedAt = l.PerformedAt, NewValues = l.NewValue })
             .ToListAsync();
         return Ok(logs);
     }
