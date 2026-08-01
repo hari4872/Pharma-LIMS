@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { Fragment, useState, useEffect, type CSSProperties } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 
@@ -69,7 +69,7 @@ const S = {
     border: '0.5px solid #e5e7eb',
     borderRadius: 8,
     padding: '13px 15px',
-  } as React.CSSProperties,
+  } as CSSProperties,
   sectionHdr: {
     fontSize: 11, fontWeight: 700 as const, color: '#0d9488',
     textTransform: 'uppercase' as const, letterSpacing: '0.07em',
@@ -295,8 +295,8 @@ function ModuleVisibilityTab() {
         </thead>
         <tbody>
           {NAV_REGISTRY.map(sec => (
-            <>
-              <tr key={sec.section}>
+            <Fragment key={sec.section}>
+              <tr>
                 <td colSpan={3} style={{ padding: '8px 10px 4px', fontSize: 10, fontWeight: 700, color: '#0d9488', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#f9fafb', borderBottom: '0.5px solid #e5e7eb' }}>
                   {sec.section}
                 </td>
@@ -324,7 +324,7 @@ function ModuleVisibilityTab() {
                   </tr>
                 )
               })}
-            </>
+            </Fragment>
           ))}
         </tbody>
       </table>
