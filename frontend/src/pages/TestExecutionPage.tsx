@@ -562,9 +562,9 @@ export default function TestExecutionPage() {
                         <select
                           value={paramInstruments[p.parameterId] ?? ''}
                           onChange={e => setParamInstruments(prev => ({ ...prev, [p.parameterId]: Number(e.target.value) }))}
-                          style={{ ...inp, margin: 0, fontSize: 12, padding: '6px 8px', borderColor: isAutoMapped ? '#99f6e4' : undefined }}
+                          style={{ ...inp, margin: 0, fontSize: 12, padding: '6px 8px', minWidth: 200, borderColor: isAutoMapped ? '#99f6e4' : undefined }}
                         >
-                          <option value="">{isAutoMapped ? '— Select matched instrument —' : '— Select instrument (manual) —'}</option>
+                          <option value="">{isAutoMapped ? '— Select instrument —' : '— Select instrument —'}</option>
                           {filtered.map(i => (
                             <option key={i.instrumentId} value={i.instrumentId}>
                               {i.instrumentCode} — {i.instrumentType}

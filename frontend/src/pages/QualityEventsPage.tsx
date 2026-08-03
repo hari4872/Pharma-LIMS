@@ -174,14 +174,14 @@ export default function QualityEventsPage() {
   return (
     <div>
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: 16 }}>
         <PageHeader
           title={`${currentType.label} Register`}
           onAdd={openCreate}
           addLabel={`New ${currentType.label}`}
         />
-        {/* Type tabs */}
-        <div style={{ display: 'flex', gap: 4, marginLeft: 8 }}>
+        {/* Type tabs + status filter */}
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
           {TYPE_OPTIONS.map(t => (
             <button key={t.value}
               onClick={() => setTypeFilter(t.value)}
@@ -195,11 +195,11 @@ export default function QualityEventsPage() {
               {t.label}
             </button>
           ))}
+          <select style={{ ...inp, width: 160, marginTop: 0 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <option value="">All Statuses</option>
+            {['Open', 'UnderReview', 'Closed', 'Verified'].map(s => <option key={s}>{s}</option>)}
+          </select>
         </div>
-        <select style={{ ...inp, width: 160, marginTop: 0 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="">All Statuses</option>
-          {['Open', 'UnderReview', 'Closed', 'Verified'].map(s => <option key={s}>{s}</option>)}
-        </select>
       </div>
 
       {/* ── Table ── */}

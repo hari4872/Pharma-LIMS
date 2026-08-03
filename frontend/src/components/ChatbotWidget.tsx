@@ -195,7 +195,7 @@ export default function ChatbotWidget() {
 
   const s: Record<string, React.CSSProperties> = {
     fab: {
-      position: 'fixed', bottom: 80, right: 28, zIndex: 9999,
+      position: 'fixed', bottom: 80, right: 28, zIndex: 90,
       width: 52, height: 52, borderRadius: '50%',
       background: `linear-gradient(135deg, ${TEAL} 0%, ${TEAL2} 100%)`,
       border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(13,110,110,0.4)',
@@ -203,7 +203,7 @@ export default function ChatbotWidget() {
       transition: 'transform 0.2s',
     },
     panel: {
-      position: 'fixed', bottom: 144, right: 28, zIndex: 9998,
+      position: 'fixed', bottom: 144, right: 28, zIndex: 89,
       width: 380, maxHeight: 560,
       background: '#fff', borderRadius: 16,
       boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
