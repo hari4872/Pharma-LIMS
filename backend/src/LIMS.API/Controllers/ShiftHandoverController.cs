@@ -25,6 +25,8 @@ public class ShiftHandoverController : ControllerBase
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary()
     {
+        try
+        {
         // 1. In-progress test executions (status = InProgress)
         var inProgressList = await _db.TestExecutions
             .Where(e => e.Status == TestExecutionStatus.InProgress)
@@ -40,8 +42,8 @@ public class ShiftHandoverController : ControllerBase
         var assignedCount = await _db.TestExecutions
             .CountAsync(e => e.Status == TestExecutionStatus.Assigned);
 
-        // 3. Overdue samples (past due date, not released/rejected)
-        var overdueList = await _db.Samples
+        // 3. Overdue samples — project enum as raw value, convert to string in memory
+        var overdueRaw = await _db.Samples
             .Where(s => s.DueDate.HasValue
                      && s.DueDate < DateTimeOffset.UtcNow
                      && s.Status != SampleStatus.Released
@@ -50,37 +52,54 @@ public class ShiftHandoverController : ControllerBase
             {
                 sampleNumber = s.SampleNumber,
                 dueDate      = s.DueDate,
-                status       = s.Status.ToString(),
+                status       = s.Status,
             })
             .OrderBy(s => s.dueDate)
             .ToListAsync();
+        var overdueList = overdueRaw.Select(s => new
+        {
+            s.sampleNumber,
+            s.dueDate,
+            status = s.status.ToString(),
+        }).ToList();
 
-        // 4. Open OOS investigations
-        var oosList = await _db.OosInvestigations
+        // 4. Open OOS investigations — project enum as raw value, convert to string in memory
+        var oosRaw = await _db.OosInvestigations
             .Where(o => o.Status == OosStatus.Open)
             .Select(o => new
             {
                 investigationId = o.InvestigationId,
                 parameterName   = o.Parameter.ParameterName,
-                phase           = o.Phase.ToString(),
+                phase           = o.Phase,
             })
             .ToListAsync();
+        var oosList = oosRaw.Select(o => new
+        {
+            o.investigationId,
+            o.parameterName,
+            phase = o.phase.ToString(),
+        }).ToList();
 
         // 5. Pending QA review samples
         var pendingQaCount = await _db.Samples
             .CountAsync(s => s.Status == SampleStatus.PendingQAReview);
 
-        // 6. Instrument issues (OutOfCalibration or Maintenance)
-        var instrumentIssues = await _db.Instruments
+        // 6. Instrument issues — project enum as raw value, convert to string in memory
+        var instrumentRaw = await _db.Instruments
             .Where(i => i.IsActive &&
                        (i.Status == InstrumentStatus.OutOfCalibration ||
                         i.Status == InstrumentStatus.Maintenance))
             .Select(i => new
             {
                 code   = i.InstrumentCode,
-                status = i.Status.ToString(),
+                status = i.Status,
             })
             .ToListAsync();
+        var instrumentIssues = instrumentRaw.Select(i => new
+        {
+            i.code,
+            status = i.status.ToString(),
+        }).ToList();
 
         // 7. Pending peer reviews (Completed status = awaiting peer review)
         var pendingPeerReviewCount = await _db.TestExecutions
@@ -147,7 +166,10 @@ public class ShiftHandoverController : ControllerBase
         }
 
         if (!response.IsSuccessStatusCode)
-            return StatusCode(500, new { error = "AI service error." });
+        {
+            var errBody = await response.Content.ReadAsStringAsync();
+            return StatusCode(500, new { error = "AI service error.", detail = errBody });
+        }
 
         string summary;
         try
@@ -191,5 +213,10 @@ public class ShiftHandoverController : ControllerBase
                 pendingPeerReview   = pendingPeerReviewCount,
             },
         });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = "Shift handover failed.", detail = ex.Message });
+        }
     }
 }

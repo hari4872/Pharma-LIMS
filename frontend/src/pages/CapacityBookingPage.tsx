@@ -627,7 +627,7 @@ export default function CapacityBookingPage() {
                   <option value="">— No linked test execution —</option>
                   {pendingExecs.map(e => (
                     <option key={e.executionId} value={e.executionId}>
-                      {e.sampleNumber} ({e.status})
+                      {e.sampleNumber} #{e.executionId} ({e.status})
                     </option>
                   ))}
                 </select>
