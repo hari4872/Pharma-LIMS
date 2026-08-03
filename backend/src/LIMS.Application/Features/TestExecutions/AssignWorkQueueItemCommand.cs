@@ -80,6 +80,10 @@ public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCom
                 if (cmd.ContainerId.HasValue) exec.SampleContainerId = cmd.ContainerId;
             }
         }
+        else if (cmd.SpecTemplateItemIds != null)
+        {
+            // Specific items requested but none found — already assigned to another container. Skip.
+        }
         else
         {
             // No spec-engine executions exist. If the sample has a spec template,
@@ -142,7 +146,7 @@ public class AssignWorkQueueItemHandler : IRequestHandler<AssignWorkQueueItemCom
         if (container is not null)
             container.Status = LIMS.Domain.Enums.ContainerStatus.InUse;
 
-        sample.Status = SampleStatus.InTesting;
+        // Status stays PendingTesting until barcode is printed (wizard step 5 calls StartTestingCommand)
         await _db.SaveChangesAsync(ct);
         try { await _audit.LogAsync("WorkQueue", cmd.SampleId, "Assigned",
             null, new { cmd.AnalystId, cmd.InstrumentId, cmd.PriorityScore }, "System"); } catch { /* non-critical */ }

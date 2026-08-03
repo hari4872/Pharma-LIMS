@@ -87,6 +87,8 @@ builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.JwtBearer
 
 builder.Services.AddHttpClient();
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+    LIMS.API.Authorization.SuperAdminAuthorizationHandler>();
 builder.Services.AddCors(options =>
     options.AddPolicy("LimsFrontend", policy =>
     {

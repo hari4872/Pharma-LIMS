@@ -95,6 +95,8 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<SampleTransfer> SampleTransfers => Set<SampleTransfer>();
     // Capacity Booking
     public DbSet<CapacityBooking> CapacityBookings => Set<CapacityBooking>();
+    // Instrument CSV Import
+    public DbSet<InstrumentImportLog> InstrumentImportLogs => Set<InstrumentImportLog>();
     // LabVantage Parity
     public DbSet<LoginAuditLog> LoginAuditLogs => Set<LoginAuditLog>();
     public DbSet<StabilityTrendPoint> StabilityTrendPoints => Set<StabilityTrendPoint>();

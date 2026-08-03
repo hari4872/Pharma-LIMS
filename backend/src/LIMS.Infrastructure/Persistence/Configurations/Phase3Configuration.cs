@@ -129,3 +129,19 @@ public class ResultEvidenceConfiguration : IEntityTypeConfiguration<ResultEviden
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+public class InstrumentImportLogConfiguration : IEntityTypeConfiguration<InstrumentImportLog>
+{
+    public void Configure(EntityTypeBuilder<InstrumentImportLog> b)
+    {
+        b.ToTable("instrument_import_logs");
+        b.HasKey(e => e.ImportLogId);
+        b.Property(e => e.FileName).HasMaxLength(500).IsRequired();
+        b.Property(e => e.ImportedAt).HasColumnType("timestamptz");
+
+        b.HasOne(e => e.Execution).WithMany().HasForeignKey(e => e.ExecutionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        b.HasOne(e => e.ImportedByUser).WithMany().HasForeignKey(e => e.ImportedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}

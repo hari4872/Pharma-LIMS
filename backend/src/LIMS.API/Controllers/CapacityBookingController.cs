@@ -112,7 +112,13 @@ public class CapacityBookingController : LimsControllerBase
             b.StartTime < req.EndTime && b.EndTime > req.StartTime, ct);
 
         if (conflict)
-            return Conflict(new { error = "TIME_CONFLICT", message = "This instrument is already booked for the selected time slot." });
+        {
+            var instrCode = await _db.Instruments
+                .Where(i => i.InstrumentId == req.InstrumentId)
+                .Select(i => i.InstrumentCode)
+                .FirstOrDefaultAsync(ct) ?? "Unknown";
+            return Conflict(new { error = "TIME_CONFLICT", message = $"{instrCode} is already booked for the selected time slot." });
+        }
 
         var booking = new CapacityBooking
         {

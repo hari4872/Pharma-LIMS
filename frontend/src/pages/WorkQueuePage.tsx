@@ -65,6 +65,73 @@ interface Sample { sampleId: number; sampleNumber: string; materialName: string;
 interface Analyst { userId: number; fullName: string }
 interface InstrumentOption { instrumentId: number; instrumentCode: string; instrumentName: string; status: string }
 
+interface SpcPoint { value: number; isOos: boolean; isOot: boolean; sampleNumber: string; measuredAt: string }
+interface SpcStat {
+  parameterId: number; parameterName: string; unit: string | null
+  n: number; mean: number; stddev: number; ucl: number; lcl: number
+  usl: number | null; lsl: number | null; cp: number | null; cpk: number | null
+  outOfControl: boolean; rules: string[]; points: SpcPoint[]
+}
+
+function LeveyJenningsChart({ spc }: { spc: SpcStat }) {
+  const pts = spc.points
+  if (pts.length < 3) return <div style={{ fontSize: 11, color: '#9ca3af', padding: '6px 0' }}>Not enough data (n={spc.n}, need ≥3)</div>
+  const VW = 500, VH = 120, PL = 52, PR = 8, PT = 10, PB = 22
+  const sigma = spc.stddev || 0.0001
+  const refs = { ucl: spc.ucl, p2s: spc.mean + 2 * sigma, p1s: spc.mean + sigma, mean: spc.mean, n1s: spc.mean - sigma, n2s: spc.mean - 2 * sigma, lcl: spc.lcl }
+  const allVals = [...pts.map(p => p.value), spc.ucl, spc.lcl]
+  if (spc.usl != null) allVals.push(spc.usl)
+  if (spc.lsl != null) allVals.push(spc.lsl)
+  const minV = Math.min(...allVals), maxV = Math.max(...allVals)
+  const rangeV = maxV - minV || 1
+  const IW = VW - PL - PR, IH = VH - PT - PB
+  const sy = (v: number) => PT + ((maxV - v) / rangeV) * IH
+  const sx = (i: number) => PL + (i / Math.max(pts.length - 1, 1)) * IW
+  const dotColor = (p: SpcPoint) => {
+    if (p.isOos) return '#dc2626'
+    const z = Math.abs(p.value - spc.mean) / sigma
+    if (z > 3 || p.isOot) return '#dc2626'
+    if (z > 2) return '#d97706'
+    if (z > 1) return '#f59e0b'
+    return '#16a34a'
+  }
+  const polyPts = pts.map((p, i) => `${sx(i)},${sy(p.value)}`).join(' ')
+  const hline = (v: number, color: string, dash: string, w: number, key: string) => (
+    <line key={key} x1={PL} x2={PL + IW} y1={sy(v)} y2={sy(v)} stroke={color} strokeWidth={w} strokeDasharray={dash} />
+  )
+  return (
+    <svg viewBox={`0 0 ${VW} ${VH}`} style={{ width: '100%', maxHeight: 140, display: 'block' }}>
+      {/* Zones */}
+      <rect x={PL} y={PT} width={IW} height={Math.max(0, sy(refs.ucl) - PT)} fill="#fee2e2" opacity={0.35} />
+      <rect x={PL} y={sy(refs.lcl)} width={IW} height={Math.max(0, VH - PB - sy(refs.lcl))} fill="#fee2e2" opacity={0.35} />
+      <rect x={PL} y={sy(refs.ucl)} width={IW} height={Math.max(0, sy(refs.p2s) - sy(refs.ucl))} fill="#fef3c7" opacity={0.5} />
+      <rect x={PL} y={sy(refs.n2s)} width={IW} height={Math.max(0, sy(refs.lcl) - sy(refs.n2s))} fill="#fef3c7" opacity={0.5} />
+      <rect x={PL} y={sy(refs.p2s)} width={IW} height={Math.max(0, sy(refs.n2s) - sy(refs.p2s))} fill="#d1fae5" opacity={0.35} />
+      {/* Reference lines */}
+      {hline(refs.ucl, '#dc2626', '4,3', 1.2, 'ucl')}
+      {hline(refs.p2s, '#d97706', '3,3', 0.8, 'p2s')}
+      {hline(refs.mean, '#16a34a', '', 1.5, 'mean')}
+      {hline(refs.n2s, '#d97706', '3,3', 0.8, 'n2s')}
+      {hline(refs.lcl, '#dc2626', '4,3', 1.2, 'lcl')}
+      {spc.usl != null && hline(spc.usl, '#7c3aed', '6,3', 1, 'usl')}
+      {spc.lsl != null && hline(spc.lsl, '#7c3aed', '6,3', 1, 'lsl')}
+      {/* Data line + points */}
+      <polyline points={polyPts} fill="none" stroke="#94a3b8" strokeWidth={1} />
+      {pts.map((p, i) => <circle key={i} cx={sx(i)} cy={sy(p.value)} r={3.5} fill={dotColor(p)} stroke="#fff" strokeWidth={1} />)}
+      {/* Axis labels */}
+      <text x={PL - 4} y={sy(refs.ucl) + 4} textAnchor="end" fontSize="9" fill="#dc2626">UCL</text>
+      <text x={PL - 4} y={sy(refs.mean) + 4} textAnchor="end" fontSize="9" fill="#16a34a">μ</text>
+      <text x={PL - 4} y={sy(refs.lcl) + 4} textAnchor="end" fontSize="9" fill="#dc2626">LCL</text>
+      {spc.usl != null && <text x={PL - 4} y={sy(spc.usl) + 4} textAnchor="end" fontSize="9" fill="#7c3aed">USL</text>}
+      {spc.lsl != null && <text x={PL - 4} y={sy(spc.lsl) + 4} textAnchor="end" fontSize="9" fill="#7c3aed">LSL</text>}
+      {pts.length > 1 && <>
+        <text x={PL} y={VH - 4} textAnchor="middle" fontSize="8" fill="#9ca3af">{pts[0].sampleNumber.slice(-8)}</text>
+        <text x={PL + IW} y={VH - 4} textAnchor="middle" fontSize="8" fill="#9ca3af">{pts[pts.length - 1].sampleNumber.slice(-8)}</text>
+      </>}
+    </svg>
+  )
+}
+
 interface AnalystLoad { userId: number; fullName: string; assigned: number; inProgress: number; overdue: number }
 interface PriorityBand { band: string; count: number }
 interface QueueIntelligence { labId: number; totalOpen: number; overdue: number; oosOpen: number; avgTatHours: number | null; analystLoads: AnalystLoad[]; priorityBands: PriorityBand[] }
@@ -105,8 +172,9 @@ const TAB_STYLE = (active: boolean): React.CSSProperties => ({
 })
 
 function groupBySample(items: WorkItem[]): SampleGroup[] {
+  // Only non-container executions — split samples appear exclusively in By Container tab
   const map = new Map<number, WorkItem[]>()
-  for (const item of items) {
+  for (const item of items.filter(i => i.containerId === null)) {
     if (!map.has(item.sampleId)) map.set(item.sampleId, [])
     map.get(item.sampleId)!.push(item)
   }
@@ -237,6 +305,17 @@ export default function WorkQueuePage() {
     parameterId: number; parameterName: string; uom: string
     rawValue: string; calculatedResult: number | null; passFail: string; isOos: boolean; isOot: boolean
   }[]>>({})
+  const [spcByParam, setSpcByParam] = useState<Record<number, SpcStat>>({})
+  const [spcExpandedParam, setSpcExpandedParam] = useState<number | null>(null)
+
+  // CSV import state
+  const [importExecId, setImportExecId] = useState<number | null>(null)
+  const [importLoading, setImportLoading] = useState(false)
+  const [importResult, setImportResult] = useState<{
+    totalRows: number; matchedRows: number; skippedRows: number
+    rows: { parameterName: string; rawValue: string | null; matched: boolean; passFail: string; isOos: boolean; isOot: boolean; skipReason: string | null }[]
+  } | null>(null)
+  const importFileRef = useRef<HTMLInputElement>(null)
 
   const role = useSelector((s: RootState) => s.auth.role) ?? ''
   const canAssign = ['Admin', 'QA', 'LabManager', 'QCLead'].includes(role)
@@ -452,12 +531,21 @@ export default function WorkQueuePage() {
   }
 
   async function toggleExecResults(executionId: number) {
-    if (expandedExecId === executionId) { setExpandedExecId(null); return }
+    if (expandedExecId === executionId) { setExpandedExecId(null); setSpcExpandedParam(null); return }
     setExpandedExecId(executionId)
+    setSpcExpandedParam(null)
     if (execResults[executionId]) return
     try {
       const res = await api.get(`/digital-logbook?executionId=${executionId}`)
-      setExecResults(prev => ({ ...prev, [executionId]: res.data ?? [] }))
+      const entries = res.data ?? []
+      setExecResults(prev => ({ ...prev, [executionId]: entries }))
+      // Layer 1+2: fetch SPC batch for all parameters in this execution (non-critical)
+      const paramIds = entries.map((p: { parameterId: number }) => p.parameterId).join(',')
+      if (paramIds) {
+        api.get(`/spc/batch?parameterIds=${paramIds}&points=20`)
+          .then(sr => setSpcByParam(prev => ({ ...prev, ...(sr.data as Record<string, SpcStat>) })))
+          .catch(() => {})
+      }
     } catch { setExecResults(prev => ({ ...prev, [executionId]: [] })) }
   }
 
@@ -471,6 +559,33 @@ export default function WorkQueuePage() {
       if (status === 403) toast('Permission denied — only Analyst, QC Lead or Admin can start tasks', 'error')
       else toast(getErrorMessage(err, 'Start failed — please try again'), 'error')
     }
+  }
+
+  function openImport(execId: number) {
+    setImportExecId(execId)
+    setImportResult(null)
+    setTimeout(() => importFileRef.current?.click(), 50)
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || importExecId === null) return
+    e.target.value = ''
+    setImportLoading(true)
+    setImportResult(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await api.post(`/test-executions/${importExecId}/import-results`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setImportResult(res.data)
+      toast(`Imported ${res.data.matchedRows} of ${res.data.totalRows} rows`, res.data.skippedRows > 0 ? 'warning' : 'success')
+      load()
+    } catch (err) {
+      toast(getErrorMessage(err, 'Import failed'), 'error')
+      setImportExecId(null)
+    } finally { setImportLoading(false) }
   }
 
   return (
@@ -619,10 +734,18 @@ export default function WorkQueuePage() {
                           </button>
                         )}
                         {exec.status === 'InProgress' && (
-                          <a href={`/test-execution/${exec.executionId}`}
-                            style={{ padding: '4px 12px', background: '#7c3aed', color: '#fff', borderRadius: 6, fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
-                            ✏ Enter Results
-                          </a>
+                          <>
+                            <a href={`/test-execution/${exec.executionId}`}
+                              style={{ padding: '4px 12px', background: '#7c3aed', color: '#fff', borderRadius: 6, fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
+                              ✏ Enter Results
+                            </a>
+                            <button
+                              onClick={() => openImport(exec.executionId)}
+                              disabled={importLoading && importExecId === exec.executionId}
+                              style={{ padding: '4px 12px', background: '#0d9488', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer', opacity: importLoading && importExecId === exec.executionId ? 0.6 : 1 }}>
+                              {importLoading && importExecId === exec.executionId ? '⏳ Importing…' : '📂 Import CSV'}
+                            </button>
+                          </>
                         )}
                         {isDone && (
                           <a href={`/test-execution/${exec.executionId}`}
@@ -940,10 +1063,18 @@ export default function WorkQueuePage() {
                           </button>
                         )}
                         {exec.status === 'InProgress' && (
-                          <a href={`/test-execution/${exec.executionId}`}
-                            style={{ padding: '5px 12px', background: '#7c3aed', color: '#fff', borderRadius: 6, fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
-                            ✏ Enter Results
-                          </a>
+                          <>
+                            <a href={`/test-execution/${exec.executionId}`}
+                              style={{ padding: '5px 12px', background: '#7c3aed', color: '#fff', borderRadius: 6, fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
+                              ✏ Enter Results
+                            </a>
+                            <button
+                              onClick={() => openImport(exec.executionId)}
+                              disabled={importLoading && importExecId === exec.executionId}
+                              style={{ padding: '5px 12px', background: '#0d9488', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer', opacity: importLoading && importExecId === exec.executionId ? 0.6 : 1 }}>
+                              {importLoading && importExecId === exec.executionId ? '⏳ Importing…' : '📂 Import CSV'}
+                            </button>
+                          </>
                         )}
                         {(exec.status === 'Assigned' || exec.status === 'InProgress') && canAssign && (
                           <button onClick={() => openReassign(exec)}
@@ -971,10 +1102,11 @@ export default function WorkQueuePage() {
                         ) : params.length === 0 ? (
                           <div style={{ fontSize: 12, color: '#9ca3af' }}>No results recorded.</div>
                         ) : (
+                          <>
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                             <thead>
                               <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                {['Parameter', 'Value', 'Calculated', 'Pass/Fail'].map(h => (
+                                {['Parameter', 'Value', 'Calculated', 'Pass/Fail', 'SPC'].map(h => (
                                   <th key={h} style={{ textAlign: 'left', padding: '3px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
                                 ))}
                               </tr>
@@ -983,6 +1115,15 @@ export default function WorkQueuePage() {
                               {params.map(p => {
                                 const pfBg    = p.passFail === 'PASS' ? '#d1fae5' : p.passFail === 'FAIL' ? '#fee2e2' : '#f1f5f9'
                                 const pfColor = p.passFail === 'PASS' ? '#065f46' : p.passFail === 'FAIL' ? '#991b1b' : '#374151'
+                                const spc = spcByParam[p.parameterId]
+                                const spcStatus = spc && spc.n >= 5
+                                  ? (!spc.outOfControl ? 'ok' : spc.rules.some(r => r.includes('Rule 1')) ? 'oot' : 'trend')
+                                  : null
+                                const spcCfg = {
+                                  ok:    { label: '✓ In Control', bg: '#d1fae5', color: '#065f46' },
+                                  trend: { label: '↗ Trending',   bg: '#fef3c7', color: '#92400e' },
+                                  oot:   { label: '⚠ OOT',        bg: '#fee2e2', color: '#991b1b' },
+                                }
                                 return (
                                   <tr key={p.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                     <td style={{ padding: '5px 8px', fontWeight: 600, color: '#111827' }}>
@@ -995,11 +1136,69 @@ export default function WorkQueuePage() {
                                     <td style={{ padding: '5px 8px' }}>
                                       {p.passFail ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: pfBg, color: pfColor }}>{p.passFail}</span> : '—'}
                                     </td>
+                                    <td style={{ padding: '5px 8px' }}>
+                                      {spcStatus && spc ? (
+                                        <button
+                                          onClick={() => setSpcExpandedParam(spcExpandedParam === p.parameterId ? null : p.parameterId)}
+                                          title={`n=${spc.n} · μ=${spc.mean.toFixed(3)} · σ=${spc.stddev.toFixed(3)}${spc.cpk != null ? ` · Cpk=${spc.cpk.toFixed(2)}` : ''}${spc.rules.length ? ' · ' + spc.rules.join('; ') : ''}`}
+                                          style={{
+                                            fontSize: 10, fontWeight: 700,
+                                            background: spcExpandedParam === p.parameterId ? spcCfg[spcStatus].color : spcCfg[spcStatus].bg,
+                                            color: spcExpandedParam === p.parameterId ? '#fff' : spcCfg[spcStatus].color,
+                                            padding: '2px 6px', borderRadius: 4, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                                          }}
+                                        >
+                                          {spcCfg[spcStatus].label}
+                                          {spc.cpk != null && <span style={{ marginLeft: 3, opacity: 0.85 }}>Cpk {spc.cpk.toFixed(2)}</span>}
+                                        </button>
+                                      ) : spc && spc.n < 5 ? (
+                                        <span style={{ fontSize: 10, color: '#9ca3af' }}>n={spc.n} (need 5+)</span>
+                                      ) : (
+                                        <span style={{ fontSize: 10, color: '#d1d5db' }}>—</span>
+                                      )}
+                                    </td>
                                   </tr>
                                 )
                               })}
                             </tbody>
                           </table>
+                          {/* Layer 2 — Levey-Jennings chart for clicked parameter */}
+                          {spcExpandedParam !== null && spcByParam[spcExpandedParam] && (() => {
+                            const spc = spcByParam[spcExpandedParam]
+                            const status = !spc.outOfControl ? 'ok' : spc.rules.some(r => r.includes('Rule 1')) ? 'oot' : 'trend'
+                            const statusLabel = { ok: 'In Control', trend: 'Trending', oot: 'OOT — Rule Violation' }[status]
+                            const statusColor = { ok: '#065f46', trend: '#92400e', oot: '#991b1b' }[status]
+                            return (
+                              <div style={{ marginTop: 10, border: `1px solid ${status === 'ok' ? '#86efac' : status === 'trend' ? '#fde68a' : '#fca5a5'}`, borderRadius: 8, padding: '10px 12px', background: status === 'ok' ? '#f0fdf4' : status === 'trend' ? '#fffbeb' : '#fff5f5' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: '#1e3a5f' }}>
+                                    {'\u{1F4CA}'} {spc.parameterName} {'—'} Levey-Jennings
+                                  </span>
+                                  <span style={{ fontSize: 11, color: statusColor, fontWeight: 700 }}>{statusLabel}</span>
+                                  <span style={{ fontSize: 11, color: '#6b7280' }}>
+                                    n={spc.n} {'·'} {'μ'}={spc.mean.toFixed(3)}{spc.unit ? ` ${spc.unit}` : ''} {'·'} {'σ'}={spc.stddev.toFixed(3)}
+                                    {spc.cpk != null && <> {'·'} Cpk=<b style={{ color: spc.cpk < 1.33 ? '#d97706' : '#065f46' }}>{spc.cpk.toFixed(2)}</b></>}
+                                  </span>
+                                  <button onClick={() => setSpcExpandedParam(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 16, color: '#9ca3af', cursor: 'pointer', lineHeight: 1 }}>x</button>
+                                </div>
+                                {spc.rules.length > 0 && (
+                                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+                                    {spc.rules.map((rule, i) => (
+                                      <span key={i} style={{ fontSize: 10, fontWeight: 600, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 4 }}>{rule}</span>
+                                    ))}
+                                  </div>
+                                )}
+                                <LeveyJenningsChart spc={spc} />
+                                <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4, display: 'flex', gap: 12 }}>
+                                  <span style={{ color: '#dc2626', fontWeight: 700 }}>&#9679;</span> OOS/OOT
+                                  <span style={{ color: '#d97706', fontWeight: 700 }}>&#9679;</span> {'±2'}{'–'}3{'σ'} zone
+                                  <span style={{ color: '#16a34a', fontWeight: 700 }}>&#9679;</span> In control
+                                  <span style={{ marginLeft: 'auto' }}>Last {spc.points.length} measurements</span>
+                                </div>
+                              </div>
+                            )
+                          })()}
+                          </>
                         )}
                       </div>
                     )}
@@ -1020,7 +1219,7 @@ export default function WorkQueuePage() {
             : {}
           }
           columns={[
-            { header: 'Sample No.', accessor: r => (
+            { header: 'Sample No.', accessor: 'sampleNumber', render: r => (
               <div>
                 <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f' }}>{r.sampleNumber}</span>
                 {r.anyOverdue && <span style={{ marginLeft: 6, fontSize: 11, background: '#fee2e2', color: '#991b1b', padding: '1px 6px', borderRadius: 8 }}>OVERDUE</span>}
@@ -1292,6 +1491,100 @@ export default function WorkQueuePage() {
         onClose={() => setFillFormSample(null)}
         onSubmitted={() => { setFillFormSample(null); load() }}
       />
+    )}
+
+    {/* ── Hidden CSV file input ─────────────────────────────────────────── */}
+    <input
+      ref={importFileRef}
+      type="file"
+      accept=".csv,text/csv"
+      style={{ display: 'none' }}
+      onChange={handleImportFile}
+    />
+
+    {/* ── CSV Import Result Modal ───────────────────────────────────────── */}
+    {importResult && importExecId !== null && (
+      <div style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+      }}>
+        <div style={{
+          background: '#fff', borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+          width: '100%', maxWidth: 640, maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+          overflow: 'hidden',
+        }}>
+          {/* Header */}
+          <div style={{ padding: '18px 24px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 20 }}>📂</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#111827' }}>CSV Import — Execution #{importExecId}</div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                {importResult.matchedRows} matched · {importResult.skippedRows} skipped · {importResult.totalRows} total rows
+              </div>
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+              {importResult.matchedRows > 0 && (
+                <span style={{ padding: '3px 10px', background: '#d1fae5', color: '#065f46', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                  ✓ {importResult.matchedRows} Imported
+                </span>
+              )}
+              {importResult.skippedRows > 0 && (
+                <span style={{ padding: '3px 10px', background: '#fef3c7', color: '#92400e', borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                  ⚠ {importResult.skippedRows} Skipped
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Result table */}
+          <div style={{ flex: 1, overflow: 'auto', padding: '16px 24px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                  {['Parameter', 'Raw Value', 'Pass/Fail', 'OOS', 'OOT', 'Note'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '6px 10px', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {importResult.rows.map((row, i) => {
+                  const pfBg    = row.matched ? (row.passFail === 'PASS' ? '#d1fae5' : row.passFail === 'FAIL' ? '#fee2e2' : '#f1f5f9') : '#fef3c7'
+                  const pfColor = row.matched ? (row.passFail === 'PASS' ? '#065f46' : row.passFail === 'FAIL' ? '#991b1b' : '#374151') : '#92400e'
+                  return (
+                    <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', background: !row.matched ? '#fffbeb' : undefined }}>
+                      <td style={{ padding: '7px 10px', fontWeight: 600, color: '#374151' }}>{row.parameterName}</td>
+                      <td style={{ padding: '7px 10px', fontFamily: 'monospace', color: '#1e293b' }}>{row.rawValue ?? '—'}</td>
+                      <td style={{ padding: '7px 10px' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: pfBg, color: pfColor }}>
+                          {row.matched ? row.passFail : 'SKIP'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '7px 10px', color: row.isOos ? '#dc2626' : '#9ca3af', fontWeight: row.isOos ? 700 : 400 }}>{row.isOos ? '⚠ YES' : '—'}</td>
+                      <td style={{ padding: '7px 10px', color: row.isOot ? '#d97706' : '#9ca3af', fontWeight: row.isOot ? 700 : 400 }}>{row.isOot ? '⚠ YES' : '—'}</td>
+                      <td style={{ padding: '7px 10px', fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>{row.skipReason ?? ''}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer */}
+          <div style={{ padding: '14px 24px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button
+              onClick={() => { setImportExecId(null); setImportResult(null) }}
+              style={{ padding: '9px 20px', background: '#f1f5f9', color: '#374151', border: '1px solid #e2e8f0', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+            >Close</button>
+            <button
+              onClick={() => {
+                setImportResult(null)
+                setTimeout(() => importFileRef.current?.click(), 50)
+              }}
+              style={{ padding: '9px 20px', background: '#0d9488', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+            >📂 Import Another File</button>
+          </div>
+        </div>
+      </div>
     )}
     </div>
   )

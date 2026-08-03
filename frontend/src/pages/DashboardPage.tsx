@@ -222,6 +222,11 @@ export default function DashboardPage() {
   const [spcPoints,   setSpcPoints]   = useState<50 | 100 | 200>(50)
   const [spcData,     setSpcData]     = useState<SpcResult | null>(null)
   const [spcLoading,  setSpcLoading]  = useState(false)
+  // Layer 3: SPC process-health summary (overview tab)
+  const [spcSummary, setSpcSummary] = useState<{
+    totalTracked: number; inControl: number; trending: number; oot: number
+    avgCpk: number | null; flagged: { parameterId: number; parameterName: string; rules: string[]; status: string }[]
+  } | null>(null)
   // CoA History state
   const [coaHistory,    setCoaHistory]    = useState<CoaHistoryItem[]>([])
   const [coaHistLoading, setCoaHistLoading] = useState(false)
@@ -278,6 +283,8 @@ export default function DashboardPage() {
           setTimeout(() => toast(`⚠ ${overdueCount} overdue sample${overdueCount > 1 ? 's' : ''} need attention`, 'warning', 5000), 800)
       }
     } finally { setLoading(false); setLastUpdated(new Date()) }
+    // SPC process-health summary — non-critical, run after main load
+    api.get('/spc/summary?points=20&limit=20').then(r => setSpcSummary(r.data)).catch(() => {})
   }
 
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
@@ -497,6 +504,52 @@ export default function DashboardPage() {
             <KpiCard label="Target (hrs)"   value={(tat?.targetHours ?? 0).toFixed(0)} accent="slate" icon="chart" sub="Configured in lab settings" />
             <KpiCard label="Breach Count"   value={tat?.breachCount ?? 0}              accent="red"   icon="alert" sub="Completed tests over target" badge={tat && tat.breachCount > 0 ? { text: '⚠ Breached', type: 'bad' } : { text: '✓ On Track', type: 'ok' }} />
           </div>
+
+          {/* ── SPC Process Health Card (Layer 3) ── */}
+          {spcSummary !== null && (
+            <div style={{ marginBottom: 24 }}>
+              <SectionHead title="Process Control Health" tag="Last 30 days · SPC" />
+              <div style={{ background: '#fff', border: '1px solid #e0e0e0', borderRadius: 12, padding: '16px 20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: spcSummary.flagged.length > 0 ? 14 : 0 }}>
+                  {[
+                    { label: 'Tracked Parameters', value: String(spcSummary.totalTracked), bg: '#f8fafc', color: '#374151', border: '#e2e8f0' },
+                    { label: 'In Control', value: String(spcSummary.inControl), bg: '#d1fae5', color: '#065f46', border: '#86efac' },
+                    { label: 'Trending (OOT risk)', value: String(spcSummary.trending), bg: spcSummary.trending > 0 ? '#fef3c7' : '#f0fdf4', color: spcSummary.trending > 0 ? '#92400e' : '#065f46', border: spcSummary.trending > 0 ? '#fde68a' : '#86efac' },
+                    { label: 'OOT Violations', value: String(spcSummary.oot), bg: spcSummary.oot > 0 ? '#fee2e2' : '#f0fdf4', color: spcSummary.oot > 0 ? '#991b1b' : '#065f46', border: spcSummary.oot > 0 ? '#fca5a5' : '#86efac' },
+                    { label: 'Avg Cpk', value: spcSummary.avgCpk != null ? spcSummary.avgCpk.toFixed(2) : '—', bg: spcSummary.avgCpk != null && spcSummary.avgCpk >= 1.33 ? '#d1fae5' : spcSummary.avgCpk != null ? '#fef3c7' : '#f8fafc', color: spcSummary.avgCpk != null && spcSummary.avgCpk >= 1.33 ? '#065f46' : spcSummary.avgCpk != null ? '#92400e' : '#374151', border: '#e2e8f0' },
+                  ].map(stat => (
+                    <div key={stat.label} style={{ background: stat.bg, border: `1.5px solid ${stat.border}`, borderRadius: 10, padding: '10px 20px', minWidth: 110, textAlign: 'center' }}>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: stat.color, fontVariantNumeric: 'tabular-nums' }}>{stat.value}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {spcSummary.flagged.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Flagged Parameters</div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {spcSummary.flagged.map(f => (
+                        <div
+                          key={f.parameterId}
+                          onClick={() => { setSpcParamId(f.parameterId); setTab('quality') }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer',
+                            padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+                            background: f.status === 'OOT' ? '#fee2e2' : '#fef3c7',
+                            color: f.status === 'OOT' ? '#991b1b' : '#92400e',
+                            border: `1px solid ${f.status === 'OOT' ? '#fca5a5' : '#fde68a'}`,
+                          }}
+                          title={f.rules.join(' · ')}
+                        >
+                          {f.status === 'OOT' ? '⚠' : '↗'} {f.parameterName}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ── Charts row ── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

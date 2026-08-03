@@ -170,7 +170,7 @@ export default function CompliancePanelPage() {
 
   return (
     <div>
-      <h2 style={{ margin: '0 0 20px', fontSize: 26, fontWeight: 800, color: '#111111', letterSpacing: '-0.02em' }}>Compliance &amp; Governance</h2>
+      <h2 style={{ margin: '0 0 20px', fontSize: 26, fontWeight: 800, color: '#111111', letterSpacing: '-0.02em' }}>Compliance</h2>
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid #e0e0e0', paddingBottom: 0 }}>
@@ -187,12 +187,32 @@ export default function CompliancePanelPage() {
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
             <select style={{ ...inp, width: 200, margin: 0 }} value={auditType} onChange={e => setAuditType(e.target.value)}>
               <option value="">All Entity Types</option>
-              {['Laboratory','Instrument','Material','SampleType','Reagent','TestMethod','Parameter','SpecLimit','FormTemplate','SpecificationTemplate','SamplingPlan','StabilityProtocol','UserTrainingRecord','User','Checkpoint','WorkflowTemplate'].map(t => (
+              {[
+                // Master data
+                'Laboratory','Instrument','Material','SampleType','Reagent',
+                'TestMethod','Parameter','SpecLimit','FormTemplate','SpecificationTemplate',
+                'SamplingPlan','StabilityProtocol','UserTrainingRecord','User','UserPermissions',
+                'Checkpoint','WorkflowTemplate','LabConfig',
+                // Sample lifecycle
+                'Sample','WorkQueue','TestExecution','ResultsReview',
+                // Quality events
+                'OosInvestigation','CoA','BatchRelease','QualityEvent',
+                // Dispatch & containers
+                'DispatchQcTask','DeliveryOrder','SampleContainer',
+                // Instrument scheduling
+                'CapacityBooking',
+              ].map(t => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
-            <input type="date" style={{ ...inp, width: 160, margin: 0 }} value={auditFrom} onChange={e => setAuditFrom(e.target.value)} title="From date" />
-            <input type="date" style={{ ...inp, width: 160, margin: 0 }} value={auditTo} onChange={e => setAuditTo(e.target.value)} title="To date" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>From:</span>
+              <input type="date" style={{ ...inp, width: 160, margin: 0 }} value={auditFrom} onChange={e => setAuditFrom(e.target.value)} title="From date" />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>To:</span>
+              <input type="date" style={{ ...inp, width: 160, margin: 0 }} value={auditTo} onChange={e => setAuditTo(e.target.value)} title="To date" />
+            </div>
             <button onClick={() => loadAudit(1)} style={{ padding: '8px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
               🔍 Filter
             </button>
@@ -377,8 +397,14 @@ export default function CompliancePanelPage() {
               <option value="">All Outcomes</option>
               {['Success','InvalidPassword','UserNotFound','AccountLocked','AccountInactive'].map(o => <option key={o}>{o}</option>)}
             </select>
-            <input type="date" style={{ ...inp, width: 160, margin: 0 }} value={loginAuditFrom} onChange={e => setLoginAuditFrom(e.target.value)} placeholder="From" />
-            <input type="date" style={{ ...inp, width: 160, margin: 0 }} value={loginAuditTo}   onChange={e => setLoginAuditTo(e.target.value)}   placeholder="To" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>From:</span>
+              <input type="date" style={{ ...inp, width: 160, margin: 0 }} value={loginAuditFrom} onChange={e => setLoginAuditFrom(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>To:</span>
+              <input type="date" style={{ ...inp, width: 160, margin: 0 }} value={loginAuditTo} onChange={e => setLoginAuditTo(e.target.value)} />
+            </div>
             <button onClick={loadLoginAudit} style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>Load</button>
             <span style={{ marginLeft: 'auto', fontSize: 12, color: '#6b7280' }}>{loginAuditRows.length} record{loginAuditRows.length !== 1 ? 's' : ''}</span>
           </div>

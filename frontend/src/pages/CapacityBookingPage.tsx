@@ -165,7 +165,7 @@ export default function CapacityBookingPage() {
       setShowModal(false); load()
     } catch (err) {
       const msg = getErrorMessage(err)
-      setModalErr(msg.includes('TIME_CONFLICT') ? '⛔ This slot is already booked — choose a different time.' : msg)
+      setModalErr(msg)
     } finally { setSaving(false) }
   }
 
@@ -605,7 +605,7 @@ export default function CapacityBookingPage() {
               </div>
               <div>
                 <label style={lbl}>Date</label>
-                <input type="date" value={dateStr} onChange={e => setDateStr(e.target.value)} required style={inp} />
+                <input type="date" value={dateStr} onChange={e => setDateStr(e.target.value)} required style={inp} min={new Date().toISOString().split('T')[0]} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>

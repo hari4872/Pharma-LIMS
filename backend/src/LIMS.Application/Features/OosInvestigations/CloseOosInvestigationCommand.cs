@@ -69,8 +69,8 @@ public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigatio
         {
             await _audit.LogAsync("OosInvestigation", inv.InvestigationId, "Closed",
                 new { inv.Phase, Status = "Open" },
-                new { inv.RootCause, inv.CapaRef, Status = "Closed" },
-                inv.Execution?.Sample?.SampleNumber ?? "Unknown");
+                new { inv.RootCause, inv.CapaRef, inv.CapaStatus, Status = "Closed", SignatureId = sig.SignatureId },
+                sig.FullName);
         }
         catch { /* audit failure must not block the close action */ }
         return Result<int>.Success(inv.InvestigationId);

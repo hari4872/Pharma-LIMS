@@ -82,8 +82,8 @@ public class PeerReviewHandler : IRequestHandler<PeerReviewCommand, Result<int>>
         {
             await _audit.LogAsync("ResultsReview", cmd.ExecutionId, "PeerReviewed",
                 null,
-                new { ReviewType = "PeerReview", ReviewerId = cmd.ReviewerId },
-                "Reviewer");
+                new { ReviewType = "PeerReview", ReviewerId = cmd.ReviewerId, SignatureId = sig.SignatureId },
+                sig.FullName);
         }
         catch { /* non-critical */ }
         try

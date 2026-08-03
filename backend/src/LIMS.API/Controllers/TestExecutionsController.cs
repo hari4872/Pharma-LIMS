@@ -238,8 +238,32 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(new { executionId = id, priorityScore = score });
     }
 
-    // POST api/v1/test-executions/{id}/assign � per-test-method assignment (LabVantage parity)
-    // Different from POST / (sample-level) � this targets a specific execution row directly.
+    // POST api/v1/test-executions/{id}/import-results — CSV instrument import (FR-FileImport)
+    [HttpPost("{id}/import-results")]
+    [Authorize(Roles = "Admin,Analyst,LabManager,QA")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> ImportResults(int id, IFormFile file, CancellationToken ct)
+    {
+        if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "NO_FILE", message = "No file was uploaded." });
+
+        using var ms = new System.IO.MemoryStream();
+        await file.CopyToAsync(ms, ct);
+
+        var result = await _mediator.Send(new ImportInstrumentResultsCommand(
+            id, analystId, file.FileName, ms.ToArray()), ct);
+
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.ErrorCode, message = result.ErrorMessage })
+                : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+
+        return Ok(result.Value);
+    }
+
+    // POST api/v1/test-executions/{id}/assign — per-test-method assignment (LabVantage parity)
+    // Different from POST / (sample-level) — this targets a specific execution row directly.
     [HttpPost("{id}/assign")]
     [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> AssignTestMethod(int id, [FromBody] AssignTestMethodRequest request)

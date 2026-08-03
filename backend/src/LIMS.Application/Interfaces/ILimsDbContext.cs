@@ -90,6 +90,8 @@ public interface ILimsDbContext
     DbSet<SampleTransfer> SampleTransfers { get; }
     // Capacity Booking
     DbSet<CapacityBooking> CapacityBookings { get; }
+    // Instrument CSV Import
+    DbSet<InstrumentImportLog> InstrumentImportLogs { get; }
     // LabVantage Parity
     DbSet<LoginAuditLog> LoginAuditLogs { get; }
     DbSet<StabilityTrendPoint> StabilityTrendPoints { get; }

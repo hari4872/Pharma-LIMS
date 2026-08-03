@@ -27,7 +27,7 @@ public class HttpLabContext : ILabContext
 
     public string LabName => User?.FindFirst("labName")?.Value ?? "";
 
-    public bool IsCrossLab => LabId == null || Role == "Admin";
+    public bool IsCrossLab => LabId == null || Role == "Admin" || Role == "SuperAdmin";
 
     public int UserId
     {

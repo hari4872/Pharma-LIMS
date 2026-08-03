@@ -278,19 +278,19 @@ export default function DigitalLogbookPage() {
           </div>
 
           <DataTable loading={loading} data={data} columns={[
-            { header: 'Sample', accessor: r => (
+            { header: 'Sample', accessor: 'sampleNumber', render: r => (
               <button onClick={() => setDetailSampleId(r.sampleId)}
                 style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'monospace', fontWeight: 700, color: '#2563eb', textDecoration: 'underline' }}>
                 {r.sampleNumber}
               </button>
             )},
-            { header: 'Parameter', accessor: r => (
+            { header: 'Parameter', accessor: 'parameterName', render: r => (
               <div>
                 {r.parameterName}
                 {r.isCritical && <span style={{ marginLeft: 4, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 5px', borderRadius: 4 }}>CRITICAL</span>}
               </div>
             )},
-            { header: 'Trigger', accessor: r => {
+            { header: 'Trigger', accessor: 'triggerSource', render: r => {
               const c = TRIGGER_COLORS[r.triggerSource] ?? { bg: '#f3f4f6', color: '#374151' }
               return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: c.bg, color: c.color }}>{r.triggerSource}</span>
             }},
@@ -318,7 +318,7 @@ export default function DigitalLogbookPage() {
             { header: 'Evidence', accessor: r => r.evidenceFileRef
               ? <span style={{ fontSize: 12, color: '#16a34a' }}>✓ {r.evidenceFileRef}</span>
               : r.isCritical ? <span style={{ fontSize: 12, color: '#dc2626' }}>✗ Missing</span> : '—' },
-            { header: 'Status', accessor: r => (
+            { header: 'Status', accessor: 'status', render: r => (
               <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 12,
                 background: r.status === 'Signed' ? '#d1fae5' : r.status === 'Superseded' ? '#f3f4f6' : '#fef9c3',
                 color: r.status === 'Signed' ? '#065f46' : r.status === 'Superseded' ? '#6b7280' : '#854d0e' }}>{r.status}</span>

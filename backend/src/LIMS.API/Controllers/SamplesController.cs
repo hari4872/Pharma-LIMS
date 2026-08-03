@@ -84,6 +84,16 @@ public class SamplesController : LimsControllerBase
         return Ok(new { sampleId = result.Value, status = "Reprinted" });
     }
 
+    // POST api/v1/samples/{id}/start-testing — wizard step 5: barcode printed → status = InTesting
+    [HttpPost("{id}/start-testing")]
+    [Authorize(Roles = "Admin,Analyst,LabManager,QA")]
+    public async Task<IActionResult> StartTesting(int id)
+    {
+        var result = await _mediator.Send(new StartTestingCommand(id));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { sampleId = id, status = "InTesting" });
+    }
+
     // GET api/v1/samples/{id}/spec-assignment
     [HttpGet("{id}/spec-assignment")]
     public async Task<IActionResult> GetSpecAssignment(int id, CancellationToken ct)

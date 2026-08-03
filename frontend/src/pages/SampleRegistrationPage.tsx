@@ -129,6 +129,7 @@ export default function SampleRegistrationPage() {
   const [tab, setTab] = useState<'single' | 'batch'>('single')
 
   const [data, setData]               = useState<Sample[]>([])
+  const [allData, setAllData]         = useState<Sample[]>([])
   const [materials, setMaterials]     = useState<Material[]>([])
   const [sampleTypes, setSampleTypes] = useState<SampleType[]>([])
   const [specTemplateLinks, setSpecTemplateLinks] = useState<{ materialId: number; sampleTypeId: number }[]>([])
@@ -270,7 +271,7 @@ export default function SampleRegistrationPage() {
     setWizardAssignments([]); setWizardActiveTab(0); setWizardSrfToggle(srfMethod !== 'None')
     setWizardESign({ password: '', meaning: '', reason: '' })
     setWizardSignError(''); setWizardAssignError('')
-    if (wizardAnalysts.length === 0) api.get('/users').then(r => setWizardAnalysts(r.data)).catch(() => {})
+    if (wizardAnalysts.length === 0) api.get('/users').then(r => setWizardAnalysts((r.data as any[]).filter(u => u.role === 'Analyst'))).catch(() => {})
     if (wizardInstruments.length === 0) api.get('/instruments').then(r => setWizardInstruments((r.data as InstrumentOption[]).filter(i => i.status === 'Available'))).catch(() => {})
     // Fetch spec template tests for the drag-and-drop pool
     // Note: /specification-templates/{id} can 500 on prod — use list endpoint and filter instead
@@ -503,12 +504,15 @@ export default function SampleRegistrationPage() {
     setLoading(true)
     try {
       const params = statusFilter ? `?status=${statusFilter}` : ''
-      const [r, mr, str] = await Promise.all([
+      const [r, mr, str, rAll] = await Promise.all([
         api.get(`/samples${params}`),
         api.get('/materials'),
         api.get('/sample-types'),
+        // Always fetch the full unfiltered list so status count badges are accurate
+        statusFilter ? api.get('/samples') : Promise.resolve({ data: null }),
       ])
       setData(r.data)
+      setAllData(statusFilter ? rAll.data : r.data)
       setMaterials(mr.data)
       setSampleTypes(str.data.filter((t: SampleType) => t.typeCode !== 'DSPQC'))
     } catch (err) {
@@ -797,7 +801,7 @@ export default function SampleRegistrationPage() {
       </div>
 
       {/* ── Workflow timeline ─────────────────────────────────────────────── */}
-      {!loading && data.length > 0 && (() => {
+      {!loading && allData.length > 0 && (() => {
         const stages = [
           { key: 'Registered',      label: 'Registered',       color: '#2563eb', bg: '#dbeafe' },
           { key: 'PendingTesting',  label: 'Pending Testing',  color: '#d97706', bg: '#fef3c7' },
@@ -807,7 +811,7 @@ export default function SampleRegistrationPage() {
           { key: 'Rejected',        label: 'Rejected',         color: '#991b1b', bg: '#fee2e2' },
         ]
         const counts = stages.reduce((acc, s) => {
-          acc[s.key] = data.filter(d => d.status === s.key).length
+          acc[s.key] = allData.filter(d => d.status === s.key).length
           return acc
         }, {} as Record<string, number>)
         return (
@@ -1006,7 +1010,10 @@ export default function SampleRegistrationPage() {
                       { label: '🖨  Reprint Label',    onClick: () => { setShowReprint(r.sampleId); setError(''); setMoreMenuRow(null) } },
                       { label: '⧉  Duplicate',         onClick: () => { duplicateSample(r.sampleId); setMoreMenuRow(null) } },
                       ...(r.status !== 'Rejected' ? [{ label: '＋  Add Ad-hoc Test', onClick: () => { openAddTest(r); setMoreMenuRow(null) } }] : []),
-                      { label: '🧪  Containers',       onClick: () => { setContainerSample(r); loadContainers(r.sampleId); setMoreMenuRow(null) } },
+                      // FIX 2: reset splitForm when opening containers so previous record's state does not leak
+                      { label: '🧪  Containers',       onClick: () => { setContainerSample(r); loadContainers(r.sampleId); setSplitForm({ count: '3', containerType: 'Aliquot', volumePerContainer: '', volumeUom: '' }); setMoreMenuRow(null) } },
+                      // FIX 4: allow reopening the setup wizard for an already-registered sample
+                      { label: '🔧  Setup Containers', onClick: () => { openWizard({ sampleId: r.sampleId, sampleNumber: r.sampleNumber, testsAutoCreated: 0 }, { materialId: 0, materialName: r.materialName, productType: '' }, sampleTypes.find(t => t.typeName === r.sampleType), r.lotNumber); setMoreMenuRow(null) } },
                     ].map(item => (
                       <button key={item.label} onClick={item.onClick}
                         style={{ display: 'block', width: '100%', padding: '9px 14px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontSize: 12, color: '#374151', fontFamily: 'inherit' }}
@@ -1697,6 +1704,20 @@ export default function SampleRegistrationPage() {
                         </span>
                         <span style={{ fontFamily: 'monospace', fontSize: 11 }}>{a.containerLabel}</span>
                         {a.analystId && <span style={{ color: '#10b981', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                        {/* FIX 3: delete button — removes container from wizard state */}
+                        {isContainer && (
+                          <span
+                            onClick={e => {
+                              e.stopPropagation()
+                              setWizardAssignments(prev => prev.filter((_, j) => j !== i))
+                              setWizardContainers(prev => prev.filter(c => c.sampleContainerId !== a.containerId))
+                              setWizardActiveTab(prev => (prev >= i && prev > 0) ? prev - 1 : prev)
+                            }}
+                            title="Remove container"
+                            style={{ fontSize: 14, color: '#9ca3af', cursor: 'pointer', lineHeight: 1, padding: '0 2px', marginLeft: 2 }}>
+                            ×
+                          </span>
+                        )}
                       </button>
                     )
                   })}
