@@ -47,6 +47,49 @@ const NAV_REGISTRY = [
       { key: 'nav.report-builder', label: 'Report Builder' },
     ],
   },
+  {
+    section: 'Master Data — Lab Setup',
+    items: [
+      { key: 'md.laboratories',       label: 'Laboratories' },
+      { key: 'md.instruments',        label: 'Instruments' },
+      { key: 'md.instrument-mapping', label: 'Instrument Mapping' },
+      { key: 'md.storage-locations',  label: 'Storage Locations' },
+    ],
+  },
+  {
+    section: 'Master Data — Materials',
+    items: [
+      { key: 'md.materials',    label: 'Materials' },
+      { key: 'md.sample-types', label: 'Sample Types' },
+      { key: 'md.reagents',     label: 'Reagents & Standards' },
+    ],
+  },
+  {
+    section: 'Master Data — Methods & Specs',
+    items: [
+      { key: 'md.test-methods',        label: 'Test Methods' },
+      { key: 'md.parameters',          label: 'Parameters' },
+      { key: 'md.checkpoints',         label: 'Checkpoints' },
+      { key: 'md.spec-limits',         label: 'Spec Limits' },
+      { key: 'md.form-templates',      label: 'Monitoring & Log Forms' },
+      { key: 'md.spec-templates',      label: 'Product Test Plans' },
+      { key: 'md.sampling-plans',      label: 'Sampling Plans' },
+      { key: 'md.stability-protocols', label: 'Stability Protocols' },
+    ],
+  },
+  {
+    section: 'Master Data — Users & Training',
+    items: [
+      { key: 'md.users',            label: 'Users' },
+      { key: 'md.training-records', label: 'Training Records' },
+    ],
+  },
+  {
+    section: 'Master Data — Workflow',
+    items: [
+      { key: 'md.workflow-config', label: 'Workflow Templates' },
+    ],
+  },
 ]
 
 const ALL_ROLES = ['Admin', 'QA', 'QCLead', 'Analyst', 'LabManager', 'Viewer']
