@@ -41,6 +41,17 @@ public class SplitSampleContainersHandler : IRequestHandler<SplitSampleContainer
             return Result<List<int>>.Failure("INVALID_STATE",
                 $"Cannot split containers on a sample with status '{sample.Status}'. Must be Registered or PendingTesting.");
 
+        if (cmd.ContainerType == ContainerType.QC)
+        {
+            var hasQc = await _db.SampleContainers
+                .AnyAsync(c => c.SampleId == cmd.SampleId
+                            && c.ContainerType == ContainerType.QC
+                            && c.Status != ContainerStatus.Destroyed, ct);
+            if (hasQc)
+                return Result<List<int>>.Failure("DUPLICATE_CONTAINERS",
+                    "QC containers already exist for this sample. Proceed to analyst assignment.");
+        }
+
         if (cmd.StorageLocationId.HasValue)
         {
             var loc = await _db.StorageLocations

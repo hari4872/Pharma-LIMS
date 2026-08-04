@@ -291,6 +291,47 @@ export default function SampleRegistrationPage() {
       .finally(() => setWizardSpecLoading(false))
   }
 
+  // Re-enter wizard for an already-registered sample, resuming at the correct step
+  async function openWizardReentry(r: Sample) {
+    const st = sampleTypes.find(t => t.typeName === r.sampleType)
+    setWizard({ sampleId: r.sampleId, sampleNumber: r.sampleNumber, materialName: r.materialName, lotNumber: r.lotNumber, sampleTypeName: st?.typeName ?? '', registeredAt: new Date().toISOString().slice(0, 10), testsCreated: 0 })
+    setWizardSplitDone(false); setWizardContainers([])
+    setWizardSpecTests([]); setWizardTestGroups([[], []]); setWizardSpecLoading(true)
+    setWizardAssignments([]); setWizardActiveTab(0); setWizardSrfToggle(srfMethod !== 'None')
+    setWizardESign({ password: '', meaning: '', reason: '' })
+    setWizardSignError(''); setWizardAssignError('')
+    if (wizardAnalysts.length === 0) api.get('/users').then(res => setWizardAnalysts((res.data as any[]).filter(u => u.role === 'Analyst'))).catch(() => {})
+    if (wizardInstruments.length === 0) api.get('/instruments').then(res => setWizardInstruments((res.data as InstrumentOption[]).filter(i => i.status === 'Available'))).catch(() => {})
+    api.get(`/samples/${r.sampleId}/spec-assignment`)
+      .then(res => res.data.specTemplateId
+        ? api.get('/specification-templates').then(listResp => {
+            const match = (listResp.data as Array<{ specTemplateId: number; items?: unknown[] }>)
+              .find(t => t.specTemplateId === res.data.specTemplateId)
+            return { data: match ?? { items: [] } }
+          })
+        : Promise.resolve({ data: { items: [] } }))
+      .then(res => {
+        const items = (res.data.items ?? []) as Array<{ specTemplateItemId: number; parameterName: string; parameterCode: string; turnaroundHours: number; isMandatory: boolean }>
+        setWizardSpecTests(items.map(it => ({ id: String(it.specTemplateItemId), name: it.parameterName, code: it.parameterCode ?? '', turnaroundHours: it.turnaroundHours ?? 24, isMandatory: it.isMandatory ?? false })))
+      })
+      .catch(err => toast(getErrorMessage(err, 'Could not load spec template tests'), 'error'))
+      .finally(() => setWizardSpecLoading(false))
+    try {
+      const cr = await api.get(`/samples/${r.sampleId}/containers`)
+      const qcContainers = (cr.data as SampleContainer[]).filter(c => c.containerType === 'QC' && c.status !== 'Destroyed')
+      if (qcContainers.length > 0) {
+        setWizardContainers(qcContainers); setWizardSplitDone(true)
+        const rows: WizardAssignment[] = qcContainers.map(c => ({ containerId: c.sampleContainerId, containerLabel: c.containerLabel, analystId: '', instrumentId: '', tests: [] }))
+        setWizardAssignments(rows); setWizardAssignError('')
+        setWizardStep(srfMethod !== 'None' ? 2 : 3)
+      } else {
+        setWizardStep(1)
+      }
+    } catch {
+      setWizardStep(1)
+    }
+  }
+
   // Called when analyst confirms the test grouping and clicks "Next — Assign Analysts"
   async function wizardConfirmGroups() {
     setWizardSplitting(true)
@@ -304,7 +345,22 @@ export default function SampleRegistrationPage() {
       const created: SampleContainer[] = cr.data
       setWizardContainers(created); setWizardSplitDone(true)
       wizardGoToAssign(created, nonEmpty)
-    } catch (err) { toast(getErrorMessage(err, 'Split failed'), 'error') }
+    } catch (err) {
+      const d = (err as any)?.response?.data
+      if (d?.error === 'DUPLICATE_CONTAINERS') {
+        // QC containers already exist — skip split, load existing and jump to analyst assignment
+        try {
+          const cr = await api.get(`/samples/${wizard!.sampleId}/containers`)
+          const existing = (cr.data as SampleContainer[]).filter(c => c.containerType === 'QC' && c.status !== 'Destroyed')
+          setWizardContainers(existing); setWizardSplitDone(true)
+          const rows: WizardAssignment[] = existing.map(c => ({ containerId: c.sampleContainerId, containerLabel: c.containerLabel, analystId: '', instrumentId: '', tests: [] }))
+          setWizardAssignments(rows); setWizardAssignError('')
+          setWizardStep(srfMethod !== 'None' ? 2 : 3)
+        } catch { toast('Could not load existing containers', 'error') }
+      } else {
+        toast(getErrorMessage(err, 'Split failed'), 'error')
+      }
+    }
     finally { setWizardSplitting(false) }
   }
 
@@ -1013,7 +1069,7 @@ export default function SampleRegistrationPage() {
                       // FIX 2: reset splitForm when opening containers so previous record's state does not leak
                       { label: '🧪  Containers',       onClick: () => { setContainerSample(r); loadContainers(r.sampleId); setSplitForm({ count: '3', containerType: 'Aliquot', volumePerContainer: '', volumeUom: '' }); setMoreMenuRow(null) } },
                       // FIX 4: allow reopening the setup wizard for an already-registered sample
-                      { label: '🔧  Setup Containers', onClick: () => { openWizard({ sampleId: r.sampleId, sampleNumber: r.sampleNumber, testsAutoCreated: 0 }, { materialId: 0, materialName: r.materialName, productType: '' }, sampleTypes.find(t => t.typeName === r.sampleType), r.lotNumber); setMoreMenuRow(null) } },
+                      { label: '🔧  Setup Containers', onClick: () => { openWizardReentry(r); setMoreMenuRow(null) } },
                     ].map(item => (
                       <button key={item.label} onClick={item.onClick}
                         style={{ display: 'block', width: '100%', padding: '9px 14px', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontSize: 12, color: '#374151', fontFamily: 'inherit' }}
