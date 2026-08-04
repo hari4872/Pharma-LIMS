@@ -227,7 +227,7 @@ export default function SampleRegistrationPage() {
 
   async function loadContainers(sampleId: number) {
     setContainersLoading(true)
-    try { const r = await api.get(`/samples/${sampleId}/containers`); setContainers(r.data) }
+    try { const r = await api.get(`/samples/${sampleId}/containers`); setContainers([...r.data].sort((a, b) => a.sampleContainerId - b.sampleContainerId)) }
     catch { setContainers([]) }
     finally { setContainersLoading(false) }
   }
@@ -2023,17 +2023,19 @@ export default function SampleRegistrationPage() {
                           <span style={{ padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: sc.bg, color: sc.color }}>{fmtLabel(c.status)}</span>
                         </td>
                         <td style={{ padding: '7px 10px', color: '#6b7280' }}>{c.createdBy}</td>
-                        <td style={{ padding: '7px 10px', display: 'flex', gap: 6 }}>
-                          <button onClick={() => setPrintContainer(c)}
-                            style={{ padding: '2px 8px', background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                            🖨 Barcode
-                          </button>
-                          {c.status !== 'Destroyed' && (
-                            <button onClick={() => { setDestroyingId(c.sampleContainerId); setDestroyForm({ password: '', reason: '' }); setDestroyError('') }}
-                              style={{ padding: '2px 8px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
-                              Destroy
+                        <td style={{ padding: '7px 10px' }}>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button onClick={() => setPrintContainer(c)}
+                              style={{ padding: '2px 8px', background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', borderRadius: 4, cursor: 'pointer', fontSize: 11, alignSelf: 'flex-start' }}>
+                              🖨 Barcode
                             </button>
-                          )}
+                            {c.status !== 'Destroyed' && (
+                              <button onClick={() => { setDestroyingId(c.sampleContainerId); setDestroyForm({ password: '', reason: '' }); setDestroyError('') }}
+                                style={{ padding: '2px 8px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: 4, cursor: 'pointer', fontSize: 11, alignSelf: 'flex-start' }}>
+                                Destroy
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                       {destroyingId === c.sampleContainerId && (

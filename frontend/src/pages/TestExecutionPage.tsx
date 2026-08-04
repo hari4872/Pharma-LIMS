@@ -430,7 +430,7 @@ export default function TestExecutionPage() {
         <form onSubmit={submitResults}>
           {/* Column headers */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '28px 2fr 1.4fr 1.4fr 160px 100px',
+            display: 'grid', gridTemplateColumns: '28px 2fr 1.4fr 1.4fr minmax(200px, 1.5fr) 100px',
             gap: 12, padding: '6px 10px', marginBottom: 6,
             fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em'
           }}>
@@ -452,7 +452,7 @@ export default function TestExecutionPage() {
                   background: status === 'fail' ? '#fff8f8' : status === 'oot' ? '#fffdf0' : '#fff',
                   transition: 'all 0.15s'
                 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '28px 2fr 1.4fr 1.4fr 160px 100px', gap: 12, alignItems: 'center' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '28px 2fr 1.4fr 1.4fr minmax(200px, 1.5fr) 100px', gap: 12, alignItems: 'center' }}>
                     {/* Row # */}
                     <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>{idx + 1}</span>
 
