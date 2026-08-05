@@ -503,8 +503,8 @@ export default function TestExecutionPage() {
                         return (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                             {fields.map(f => (
-                              <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <span style={{ fontSize: 13, color: '#6b7280', minWidth: 80, textAlign: 'right' }}>{f.label}</span>
+                              <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontSize: 12, color: '#6b7280', minWidth: 52, textAlign: 'right', flexShrink: 0 }}>{f.label}</span>
                                 <input
                                   type="number" step="any"
                                   value={inputs[f.key] ?? ''}
@@ -515,7 +515,7 @@ export default function TestExecutionPage() {
                                     if (result !== null) setEntries(prev => ({ ...prev, [p.parameterId]: result }))
                                   }}
                                   placeholder="0.000"
-                                  style={{ ...inp, margin: 0, width: '100%', fontFamily: 'monospace', fontSize: 14, padding: '6px 8px' }}
+                                  style={{ ...inp, margin: 0, width: 110, minWidth: 110, fontFamily: 'monospace', fontSize: 14, padding: '6px 8px' }}
                                 />
                               </div>
                             ))}
