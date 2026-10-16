@@ -25,7 +25,8 @@ public class BatchAnalysisPdfDocument : IDocument
         decimal? RetestResult,
         string? RetestPassFail,
         string? RetestAnalystName,
-        string? ResolutionType
+        string? ResolutionType,
+        DateTimeOffset? RetestCompletedAt = null
     );
 
     public record ReviewRow(
@@ -55,6 +56,12 @@ public class BatchAnalysisPdfDocument : IDocument
 
     private readonly BatchAnalysisData _d;
     public BatchAnalysisPdfDocument(BatchAnalysisData data) => _d = data;
+
+    // Format decimal to remove float noise (e.g. 1009.8000000001 → "1009.8")
+    private static string Fmt(decimal? v, string fallback = "—") =>
+        v.HasValue ? decimal.Parse(v.Value.ToString("G7")).ToString("G") : fallback;
+    private static string FmtStr(string raw) =>
+        decimal.TryParse(raw, out var d) ? decimal.Parse(d.ToString("G7")).ToString("G") : raw;
 
     public DocumentMetadata GetMetadata() => new()
     {
@@ -163,45 +170,84 @@ public class BatchAnalysisPdfDocument : IDocument
                     col2.Item().Background("#eff6ff").Border(0.5f).BorderColor("#bfdbfe").Padding(8)
                         .Table(t =>
                         {
+                            // Columns: Parameter | Type | Calc. Result | Spec Min | Spec Max | P/F | Analyst | Date
                             t.ColumnsDefinition(cd =>
                             {
-                                cd.RelativeColumn(2.5f); cd.RelativeColumn();
-                                cd.RelativeColumn();     cd.RelativeColumn();
-                                cd.RelativeColumn();     cd.ConstantColumn(50);
+                                cd.RelativeColumn(2f);   // Parameter
+                                cd.ConstantColumn(48);   // Type (Original/Retest)
+                                cd.RelativeColumn(1.2f); // Calc. Result
+                                cd.RelativeColumn();     // Spec Min
+                                cd.RelativeColumn();     // Spec Max
+                                cd.ConstantColumn(42);   // P/F
+                                cd.RelativeColumn(1.4f); // Analyst
+                                cd.RelativeColumn(1.6f); // Date / Time
                             });
 
                             static void TH(IContainer c2, string txt) =>
-                                c2.Background("#dbeafe").PaddingVertical(5).PaddingHorizontal(6)
-                                  .Text(txt).Bold().FontSize(8.5f).FontColor("#1e40af");
+                                c2.Background("#dbeafe").PaddingVertical(5).PaddingHorizontal(4)
+                                  .Text(txt).Bold().FontSize(8f).FontColor("#1e40af");
 
                             t.Header(h =>
                             {
                                 h.Cell().Element(c2 => TH(c2, "Parameter"));
-                                h.Cell().Element(c2 => TH(c2, "Raw Value"));
+                                h.Cell().Element(c2 => TH(c2, "Type"));
                                 h.Cell().Element(c2 => TH(c2, "Calc. Result"));
                                 h.Cell().Element(c2 => TH(c2, "Spec Min"));
                                 h.Cell().Element(c2 => TH(c2, "Spec Max"));
-                                h.Cell().Element(c2 => TH(c2, "P / F"));
+                                h.Cell().Element(c2 => TH(c2, "P/F"));
+                                h.Cell().Element(c2 => TH(c2, "Analyst"));
+                                h.Cell().Element(c2 => TH(c2, "Date / Time (UTC)"));
                             });
 
                             foreach (var r in _d.Results)
                             {
-                                var rowBg   = r.IsOos ? "#fff1f2" : r.IsOot ? "#fffbeb" : "#ffffff";
-                                var pfLabel = r.IsOos ? "OOS" : r.IsOot ? "OOT" : r.PassFail;
-                                var pfColor = r.IsOos ? "#dc2626" : r.IsOot ? "#d97706" : "#065f46";
+                                var origPf    = r.IsOos ? "OOS" : r.IsOot ? "OOT" : r.PassFail;
+                                var origPfClr = r.IsOos ? "#dc2626" : r.IsOot ? "#d97706" : "#065f46";
+                                var origBg    = r.IsOos ? "#fff1f2" : r.IsOot ? "#fffbeb" : "#ffffff";
 
-                                IContainer Cell(IContainer c2) =>
-                                    c2.Background(rowBg).BorderBottom(0.5f).BorderColor("#bfdbfe")
-                                      .PaddingVertical(5).PaddingHorizontal(6);
+                                IContainer OCell(IContainer c2) =>
+                                    c2.Background(origBg).BorderBottom(r.RetestResult.HasValue ? 0 : 0.5f)
+                                      .BorderColor("#bfdbfe").PaddingVertical(4).PaddingHorizontal(4);
 
-                                t.Cell().Element(Cell).Text(r.ParameterName).FontSize(9).Bold();
-                                t.Cell().Element(Cell).Text(r.RawValue).FontSize(9).FontColor("#6b7280");
-                                t.Cell().Element(Cell)
-                                    .Text(r.CalculatedResult?.ToString() ?? r.RawValue)
-                                    .FontSize(9).Bold().FontColor(r.IsOos || r.IsOot ? "#dc2626" : "#111827");
-                                t.Cell().Element(Cell).Text(r.SpecMin?.ToString() ?? "—").FontSize(9);
-                                t.Cell().Element(Cell).Text(r.SpecMax?.ToString() ?? "—").FontSize(9);
-                                t.Cell().Element(Cell).Text(pfLabel).Bold().FontSize(8.5f).FontColor(pfColor);
+                                // Row 1 — Original
+                                t.Cell().Element(OCell).Text(r.ParameterName).FontSize(8.5f).Bold();
+                                t.Cell().Element(OCell)
+                                    .Text("Original").FontSize(8f).FontColor("#6b7280").Italic();
+                                t.Cell().Element(OCell)
+                                    .Text(Fmt(r.CalculatedResult, FmtStr(r.RawValue)))
+                                    .FontSize(8.5f).Bold().FontColor(r.IsOos ? "#dc2626" : "#111827");
+                                t.Cell().Element(OCell).Text(Fmt(r.SpecMin)).FontSize(8.5f);
+                                t.Cell().Element(OCell).Text(Fmt(r.SpecMax)).FontSize(8.5f);
+                                t.Cell().Element(OCell).Text(origPf).Bold().FontSize(8f).FontColor(origPfClr);
+                                t.Cell().Element(OCell).Text(_d.AnalystName).FontSize(8f).FontColor("#374151");
+                                t.Cell().Element(OCell)
+                                    .Text(_d.CompletedAt.HasValue ? _d.CompletedAt.Value.ToString("yyyy-MM-dd HH:mm") : "—")
+                                    .FontSize(8f).FontColor("#6b7280");
+
+                                // Row 2 — Retest (only when present)
+                                if (r.RetestResult.HasValue)
+                                {
+                                    var rtPf    = r.RetestPassFail ?? "—";
+                                    var rtPfClr = rtPf == "PASS" ? "#065f46" : rtPf == "FAIL" ? "#dc2626" : "#6b7280";
+
+                                    IContainer RCell(IContainer c2) =>
+                                        c2.Background("#f0fdf4").BorderBottom(0.5f).BorderColor("#bfdbfe")
+                                          .PaddingVertical(4).PaddingHorizontal(4).PaddingLeft(10);
+
+                                    t.Cell().Element(RCell).Text("↳").FontSize(8f).FontColor("#9ca3af");
+                                    t.Cell().Element(RCell)
+                                        .Text("Retest").FontSize(8f).Bold().FontColor("#6d28d9");
+                                    t.Cell().Element(RCell)
+                                        .Text(Fmt(r.RetestResult))
+                                        .FontSize(8.5f).Bold().FontColor(rtPf == "PASS" ? "#065f46" : "#dc2626");
+                                    t.Cell().Element(RCell).Text(Fmt(r.SpecMin)).FontSize(8.5f);
+                                    t.Cell().Element(RCell).Text(Fmt(r.SpecMax)).FontSize(8.5f);
+                                    t.Cell().Element(RCell).Text(rtPf).Bold().FontSize(8f).FontColor(rtPfClr);
+                                    t.Cell().Element(RCell).Text(r.RetestAnalystName ?? "—").FontSize(8f).FontColor("#374151");
+                                    t.Cell().Element(RCell)
+                                        .Text(r.RetestCompletedAt.HasValue ? r.RetestCompletedAt.Value.ToString("yyyy-MM-dd HH:mm") : "—")
+                                        .FontSize(8f).FontColor("#6b7280");
+                                }
                             }
                         });
                 }

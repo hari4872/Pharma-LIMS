@@ -145,7 +145,8 @@ public class ResultsReviewController : LimsControllerBase
                     retestEntry?.CalculatedResult,
                     retestEntry?.PassFail,
                     inv?.RetestExecution?.Analyst?.FullName,
-                    inv?.ResolutionType?.ToString()
+                    inv?.ResolutionType?.ToString(),
+                    inv?.RetestExecution?.CompletedAt
                 );
             }).ToList(),
             Reviews: exec.ResultsReviews.Select(r => new BatchAnalysisPdfDocument.ReviewRow(
