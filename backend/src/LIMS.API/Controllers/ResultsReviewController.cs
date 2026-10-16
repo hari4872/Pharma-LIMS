@@ -100,6 +100,14 @@ public class ResultsReviewController : LimsControllerBase
                     .ThenInclude(oi => oi.RetestExecution).ThenInclude(re => re!.Analyst)
                 .Include(e => e.OosInvestigations)
                     .ThenInclude(oi => oi.RetestExecution).ThenInclude(re => re!.LogbookEntries)
+                .Include(e => e.OosInvestigations)
+                    .ThenInclude(oi => oi.ReworkExecution).ThenInclude(re => re!.Analyst)
+                .Include(e => e.OosInvestigations)
+                    .ThenInclude(oi => oi.ReworkExecution).ThenInclude(re => re!.LogbookEntries)
+                .Include(e => e.OosInvestigations)
+                    .ThenInclude(oi => oi.PostReworkRetestExecution).ThenInclude(re => re!.Analyst)
+                .Include(e => e.OosInvestigations)
+                    .ThenInclude(oi => oi.PostReworkRetestExecution).ThenInclude(re => re!.LogbookEntries)
                 .FirstOrDefaultAsync(e => e.ExecutionId == executionId);
         }
         catch (Exception ex)
@@ -132,6 +140,10 @@ public class ResultsReviewController : LimsControllerBase
                 var inv = exec.OosInvestigations.FirstOrDefault(oi => oi.EntryId == le.EntryId);
                 var retestEntry = inv?.RetestExecution?.LogbookEntries
                     .FirstOrDefault(rle => rle.ParameterId == le.ParameterId);
+                var reworkEntry = inv?.ReworkExecution?.LogbookEntries
+                    .FirstOrDefault(rle => rle.ParameterId == le.ParameterId);
+                var postReworkEntry = inv?.PostReworkRetestExecution?.LogbookEntries
+                    .FirstOrDefault(rle => rle.ParameterId == le.ParameterId);
                 return new BatchAnalysisPdfDocument.TestResultRow(
                     le.Parameter?.ParameterName ?? "—",
                     le.RawValue,
@@ -146,7 +158,15 @@ public class ResultsReviewController : LimsControllerBase
                     retestEntry?.PassFail,
                     inv?.RetestExecution?.Analyst?.FullName,
                     inv?.ResolutionType?.ToString(),
-                    inv?.RetestExecution?.CompletedAt
+                    inv?.RetestExecution?.CompletedAt,
+                    reworkEntry?.CalculatedResult,
+                    reworkEntry?.PassFail,
+                    inv?.ReworkExecution?.Analyst?.FullName,
+                    inv?.ReworkExecution?.CompletedAt,
+                    postReworkEntry?.CalculatedResult,
+                    postReworkEntry?.PassFail,
+                    inv?.PostReworkRetestExecution?.Analyst?.FullName,
+                    inv?.PostReworkRetestExecution?.CompletedAt
                 );
             }).ToList(),
             Reviews: exec.ResultsReviews.Select(r => new BatchAnalysisPdfDocument.ReviewRow(
