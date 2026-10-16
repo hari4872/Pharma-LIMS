@@ -983,18 +983,29 @@ export default function TraceabilityPage() {
                           Upstream (lot · analyst · instrument) → sample → downstream (CoA · C&amp;D)
                         </div>
                       </div>
-                      {/* View toggle */}
-                      <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 7, padding: 3, gap: 2 }}>
-                        {(['coc', 'graph', 'env', 'oos'] as const).map(v => (
-                          <button key={v} onClick={() => setActiveView(v)}
-                            style={{ padding: '5px 14px', borderRadius: 5, border: 'none',
-                              cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
-                              background: activeView === v ? '#fff' : 'transparent',
-                              color: activeView === v ? (v === 'oos' ? '#dc2626' : '#2563eb') : '#6b7280',
-                              boxShadow: activeView === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
-                            {v === 'coc' ? '📋 Chain of Custody' : v === 'graph' ? '🔗 Visual Graph' : v === 'env' ? '🌡 Environment' : '🔴 OOS Chain'}
-                          </button>
-                        ))}
+                      {/* View toggle + PDF export */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 7, padding: 3, gap: 2 }}>
+                          {(['coc', 'graph', 'env', 'oos'] as const).map(v => (
+                            <button key={v} onClick={() => setActiveView(v)}
+                              style={{ padding: '5px 14px', borderRadius: 5, border: 'none',
+                                cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                                background: activeView === v ? '#fff' : 'transparent',
+                                color: activeView === v ? (v === 'oos' ? '#dc2626' : '#2563eb') : '#6b7280',
+                                boxShadow: activeView === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
+                              {v === 'coc' ? '📋 Chain of Custody' : v === 'graph' ? '🔗 Visual Graph' : v === 'env' ? '🌡 Environment' : '🔴 OOS Chain'}
+                            </button>
+                          ))}
+                        </div>
+                        <a
+                          href={`/api/v1/traceability/samples/${resolved.sampleId}/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px',
+                            background: '#2563eb', color: '#fff', borderRadius: 6, fontSize: 12,
+                            fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                          ⬇ Export PDF
+                        </a>
                       </div>
                     </div>
                     <div style={{ padding: '18px 20px' }}>

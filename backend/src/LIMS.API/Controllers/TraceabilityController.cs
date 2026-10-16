@@ -1,9 +1,12 @@
+﻿using LIMS.API.Pdf;
 using LIMS.Application.Features.Traceability;
 using LIMS.Application.Interfaces;
+using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Fluent;
 
 namespace LIMS.API.Controllers;
 
@@ -68,7 +71,7 @@ public class TraceabilityController : LimsControllerBase
     }
 
     // GET api/v1/traceability/recall?lotNumber=LOT001
-    // FR-12: recall scope query � all affected downstream batches from lot node
+    // FR-12: recall scope query — all affected downstream batches from lot node
     [HttpGet("recall")]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> GetRecallScope(
@@ -196,6 +199,115 @@ public class TraceabilityController : LimsControllerBase
         var result = await _mediator.Send(new CloseComplaintsDeviationCommand(id, username));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { cdId = result.Value, status = "Closed" });
+    }
+
+    // GET api/v1/traceability/samples/{sampleId}/pdf
+    [HttpGet("samples/{sampleId:int}/pdf")]
+    public async Task<IActionResult> GetPdf(int sampleId, CancellationToken ct)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
+        var generatedBy = User.Identity?.Name ?? "Unknown";
+
+        // ── Sample ────────────────────────────────────────────────────────────
+        var sample = await _db.Samples
+            .Include(s => s.Material)
+            .Include(s => s.SampleTypeNav)
+            .Include(s => s.Analyst)
+            .FirstOrDefaultAsync(s => s.SampleId == sampleId, ct);
+        if (sample is null) return NotFound(new { error = "SAMPLE_NOT_FOUND" });
+
+        // ── Graph ─────────────────────────────────────────────────────────────
+        var graphResult = await _mediator.Send(new GetTraceabilityGraphQuery(sampleId, userId));
+        var graph = graphResult.Value;
+
+        // ── OOS investigations ────────────────────────────────────────────────
+        var oosInvs = await _db.OosInvestigations
+            .Include(i => i.RetestExecution)
+            .Include(i => i.ReworkExecution)
+            .Include(i => i.PostReworkRetestExecution)
+            .Include(i => i.Entry).ThenInclude(e => e.Parameter)
+            .Where(i => i.Execution.SampleId == sampleId)
+            .OrderBy(i => i.InvestigationId)
+            .ToListAsync(ct);
+
+        // ── Environment log ───────────────────────────────────────────────────
+        var executions = await _db.TestExecutions
+            .Where(e => e.SampleId == sampleId && e.StartedAt.HasValue)
+            .ToListAsync(ct);
+
+        List<TraceabilityPdfDocument.EnvRow> envRows = new();
+        DateTimeOffset? envStart = null, envEnd = null;
+
+        if (executions.Any())
+        {
+            envStart = executions.Min(e => e.StartedAt!.Value).AddHours(-1);
+            envEnd   = executions.Max(e => e.CompletedAt ?? DateTimeOffset.UtcNow).AddHours(1);
+
+            var processRows = await _db.ProcessLogRows
+                .Where(r => r.SlotTime >= envStart && r.SlotTime <= envEnd && r.Status == "Locked")
+                .Include(r => r.Checkpoint)
+                .Include(r => r.Readings).ThenInclude(rd => rd.Parameter)
+                .OrderBy(r => r.SlotTime)
+                .ToListAsync(ct);
+
+            envRows = processRows.Select(r => new TraceabilityPdfDocument.EnvRow(
+                r.SlotLabel,
+                r.SlotTime,
+                r.Checkpoint.CheckpointCode,
+                r.Readings.Select(rd => new TraceabilityPdfDocument.EnvReading(
+                    rd.Parameter.ParameterName,
+                    rd.Value,
+                    rd.Parameter.Uom ?? "",
+                    rd.RecordedBy
+                )).ToList()
+            )).ToList();
+        }
+
+        // ── Build PDF data ────────────────────────────────────────────────────
+        var data = new TraceabilityPdfDocument.TraceabilityPdfData(
+            Sample: new TraceabilityPdfDocument.SampleInfo(
+                sample.SampleId, sample.SampleNumber,
+                sample.Material?.MaterialName ?? "—",
+                sample.LotNumber,
+                sample.SampleTypeNav?.TypeName ?? "—",
+                sample.Status.ToString(),
+                sample.Analyst?.FullName ?? "—",
+                sample.CreatedAt),
+            UpstreamNodes: graph?.UpstreamNodes.Select(n =>
+                new TraceabilityPdfDocument.GraphNodeRow(n.NodeType, n.NodeId, n.Label, n.Detail ?? "")).ToList()
+                ?? new(),
+            LogbookNodes: graph?.LogbookNodes.Select(n =>
+                new TraceabilityPdfDocument.GraphNodeRow(n.NodeType, n.NodeId, n.Label, n.Detail ?? "")).ToList()
+                ?? new(),
+            DownstreamNodes: graph?.DownstreamNodes.Select(n =>
+                new TraceabilityPdfDocument.GraphNodeRow(n.NodeType, n.NodeId, n.Label, n.Detail ?? "")).ToList()
+                ?? new(),
+            OosChain: oosInvs.Select(i => new TraceabilityPdfDocument.OosRow(
+                i.InvestigationId,
+                i.Entry?.Parameter?.ParameterName ?? "—",
+                i.FlagType.ToString(),
+                i.Phase.ToString(),
+                i.Status.ToString(),
+                i.CreatedBy,
+                i.OpenedAt,
+                i.RetestExecutionId.HasValue,
+                i.RetestExecution?.Status.ToString(),
+                i.ResolutionType?.ToString(),
+                i.ReworkExecutionId.HasValue,
+                i.PostReworkRetestExecutionId.HasValue,
+                i.FinalDecision?.ToString(),
+                i.ClosedAt
+            )).ToList(),
+            EnvLog: envRows,
+            EnvWindowStart: envStart,
+            EnvWindowEnd: envEnd,
+            GeneratedBy: generatedBy
+        );
+
+        var doc = new TraceabilityPdfDocument(data);
+        var bytes = doc.GeneratePdf();
+        var filename = $"Traceability_{sample.SampleNumber.Replace("/", "-")}_{DateTime.UtcNow:yyyyMMdd}.pdf";
+        return File(bytes, "application/pdf", filename);
     }
 }
 
