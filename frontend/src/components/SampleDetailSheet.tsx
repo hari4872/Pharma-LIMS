@@ -144,7 +144,6 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
   const [coaLoading,  setCoaLoading]  = useState(false)
 
   // qa param drill-down
-  const [expandedExecId, setExpandedExecId] = useState<number | null>(null)
   const [execResults, setExecResults] = useState<Record<number, {
     parameterId: number; parameterName: string; parameterCode: string
     rawValue: string; calculatedResult: number | null; uom: string
@@ -166,15 +165,7 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
     return isNaN(n) ? raw : parseFloat(n.toPrecision(7)).toString()
   }
 
-  async function toggleExecResults(executionId: number) {
-    if (expandedExecId === executionId) { setExpandedExecId(null); return }
-    setExpandedExecId(executionId)
-    if (execResults[executionId]) return
-    try {
-      const res = await api.get(`/digital-logbook?executionId=${executionId}`)
-      setExecResults(prev => ({ ...prev, [executionId]: res.data ?? [] }))
-    } catch { setExecResults(prev => ({ ...prev, [executionId]: [] })) }
-  }
+
 
   async function toggleGroupResults(groupKey: string, execs: SampleDetail['testExecutions']) {
     if (expandedGroupKey === groupKey) { setExpandedGroupKey(null); return }
