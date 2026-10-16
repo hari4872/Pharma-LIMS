@@ -12,172 +12,99 @@ namespace LIMS.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "OosInvestigationId",
-                table: "test_executions",
-                type: "integer",
-                nullable: true);
+            // All statements wrapped in IF NOT EXISTS to handle partial prior application
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='test_executions' AND column_name='OosInvestigationId') THEN
+                        ALTER TABLE test_executions ADD COLUMN ""OosInvestigationId"" integer;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='test_executions' AND column_name='RetestOfExecutionId') THEN
+                        ALTER TABLE test_executions ADD COLUMN ""RetestOfExecutionId"" integer;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='test_executions' AND column_name='TaskType') THEN
+                        ALTER TABLE test_executions ADD COLUMN ""TaskType"" text NOT NULL DEFAULT '';
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='oos_investigations' AND column_name='ResolutionType') THEN
+                        ALTER TABLE oos_investigations ADD COLUMN ""ResolutionType"" text;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='oos_investigations' AND column_name='RetestExecutionId') THEN
+                        ALTER TABLE oos_investigations ADD COLUMN ""RetestExecutionId"" integer;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='capacity_bookings' AND column_name='SampleId') THEN
+                        ALTER TABLE capacity_bookings ADD COLUMN ""SampleId"" integer;
+                    END IF;
+                END $$;
+            ");
 
-            migrationBuilder.AddColumn<int>(
-                name: "RetestOfExecutionId",
-                table: "test_executions",
-                type: "integer",
-                nullable: true);
+            // Tables — CREATE IF NOT EXISTS
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS instrument_import_logs (
+                    ""ImportLogId"" serial PRIMARY KEY,
+                    ""ExecutionId"" integer NOT NULL REFERENCES test_executions(""ExecutionId"") ON DELETE CASCADE,
+                    ""FileName"" character varying(500) NOT NULL,
+                    ""TotalRows"" integer NOT NULL,
+                    ""MatchedRows"" integer NOT NULL,
+                    ""SkippedRows"" integer NOT NULL,
+                    ""ImportedByUserId"" integer NOT NULL REFERENCES users(""UserId"") ON DELETE RESTRICT,
+                    ""ImportedAt"" timestamptz NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS role_module_visibility (
+                    ""Id"" serial PRIMARY KEY,
+                    ""Role"" character varying(50) NOT NULL,
+                    ""NavKey"" character varying(100) NOT NULL,
+                    ""IsEnabled"" boolean NOT NULL,
+                    ""IsLockedBySuperAdmin"" boolean NOT NULL,
+                    ""UpdatedBy"" character varying(100) NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS super_admin_feature_flags (
+                    ""Key"" character varying(100) PRIMARY KEY,
+                    ""IsEnabled"" boolean NOT NULL,
+                    ""UpdatedBy"" character varying(100) NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NOT NULL
+                );
+            ");
 
-            migrationBuilder.AddColumn<string>(
-                name: "TaskType",
-                table: "test_executions",
-                type: "text",
-                nullable: false,
-                defaultValue: "");
-
-            migrationBuilder.AddColumn<string>(
-                name: "ResolutionType",
-                table: "oos_investigations",
-                type: "text",
-                nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "RetestExecutionId",
-                table: "oos_investigations",
-                type: "integer",
-                nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "SampleId",
-                table: "capacity_bookings",
-                type: "integer",
-                nullable: true);
-
-            migrationBuilder.CreateTable(
-                name: "instrument_import_logs",
-                columns: table => new
-                {
-                    ImportLogId = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ExecutionId = table.Column<int>(type: "integer", nullable: false),
-                    FileName = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
-                    TotalRows = table.Column<int>(type: "integer", nullable: false),
-                    MatchedRows = table.Column<int>(type: "integer", nullable: false),
-                    SkippedRows = table.Column<int>(type: "integer", nullable: false),
-                    ImportedByUserId = table.Column<int>(type: "integer", nullable: false),
-                    ImportedAt = table.Column<DateTimeOffset>(type: "timestamptz", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_instrument_import_logs", x => x.ImportLogId);
-                    table.ForeignKey(
-                        name: "FK_instrument_import_logs_test_executions_ExecutionId",
-                        column: x => x.ExecutionId,
-                        principalTable: "test_executions",
-                        principalColumn: "ExecutionId",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_instrument_import_logs_users_ImportedByUserId",
-                        column: x => x.ImportedByUserId,
-                        principalTable: "users",
-                        principalColumn: "UserId",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "role_module_visibility",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Role = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    NavKey = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
-                    IsLockedBySuperAdmin = table.Column<bool>(type: "boolean", nullable: false),
-                    UpdatedBy = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_role_module_visibility", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "super_admin_feature_flags",
-                columns: table => new
-                {
-                    Key = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false),
-                    UpdatedBy = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_super_admin_feature_flags", x => x.Key);
-                });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_test_executions_OosInvestigationId",
-                table: "test_executions",
-                column: "OosInvestigationId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_test_executions_RetestOfExecutionId",
-                table: "test_executions",
-                column: "RetestOfExecutionId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_oos_investigations_RetestExecutionId",
-                table: "oos_investigations",
-                column: "RetestExecutionId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_capacity_bookings_SampleId",
-                table: "capacity_bookings",
-                column: "SampleId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_instrument_import_logs_ExecutionId",
-                table: "instrument_import_logs",
-                column: "ExecutionId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_instrument_import_logs_ImportedByUserId",
-                table: "instrument_import_logs",
-                column: "ImportedByUserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_role_module_visibility_Role_NavKey",
-                table: "role_module_visibility",
-                columns: new[] { "Role", "NavKey" },
-                unique: true);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_capacity_bookings_samples_SampleId",
-                table: "capacity_bookings",
-                column: "SampleId",
-                principalTable: "samples",
-                principalColumn: "SampleId");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_oos_investigations_test_executions_RetestExecutionId",
-                table: "oos_investigations",
-                column: "RetestExecutionId",
-                principalTable: "test_executions",
-                principalColumn: "ExecutionId",
-                onDelete: ReferentialAction.Restrict);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_test_executions_oos_investigations_OosInvestigationId",
-                table: "test_executions",
-                column: "OosInvestigationId",
-                principalTable: "oos_investigations",
-                principalColumn: "InvestigationId",
-                onDelete: ReferentialAction.Restrict);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_test_executions_test_executions_RetestOfExecutionId",
-                table: "test_executions",
-                column: "RetestOfExecutionId",
-                principalTable: "test_executions",
-                principalColumn: "ExecutionId",
-                onDelete: ReferentialAction.Restrict);
+            // Indexes and FKs — IF NOT EXISTS
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='IX_test_executions_OosInvestigationId') THEN
+                        CREATE INDEX ""IX_test_executions_OosInvestigationId"" ON test_executions(""OosInvestigationId"");
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='IX_test_executions_RetestOfExecutionId') THEN
+                        CREATE INDEX ""IX_test_executions_RetestOfExecutionId"" ON test_executions(""RetestOfExecutionId"");
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='IX_oos_investigations_RetestExecutionId') THEN
+                        CREATE INDEX ""IX_oos_investigations_RetestExecutionId"" ON oos_investigations(""RetestExecutionId"");
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='IX_capacity_bookings_SampleId') THEN
+                        CREATE INDEX ""IX_capacity_bookings_SampleId"" ON capacity_bookings(""SampleId"");
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='IX_instrument_import_logs_ExecutionId') THEN
+                        CREATE INDEX ""IX_instrument_import_logs_ExecutionId"" ON instrument_import_logs(""ExecutionId"");
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='IX_instrument_import_logs_ImportedByUserId') THEN
+                        CREATE INDEX ""IX_instrument_import_logs_ImportedByUserId"" ON instrument_import_logs(""ImportedByUserId"");
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='IX_role_module_visibility_Role_NavKey') THEN
+                        CREATE UNIQUE INDEX ""IX_role_module_visibility_Role_NavKey"" ON role_module_visibility(""Role"", ""NavKey"");
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='FK_capacity_bookings_samples_SampleId') THEN
+                        ALTER TABLE capacity_bookings ADD CONSTRAINT ""FK_capacity_bookings_samples_SampleId"" FOREIGN KEY (""SampleId"") REFERENCES samples(""SampleId"");
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='FK_oos_investigations_test_executions_RetestExecutionId') THEN
+                        ALTER TABLE oos_investigations ADD CONSTRAINT ""FK_oos_investigations_test_executions_RetestExecutionId"" FOREIGN KEY (""RetestExecutionId"") REFERENCES test_executions(""ExecutionId"") ON DELETE RESTRICT;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='FK_test_executions_oos_investigations_OosInvestigationId') THEN
+                        ALTER TABLE test_executions ADD CONSTRAINT ""FK_test_executions_oos_investigations_OosInvestigationId"" FOREIGN KEY (""OosInvestigationId"") REFERENCES oos_investigations(""InvestigationId"") ON DELETE RESTRICT;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='FK_test_executions_test_executions_RetestOfExecutionId') THEN
+                        ALTER TABLE test_executions ADD CONSTRAINT ""FK_test_executions_test_executions_RetestOfExecutionId"" FOREIGN KEY (""RetestOfExecutionId"") REFERENCES test_executions(""ExecutionId"") ON DELETE RESTRICT;
+                    END IF;
+                END $$;
+            ");
         }
 
         /// <inheritdoc />
