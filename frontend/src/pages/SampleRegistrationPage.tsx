@@ -567,17 +567,21 @@ export default function SampleRegistrationPage() {
         // Always fetch the full unfiltered list so status count badges are accurate
         statusFilter ? api.get('/samples') : Promise.resolve({ data: null }),
       ])
-      setData(r.data)
-      setAllData(statusFilter ? rAll.data : r.data)
-      setMaterials(mr.data)
-      setSampleTypes(str.data.filter((t: SampleType) => t.typeCode !== 'DSPQC'))
+      setData(r.data ?? [])
+      setAllData(statusFilter ? (rAll.data ?? []) : (r.data ?? []))
+      setMaterials(mr.data ?? [])
+      setSampleTypes((str.data ?? []).filter((t: SampleType) => t.typeCode !== 'DSPQC'))
     } catch (err) {
       toast(getErrorMessage(err, 'Failed to load sample data'), 'error')
     } finally {
       setLoading(false)
     }
   }
-  useEffect(() => { load() }, [statusFilter])
+  useEffect(() => {
+    load()
+    const interval = setInterval(load, 30000)
+    return () => clearInterval(interval)
+  }, [statusFilter])
 
   // Load spec template links once — materialId → sampleTypeId mappings for auto-select
   useEffect(() => {
@@ -952,7 +956,7 @@ export default function SampleRegistrationPage() {
               { label: 'Material',     value: selectedSample.materialName },
               { label: 'Lot / Batch',  value: selectedSample.lotNumber },
               { label: 'Sample Type',  value: selectedSample.sampleType },
-              { label: 'Analyst',      value: selectedSample.analystName || '—' },
+              { label: 'Registered By', value: selectedSample.analystName || '—' },
               { label: 'Due Date',     value: selectedSample.dueDate ? fmtDate(selectedSample.dueDate) : '—' },
               { label: 'Registered',   value: fmtDate(selectedSample.createdAt) },
               { label: 'SRF Signed',   value: selectedSample.srfSigned ? '✓ Signed' : '✗ Pending' },
@@ -1026,7 +1030,7 @@ export default function SampleRegistrationPage() {
           }
         },
         { header: 'Due', accessor: r => r.dueDate ? fmtDate(r.dueDate) : '—' },
-        { header: 'Analyst', accessor: 'analystName' },
+        { header: 'Registered By', accessor: 'analystName' },
         {
           header: 'Actions', accessor: r => (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 130 }}>

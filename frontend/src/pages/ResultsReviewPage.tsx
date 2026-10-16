@@ -14,12 +14,14 @@ interface Execution {
   lotNumber: string; analystName: string; status: string; startedAt?: string; completedAt?: string
   testLabel: string | null
   containerId: number | null; containerLabel: string | null; containerType: string | null
+  taskType?: string; retestOfExecutionId?: number | null
 }
 
 interface SampleReviewGroup {
   sampleId: number; sampleNumber: string; materialName: string; lotNumber: string
   analystName: string; executions: Execution[]; overallStatus: string; completedAt: string | null
   pendingPeerIds: number[]; pendingQCIds: number[]
+  retestCount: number; reworkCount: number
 }
 
 function groupBySample(items: Execution[]): SampleReviewGroup[] {
@@ -45,11 +47,14 @@ function groupBySample(items: Execution[]): SampleReviewGroup[] {
     const dates = execs.map(e => e.completedAt).filter(Boolean) as string[]
     const completedAt = dates.length > 0 ? [...dates].sort().reverse()[0] : null
 
+    const retestCount = execs.filter(e => e.taskType === 'Retest').length
+    const reworkCount = execs.filter(e => e.taskType === 'Rework').length
+
     return {
       sampleId: execs[0].sampleId, sampleNumber: execs[0].sampleNumber,
       materialName: execs[0].materialName, lotNumber: execs[0].lotNumber,
       analystName, executions: execs, overallStatus, completedAt,
-      pendingPeerIds, pendingQCIds,
+      pendingPeerIds, pendingQCIds, retestCount, reworkCount,
     }
   })
 }
@@ -176,7 +181,11 @@ export default function ResultsReviewPage() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
+  useEffect(() => {
+    const t = setTimeout(load, 0)
+    const interval = setInterval(load, 30000)
+    return () => { clearTimeout(t); clearInterval(interval) }
+  }, [])
   useEffect(() => {
     if (pdfDropdown === null) return
     const close = () => setPdfDropdown(null)
@@ -361,9 +370,19 @@ export default function ResultsReviewPage() {
                           cursor: 'pointer', fontFamily: 'monospace', textDecoration: 'underline dotted' }}>
                         {g.sampleNumber}
                       </div>
-                      <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
+                      <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                         {g.executions.length} test{g.executions.length !== 1 ? 's' : ''}
-                        {hasContainers && <span style={{ marginLeft: 4 }}>· {containerGroups.filter(c => c.key !== '__none__').length} container{containerGroups.filter(c => c.key !== '__none__').length !== 1 ? 's' : ''}</span>}
+                        {hasContainers && <span>· {containerGroups.filter(c => c.key !== '__none__').length} container{containerGroups.filter(c => c.key !== '__none__').length !== 1 ? 's' : ''}</span>}
+                        {g.retestCount > 0 && (
+                          <span style={{ padding: '0px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: '#ede9fe', color: '#6d28d9' }}>
+                            {g.retestCount} retest{g.retestCount > 1 ? 's' : ''}
+                          </span>
+                        )}
+                        {g.reworkCount > 0 && (
+                          <span style={{ padding: '0px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: '#fff7ed', color: '#c2410c' }}>
+                            {g.reworkCount} rework{g.reworkCount > 1 ? 's' : ''}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td style={{ padding: '10px 16px' }}>
@@ -481,28 +500,59 @@ export default function ResultsReviewPage() {
                                 {hasOos && <span style={{ fontSize: 10, fontWeight: 700, color: '#b45309', background: '#fef3c7', padding: '1px 6px', borderRadius: 8 }}>OOS</span>}
                                 {allDone && !hasOos && <span style={{ fontSize: 10, fontWeight: 700, color: '#166534', background: '#dcfce7', padding: '1px 6px', borderRadius: 8 }}>✓ Done</span>}
                               </div>
-                              {/* Tests within container */}
-                              {cg.execs.map((ex, idx) => {
-                                const sc = STATUS_CFG[ex.status] ?? STATUS_CFG.default
-                                return (
-                                  <div key={ex.executionId}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 12,
-                                      padding: '7px 12px', borderBottom: idx < cg.execs.length - 1 ? '1px solid #f3f4f6' : 'none',
-                                      background: '#fff', fontSize: 12 }}>
-                                    <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#9ca3af', minWidth: 80 }}>
-                                      EXE-{String(ex.executionId).padStart(5, '0')}
-                                    </span>
-                                    <span style={{ fontWeight: 600, color: '#111827', flex: 1 }}>
-                                      {ex.testLabel ?? ex.materialName ?? `Test ${idx + 1}`}
-                                    </span>
-                                    <span style={{ fontSize: 11, color: '#6b7280' }}>{ex.analystName}</span>
-                                    <span style={{ padding: '1px 8px', borderRadius: 8, fontSize: 10,
-                                      fontWeight: 700, background: sc.bg, color: sc.color, whiteSpace: 'nowrap' }}>
-                                      {sc.label || ex.status}
-                                    </span>
-                                  </div>
-                                )
-                              })}
+                              {/* Tests within container — originals first, retests nested under them */}
+                              {(() => {
+                                const execIds = new Set(cg.execs.map(e => e.executionId))
+                                // Sort: standards/reworks first (by executionId asc), retests last
+                                const sorted = [...cg.execs].sort((a, b) => {
+                                  const aIsRetest = a.taskType === 'Retest'
+                                  const bIsRetest = b.taskType === 'Retest'
+                                  if (!aIsRetest && bIsRetest) return -1
+                                  if (aIsRetest && !bIsRetest) return 1
+                                  return a.executionId - b.executionId
+                                })
+                                return sorted.map((ex, idx) => {
+                                  const sc = STATUS_CFG[ex.status] ?? STATUS_CFG.default
+                                  const isRetest = ex.taskType === 'Retest'
+                                  const isRework = ex.taskType === 'Rework'
+                                  const originalInGroup = isRetest && ex.retestOfExecutionId != null && execIds.has(ex.retestOfExecutionId)
+                                  return (
+                                    <div key={ex.executionId}
+                                      style={{
+                                        display: 'flex', alignItems: 'center', gap: 12,
+                                        padding: isRetest ? '7px 12px 7px 28px' : '7px 12px',
+                                        borderBottom: idx < sorted.length - 1 ? '1px solid #f3f4f6' : 'none',
+                                        background: isRetest ? '#faf5ff' : isRework ? '#fff7ed' : '#fff',
+                                        borderLeft: isRetest ? '3px solid #ddd6fe' : isRework ? '3px solid #fed7aa' : '3px solid transparent',
+                                        fontSize: 12, position: 'relative',
+                                      }}>
+                                      {isRetest && (
+                                        <span style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700, flexShrink: 0 }}>↳</span>
+                                      )}
+                                      <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#9ca3af', minWidth: 80 }}>
+                                        EXE-{String(ex.executionId).padStart(5, '0')}
+                                      </span>
+                                      <span style={{ fontWeight: 600, color: '#111827', flex: 1 }}>
+                                        {ex.testLabel ?? ex.materialName ?? `Test ${idx + 1}`}
+                                      </span>
+                                      {/* Task type badges */}
+                                      {isRetest && (
+                                        <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: '#ede9fe', color: '#6d28d9', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                          RETEST{originalInGroup ? ` of EXE-${String(ex.retestOfExecutionId!).padStart(5,'0')}` : ''}
+                                        </span>
+                                      )}
+                                      {isRework && (
+                                        <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: '#fff7ed', color: '#c2410c', whiteSpace: 'nowrap', flexShrink: 0 }}>REWORK</span>
+                                      )}
+                                      <span style={{ fontSize: 11, color: '#6b7280', flexShrink: 0 }}>{ex.analystName}</span>
+                                      <span style={{ padding: '1px 8px', borderRadius: 8, fontSize: 10,
+                                        fontWeight: 700, background: sc.bg, color: sc.color, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                        {sc.label || ex.status}
+                                      </span>
+                                    </div>
+                                  )
+                                })
+                              })()}
                             </div>
                           )
                         })}

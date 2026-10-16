@@ -41,6 +41,14 @@ interface CdRecord {
   cdId: number; sampleId: number; cdType: string; cdReference: string
   description?: string; linkedOosId?: number; status: string; createdAt: string
 }
+interface OosChainItem {
+  investigationId: number; executionId: number; sampleId: number; sampleNumber: string
+  parameterId: number; parameterName: string
+  flagType: string; phase: string; status: string
+  rootCause?: string; capaRef?: string; capaStatus?: string
+  openedAt: string; closedAt?: string; createdBy: string
+  retestExecutionId?: number; resolutionType?: string
+}
 
 // ── Colour + icon metadata ───────────────────────────────────────────────────
 
@@ -331,6 +339,158 @@ function ChainOfCustody({ graph }: { graph: TraceGraph }) {
   )
 }
 
+// ── OOS Investigation Chain timeline ─────────────────────────────────────────
+
+function OosChain({ items }: { items: OosChainItem[] }) {
+  if (items.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '40px 24px', color: '#9ca3af', fontSize: 13 }}>
+        No OOS / OOT investigations found for this sample.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {items.map(inv => {
+        const isOos   = inv.flagType === 'OOS'
+        const isClosed = inv.status === 'Closed'
+        const isPhase2 = inv.phase === 'Phase2'
+        const hasRetest = !!inv.retestExecutionId
+        const isLabError    = inv.resolutionType === 'LabError'
+        const isGenuineOOS  = inv.resolutionType === 'GenuineOOS'
+
+        type Step = { id: string; icon: string; label: string; sub: string; color: string; bg: string; border: string; done: boolean; active: boolean }
+        const steps: Step[] = [
+          {
+            id: 'exec',
+            icon: '🔬',
+            label: `Original Execution #${inv.executionId}`,
+            sub: `${inv.flagType} result detected — ${inv.parameterName}`,
+            color: '#dc2626', bg: '#fef2f2', border: '#fca5a5',
+            done: true, active: false,
+          },
+          {
+            id: 'inv',
+            icon: '⚠️',
+            label: `OOS Investigation #${inv.investigationId}`,
+            sub: `Phase: ${inv.phase} · Opened by ${inv.createdBy} · ${new Date(inv.openedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+            color: isPhase2 ? '#7c3aed' : '#b45309', bg: isPhase2 ? '#ede9fe' : '#fef3c7', border: isPhase2 ? '#ddd6fe' : '#fde68a',
+            done: isClosed, active: !isClosed && !hasRetest,
+          },
+          {
+            id: 'retest',
+            icon: '🔁',
+            label: hasRetest ? `Retest Execution #${inv.retestExecutionId}` : 'Retest',
+            sub: hasRetest
+              ? (isClosed
+                  ? (isLabError ? 'Retest PASSED — lab error confirmed' : 'Retest FAILED — genuine OOS')
+                  : 'Retest in progress…')
+              : 'Pending — awaiting QA authorisation',
+            color: hasRetest ? (isLabError && isClosed ? '#166534' : isClosed ? '#991b1b' : '#1d4ed8') : '#9ca3af',
+            bg:    hasRetest ? (isLabError && isClosed ? '#f0fdf4' : isClosed ? '#fef2f2' : '#eff6ff') : '#f9fafb',
+            border:hasRetest ? (isLabError && isClosed ? '#86efac' : isClosed ? '#fca5a5' : '#bfdbfe') : '#e5e7eb',
+            done: isClosed && hasRetest, active: hasRetest && !isClosed,
+          },
+          {
+            id: 'resolution',
+            icon: isClosed ? (isLabError ? '✅' : '🔴') : '⏳',
+            label: isClosed
+              ? (isLabError ? 'Resolution: Lab Error' : isGenuineOOS ? 'Resolution: Genuine OOS' : 'Closed')
+              : 'Resolution',
+            sub: isClosed
+              ? (isLabError
+                  ? `Investigation closed as Lab Error — original entry cleared · ${new Date(inv.closedAt!).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                  : isGenuineOOS
+                  ? `Genuine OOS confirmed — escalate to Phase 2 / Rework · ${new Date(inv.closedAt!).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                  : 'Closed')
+              : 'Pending investigation closure',
+            color: isClosed ? (isLabError ? '#166534' : '#991b1b') : '#9ca3af',
+            bg:    isClosed ? (isLabError ? '#f0fdf4' : '#fef2f2') : '#f9fafb',
+            border:isClosed ? (isLabError ? '#86efac' : '#fca5a5') : '#e5e7eb',
+            done: isClosed, active: false,
+          },
+        ]
+
+        if (isGenuineOOS && isClosed) {
+          steps.push({
+            id: 'rework',
+            icon: '🔧',
+            label: 'Rework (Phase 2)',
+            sub: 'Product rework authorised by QA — rework task to be created',
+            color: '#7c3aed', bg: '#ede9fe', border: '#ddd6fe',
+            done: false, active: true,
+          })
+          steps.push({
+            id: 'qa',
+            icon: '🏁',
+            label: 'QA Release Decision',
+            sub: 'Awaiting post-rework retest and QA final release/reject decision',
+            color: '#9ca3af', bg: '#f9fafb', border: '#e5e7eb',
+            done: false, active: false,
+          })
+        }
+
+        return (
+          <div key={inv.investigationId} style={{ background: '#fff', border: `1px solid ${isOos ? '#fca5a5' : '#fde68a'}`, borderRadius: 10, overflow: 'hidden' }}>
+            {/* Card header */}
+            <div style={{ padding: '10px 18px', background: isOos ? '#fef2f2' : '#fefce8', borderBottom: `1px solid ${isOos ? '#fca5a5' : '#fde68a'}`,
+              display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                background: isOos ? '#fee2e2' : '#fef9c3', color: isOos ? '#dc2626' : '#b45309',
+                border: `1px solid ${isOos ? '#fca5a5' : '#fde68a'}` }}>
+                {inv.flagType}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{inv.parameterName}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                background: isClosed ? '#dcfce7' : '#fef3c7', color: isClosed ? '#166534' : '#92400e',
+                border: `1px solid ${isClosed ? '#86efac' : '#fde68a'}` }}>
+                {inv.status}
+              </span>
+              {inv.capaRef && (
+                <span style={{ fontSize: 11, color: '#6b7280', fontFamily: 'monospace' }}>CAPA: {inv.capaRef}</span>
+              )}
+            </div>
+
+            {/* Steps */}
+            <div style={{ padding: '16px 20px', position: 'relative' }}>
+              {/* Connector line */}
+              <div style={{ position: 'absolute', left: 35, top: 32, bottom: 32, width: 2, background: '#e5e7eb' }} />
+
+              {steps.map((step, si) => (
+                <div key={step.id} style={{ display: 'flex', gap: 14, alignItems: 'flex-start',
+                  marginBottom: si < steps.length - 1 ? 16 : 0, position: 'relative', zIndex: 1 }}>
+                  {/* Icon bubble */}
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
+                    background: step.bg, border: `2px solid ${step.border}`,
+                    boxShadow: step.active ? `0 0 0 3px ${step.border}` : 'none',
+                    opacity: !step.done && !step.active ? 0.5 : 1 }}>
+                    {step.icon}
+                  </div>
+                  {/* Content */}
+                  <div style={{ flex: 1, padding: '7px 14px', borderRadius: 8,
+                    background: step.bg, border: `1px solid ${step.border}`,
+                    opacity: !step.done && !step.active ? 0.5 : 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: step.color }}>{step.label}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{step.sub}</div>
+                    {step.id === 'inv' && inv.rootCause && (
+                      <div style={{ marginTop: 6, fontSize: 12, color: '#374151', background: '#f9fafb',
+                        borderRadius: 5, padding: '4px 8px', borderLeft: '3px solid #d1d5db' }}>
+                        Root cause: {inv.rootCause}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Shared UI helpers ────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
@@ -508,7 +668,7 @@ function RightPanelEmpty() {
           { icon: '📋', title: 'Summary',          desc: 'Status, material, lot number, sample type' },
           { icon: '🕓', title: 'Chain of Custody', desc: 'Upstream → sample → downstream timeline' },
           { icon: '🔗', title: 'Visual Graph',     desc: 'Interactive ReactFlow lineage diagram' },
-          { icon: '⚠️', title: 'C&D / Recall',     desc: 'Complaints, deviations, recall scope' },
+          { icon: '🔴', title: 'OOS Chain',        desc: 'Investigation chain: Original → OOS → Retest → Resolution' },
         ].map(c => (
           <div key={c.title} style={{ background: '#fff', border: '1px solid #e5e7eb',
             borderRadius: 10, padding: '16px 18px' }}>
@@ -544,7 +704,11 @@ export default function TraceabilityPage() {
   const [graph, setGraph]               = useState<TraceGraph | null>(null)
   const [graphLoading, setGraphLoading] = useState(false)
   const [graphError, setGraphError]     = useState('')
-  const [activeView, setActiveView]     = useState<'coc' | 'graph' | 'env'>('coc')
+  const [activeView, setActiveView]     = useState<'coc' | 'graph' | 'env' | 'oos'>('coc')
+
+  // ── OOS chain state ─────────────────────────────────────────────────────────
+  const [oosChain, setOosChain]               = useState<OosChainItem[]>([])
+  const [oosChainLoading, setOosChainLoading] = useState(false)
 
   // ── Environment log state ───────────────────────────────────────────────
   const [envLog, setEnvLog] = useState<{
@@ -584,11 +748,24 @@ export default function TraceabilityPage() {
 
   useEffect(() => { if (tab === 'cd') loadCdList() }, [tab])
 
+  async function loadOosChain(sampleId: number) {
+    setOosChainLoading(true)
+    try {
+      const r = await api.get(`/oos-investigations?sampleId=${sampleId}`)
+      setOosChain(r.data ?? [])
+    } catch { setOosChain([]) }
+    finally { setOosChainLoading(false) }
+  }
+
+  useEffect(() => {
+    if (activeView === 'oos' && resolved) loadOosChain(resolved.sampleId)
+  }, [activeView, resolved?.sampleId])
+
   // ── Load trace when a sample is selected from left panel ────────────────
   async function loadTrace(item: SampleListItem) {
     const seq = ++loadSeqRef.current          // cancel any in-flight call
     setSelectedSampleId(item.sampleId)
-    setGraphLoading(true); setGraphError(''); setGraph(null); setEnvLog(null)
+    setGraphLoading(true); setGraphError(''); setGraph(null); setEnvLog(null); setOosChain([])
     setResolved({
       sampleId:       item.sampleId,
       sampleNumber:   item.sampleNumber,
@@ -786,14 +963,14 @@ export default function TraceabilityPage() {
                       </div>
                       {/* View toggle */}
                       <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 7, padding: 3, gap: 2 }}>
-                        {(['coc', 'graph', 'env'] as const).map(v => (
+                        {(['coc', 'graph', 'env', 'oos'] as const).map(v => (
                           <button key={v} onClick={() => setActiveView(v)}
                             style={{ padding: '5px 14px', borderRadius: 5, border: 'none',
                               cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
                               background: activeView === v ? '#fff' : 'transparent',
-                              color: activeView === v ? '#2563eb' : '#6b7280',
+                              color: activeView === v ? (v === 'oos' ? '#dc2626' : '#2563eb') : '#6b7280',
                               boxShadow: activeView === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
-                            {v === 'coc' ? '📋 Chain of Custody' : v === 'graph' ? '🔗 Visual Graph' : '🌡 Environment'}
+                            {v === 'coc' ? '📋 Chain of Custody' : v === 'graph' ? '🔗 Visual Graph' : v === 'env' ? '🌡 Environment' : '🔴 OOS Chain'}
                           </button>
                         ))}
                       </div>
@@ -801,6 +978,11 @@ export default function TraceabilityPage() {
                     <div style={{ padding: '18px 20px' }}>
                       {activeView === 'coc' && <ChainOfCustody graph={graph} />}
                       {activeView === 'graph' && <TraceGraphPanel key={graph.centralSample.nodeId} graph={graph} />}
+                      {activeView === 'oos' && (
+                        oosChainLoading
+                          ? <div style={{ textAlign: 'center', padding: 32, color: '#9ca3af', fontSize: 13 }}>⏳ Loading OOS investigations…</div>
+                          : <OosChain items={oosChain} />
+                      )}
                       {activeView === 'env' && (
                         <div>
                           {envLog?.windowStart && (

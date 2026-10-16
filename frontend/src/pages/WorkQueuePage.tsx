@@ -25,6 +25,7 @@ interface WorkItem {
   testLabel: string | null
   containerId: number | null; containerLabel: string | null
   containerType: string | null; containerStatus: string | null
+  taskType: string; retestOfExecutionId?: number | null; oosInvestigationId?: number | null
 }
 
 interface SampleContainerOption {
@@ -46,6 +47,7 @@ interface SampleGroup {
   minPriority: number | null
   earliestDue: string | null
   anyOverdue: boolean
+  maxCreatedAt: number
 }
 
 interface ContainerGroup {
@@ -203,6 +205,8 @@ function groupBySample(items: WorkItem[]): SampleGroup[] {
       (e.status === 'Assigned' || e.status === 'InProgress')
     )
 
+    const maxCreatedAt = Math.max(...execs.map(e => new Date(e.createdAt).getTime()))
+
     return {
       sampleId: execs[0].sampleId,
       sampleNumber: execs[0].sampleNumber,
@@ -217,8 +221,9 @@ function groupBySample(items: WorkItem[]): SampleGroup[] {
       minPriority,
       earliestDue,
       anyOverdue,
+      maxCreatedAt,
     }
-  })
+  }).sort((a, b) => b.maxCreatedAt - a.maxCreatedAt)
 }
 
 const CONTAINER_STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
@@ -325,14 +330,18 @@ export default function WorkQueuePage() {
     try {
       const params = statusFilter ? `?status=${statusFilter}` : ''
       const r = await api.get(`/test-executions${params}`)
-      setData(r.data)
+      setData(r.data ?? [])
     } catch (err) {
       toast(getErrorMessage(err, 'Failed to load work queue'), 'error')
     } finally {
       setLoading(false)
     }
   }
-  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [statusFilter])
+  useEffect(() => {
+    const t = setTimeout(load, 0)
+    const interval = setInterval(load, 30000)
+    return () => { clearTimeout(t); clearInterval(interval) }
+  }, [statusFilter])
 
   const groups = groupBySample(data)
   const containerGroups = groupByContainer(data)
@@ -471,7 +480,10 @@ export default function WorkQueuePage() {
       api.get('/users').catch(() => ({ data: [] })),
       api.get('/instruments').catch(() => ({ data: [] })),
     ])
-    setSamples(sr.data); setAnalysts(ur.data)
+    setSamples(sr.data)
+    setAnalysts((ur.data as { userId: number; fullName: string; role: string }[]).filter(
+      u => u.role === 'Analyst' || u.role === 'LabManager'
+    ))
     setInstruments((ir.data as InstrumentOption[]).filter(i => i.status !== 'OutOfCalibration' && i.status !== 'Maintenance'))
     setContainers([])
     setForm({ sampleId: '', analystId: '', instrumentId: '', priorityScore: '', containerId: '' })
@@ -503,7 +515,11 @@ export default function WorkQueuePage() {
 
   async function openReassign(item: WorkItem) {
     const loads: Promise<any>[] = []
-    if (analysts.length === 0) loads.push(api.get('/users').catch(() => ({ data: [] })).then(r => setAnalysts(r.data)))
+    if (analysts.length === 0) loads.push(api.get('/users').catch(() => ({ data: [] })).then(r =>
+      setAnalysts((r.data as { userId: number; fullName: string; role: string }[]).filter(
+        u => u.role === 'Analyst' || u.role === 'LabManager'
+      ))
+    ))
     if (instruments.length === 0) loads.push(api.get('/instruments').catch(() => ({ data: [] })).then(r => setInstruments((r.data as InstrumentOption[]).filter((i: InstrumentOption) => i.status !== 'OutOfCalibration' && i.status !== 'Maintenance'))))
     await Promise.all(loads)
     setReassignItem(item)
@@ -718,6 +734,12 @@ export default function WorkQueuePage() {
                           {exec.testLabel ?? exec.materialName ?? `Test ${idx + 1}`}
                         </span>
                         <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{fmtLabel(exec.status)}</span>
+                        {exec.taskType === 'Retest' && (
+                          <span title={exec.retestOfExecutionId ? `Retest of execution #${exec.retestOfExecutionId}` : 'Retest task'} style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#ede9fe', color: '#6d28d9' }}>RETEST</span>
+                        )}
+                        {exec.taskType === 'Rework' && (
+                          <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#fff7ed', color: '#c2410c' }}>REWORK</span>
+                        )}
                         <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontSize: 11, color: '#9ca3af' }}>#{exec.executionId}</span>
                       </div>
                       <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -1036,6 +1058,12 @@ export default function WorkQueuePage() {
                           {exec.testLabel ?? exec.materialName ?? `Test ${idx + 1}`}
                         </span>
                         <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color }}>{fmtLabel(exec.status)}</span>
+                        {exec.taskType === 'Retest' && (
+                          <span title={exec.retestOfExecutionId ? `Retest of execution #${exec.retestOfExecutionId}` : 'Retest task'} style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#ede9fe', color: '#6d28d9' }}>RETEST</span>
+                        )}
+                        {exec.taskType === 'Rework' && (
+                          <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#fff7ed', color: '#c2410c' }}>REWORK</span>
+                        )}
                         {isOverdue && <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b' }}>OVERDUE</span>}
                         {hasOos && <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626' }}>OOS</span>}
                         <span style={{ marginLeft: 'auto', fontSize: 11, color: '#9ca3af' }}>#{exec.executionId}</span>
