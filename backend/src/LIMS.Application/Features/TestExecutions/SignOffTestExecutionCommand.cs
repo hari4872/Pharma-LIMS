@@ -49,12 +49,15 @@ public class SignOffTestExecutionHandler : IRequestHandler<SignOffTestExecutionC
         if (sig is null) return Result<int>.Failure("ESIGN_AUTH_FAILED", "Password incorrect — e-signature rejected. (21 CFR §11.300)");
 
         // Atomic: finalize all pending logbook rows and create OOS investigations
+        // Only Standard tasks auto-create investigations — Retest/Rework results feed
+        // back into the existing investigation for QA to close manually.
+        bool isStandard = execution.TaskType == TaskType.Standard;
         foreach (var entry in pendingEntries)
         {
             entry.Status = LogbookEntryStatus.Signed;
             entry.SignatureId = sig.SignatureId;
 
-            if (entry.IsOos || entry.IsOot)
+            if (isStandard && (entry.IsOos || entry.IsOot))
             {
                 var investigation = new OosInvestigation
                 {
@@ -71,7 +74,7 @@ public class SignOffTestExecutionHandler : IRequestHandler<SignOffTestExecutionC
             }
         }
 
-        bool hasOpenOos = pendingEntries.Any(e => e.IsOos || e.IsOot);
+        bool hasOpenOos = isStandard && pendingEntries.Any(e => e.IsOos || e.IsOot);
         execution.Status = hasOpenOos ? TestExecutionStatus.OOSOpen : TestExecutionStatus.Completed;
         execution.CompletedAt = DateTimeOffset.UtcNow;
 
