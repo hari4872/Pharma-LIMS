@@ -30,7 +30,7 @@ let _redirectingToLogin = false
 
 const api = axios.create({
   baseURL: '/api/v1',
-  timeout: 30000,   // 30 s — shows "Server took too long" instead of hanging forever
+  timeout: 60000,   // 60 s — allows for slow SSH-tunnel DB queries
 })
 
 // ── Request interceptor ───────────────────────────────────────────────────────
@@ -237,7 +237,7 @@ export function buildFriendlyMessage(err: unknown): string {
 
   // Axios timeout
   if (e.code === 'ECONNABORTED' || e.message?.includes('timeout')) {
-    return 'The server took too long to respond (30s). Check your connection and try again.'
+    return 'The server took too long to respond (60s). Check your connection and try again.'
   }
 
   // No response at all — network level failure
