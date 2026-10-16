@@ -141,7 +141,7 @@ export default function OosInvestigationsPage() {
   }
   useEffect(() => {
     const t = setTimeout(load, 0)
-    const interval = setInterval(load, 10000)
+    const interval = setInterval(load, 30000)
     return () => { clearTimeout(t); clearInterval(interval) }
   }, [])
 
