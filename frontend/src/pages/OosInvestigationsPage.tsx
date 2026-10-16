@@ -634,7 +634,7 @@ export default function OosInvestigationsPage() {
                 <tbody>
                   {[
                     { label: 'Original', data: comparisonData.original, bg: '#fef2f2' },
-                    { label: 'Phase 1 Retest', data: comparisonData.retest, bg: '#f0fdf4' },
+                    { label: 'Retest', data: comparisonData.retest, bg: '#f0fdf4' },
                     { label: 'Post-Rework Retest', data: comparisonData.postReworkRetest, bg: '#f0fdf4' },
                   ].filter(row => row.data).map(row => {
                     const val = row.data!.calculatedResult != null
