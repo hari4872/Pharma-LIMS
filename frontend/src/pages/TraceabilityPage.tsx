@@ -48,6 +48,7 @@ interface OosChainItem {
   rootCause?: string; capaRef?: string; capaStatus?: string
   openedAt: string; closedAt?: string; createdBy: string
   retestExecutionId?: number; resolutionType?: string
+  reworkExecutionId?: number; postReworkRetestExecutionId?: number; finalDecision?: string
 }
 
 // ── Colour + icon metadata ───────────────────────────────────────────────────
@@ -412,22 +413,43 @@ function OosChain({ items }: { items: OosChainItem[] }) {
           },
         ]
 
-        if (isGenuineOOS && isClosed) {
+        const hasRework       = !!inv.reworkExecutionId
+        const hasPostRetest   = !!inv.postReworkRetestExecutionId
+        const hasFinalDecision= !!inv.finalDecision
+        const isRelease       = inv.finalDecision === 'Release'
+
+        if (isGenuineOOS || isPhase2 || hasRework) {
           steps.push({
             id: 'rework',
             icon: '🔧',
-            label: 'Rework (Phase 2)',
-            sub: 'Product rework authorised by QA — rework task to be created',
-            color: '#7c3aed', bg: '#ede9fe', border: '#ddd6fe',
-            done: false, active: true,
+            label: hasRework ? `Rework Execution #${inv.reworkExecutionId}` : 'Rework (Phase 2)',
+            sub: hasRework ? `Physical rework performed — EXE-${String(inv.reworkExecutionId).padStart(5,'0')}` : 'Rework authorised — awaiting completion',
+            color: hasRework ? '#c2410c' : '#7c3aed',
+            bg:    hasRework ? '#fff7ed' : '#ede9fe',
+            border:hasRework ? '#fed7aa' : '#ddd6fe',
+            done: hasRework, active: !hasRework,
+          })
+          steps.push({
+            id: 'postretest',
+            icon: '🔁',
+            label: hasPostRetest ? `Post-Rework Retest #${inv.postReworkRetestExecutionId}` : 'Post-Rework Retest',
+            sub: hasPostRetest ? `Retest after rework — EXE-${String(inv.postReworkRetestExecutionId).padStart(5,'0')}` : 'Pending rework completion',
+            color: hasPostRetest ? '#1d4ed8' : '#9ca3af',
+            bg:    hasPostRetest ? '#eff6ff' : '#f9fafb',
+            border:hasPostRetest ? '#bfdbfe' : '#e5e7eb',
+            done: hasFinalDecision, active: hasPostRetest && !hasFinalDecision,
           })
           steps.push({
             id: 'qa',
-            icon: '🏁',
-            label: 'QA Release Decision',
-            sub: 'Awaiting post-rework retest and QA final release/reject decision',
-            color: '#9ca3af', bg: '#f9fafb', border: '#e5e7eb',
-            done: false, active: false,
+            icon: hasFinalDecision ? (isRelease ? '✅' : '🚫') : '⏳',
+            label: hasFinalDecision ? `QA Final Decision: ${inv.finalDecision}` : 'QA Final Decision',
+            sub: hasFinalDecision
+              ? (isRelease ? 'Batch RELEASED — post-rework retest confirmed spec compliance' : 'Batch REJECTED — post-rework retest failed to meet specification')
+              : 'Awaiting post-rework retest results',
+            color: hasFinalDecision ? (isRelease ? '#166534' : '#991b1b') : '#9ca3af',
+            bg:    hasFinalDecision ? (isRelease ? '#f0fdf4' : '#fef2f2') : '#f9fafb',
+            border:hasFinalDecision ? (isRelease ? '#86efac' : '#fca5a5') : '#e5e7eb',
+            done: hasFinalDecision, active: hasPostRetest && !hasFinalDecision,
           })
         }
 

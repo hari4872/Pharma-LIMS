@@ -242,13 +242,15 @@ public class OosInvestigationsController : LimsControllerBase
             .Include(i => i.Signature).ThenInclude(s => s!.User)
             .Include(i => i.RetestExecution).ThenInclude(re => re!.Analyst)
             .Include(i => i.RetestExecution).ThenInclude(re => re!.LogbookEntries)
+            .Include(i => i.ReworkExecution).ThenInclude(rw => rw!.Analyst)
+            .Include(i => i.PostReworkRetestExecution).ThenInclude(pr => pr!.Analyst)
+            .Include(i => i.PostReworkRetestExecution).ThenInclude(pr => pr!.LogbookEntries)
             .FirstOrDefaultAsync(i => i.InvestigationId == id);
 
         if (inv is null) return NotFound();
 
-        // Find the retest logbook entry for the same parameter
-        var retestEntry = inv.RetestExecution?.LogbookEntries
-            .FirstOrDefault(le => le.ParameterId == inv.ParameterId);
+        var retestEntry        = inv.RetestExecution?.LogbookEntries.FirstOrDefault(le => le.ParameterId == inv.ParameterId);
+        var postReworkEntry    = inv.PostReworkRetestExecution?.LogbookEntries.FirstOrDefault(le => le.ParameterId == inv.ParameterId);
 
         var data = new OosPdfDocument.OosReportData(
             InvestigationId: inv.InvestigationId,
@@ -277,7 +279,19 @@ public class OosInvestigationsController : LimsControllerBase
             RetestCalculatedResult: retestEntry?.CalculatedResult,
             RetestPassFail:         retestEntry?.PassFail,
             RetestAnalystName:      inv.RetestExecution?.Analyst?.FullName,
-            ResolutionType:         inv.ResolutionType?.ToString()
+            ResolutionType:         inv.ResolutionType?.ToString(),
+            // Group C — Rework & Post-Rework Retest
+            ReworkExecutionId:           inv.ReworkExecutionId,
+            ReworkAdHocReason:           inv.ReworkExecution?.AdHocReason,
+            ReworkAnalystName:           inv.ReworkExecution?.Analyst?.FullName,
+            PostReworkRetestExecutionId: inv.PostReworkRetestExecutionId,
+            PostReworkRawValue:          postReworkEntry?.RawValue,
+            PostReworkCalculatedResult:  postReworkEntry?.CalculatedResult,
+            PostReworkPassFail:          postReworkEntry?.PassFail,
+            PostReworkAnalystName:       inv.PostReworkRetestExecution?.Analyst?.FullName,
+            FinalDecision:               inv.FinalDecision?.ToString(),
+            FinalDecisionBy:             inv.FinalDecisionBy,
+            FinalDecisionAt:             inv.FinalDecisionAt
         );
 
         QuestPDF.Settings.License = LicenseType.Community;

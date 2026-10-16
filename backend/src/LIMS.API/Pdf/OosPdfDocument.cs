@@ -33,13 +33,25 @@ public class OosPdfDocument : IDocument
         DateTimeOffset OpenedAt,
         DateTimeOffset? ClosedAt,
         string? ClosedByName,      // from Signature.FullName
-        // Retest fields — null when no retest exists
+        // Phase 1 retest — null when no retest exists
         int?    RetestExecutionId,
         string? RetestRawValue,
         decimal? RetestCalculatedResult,
         string? RetestPassFail,
         string? RetestAnalystName,
-        string? ResolutionType     // "LabError" | "GenuineOOS" | null
+        string? ResolutionType,    // "LabError" | "GenuineOOS" | null
+        // Group C — Rework & Post-Rework Retest
+        int?    ReworkExecutionId,
+        string? ReworkAdHocReason,
+        string? ReworkAnalystName,
+        int?    PostReworkRetestExecutionId,
+        string? PostReworkRawValue,
+        decimal? PostReworkCalculatedResult,
+        string? PostReworkPassFail,
+        string? PostReworkAnalystName,
+        string? FinalDecision,     // "Release" | "Reject" | null
+        string? FinalDecisionBy,
+        DateTimeOffset? FinalDecisionAt
     );
 
     private readonly OosReportData _d;
@@ -250,6 +262,83 @@ public class OosPdfDocument : IDocument
                 col.Item().PaddingTop(14);
             }
 
+            // ── Section 2C: Rework Activity (Group C only) ──────────────────
+            if (_d.ReworkExecutionId.HasValue)
+            {
+                col.SectionBox("2C. REWORK ACTIVITY (Phase 2 — Group C)", "#c2410c", col2 =>
+                {
+                    col2.Item().Background("#fff7ed").Border(0.5f).BorderColor("#fed7aa").Padding(10).Column(inner =>
+                    {
+                        inner.Item().Row(row =>
+                        {
+                            row.ConstantItem(110).Text("Rework Execution:").Bold().FontSize(9).FontColor("#374151");
+                            row.RelativeItem().Text($"EXE-{_d.ReworkExecutionId:D5}").FontSize(9);
+                        });
+                        if (!string.IsNullOrWhiteSpace(_d.ReworkAnalystName))
+                            inner.Item().PaddingTop(4).Row(row =>
+                            {
+                                row.ConstantItem(110).Text("Performed By:").Bold().FontSize(9).FontColor("#374151");
+                                row.RelativeItem().Text(_d.ReworkAnalystName).FontSize(9);
+                            });
+                        if (!string.IsNullOrWhiteSpace(_d.ReworkAdHocReason))
+                        {
+                            inner.Item().PaddingTop(8).Text("Rework Details:").Bold().FontSize(9).FontColor("#374151");
+                            inner.Item().PaddingTop(4).Background("#fff").Border(0.5f).BorderColor("#fed7aa").Padding(6)
+                                .Text(_d.ReworkAdHocReason).FontSize(9);
+                        }
+                    });
+                });
+                col.Item().PaddingTop(14);
+            }
+
+            // ── Section 2D: Post-Rework Retest (Group C only) ───────────────
+            if (_d.PostReworkRetestExecutionId.HasValue)
+            {
+                var prPass  = _d.PostReworkPassFail == "PASS";
+                var prLabel = prPass ? "2D. POST-REWORK RETEST — PASS" : "2D. POST-REWORK RETEST — FAIL";
+                var prColor = prPass ? "#065f46" : "#dc2626";
+                col.SectionBox(prLabel, prColor, col2 =>
+                {
+                    col2.Item()
+                        .Background(prPass ? "#f0fdf4" : "#fff1f2").Border(0.5f).BorderColor(prPass ? "#86efac" : "#fca5a5")
+                        .Padding(10).Table(t =>
+                        {
+                            t.ColumnsDefinition(cd =>
+                            {
+                                cd.RelativeColumn(2); cd.RelativeColumn(); cd.RelativeColumn();
+                                cd.RelativeColumn(); cd.RelativeColumn(); cd.ConstantColumn(60);
+                            });
+                            void TH3(IContainer c2, string txt) =>
+                                c2.Background(prPass ? "#dcfce7" : "#fee2e2").PaddingVertical(5).PaddingHorizontal(6)
+                                  .Text(txt).Bold().FontSize(8.5f).FontColor(prColor);
+                            t.Header(h =>
+                            {
+                                h.Cell().Element(c2 => TH3(c2, "Parameter"));
+                                h.Cell().Element(c2 => TH3(c2, "UOM"));
+                                h.Cell().Element(c2 => TH3(c2, "Spec Min"));
+                                h.Cell().Element(c2 => TH3(c2, "Spec Max"));
+                                h.Cell().Element(c2 => TH3(c2, "Post-Rework Result"));
+                                h.Cell().Element(c2 => TH3(c2, "Pass/Fail"));
+                            });
+                            IContainer TD3(IContainer c2) =>
+                                c2.BorderBottom(0.5f).BorderColor(prPass ? "#86efac" : "#fca5a5").PaddingVertical(6).PaddingHorizontal(6);
+                            t.Cell().Element(TD3).Text(_d.ParameterName).Bold().FontSize(9);
+                            t.Cell().Element(TD3).Text(_d.Uom).FontSize(9).FontColor("#6b7280");
+                            t.Cell().Element(TD3).Text(_d.SpecMin?.ToString() ?? "—").FontSize(9);
+                            t.Cell().Element(TD3).Text(_d.SpecMax?.ToString() ?? "—").FontSize(9);
+                            t.Cell().Element(TD3).Text(_d.PostReworkCalculatedResult?.ToString() ?? _d.PostReworkRawValue ?? "—").Bold().FontSize(9);
+                            t.Cell().Element(TD3).Text(_d.PostReworkPassFail ?? "—").Bold().FontSize(9).FontColor(prColor);
+                        });
+                    col2.Item().PaddingTop(8).Row(row =>
+                    {
+                        row.AutoItem().Text($"Analyst: {_d.PostReworkAnalystName ?? "—"}").FontSize(9).FontColor("#6b7280").Italic();
+                        row.ConstantItem(20);
+                        row.AutoItem().Text($"Execution: EXE-{_d.PostReworkRetestExecutionId:D5}").FontSize(9).FontColor("#6b7280").Italic();
+                    });
+                });
+                col.Item().PaddingTop(14);
+            }
+
             // ── Section 3: Root Cause Analysis ──────────────────────────────
             col.SectionBox("3. ROOT CAUSE ANALYSIS (FDA OOS Phase 1)", "#7c3aed", col2 =>
             {
@@ -270,8 +359,15 @@ public class OosPdfDocument : IDocument
             col.Item().PaddingTop(14);
 
             // ── Section 4: E-Signature ────────────────────────────────────
-            if (_d.Status == "Closed" && _d.ClosedByName != null)
+            if (_d.Status == "Closed" && (_d.ClosedByName != null || _d.FinalDecisionBy != null))
             {
+                var sigBy  = _d.FinalDecisionBy ?? _d.ClosedByName!;
+                var sigAt  = _d.FinalDecisionAt ?? _d.ClosedAt;
+                var action = !string.IsNullOrEmpty(_d.FinalDecision)
+                    ? $"QA Final Decision — {_d.FinalDecision!.ToUpperInvariant()}"
+                    : "Investigation Closed";
+                var sigColor = _d.FinalDecision == "Release" ? "#065f46" : _d.FinalDecision == "Reject" ? "#dc2626" : "#0369a1";
+
                 col.SectionBox("4. ELECTRONIC SIGNATURE (21 CFR Part 11)", "#0369a1", col2 =>
                 {
                     col2.Item().Table(t =>
@@ -285,19 +381,28 @@ public class OosPdfDocument : IDocument
                             h.Cell().Element(c2 => SH(c2, "Signed By"));
                             h.Cell().Element(c2 => SH(c2, "Date / Time (UTC)"));
                         });
-                        t.Cell().Padding(5).Text("Investigation Closed").FontSize(9);
-                        t.Cell().Padding(5).Text(_d.ClosedByName).Bold().FontSize(9);
-                        t.Cell().Padding(5).Text(_d.ClosedAt.HasValue ? _d.ClosedAt.Value.ToString("yyyy-MM-dd HH:mm") : "—").FontSize(9);
+                        t.Cell().Padding(5).Text(action).FontSize(9).FontColor(sigColor).Bold();
+                        t.Cell().Padding(5).Text(sigBy).Bold().FontSize(9);
+                        t.Cell().Padding(5).Text(sigAt.HasValue ? sigAt.Value.ToString("yyyy-MM-dd HH:mm") : "—").FontSize(9);
                     });
+
+                    if (!string.IsNullOrEmpty(_d.FinalDecision))
+                    {
+                        var fdBg    = _d.FinalDecision == "Release" ? "#f0fdf4" : "#fef2f2";
+                        var fdBorder= _d.FinalDecision == "Release" ? "#86efac" : "#fca5a5";
+                        col2.Item().PaddingTop(8).Background(fdBg).Border(1f).BorderColor(fdBorder).Padding(8).Text(
+                            $"BATCH DISPOSITION: {_d.FinalDecision!.ToUpperInvariant()} — Authorised by {sigBy}")
+                            .Bold().FontSize(11).FontColor(sigColor).AlignCenter();
+                    }
 
                     col2.Item().PaddingTop(20).Row(row =>
                     {
                         row.ConstantItem(200).Column(inner =>
                         {
                             inner.Item().LineHorizontal(1).LineColor("#0f172a");
-                            inner.Item().PaddingTop(4).Text(_d.ClosedByName).FontSize(9).Bold();
-                            inner.Item().Text("Authorised Signatory — QA/QCLead").FontSize(8).FontColor("#6b7280");
-                            inner.Item().Text(_d.ClosedAt.HasValue ? _d.ClosedAt.Value.ToString("yyyy-MM-dd HH:mm") + " UTC" : "Date: _______________")
+                            inner.Item().PaddingTop(4).Text(sigBy).FontSize(9).Bold();
+                            inner.Item().Text("Authorised Signatory — QA").FontSize(8).FontColor("#6b7280");
+                            inner.Item().Text(sigAt.HasValue ? sigAt.Value.ToString("yyyy-MM-dd HH:mm") + " UTC" : "Date: _______________")
                                 .FontSize(8).FontColor("#6b7280");
                         });
                         row.RelativeItem();
