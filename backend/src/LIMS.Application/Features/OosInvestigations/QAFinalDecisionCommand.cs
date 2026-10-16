@@ -32,6 +32,9 @@ public class QAFinalDecisionHandler : IRequestHandler<QAFinalDecisionCommand, Re
             return Result<int>.Failure("ALREADY_CLOSED", "Investigation is already closed.");
         if (!inv.PostReworkRetestExecutionId.HasValue)
             return Result<int>.Failure("NO_POSTREWORK_RETEST", "Post-rework retest must be completed before QA final decision.");
+        var retestExec = await _db.TestExecutions.FindAsync(new object[] { inv.PostReworkRetestExecutionId.Value }, ct);
+        if (retestExec is null || (retestExec.Status != TestExecutionStatus.Completed && retestExec.Status != TestExecutionStatus.QCVerified && retestExec.Status != TestExecutionStatus.OOSOpen))
+            return Result<int>.Failure("RETEST_INCOMPLETE", "Post-rework retest results must be submitted and signed before QA final decision.");
         if (inv.FinalDecision.HasValue)
             return Result<int>.Failure("ALREADY_DECIDED", "A QA final decision has already been recorded.");
         if (inv.Execution?.Sample is null)
