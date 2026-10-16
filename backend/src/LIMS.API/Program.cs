@@ -122,6 +122,14 @@ using (var scope = app.Services.CreateScope())
             );
         ");
         logger.LogInformation("PeerReviewed status fix applied.");
+
+        // One-time fix: TaskType column was added with DEFAULT '' — set existing rows to 'Standard'
+        await db.Database.ExecuteSqlRawAsync(@"
+            UPDATE test_executions
+            SET ""TaskType"" = 'Standard'
+            WHERE ""TaskType"" = '';
+        ");
+        logger.LogInformation("TaskType empty-string fix applied.");
     }
     catch (Exception ex)
     {
