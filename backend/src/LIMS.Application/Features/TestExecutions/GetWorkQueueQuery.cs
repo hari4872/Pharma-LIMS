@@ -58,10 +58,10 @@ public class GetWorkQueueHandler : IRequestHandler<GetWorkQueueQuery, List<WorkQ
                 e.Status.ToString(), e.PriorityScore,
                 e.StartedAt, e.CompletedAt,
                 e.Sample != null ? e.Sample.DueDate : null, e.CreatedAt,
-                e.SpecTemplateItem != null && e.SpecTemplateItem.TestMethod != null
-                    ? e.SpecTemplateItem.TestMethod.MethodName
-                    : e.SpecTemplateItem != null && e.SpecTemplateItem.Parameter != null
-                        ? e.SpecTemplateItem.Parameter.ParameterName
+                e.SpecTemplateItem != null && e.SpecTemplateItem.Parameter != null
+                    ? e.SpecTemplateItem.Parameter.ParameterName
+                    : e.SpecTemplateItem != null && e.SpecTemplateItem.TestMethod != null
+                        ? e.SpecTemplateItem.TestMethod.MethodName
                         : e.Parameter != null
                             ? e.Parameter.ParameterName
                             : null,
