@@ -172,6 +172,7 @@ public class SamplesController : LimsControllerBase
                     AnalystName    = e.Analyst != null ? e.Analyst.FullName : "�",
                     InstrumentCode = e.Instrument != null ? e.Instrument.InstrumentCode : "�",
                     e.PriorityScore, e.StartedAt, e.CompletedAt, DueDate = e.DueAt,
+                    TaskType       = e.TaskType.ToString(),
                     TestLabel      = e.SpecTemplateItem != null && e.SpecTemplateItem.Parameter != null
                         ? e.SpecTemplateItem.Parameter.ParameterName
                         : e.SpecTemplateItem != null && e.SpecTemplateItem.TestMethod != null

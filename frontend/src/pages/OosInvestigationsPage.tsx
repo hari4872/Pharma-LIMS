@@ -79,10 +79,6 @@ export default function OosInvestigationsPage() {
   const [retestSaving, setRetestSaving] = useState(false)
   const [retestError, setRetestError] = useState('')
 
-  // Grubbs outlier test state
-  const [grubbsInput, setGrubbsInput] = useState('')
-  const [grubbsResult, setGrubbsResult] = useState<{ mean: number; sd: number; n: number; G: number; Gcrit: number; suspect: number; isOutlier: boolean } | null>(null)
-  const [grubbsError, setGrubbsError] = useState('')
 
   // Authorize Rework drawer (Phase 2 GenuineOOS path)
   const [showRework, setShowRework] = useState<OosItem | null>(null)
@@ -104,31 +100,8 @@ export default function OosInvestigationsPage() {
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null)
   const [comparisonLoading, setComparisonLoading] = useState(false)
 
-  // Grubbs critical values at α=0.05 (two-tailed), n=3..25
-  const GRUBBS_CRIT: Record<number, number> = {
-    3:1.155,4:1.481,5:1.715,6:1.887,7:2.020,8:2.126,9:2.215,10:2.290,
-    11:2.355,12:2.412,13:2.462,14:2.507,15:2.549,16:2.585,17:2.620,
-    18:2.651,19:2.681,20:2.709,21:2.733,22:2.758,23:2.781,24:2.802,25:2.822,
-  }
-
-  function runGrubbs() {
-    setGrubbsError(''); setGrubbsResult(null)
-    const vals = grubbsInput.split(/[\s,;]+/).map(v => parseFloat(v.trim())).filter(v => !isNaN(v))
-    if (vals.length < 3) { setGrubbsError('Need at least 3 values.'); return }
-    if (vals.length > 25) { setGrubbsError('Maximum 25 values supported.'); return }
-    const n = vals.length
-    const mean = vals.reduce((a, b) => a + b, 0) / n
-    const sd = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1))
-    if (sd === 0) { setGrubbsError('All values are identical — no outlier possible.'); return }
-    const deviations = vals.map(v => ({ v, dev: Math.abs(v - mean) }))
-    const worst = deviations.reduce((a, b) => b.dev > a.dev ? b : a)
-    const G = worst.dev / sd
-    const Gcrit = GRUBBS_CRIT[n] ?? 2.822
-    setGrubbsResult({ mean: +mean.toFixed(4), sd: +sd.toFixed(4), n, G: +G.toFixed(4), Gcrit, suspect: worst.v, isOutlier: G > Gcrit })
-  }
-
   // Auto-fetch AI suggestions when Close modal opens — no button needed
-  useEffect(() => { if (showClose) { fetchRcSuggestions(); setGrubbsInput(''); setGrubbsResult(null); setGrubbsError('') } }, [showClose])
+  useEffect(() => { if (showClose) { fetchRcSuggestions() } }, [showClose])
   // Auto-fetch comparison data when Final Decision drawer opens
   useEffect(() => { if (showFinalDecision) loadComparison(showFinalDecision.investigationId) }, [showFinalDecision])
 
@@ -347,7 +320,9 @@ export default function OosInvestigationsPage() {
             )}
           </div>
         )},
-        { header: 'Root Cause', accessor: r => r.rootCause ? <span style={{ fontSize: 12 }}>{r.rootCause}</span> : <span style={{ color: '#9ca3af', fontSize: 12 }}>Pending investigation</span> },
+        { header: 'Root Cause', accessor: r => r.rootCause
+            ? <span title={r.rootCause} style={{ fontSize: 12, display: 'block', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.rootCause}</span>
+            : <span style={{ color: '#9ca3af', fontSize: 12 }}>Pending investigation</span> },
         { header: 'CAPA Ref', accessor: r => r.capaRef ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 600 }}>{r.capaRef}</span>
@@ -781,40 +756,6 @@ export default function OosInvestigationsPage() {
               )}
               <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={closeForm.rootCause} onChange={e => setCloseForm(f => ({ ...f, rootCause: e.target.value }))} required placeholder="Describe the root cause of the OOS/OOT result…" />
             </Field>
-            {/* Grubbs Outlier Test */}
-            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 14px', marginBottom: 12 }}>
-              <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700, color: '#334155' }}>📊 Grubbs Outlier Test (α=0.05)</p>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#64748b', marginBottom: 3, textTransform: 'uppercase' }}>Result values (comma-separated)</div>
-                  <input style={{ ...inp, margin: 0, fontSize: 12 }} value={grubbsInput}
-                    onChange={e => { setGrubbsInput(e.target.value); setGrubbsResult(null); setGrubbsError('') }}
-                    placeholder="e.g. 206.1, 207.3, 205.9, 231.4, 206.8" />
-                </div>
-                <button type="button" onClick={runGrubbs}
-                  style={{ padding: '8px 14px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  Calculate
-                </button>
-              </div>
-              {grubbsError && <p style={{ margin: '6px 0 0', fontSize: 12, color: '#dc2626' }}>⚠ {grubbsError}</p>}
-              {grubbsResult && (
-                <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 6, background: grubbsResult.isOutlier ? '#fef2f2' : '#f0fdf4', border: `1px solid ${grubbsResult.isOutlier ? '#fca5a5' : '#86efac'}` }}>
-                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, color: '#475569' }}>n = <b>{grubbsResult.n}</b></span>
-                    <span style={{ fontSize: 11, color: '#475569' }}>Mean = <b>{grubbsResult.mean}</b></span>
-                    <span style={{ fontSize: 11, color: '#475569' }}>SD = <b>{grubbsResult.sd}</b></span>
-                    <span style={{ fontSize: 11, color: '#475569' }}>Suspect = <b>{grubbsResult.suspect}</b></span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, color: '#475569' }}>G = <b>{grubbsResult.G}</b></span>
-                    <span style={{ fontSize: 11, color: '#475569' }}>G<sub>crit</sub> = <b>{grubbsResult.Gcrit}</b></span>
-                  </div>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: grubbsResult.isOutlier ? '#991b1b' : '#15803d' }}>
-                    {grubbsResult.isOutlier ? `⚠ OUTLIER DETECTED — ${grubbsResult.suspect} is a statistical outlier at 95% confidence` : `✅ No outlier detected at 95% confidence`}
-                  </p>
-                </div>
-              )}
-            </div>
 
             <Field label="Resolution Type">
               <div style={{ display: 'flex', gap: 16 }}>

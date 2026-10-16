@@ -980,7 +980,7 @@ export default function SampleRegistrationPage() {
                   📋 Assign Test Plan
                 </button>
               )}
-              {(selectedSample.status === 'Released' || selectedSample.status === 'Rejected') && (
+              {selectedSample.status === 'Rejected' && (
                 <button
                   onClick={async () => {
                     setShowRetest(selectedSample); setRetestReason(''); setTestedParams([]); setSelectedParams([])
@@ -1038,7 +1038,7 @@ export default function SampleRegistrationPage() {
 
               {/* ── Primary actions: visible only when action is required ── */}
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {(r.status === 'Released' || r.status === 'Rejected') && (
+                {r.status === 'Rejected' && (
                   <button onClick={async () => {
                     setShowRetest(r); setRetestReason(''); setTestedParams([]); setSelectedParams([])
                     try {

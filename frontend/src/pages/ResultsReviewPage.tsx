@@ -449,21 +449,51 @@ export default function ResultsReviewPage() {
                                 textTransform: 'uppercase', padding: '4px 8px 6px', letterSpacing: 0.5 }}>
                                 Download per test
                               </div>
-                              {g.executions.map((ex, idx) => (
-                                <button key={ex.executionId}
-                                  onClick={e => { e.stopPropagation(); downloadExecutionPdf(ex.executionId, g.sampleNumber); setPdfDropdown(null) }}
-                                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                                    textAlign: 'left', padding: '6px 10px', borderRadius: 6,
-                                    border: 'none', cursor: 'pointer', fontSize: 12,
-                                    background: 'none', color: '#111827', fontFamily: 'inherit' }}
-                                  onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
-                                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
-                                  <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#6b7280' }}>
-                                    EXE-{String(ex.executionId).padStart(5, '0')}
-                                  </span>
-                                  <span style={{ fontSize: 11, color: '#9ca3af' }}>{ex.testLabel ?? `Test ${idx + 1}`}</span>
-                                </button>
-                              ))}
+                              {(() => {
+                                // Group executions by testLabel so original + retest appear together
+                                const paramGroups = new Map<string, Execution[]>()
+                                for (const ex of g.executions) {
+                                  const key = ex.testLabel ?? `EXE-${ex.executionId}`
+                                  if (!paramGroups.has(key)) paramGroups.set(key, [])
+                                  paramGroups.get(key)!.push(ex)
+                                }
+                                return Array.from(paramGroups.entries()).map(([label, pexecs]) => (
+                                  <div key={label}>
+                                    {pexecs.length > 1 && (
+                                      <div style={{ fontSize: 10, fontWeight: 700, color: '#374151', padding: '6px 10px 2px', borderTop: '1px solid #f3f4f6', marginTop: 2 }}>
+                                        {label}
+                                      </div>
+                                    )}
+                                    {pexecs.map(ex => (
+                                      <button key={ex.executionId}
+                                        onClick={e => { e.stopPropagation(); downloadExecutionPdf(ex.executionId, g.sampleNumber); setPdfDropdown(null) }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+                                          textAlign: 'left', padding: '5px 10px', paddingLeft: pexecs.length > 1 ? 18 : 10,
+                                          borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12,
+                                          background: 'none', color: '#111827', fontFamily: 'inherit' }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
+                                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                                        <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#6b7280' }}>
+                                          EXE-{String(ex.executionId).padStart(5, '0')}
+                                        </span>
+                                        {pexecs.length === 1 && (
+                                          <span style={{ fontSize: 11, color: '#9ca3af', flex: 1 }}>{label}</span>
+                                        )}
+                                        {ex.taskType && ex.taskType !== 'Standard' && (
+                                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+                                            background: ex.taskType === 'Retest' ? '#ede9fe' : '#fff7ed',
+                                            color: ex.taskType === 'Retest' ? '#6d28d9' : '#c2410c' }}>
+                                            {ex.taskType}
+                                          </span>
+                                        )}
+                                        {ex.status === 'OOSOpen' && (
+                                          <span style={{ fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: 4 }}>OOS</span>
+                                        )}
+                                      </button>
+                                    ))}
+                                  </div>
+                                ))
+                              })()}
                             </div>
                           )}
                         </div>
