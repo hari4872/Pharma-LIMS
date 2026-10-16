@@ -624,36 +624,43 @@ export default function OosInvestigationsPage() {
                 <thead>
                   <tr style={{ background: '#f8fafc' }}>
                     <th style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Stage</th>
-                    <th style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'right', color: '#64748b', fontWeight: 600 }}>Result</th>
+                    <th style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'right', color: '#64748b', fontWeight: 600 }}>Calc. Result</th>
                     <th style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>Spec</th>
-                    <th style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>Status</th>
+                    <th style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'center', color: '#64748b', fontWeight: 600 }}>P/F</th>
+                    <th style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Analyst</th>
+                    <th style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'left', color: '#64748b', fontWeight: 600 }}>Date / Time</th>
                   </tr>
                 </thead>
                 <tbody>
                   {[
                     { label: 'Original', data: comparisonData.original, bg: '#fef2f2' },
-                    { label: 'Phase 1 Retest', data: comparisonData.retest, bg: '#fafaf9' },
+                    { label: 'Phase 1 Retest', data: comparisonData.retest, bg: '#f0fdf4' },
                     { label: 'Post-Rework Retest', data: comparisonData.postReworkRetest, bg: '#f0fdf4' },
-                  ].map(row => (
+                  ].filter(row => row.data).map(row => {
+                    const val = row.data!.calculatedResult != null
+                      ? parseFloat(row.data!.calculatedResult.toPrecision(7)).toString()
+                      : row.data!.rawValue
+                    const pf = row.data!.passFail
+                    const pfBg = pf === 'Pass' ? '#dcfce7' : pf === 'Fail' ? '#fee2e2' : '#f1f5f9'
+                    const pfColor = pf === 'Pass' ? '#15803d' : pf === 'Fail' ? '#991b1b' : '#374151'
+                    return (
                     <tr key={row.label} style={{ background: row.bg }}>
                       <td style={{ padding: '6px 10px', fontWeight: 600, color: '#374151', borderBottom: '1px solid #e2e8f0' }}>{row.label}</td>
-                      <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', borderBottom: '1px solid #e2e8f0' }}>
-                        {row.data ? `${row.data.rawValue} (${row.data.calculatedResult?.toFixed(3) ?? '—'} ${comparisonData.uom})` : '—'}
+                      <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', borderBottom: '1px solid #e2e8f0', color: pf === 'Fail' ? '#dc2626' : '#111827' }}>
+                        {val} {comparisonData.uom}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'center', color: '#6b7280', borderBottom: '1px solid #e2e8f0' }}>
-                        {row.data?.specMin != null ? `${row.data.specMin} – ${row.data.specMax} ${comparisonData.uom}` : '—'}
+                        {row.data!.specMin != null ? `${row.data!.specMin} – ${row.data!.specMax} ${comparisonData.uom}` : '—'}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
-                        {row.data ? (
-                          <span style={{
-                            fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                            background: row.data.passFail === 'Pass' ? '#dcfce7' : '#fee2e2',
-                            color: row.data.passFail === 'Pass' ? '#15803d' : '#991b1b',
-                          }}>{row.data.passFail ?? '—'}</span>
-                        ) : '—'}
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: pfBg, color: pfColor }}>{pf ?? '—'}</span>
+                      </td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', color: '#6b7280' }}>{row.data!.analystName ?? '—'}</td>
+                      <td style={{ padding: '6px 10px', borderBottom: '1px solid #e2e8f0', color: '#6b7280' }}>
+                        {row.data!.date ? new Date(row.data!.date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
                     </tr>
-                  ))}
+                  )})
                 </tbody>
               </table>
             ) : (
