@@ -193,7 +193,9 @@ export default function ResultsReviewPage() {
     return () => document.removeEventListener('click', close)
   }, [pdfDropdown])
 
-  const groups = useMemo(() => groupBySample(all), [all])
+  const groups = useMemo(() =>
+    groupBySample(all).sort((a, b) => b.sampleId - a.sampleId)
+  , [all])
 
   const inProgress  = groups.filter(g => g.overallStatus === 'InProgress' || g.overallStatus === 'Assigned').length
   const pendingPeer = groups.filter(g => g.overallStatus === 'Completed' || g.overallStatus === 'OOSOpen').length

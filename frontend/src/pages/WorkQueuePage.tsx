@@ -223,7 +223,7 @@ function groupBySample(items: WorkItem[]): SampleGroup[] {
       anyOverdue,
       maxCreatedAt,
     }
-  }).sort((a, b) => b.maxCreatedAt - a.maxCreatedAt)
+  }).sort((a, b) => b.sampleId - a.sampleId)
 }
 
 const CONTAINER_STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {

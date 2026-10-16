@@ -139,7 +139,11 @@ export default function OosInvestigationsPage() {
       setData(r.data)
     } finally { setLoading(false) }
   }
-  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
+  useEffect(() => {
+    const t = setTimeout(load, 0)
+    const interval = setInterval(load, 30000)
+    return () => { clearTimeout(t); clearInterval(interval) }
+  }, [])
 
   const filtered = useMemo(() => {
     return data.filter(r => {

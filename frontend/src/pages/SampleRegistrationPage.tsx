@@ -567,8 +567,9 @@ export default function SampleRegistrationPage() {
         // Always fetch the full unfiltered list so status count badges are accurate
         statusFilter ? api.get('/samples') : Promise.resolve({ data: null }),
       ])
-      setData(r.data ?? [])
-      setAllData(statusFilter ? (rAll.data ?? []) : (r.data ?? []))
+      const sorted = (arr: Sample[]) => [...arr].sort((a, b) => b.sampleId - a.sampleId)
+      setData(sorted(r.data ?? []))
+      setAllData(sorted(statusFilter ? (rAll.data ?? []) : (r.data ?? [])))
       setMaterials(mr.data ?? [])
       setSampleTypes((str.data ?? []).filter((t: SampleType) => t.typeCode !== 'DSPQC'))
     } catch (err) {
