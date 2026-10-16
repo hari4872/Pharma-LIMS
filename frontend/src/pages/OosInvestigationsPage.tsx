@@ -660,7 +660,7 @@ export default function OosInvestigationsPage() {
                         {row.data!.date ? new Date(row.data!.date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
                     </tr>
-                  )})
+                  )})}
                 </tbody>
               </table>
             ) : (
