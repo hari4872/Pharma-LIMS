@@ -41,12 +41,18 @@ public class CoAGenerationService : ICoAGenerationService
         _db.Coas.Add(coa);
         await _db.SaveChangesAsync(ct);  // get CoaId
 
-        // Build CoA lines from ALL signed logbook entries for the sample (all executions)
-        var entries = await _db.DigitalLogbookEntries
+        // Build CoA lines — one per parameter, using the LATEST signed entry
+        // (covers Original-only, OOS→Retest, and OOS→Rework→PostReworkRetest chains)
+        var allEntries = await _db.DigitalLogbookEntries
             .Include(e => e.Parameter)
             .Where(e => e.Execution.SampleId == sampleId && e.Status == LogbookEntryStatus.Signed)
-            .OrderBy(e => e.ParameterId).ThenBy(e => e.EntryId)
             .ToListAsync(ct);
+
+        var entries = allEntries
+            .GroupBy(e => e.ParameterId)
+            .Select(g => g.OrderByDescending(e => e.EntryId).First())
+            .OrderBy(e => e.ParameterId)
+            .ToList();
 
         int order = 1;
         foreach (var entry in entries)
