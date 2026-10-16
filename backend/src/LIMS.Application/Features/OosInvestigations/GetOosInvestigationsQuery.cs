@@ -5,14 +5,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.Application.Features.OosInvestigations;
 
-public record GetOosInvestigationsQuery(string? Status, int? LabId, int? ExecutionId) : IRequest<List<OosInvestigationDto>>;
+public record GetOosInvestigationsQuery(string? Status, int? LabId, int? ExecutionId, int? SampleId = null) : IRequest<List<OosInvestigationDto>>;
 
 public record OosInvestigationDto(
     int InvestigationId, int ExecutionId, int SampleId, string SampleNumber,
     int ParameterId, string ParameterName,
     string FlagType, string Phase, string Status,
     string? RootCause, string? CapaRef, string? CapaStatus,
-    DateTimeOffset OpenedAt, DateTimeOffset? ClosedAt, string CreatedBy);
+    DateTimeOffset OpenedAt, DateTimeOffset? ClosedAt, string CreatedBy,
+    int? RetestExecutionId, string? ResolutionType,
+    // Group C — Genuine OOS rework path
+    int? ReworkExecutionId, int? PostReworkRetestExecutionId, string? FinalDecision);
 
 public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQuery, List<OosInvestigationDto>>
 {
@@ -30,6 +33,7 @@ public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQ
             query = query.Where(i => i.Status == s);
         if (q.LabId.HasValue) query = query.Where(i => i.Execution.Sample.LabId == q.LabId.Value);
         if (q.ExecutionId.HasValue) query = query.Where(i => i.ExecutionId == q.ExecutionId.Value);
+        if (q.SampleId.HasValue)   query = query.Where(i => i.Execution.SampleId == q.SampleId.Value);
 
         return await query
             .OrderByDescending(i => i.OpenedAt)
@@ -38,7 +42,10 @@ public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQ
                 i.Execution != null && i.Execution.Sample != null ? i.Execution.Sample.SampleNumber : "",
                 i.ParameterId, i.Parameter != null ? i.Parameter.ParameterName : "Unknown",
                 i.FlagType.ToString(), i.Phase.ToString(), i.Status.ToString(),
-                i.RootCause, i.CapaRef, i.CapaStatus, i.OpenedAt, i.ClosedAt, i.CreatedBy))
+                i.RootCause, i.CapaRef, i.CapaStatus, i.OpenedAt, i.ClosedAt, i.CreatedBy,
+                i.RetestExecutionId, i.ResolutionType != null ? i.ResolutionType.ToString() : null,
+                i.ReworkExecutionId, i.PostReworkRetestExecutionId,
+                i.FinalDecision != null ? i.FinalDecision.ToString() : null))
             .ToListAsync(ct);
     }
 }

@@ -36,6 +36,13 @@ public class TestExecution
     public bool IsAdHoc { get; set; } = false;
     public string? AdHocReason { get; set; }
 
+    // ── OOS Retest linkage ───────────────────────────────────────────────
+    public TaskType TaskType { get; set; } = TaskType.Standard;
+    public int? RetestOfExecutionId { get; set; }           // FK → original failing execution
+    public TestExecution? RetestOfExecution { get; set; }
+    public int? OosInvestigationId { get; set; }            // FK → OosInvestigation that triggered retest
+    public OosInvestigation? OosInvestigation { get; set; }
+
     // ── Container / Aliquot tracking (LabVantage parity) ─────────────────
     public int? SampleContainerId { get; set; }
     public SampleContainer? SampleContainer { get; set; }

@@ -10,6 +10,7 @@ namespace LIMS.Application.Features.OosInvestigations;
 public record CloseOosInvestigationCommand(
     int InvestigationId, int UserId,
     string RootCause, string? CapaRef, string? CapaStatus,
+    OosResolutionType ResolutionType,
     string Password, string Meaning, string Reason) : IRequest<Result<int>>;
 
 public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigationCommand, Result<int>>
@@ -26,6 +27,7 @@ public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigatio
     {
         var inv = await _db.OosInvestigations
             .Include(i => i.Execution).ThenInclude(e => e.Sample)
+            .Include(i => i.Entry)
             .FirstOrDefaultAsync(i => i.InvestigationId == cmd.InvestigationId, ct);
         if (inv is null) return Result<int>.Failure("NOT_FOUND", "Investigation not found.");
         if (inv.Execution?.Sample is null)
@@ -42,6 +44,12 @@ public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigatio
         inv.CapaStatus = cmd.CapaStatus;
         inv.SignatureId = sig.SignatureId;
         inv.ClosedAt = DateTimeOffset.UtcNow;
+        inv.ResolutionType = cmd.ResolutionType;
+
+        // Lab Error: clear IsOos flag on the original logbook entry so Results Review
+        // no longer shows a red OOS badge — investigation record retains full history
+        if (cmd.ResolutionType == OosResolutionType.LabError && inv.Entry is not null)
+            inv.Entry.IsOos = false;
 
         // Check if all OTHER OOS for this execution are already closed.
         // Must exclude the current investigation (inv) because it is still Open in the DB

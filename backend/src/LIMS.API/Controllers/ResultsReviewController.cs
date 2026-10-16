@@ -97,6 +97,9 @@ public class ResultsReviewController : LimsControllerBase
                 .Include(e => e.ResultsReviews).ThenInclude(r => r.Reviewer)
                 .Include(e => e.ResultsReviews).ThenInclude(r => r.Signature)
                 .Include(e => e.OosInvestigations)
+                    .ThenInclude(oi => oi.RetestExecution).ThenInclude(re => re!.Analyst)
+                .Include(e => e.OosInvestigations)
+                    .ThenInclude(oi => oi.RetestExecution).ThenInclude(re => re!.LogbookEntries)
                 .FirstOrDefaultAsync(e => e.ExecutionId == executionId);
         }
         catch (Exception ex)
@@ -123,16 +126,28 @@ public class ResultsReviewController : LimsControllerBase
             Status:        exec.Status.ToString(),
             StartedAt:     exec.StartedAt,
             CompletedAt:   exec.CompletedAt,
-            Results: exec.LogbookEntries.Select(le => new BatchAnalysisPdfDocument.TestResultRow(
-                le.Parameter?.ParameterName ?? "�",
-                le.RawValue,
-                le.CalculatedResult,
-                le.SpecMinSnapshot,
-                le.SpecMaxSnapshot,
-                le.PassFail,
-                le.IsOos,
-                le.IsOot
-            )).ToList(),
+            Results: exec.LogbookEntries.Select(le =>
+            {
+                // Find the OOS investigation for this logbook entry (if any)
+                var inv = exec.OosInvestigations.FirstOrDefault(oi => oi.EntryId == le.EntryId);
+                var retestEntry = inv?.RetestExecution?.LogbookEntries
+                    .FirstOrDefault(rle => rle.ParameterId == le.ParameterId);
+                return new BatchAnalysisPdfDocument.TestResultRow(
+                    le.Parameter?.ParameterName ?? "—",
+                    le.RawValue,
+                    le.CalculatedResult,
+                    le.SpecMinSnapshot,
+                    le.SpecMaxSnapshot,
+                    le.PassFail,
+                    le.IsOos,
+                    le.IsOot,
+                    inv != null ? $"OOS-{inv.InvestigationId:D5}" : null,
+                    retestEntry?.CalculatedResult,
+                    retestEntry?.PassFail,
+                    inv?.RetestExecution?.Analyst?.FullName,
+                    inv?.ResolutionType?.ToString()
+                );
+            }).ToList(),
             Reviews: exec.ResultsReviews.Select(r => new BatchAnalysisPdfDocument.ReviewRow(
                 r.ReviewType.ToString(),
                 r.Reviewer?.FullName ?? "�",

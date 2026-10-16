@@ -15,7 +15,8 @@ public record WorkQueueItemDto(
     DateTimeOffset? StartedAt, DateTimeOffset? CompletedAt,
     DateTimeOffset? DueDate, DateTimeOffset CreatedAt,
     string? TestLabel,
-    int? ContainerId, string? ContainerLabel, string? ContainerType, string? ContainerStatus);
+    int? ContainerId, string? ContainerLabel, string? ContainerType, string? ContainerStatus,
+    string TaskType, int? RetestOfExecutionId, int? OosInvestigationId);
 
 public class GetWorkQueueHandler : IRequestHandler<GetWorkQueueQuery, List<WorkQueueItemDto>>
 {
@@ -67,7 +68,8 @@ public class GetWorkQueueHandler : IRequestHandler<GetWorkQueueQuery, List<WorkQ
                 e.SampleContainerId,
                 e.SampleContainer != null ? e.SampleContainer.ContainerLabel : null,
                 e.SampleContainer != null ? e.SampleContainer.ContainerType.ToString() : null,
-                e.SampleContainer != null ? e.SampleContainer.Status.ToString() : null))
+                e.SampleContainer != null ? e.SampleContainer.Status.ToString() : null,
+                e.TaskType.ToString(), e.RetestOfExecutionId, e.OosInvestigationId))
             .ToListAsync(ct);
     }
 }

@@ -81,3 +81,9 @@ public enum LoginOutcome { Success, InvalidPassword, UserNotFound, AccountLocked
 // LabVantage Parity — Sample Containers / Aliquots
 public enum ContainerType { Primary, Aliquot, RetainSample, Stability, QC }
 public enum ContainerStatus { Available, InUse, Consumed, Destroyed }
+
+// OOS Retest
+public enum TaskType { Standard, Retest, Rework }
+public enum OosResolutionType { LabError, GenuineOOS }
+// Group C — Genuine OOS rework path
+public enum OosFinalDecision { Release, Reject }

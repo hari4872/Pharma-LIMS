@@ -32,7 +32,14 @@ public class OosPdfDocument : IDocument
         string CreatedBy,
         DateTimeOffset OpenedAt,
         DateTimeOffset? ClosedAt,
-        string? ClosedByName       // from Signature.FullName
+        string? ClosedByName,      // from Signature.FullName
+        // Retest fields — null when no retest exists
+        int?    RetestExecutionId,
+        string? RetestRawValue,
+        decimal? RetestCalculatedResult,
+        string? RetestPassFail,
+        string? RetestAnalystName,
+        string? ResolutionType     // "LabError" | "GenuineOOS" | null
     );
 
     private readonly OosReportData _d;
@@ -170,6 +177,78 @@ public class OosPdfDocument : IDocument
             });
 
             col.Item().PaddingTop(14);
+
+            // ── Section 2B: Retest Result (only when retest exists) ──────────
+            if (_d.RetestExecutionId.HasValue)
+            {
+                var retestPass = _d.RetestPassFail == "PASS";
+                var sectionLabel = retestPass
+                    ? "2B. RETEST RESULT — PASS (Lab Error Confirmed)"
+                    : "2B. RETEST RESULT — FAIL (Genuine OOS)";
+                var sectionColor = retestPass ? "#065f46" : "#dc2626";
+                var bgColor      = retestPass ? "#f0fdf4" : "#fff1f2";
+                var borderColor  = retestPass ? "#86efac" : "#fca5a5";
+                var thBg         = retestPass ? "#dcfce7" : "#fee2e2";
+                var thColor      = retestPass ? "#065f46" : "#991b1b";
+
+                col.SectionBox(sectionLabel, sectionColor, col2 =>
+                {
+                    col2.Item()
+                        .Background(bgColor).Border(0.5f).BorderColor(borderColor)
+                        .Padding(10).Table(t =>
+                        {
+                            t.ColumnsDefinition(cd =>
+                            {
+                                cd.RelativeColumn(2); cd.RelativeColumn();
+                                cd.RelativeColumn(); cd.RelativeColumn();
+                                cd.RelativeColumn(); cd.ConstantColumn(60);
+                            });
+
+                            void TH2(IContainer c2, string txt) =>
+                                c2.Background(thBg).PaddingVertical(5).PaddingHorizontal(6)
+                                  .Text(txt).Bold().FontSize(8.5f).FontColor(thColor);
+
+                            t.Header(h =>
+                            {
+                                h.Cell().Element(c2 => TH2(c2, "Parameter"));
+                                h.Cell().Element(c2 => TH2(c2, "UOM"));
+                                h.Cell().Element(c2 => TH2(c2, "Spec Min"));
+                                h.Cell().Element(c2 => TH2(c2, "Spec Max"));
+                                h.Cell().Element(c2 => TH2(c2, "Retest Result"));
+                                h.Cell().Element(c2 => TH2(c2, "Pass/Fail"));
+                            });
+
+                            IContainer TD2(IContainer c2) =>
+                                c2.BorderBottom(0.5f).BorderColor(borderColor).PaddingVertical(6).PaddingHorizontal(6);
+
+                            t.Cell().Element(TD2).Text(_d.ParameterName).Bold().FontSize(9);
+                            t.Cell().Element(TD2).Text(_d.Uom).FontSize(9).FontColor("#6b7280");
+                            t.Cell().Element(TD2).Text(_d.SpecMin?.ToString() ?? "—").FontSize(9);
+                            t.Cell().Element(TD2).Text(_d.SpecMax?.ToString() ?? "—").FontSize(9);
+                            t.Cell().Element(TD2)
+                                .Text(_d.RetestCalculatedResult?.ToString() ?? _d.RetestRawValue ?? "—")
+                                .Bold().FontSize(9);
+                            t.Cell().Element(TD2)
+                                .Text(_d.RetestPassFail ?? "—").Bold().FontSize(9)
+                                .FontColor(retestPass ? "#065f46" : "#dc2626");
+                        });
+
+                    col2.Item().PaddingTop(8).Row(row =>
+                    {
+                        row.AutoItem().Text($"Retest Analyst: {_d.RetestAnalystName ?? "—"}").FontSize(9).FontColor("#6b7280").Italic();
+                        row.ConstantItem(20);
+                        row.AutoItem().Text($"Execution: EXE-{_d.RetestExecutionId:D5}").FontSize(9).FontColor("#6b7280").Italic();
+                        if (!string.IsNullOrEmpty(_d.ResolutionType))
+                        {
+                            row.ConstantItem(20);
+                            row.AutoItem().Text($"Resolution: {_d.ResolutionType}").FontSize(9)
+                                .FontColor(_d.ResolutionType == "LabError" ? "#065f46" : "#dc2626").Bold();
+                        }
+                    });
+                });
+
+                col.Item().PaddingTop(14);
+            }
 
             // ── Section 3: Root Cause Analysis ──────────────────────────────
             col.SectionBox("3. ROOT CAUSE ANALYSIS (FDA OOS Phase 1)", "#7c3aed", col2 =>

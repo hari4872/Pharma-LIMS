@@ -22,4 +22,18 @@ public class OosInvestigation
     public DateTimeOffset OpenedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? ClosedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
+
+    // OOS Retest (Phase 1 retest)
+    public int? RetestExecutionId { get; set; }
+    public TestExecution? RetestExecution { get; set; }
+    public OosResolutionType? ResolutionType { get; set; }  // set on close: LabError | GenuineOOS
+
+    // Group C — Genuine OOS rework path
+    public int? ReworkExecutionId { get; set; }
+    public TestExecution? ReworkExecution { get; set; }
+    public int? PostReworkRetestExecutionId { get; set; }
+    public TestExecution? PostReworkRetestExecution { get; set; }
+    public OosFinalDecision? FinalDecision { get; set; }
+    public DateTimeOffset? FinalDecisionAt { get; set; }
+    public string? FinalDecisionBy { get; set; }
 }

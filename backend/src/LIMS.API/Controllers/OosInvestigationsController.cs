@@ -25,11 +25,11 @@ public class OosInvestigationsController : LimsControllerBase
     public OosInvestigationsController(IMediator mediator, ILimsDbContext db, IConfiguration config, IHttpClientFactory http)
     { _mediator = mediator; _db = db; _config = config; _http = http; }
 
-    // GET api/v1/oos-investigations?status=Open&labId=1&executionId=5
+    // GET api/v1/oos-investigations?status=Open&labId=1&executionId=5&sampleId=3
     [HttpGet]
     public async Task<IActionResult> GetAll(
-        [FromQuery] string? status, [FromQuery] int? labId, [FromQuery] int? executionId)
-        => Ok(await _mediator.Send(new GetOosInvestigationsQuery(status, labId, executionId)));
+        [FromQuery] string? status, [FromQuery] int? labId, [FromQuery] int? executionId, [FromQuery] int? sampleId)
+        => Ok(await _mediator.Send(new GetOosInvestigationsQuery(status, labId, executionId, sampleId)));
 
     // GET api/v1/oos-investigations/eligible-entries?sampleNumber=XXX
     // Returns logbook entries for a sample that don't already have an OOS investigation — used by Add Record modal
@@ -81,14 +81,129 @@ public class OosInvestigationsController : LimsControllerBase
         return Ok(new { investigationId = result.Value });
     }
 
-    // POST api/v1/oos-investigations/{id}/close � QA closes investigation §11.50 e-sig (FDA OOS Guidance)
+    // POST api/v1/oos-investigations/{id}/create-retest — QA creates a retest task (plain, same analyst)
+    [HttpPost("{id}/create-retest")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
+    public async Task<IActionResult> CreateRetest(int id, [FromBody] CreateRetestRequest request)
+    {
+        var userName = User.Identity?.Name ?? "QA";
+        var result = await _mediator.Send(new CreateRetestTaskCommand(id, request.Notes, userName));
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "NOT_FOUND") return NotFound(new { error = result.ErrorCode, message = result.ErrorMessage });
+            return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        }
+        return Ok(new { retestExecutionId = result.Value });
+    }
+
+    // POST api/v1/oos-investigations/{id}/authorize-rework — Phase 2 GenuineOOS path: authorize rework task
+    [HttpPost("{id}/authorize-rework")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
+    public async Task<IActionResult> AuthorizeRework(int id, [FromBody] AuthorizeReworkRequest request)
+    {
+        var userName = User.Identity?.Name ?? "QA";
+        var result = await _mediator.Send(new AuthorizeReworkCommand(id, request.Notes, userName));
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "NOT_FOUND") return NotFound(new { error = result.ErrorCode, message = result.ErrorMessage });
+            return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        }
+        return Ok(new { reworkExecutionId = result.Value });
+    }
+
+    // POST api/v1/oos-investigations/{id}/create-postrework-retest — create post-rework retest task
+    [HttpPost("{id}/create-postrework-retest")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
+    public async Task<IActionResult> CreatePostReworkRetest(int id, [FromBody] CreateRetestRequest request)
+    {
+        var userName = User.Identity?.Name ?? "QA";
+        var result = await _mediator.Send(new CreatePostReworkRetestCommand(id, request.Notes, userName));
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "NOT_FOUND") return NotFound(new { error = result.ErrorCode, message = result.ErrorMessage });
+            return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        }
+        return Ok(new { postReworkRetestExecutionId = result.Value });
+    }
+
+    // POST api/v1/oos-investigations/{id}/final-decision — QA final Release/Reject with e-sig
+    [HttpPost("{id}/final-decision")]
+    [Authorize(Roles = "Admin,QA,LabManager")]
+    public async Task<IActionResult> FinalDecision(int id, [FromBody] QAFinalDecisionRequest request)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
+        if (!Enum.TryParse<LIMS.Domain.Enums.OosFinalDecision>(request.Decision, true, out var decision))
+            return BadRequest(new { error = "INVALID_DECISION", message = "Decision must be 'Release' or 'Reject'." });
+        var result = await _mediator.Send(new QAFinalDecisionCommand(
+            id, userId, decision, request.Notes, request.Password, request.Meaning, request.Reason));
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
+            if (result.ErrorCode == "NOT_FOUND") return NotFound();
+            return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        }
+        return Ok(new { investigationId = result.Value, decision = request.Decision });
+    }
+
+    // GET api/v1/oos-investigations/{id}/comparison — side-by-side result comparison for QA final decision
+    [HttpGet("{id}/comparison")]
+    public async Task<IActionResult> GetComparison(int id)
+    {
+        var inv = await _db.OosInvestigations
+            .Include(i => i.Parameter)
+            .Include(i => i.Entry).ThenInclude(e => e.Analyst)
+            .Include(i => i.RetestExecution).ThenInclude(re => re!.LogbookEntries)
+            .Include(i => i.ReworkExecution)
+            .Include(i => i.PostReworkRetestExecution).ThenInclude(pr => pr!.LogbookEntries)
+            .FirstOrDefaultAsync(i => i.InvestigationId == id);
+
+        if (inv is null) return NotFound();
+
+        var retestEntry = inv.RetestExecution?.LogbookEntries.FirstOrDefault(e => e.ParameterId == inv.ParameterId);
+        var postReworkEntry = inv.PostReworkRetestExecution?.LogbookEntries.FirstOrDefault(e => e.ParameterId == inv.ParameterId);
+
+        return Ok(new {
+            parameterId   = inv.ParameterId,
+            parameterName = inv.Parameter.ParameterName,
+            uom           = inv.Parameter.Uom ?? "—",
+            original = new {
+                rawValue          = inv.Entry.RawValue,
+                calculatedResult  = inv.Entry.CalculatedResult,
+                specMin           = inv.Entry.SpecMinSnapshot,
+                specMax           = inv.Entry.SpecMaxSnapshot,
+                passFail          = inv.Entry.PassFail,
+                analystName       = inv.Entry.Analyst?.FullName ?? "Unknown",
+                date              = inv.Entry.CreatedAt
+            },
+            retest = retestEntry is null ? null : new {
+                rawValue         = retestEntry.RawValue,
+                calculatedResult = retestEntry.CalculatedResult,
+                specMin          = retestEntry.SpecMinSnapshot,
+                specMax          = retestEntry.SpecMaxSnapshot,
+                passFail         = retestEntry.PassFail,
+                date             = retestEntry.CreatedAt
+            },
+            postReworkRetest = postReworkEntry is null ? null : new {
+                rawValue         = postReworkEntry.RawValue,
+                calculatedResult = postReworkEntry.CalculatedResult,
+                specMin          = postReworkEntry.SpecMinSnapshot,
+                specMax          = postReworkEntry.SpecMaxSnapshot,
+                passFail         = postReworkEntry.PassFail,
+                date             = postReworkEntry.CreatedAt
+            }
+        });
+    }
+
+    // POST api/v1/oos-investigations/{id}/close — QA closes investigation §11.50 e-sig (FDA OOS Guidance)
     [HttpPost("{id}/close")]
     [Authorize(Roles = "Admin,QA,LabManager")]
     public async Task<IActionResult> Close(int id, [FromBody] CloseOosRequest request)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
+        var resolutionType = Enum.TryParse<LIMS.Domain.Enums.OosResolutionType>(request.ResolutionType, true, out var rt)
+            ? rt : LIMS.Domain.Enums.OosResolutionType.LabError;
         var result = await _mediator.Send(new CloseOosInvestigationCommand(
-            id, userId, request.RootCause, request.CapaRef, request.CapaStatus, request.Password, request.Meaning, request.Reason));
+            id, userId, request.RootCause, request.CapaRef, request.CapaStatus, resolutionType, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {
             if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
@@ -125,9 +240,15 @@ public class OosInvestigationsController : LimsControllerBase
             .Include(i => i.Entry).ThenInclude(e => e.Analyst)
             .Include(i => i.Parameter)
             .Include(i => i.Signature).ThenInclude(s => s!.User)
+            .Include(i => i.RetestExecution).ThenInclude(re => re!.Analyst)
+            .Include(i => i.RetestExecution).ThenInclude(re => re!.LogbookEntries)
             .FirstOrDefaultAsync(i => i.InvestigationId == id);
 
         if (inv is null) return NotFound();
+
+        // Find the retest logbook entry for the same parameter
+        var retestEntry = inv.RetestExecution?.LogbookEntries
+            .FirstOrDefault(le => le.ParameterId == inv.ParameterId);
 
         var data = new OosPdfDocument.OosReportData(
             InvestigationId: inv.InvestigationId,
@@ -135,7 +256,7 @@ public class OosInvestigationsController : LimsControllerBase
             MaterialName:    inv.Execution.Sample.Material.MaterialName,
             LotNumber:       inv.Execution.Sample.LotNumber,
             ParameterName:   inv.Parameter.ParameterName,
-            Uom:             inv.Parameter.Uom ?? "�",
+            Uom:             inv.Parameter.Uom ?? "—",
             FlagType:        inv.FlagType.ToString(),
             Phase:           inv.Phase.ToString(),
             Status:          inv.Status.ToString(),
@@ -150,7 +271,13 @@ public class OosInvestigationsController : LimsControllerBase
             CreatedBy:       inv.CreatedBy,
             OpenedAt:        inv.OpenedAt,
             ClosedAt:        inv.ClosedAt,
-            ClosedByName:    inv.Signature?.FullName
+            ClosedByName:    inv.Signature?.FullName,
+            RetestExecutionId:      inv.RetestExecutionId,
+            RetestRawValue:         retestEntry?.RawValue,
+            RetestCalculatedResult: retestEntry?.CalculatedResult,
+            RetestPassFail:         retestEntry?.PassFail,
+            RetestAnalystName:      inv.RetestExecution?.Analyst?.FullName,
+            ResolutionType:         inv.ResolutionType?.ToString()
         );
 
         QuestPDF.Settings.License = LicenseType.Community;
@@ -280,7 +407,10 @@ Return JSON only:
     }
 }
 
-public record CloseOosRequest(string RootCause, string? CapaRef, string? CapaStatus, string Password, string Meaning, string Reason);
+public record CloseOosRequest(string RootCause, string? CapaRef, string? CapaStatus, string ResolutionType, string Password, string Meaning, string Reason);
 public record EscalatePhase2Request(string EscalationReason, string? CapaRef, string? CapaStatus, string Password, string Meaning, string Reason);
 public record CreateOosRequest(int EntryId, string FlagType);
+public record CreateRetestRequest(string? Notes);
+public record AuthorizeReworkRequest(string? Notes);
+public record QAFinalDecisionRequest(string Decision, string? Notes, string Password, string Meaning, string Reason);
 

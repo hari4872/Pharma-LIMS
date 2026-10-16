@@ -228,6 +228,9 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("text");
 
+                    b.Property<int?>("SampleId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("StartTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -242,6 +245,8 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasIndex("ExecutionId");
 
                     b.HasIndex("InstrumentId");
+
+                    b.HasIndex("SampleId");
 
                     b.ToTable("capacity_bookings");
                 });
@@ -1265,6 +1270,46 @@ namespace LIMS.Infrastructure.Migrations
                     b.ToTable("instrument_breakdowns", (string)null);
                 });
 
+            modelBuilder.Entity("LIMS.Domain.Entities.InstrumentImportLog", b =>
+                {
+                    b.Property<int>("ImportLogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ImportLogId"));
+
+                    b.Property<int>("ExecutionId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("ImportedAt")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<int>("ImportedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MatchedRows")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SkippedRows")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TotalRows")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ImportLogId");
+
+                    b.HasIndex("ExecutionId");
+
+                    b.HasIndex("ImportedByUserId");
+
+                    b.ToTable("instrument_import_logs", (string)null);
+                });
+
             modelBuilder.Entity("LIMS.Domain.Entities.InstrumentRepair", b =>
                 {
                     b.Property<int>("RepairId")
@@ -1651,6 +1696,15 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<int>("ExecutionId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("FinalDecision")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("FinalDecisionAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FinalDecisionBy")
+                        .HasColumnType("text");
+
                     b.Property<string>("FlagType")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1664,6 +1718,18 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<string>("Phase")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int?>("PostReworkRetestExecutionId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ResolutionType")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("RetestExecutionId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ReworkExecutionId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("RootCause")
                         .HasMaxLength(2000)
@@ -1683,6 +1749,12 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasIndex("ExecutionId");
 
                     b.HasIndex("ParameterId");
+
+                    b.HasIndex("PostReworkRetestExecutionId");
+
+                    b.HasIndex("RetestExecutionId");
+
+                    b.HasIndex("ReworkExecutionId");
 
                     b.HasIndex("SignatureId");
 
@@ -2056,6 +2128,46 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasIndex("SampleId");
 
                     b.ToTable("retain_samples", (string)null);
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.RoleModuleVisibility", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsLockedBySuperAdmin")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NavKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Role", "NavKey")
+                        .IsUnique();
+
+                    b.ToTable("role_module_visibility", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.Sample", b =>
@@ -3121,6 +3233,28 @@ namespace LIMS.Infrastructure.Migrations
                     b.ToTable("storage_transfer_logs", (string)null);
                 });
 
+            modelBuilder.Entity("LIMS.Domain.Entities.SuperAdminFeatureFlag", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("super_admin_feature_flags", (string)null);
+                });
+
             modelBuilder.Entity("LIMS.Domain.Entities.TatBreachLog", b =>
                 {
                     b.Property<long>("BreachId")
@@ -3208,10 +3342,16 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<bool>("IsAdHoc")
                         .HasColumnType("boolean");
 
+                    b.Property<int?>("OosInvestigationId")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("ParameterId")
                         .HasColumnType("integer");
 
                     b.Property<int?>("PriorityScore")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RetestOfExecutionId")
                         .HasColumnType("integer");
 
                     b.Property<int?>("SampleContainerId")
@@ -3230,6 +3370,10 @@ namespace LIMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("TaskType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.HasKey("ExecutionId");
 
                     b.HasIndex("AnalystId");
@@ -3240,7 +3384,11 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("InstrumentId");
 
+                    b.HasIndex("OosInvestigationId");
+
                     b.HasIndex("ParameterId");
+
+                    b.HasIndex("RetestOfExecutionId");
 
                     b.HasIndex("SampleContainerId");
 
@@ -3774,11 +3922,17 @@ namespace LIMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("LIMS.Domain.Entities.Sample", "Sample")
+                        .WithMany()
+                        .HasForeignKey("SampleId");
+
                     b.Navigation("BookedByUser");
 
                     b.Navigation("Execution");
 
                     b.Navigation("Instrument");
+
+                    b.Navigation("Sample");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.Checkpoint", b =>
@@ -4229,6 +4383,25 @@ namespace LIMS.Infrastructure.Migrations
                     b.Navigation("ReturnSignature");
                 });
 
+            modelBuilder.Entity("LIMS.Domain.Entities.InstrumentImportLog", b =>
+                {
+                    b.HasOne("LIMS.Domain.Entities.TestExecution", "Execution")
+                        .WithMany()
+                        .HasForeignKey("ExecutionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LIMS.Domain.Entities.User", "ImportedByUser")
+                        .WithMany()
+                        .HasForeignKey("ImportedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Execution");
+
+                    b.Navigation("ImportedByUser");
+                });
+
             modelBuilder.Entity("LIMS.Domain.Entities.InstrumentRepair", b =>
                 {
                     b.HasOne("LIMS.Domain.Entities.InstrumentBreakdown", "Breakdown")
@@ -4316,6 +4489,21 @@ namespace LIMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("LIMS.Domain.Entities.TestExecution", "PostReworkRetestExecution")
+                        .WithMany()
+                        .HasForeignKey("PostReworkRetestExecutionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("LIMS.Domain.Entities.TestExecution", "RetestExecution")
+                        .WithMany()
+                        .HasForeignKey("RetestExecutionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("LIMS.Domain.Entities.TestExecution", "ReworkExecution")
+                        .WithMany()
+                        .HasForeignKey("ReworkExecutionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("LIMS.Domain.Entities.ElectronicSignature", "Signature")
                         .WithMany()
                         .HasForeignKey("SignatureId")
@@ -4326,6 +4514,12 @@ namespace LIMS.Infrastructure.Migrations
                     b.Navigation("Execution");
 
                     b.Navigation("Parameter");
+
+                    b.Navigation("PostReworkRetestExecution");
+
+                    b.Navigation("RetestExecution");
+
+                    b.Navigation("ReworkExecution");
 
                     b.Navigation("Signature");
                 });
@@ -4937,20 +5131,30 @@ namespace LIMS.Infrastructure.Migrations
                         .HasForeignKey("InstrumentId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("LIMS.Domain.Entities.OosInvestigation", "OosInvestigation")
+                        .WithMany()
+                        .HasForeignKey("OosInvestigationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("LIMS.Domain.Entities.TestMethodParameter", "Parameter")
                         .WithMany()
                         .HasForeignKey("ParameterId");
+
+                    b.HasOne("LIMS.Domain.Entities.TestExecution", "RetestOfExecution")
+                        .WithMany()
+                        .HasForeignKey("RetestOfExecutionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("LIMS.Domain.Entities.SampleContainer", "SampleContainer")
+                        .WithMany()
+                        .HasForeignKey("SampleContainerId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("LIMS.Domain.Entities.Sample", "Sample")
                         .WithMany("TestExecutions")
                         .HasForeignKey("SampleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("LIMS.Domain.Entities.SampleContainer", "SampleContainer")
-                        .WithMany()
-                        .HasForeignKey("SampleContainerId")
-                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("LIMS.Domain.Entities.SpecTemplateItem", "SpecTemplateItem")
                         .WithMany()
@@ -4964,7 +5168,11 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.Navigation("Instrument");
 
+                    b.Navigation("OosInvestigation");
+
                     b.Navigation("Parameter");
+
+                    b.Navigation("RetestOfExecution");
 
                     b.Navigation("Sample");
 

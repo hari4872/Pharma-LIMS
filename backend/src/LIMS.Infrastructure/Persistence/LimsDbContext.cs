@@ -163,6 +163,37 @@ public class LimsDbContext : DbContext, ILimsDbContext
             e.HasOne(r => r.Parameter).WithMany().HasForeignKey(r => r.ParameterId).OnDelete(DeleteBehavior.Restrict);
         });
 
+        // TestExecution self-referencing FK — restrict delete to avoid cascade cycle
+        modelBuilder.Entity<TestExecution>(e =>
+        {
+            e.HasOne(t => t.RetestOfExecution)
+             .WithMany()
+             .HasForeignKey(t => t.RetestOfExecutionId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(t => t.OosInvestigation)
+             .WithMany()
+             .HasForeignKey(t => t.OosInvestigationId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // OosInvestigation back-links — restrict to avoid cascade cycles
+        modelBuilder.Entity<OosInvestigation>(e =>
+        {
+            e.HasOne(i => i.RetestExecution)
+             .WithMany()
+             .HasForeignKey(i => i.RetestExecutionId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(i => i.ReworkExecution)
+             .WithMany()
+             .HasForeignKey(i => i.ReworkExecutionId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(i => i.PostReworkRetestExecution)
+             .WithMany()
+             .HasForeignKey(i => i.PostReworkRetestExecutionId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+
         // All enums stored as strings for readability
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
