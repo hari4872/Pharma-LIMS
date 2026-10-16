@@ -159,6 +159,13 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
 
   const [expandedGroupKey, setExpandedGroupKey] = useState<string | null>(null)
 
+  // Show calculatedResult (final calc value) when available; otherwise clean up rawValue float noise
+  function fmtCalcVal(raw: string, calc: number | null): string {
+    if (calc != null) return parseFloat(calc.toPrecision(7)).toString()
+    const n = parseFloat(raw)
+    return isNaN(n) ? raw : parseFloat(n.toPrecision(7)).toString()
+  }
+
   async function toggleExecResults(executionId: number) {
     if (expandedExecId === executionId) { setExpandedExecId(null); return }
     setExpandedExecId(executionId)
@@ -798,18 +805,18 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                                             <tr key={p.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                               <td style={{ padding: '5px 8px', fontWeight: 600, color: '#111827' }}>{p.parameterName}</td>
                                               <td style={{ padding: '5px 8px', fontFamily: 'monospace' }}>
-                                                <span style={{ color: p.isOos ? '#dc2626' : '#374151' }}>{p.rawValue} {p.uom}</span>
+                                                <span style={{ color: p.isOos ? '#dc2626' : '#374151' }}>{fmtCalcVal(p.rawValue, p.calculatedResult)} {p.uom}</span>
                                                 {p.isOos && <span style={{ marginLeft: 4, fontSize: 9, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 4px', borderRadius: 3 }}>OOS</span>}
                                                 {p.isOot && !p.isOos && <span style={{ marginLeft: 4, fontSize: 9, fontWeight: 700, background: '#fef3c7', color: '#92400e', padding: '1px 4px', borderRadius: 3 }}>OOT</span>}
                                               </td>
                                               {hasRetestCol && (
                                                 <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>
-                                                  {retestParam ? `${retestParam.rawValue} ${retestParam.uom}` : (execResults[latestRetest?.executionId] !== undefined ? '—' : 'Loading…')}
+                                                  {retestParam ? `${fmtCalcVal(retestParam.rawValue, retestParam.calculatedResult)} ${retestParam.uom}` : (execResults[latestRetest?.executionId] !== undefined ? '—' : 'Loading…')}
                                                 </td>
                                               )}
                                               {hasReworkCol && (
                                                 <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>
-                                                  {reworkParam ? `${reworkParam.rawValue} ${reworkParam.uom}` : (execResults[latestRework?.executionId] !== undefined ? '—' : 'Loading…')}
+                                                  {reworkParam ? `${fmtCalcVal(reworkParam.rawValue, reworkParam.calculatedResult)} ${reworkParam.uom}` : (execResults[latestRework?.executionId] !== undefined ? '—' : 'Loading…')}
                                                 </td>
                                               )}
                                               <td style={{ padding: '5px 8px' }}>
@@ -957,18 +964,18 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                                             <tr key={p.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                               <td style={{ padding: '5px 8px', fontWeight: 600, color: '#111827' }}>{p.parameterName}</td>
                                               <td style={{ padding: '5px 8px', fontFamily: 'monospace' }}>
-                                                <span style={{ color: p.isOos ? '#dc2626' : '#374151' }}>{p.rawValue} {p.uom}</span>
+                                                <span style={{ color: p.isOos ? '#dc2626' : '#374151' }}>{fmtCalcVal(p.rawValue, p.calculatedResult)} {p.uom}</span>
                                                 {p.isOos && <span style={{ marginLeft: 4, fontSize: 9, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 4px', borderRadius: 3 }}>OOS</span>}
                                                 {p.isOot && !p.isOos && <span style={{ marginLeft: 4, fontSize: 9, fontWeight: 700, background: '#fef3c7', color: '#92400e', padding: '1px 4px', borderRadius: 3 }}>OOT</span>}
                                               </td>
                                               {hasRetestCol && (
                                                 <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>
-                                                  {retestParam ? `${retestParam.rawValue} ${retestParam.uom}` : (execResults[latestRetest?.executionId] !== undefined ? '—' : 'Loading…')}
+                                                  {retestParam ? `${fmtCalcVal(retestParam.rawValue, retestParam.calculatedResult)} ${retestParam.uom}` : (execResults[latestRetest?.executionId] !== undefined ? '—' : 'Loading…')}
                                                 </td>
                                               )}
                                               {hasReworkCol && (
                                                 <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>
-                                                  {reworkParam ? `${reworkParam.rawValue} ${reworkParam.uom}` : (execResults[latestRework?.executionId] !== undefined ? '—' : 'Loading…')}
+                                                  {reworkParam ? `${fmtCalcVal(reworkParam.rawValue, reworkParam.calculatedResult)} ${reworkParam.uom}` : (execResults[latestRework?.executionId] !== undefined ? '—' : 'Loading…')}
                                                 </td>
                                               )}
                                               <td style={{ padding: '5px 8px' }}>
