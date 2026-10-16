@@ -157,6 +157,8 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
 
   const ctx = CONTEXT_META[context]
 
+  const [expandedGroupKey, setExpandedGroupKey] = useState<string | null>(null)
+
   async function toggleExecResults(executionId: number) {
     if (expandedExecId === executionId) { setExpandedExecId(null); return }
     setExpandedExecId(executionId)
@@ -165,6 +167,26 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
       const res = await api.get(`/digital-logbook?executionId=${executionId}`)
       setExecResults(prev => ({ ...prev, [executionId]: res.data ?? [] }))
     } catch { setExecResults(prev => ({ ...prev, [executionId]: [] })) }
+  }
+
+  async function toggleGroupResults(groupKey: string, execs: SampleDetail['testExecutions']) {
+    if (expandedGroupKey === groupKey) { setExpandedGroupKey(null); return }
+    setExpandedGroupKey(groupKey)
+    const toFetch = execs.filter(e => !execResults[e.executionId])
+    if (toFetch.length === 0) return
+    const results = await Promise.all(
+      toFetch.map(async e => {
+        try {
+          const res = await api.get(`/digital-logbook?executionId=${e.executionId}`)
+          return { id: e.executionId, data: res.data ?? [] }
+        } catch { return { id: e.executionId, data: [] } }
+      })
+    )
+    setExecResults(prev => {
+      const updated = { ...prev }
+      for (const r of results) updated[r.id] = r.data
+      return updated
+    })
   }
 
   useEffect(() => {
@@ -706,91 +728,101 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                           const hasOosInGroup = execs.some(e => e.status === 'OOSOpen')
                           const retestCount = execs.filter(e => e.taskType === 'Retest').length
                           const reworkCount = execs.filter(e => e.taskType === 'Rework').length
+                          const isGroupExpanded = expandedGroupKey === label
                           return (
                             <div key={label} style={{ border: `1px solid ${hasOosInGroup ? '#fca5a5' : '#e5e7eb'}`, borderRadius: 8, background: '#fff', overflow: 'hidden' }}>
-                              {/* Parameter name row */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', background: hasOosInGroup ? '#fff5f5' : '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+                              {/* Clickable parameter header — click to toggle merged results */}
+                              <div
+                                onClick={() => toggleGroupResults(label, execs)}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', background: hasOosInGroup ? '#fff5f5' : '#f8fafc', borderBottom: '1px solid #e5e7eb', cursor: 'pointer' }}
+                              >
                                 <span style={{ fontSize: 13, fontWeight: 700, color: '#111827', flex: 1 }}>{label}</span>
                                 {hasOosInGroup && <span style={{ fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 6px', borderRadius: 4 }}>OOS</span>}
                                 {retestCount > 0 && <span style={{ fontSize: 10, background: '#ede9fe', color: '#6d28d9', padding: '1px 5px', borderRadius: 4 }}>🔁 {retestCount} retest</span>}
                                 {reworkCount > 0 && <span style={{ fontSize: 10, background: '#fff7ed', color: '#c2410c', padding: '1px 5px', borderRadius: 4 }}>🔧 {reworkCount} rework</span>}
+                                <span style={{ fontSize: 11, color: '#9ca3af', userSelect: 'none' }}>{isGroupExpanded ? '▲' : '▼'}</span>
                               </div>
-                              {/* Execution rows within this parameter group */}
+                              {/* Non-clickable execution info rows */}
                               {execs.map((e, i) => {
-                                const isExpanded = expandedExecId === e.executionId
-                                const params = execResults[e.executionId]
-                                const hasOos = params?.some(p => p.isOos)
                                 const isRetest = e.taskType === 'Retest'
                                 const isRework = e.taskType === 'Rework'
                                 const isNonStandard = isRetest || isRework
                                 return (
-                                  <div key={e.executionId} style={{ borderTop: i > 0 ? '1px solid #f3f4f6' : undefined }}>
-                                    <div
-                                      onClick={() => toggleExecResults(e.executionId)}
-                                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', paddingLeft: isNonStandard ? 26 : 14, cursor: 'pointer', background: isExpanded ? '#eff6ff' : '#fff' }}
-                                    >
-                                      {isNonStandard && <span style={{ fontSize: 11, color: '#9ca3af', marginRight: -2 }}>↳</span>}
-                                      <div style={{ flex: 1 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                          {isRetest && <span style={{ fontSize: 10, fontWeight: 700, background: '#ede9fe', color: '#6d28d9', padding: '1px 5px', borderRadius: 4 }}>Retest</span>}
-                                          {isRework && <span style={{ fontSize: 10, fontWeight: 700, background: '#fff7ed', color: '#c2410c', padding: '1px 5px', borderRadius: 4 }}>Rework</span>}
-                                          {!isNonStandard && execs.length > 1 && <span style={{ fontSize: 10, color: '#9ca3af' }}>Original</span>}
-                                          <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#6b7280' }}>#{e.executionId}</span>
-                                          <Badge status={e.status} />
-                                          {hasOos && <span style={{ fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: 4 }}>OOS</span>}
-                                        </div>
-                                        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>👤 {e.analystName}</div>
-                                      </div>
-                                      <span style={{ fontSize: 12, color: '#9ca3af', userSelect: 'none' }}>{isExpanded ? '▲' : '▼'}</span>
-                                    </div>
-                                    {isExpanded && (
-                                      <div style={{ borderTop: '1px solid #e5e7eb', padding: '10px 14px', background: '#f8fafc' }}>
-                                        {!params ? (
-                                          <div style={{ fontSize: 12, color: '#9ca3af' }}>Loading parameters…</div>
-                                        ) : params.length === 0 ? (
-                                          <div style={{ fontSize: 12, color: '#9ca3af' }}>No results recorded for this execution.</div>
-                                        ) : (
-                                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                                            <thead>
-                                              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                                {['Parameter', 'Value', 'Calc. Result', 'Pass/Fail'].map(h => (
-                                                  <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
-                                                ))}
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {params.map(p => {
-                                                const pf = p.passFail
-                                                const pfBg    = pf === 'PASS' ? '#d1fae5' : pf === 'FAIL' ? '#fee2e2' : '#f1f5f9'
-                                                const pfColor = pf === 'PASS' ? '#065f46' : pf === 'FAIL' ? '#991b1b' : '#374151'
-                                                const calcDiffers = p.calculatedResult != null && Math.abs(p.calculatedResult - parseFloat(p.rawValue)) > 0.0001
-                                                return (
-                                                  <tr key={p.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                    <td style={{ padding: '5px 8px', fontWeight: 600, color: '#111827' }}>
-                                                      {p.parameterName}
-                                                      {p.isOos && <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: 4 }}>OOS</span>}
-                                                      {p.isOot && <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4 }}>OOT</span>}
-                                                    </td>
-                                                    <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>
-                                                      {p.rawValue} {p.uom}
-                                                    </td>
-                                                    <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#6b7280' }}>
-                                                      {calcDiffers ? `${p.calculatedResult} ${p.uom}` : '—'}
-                                                    </td>
-                                                    <td style={{ padding: '5px 8px' }}>
-                                                      {pf ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: pfBg, color: pfColor }}>{pf}</span> : '—'}
-                                                    </td>
-                                                  </tr>
-                                                )
-                                              })}
-                                            </tbody>
-                                          </table>
-                                        )}
-                                      </div>
-                                    )}
+                                  <div key={e.executionId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 14px', paddingLeft: isNonStandard ? 26 : 14, borderTop: i > 0 ? '1px solid #f3f4f6' : undefined }}>
+                                    {isNonStandard && <span style={{ fontSize: 11, color: '#d1d5db', marginRight: -2 }}>↳</span>}
+                                    {isRetest && <span style={{ fontSize: 10, fontWeight: 700, background: '#ede9fe', color: '#6d28d9', padding: '1px 5px', borderRadius: 4 }}>Retest</span>}
+                                    {isRework && <span style={{ fontSize: 10, fontWeight: 700, background: '#fff7ed', color: '#c2410c', padding: '1px 5px', borderRadius: 4 }}>Rework</span>}
+                                    {!isNonStandard && execs.length > 1 && <span style={{ fontSize: 10, color: '#9ca3af' }}>Original</span>}
+                                    <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#6b7280' }}>#{e.executionId}</span>
+                                    <Badge status={e.status} />
+                                    <span style={{ fontSize: 11, color: '#9ca3af' }}>👤 {e.analystName}</span>
                                   </div>
                                 )
                               })}
+                              {/* Merged results table */}
+                              {isGroupExpanded && (() => {
+                                const origExecs = execs.filter(e => e.taskType !== 'Retest' && e.taskType !== 'Rework')
+                                const retestExecs = execs.filter(e => e.taskType === 'Retest')
+                                const reworkExecs = execs.filter(e => e.taskType === 'Rework')
+                                const hasRetestCol = retestExecs.length > 0
+                                const hasReworkCol = reworkExecs.length > 0
+                                const baseExec = origExecs[0] ?? execs[0]
+                                const baseParams = execResults[baseExec?.executionId]
+                                const latestRetest = retestExecs[retestExecs.length - 1]
+                                const latestRework = reworkExecs[reworkExecs.length - 1]
+                                if (!baseParams) return <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>Loading…</div>
+                                if (baseParams.length === 0) return <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>No results recorded.</div>
+                                const thSt = { textAlign: 'left' as const, padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }
+                                return (
+                                  <div style={{ borderTop: '1px solid #e5e7eb', padding: '10px 14px', background: '#f8fafc' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                      <thead>
+                                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                          <th style={thSt}>Parameter</th>
+                                          <th style={thSt}>Original Value</th>
+                                          {hasRetestCol && <th style={thSt}>Retest Value</th>}
+                                          {hasReworkCol && <th style={thSt}>Rework Value</th>}
+                                          <th style={thSt}>Pass/Fail</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {baseParams.map(p => {
+                                          const retestParam = hasRetestCol && execResults[latestRetest?.executionId]
+                                            ? execResults[latestRetest.executionId].find(r => r.parameterId === p.parameterId) : undefined
+                                          const reworkParam = hasReworkCol && execResults[latestRework?.executionId]
+                                            ? execResults[latestRework.executionId].find(r => r.parameterId === p.parameterId) : undefined
+                                          const finalPf = retestParam?.passFail ?? reworkParam?.passFail ?? p.passFail
+                                          const pfBg = finalPf === 'PASS' ? '#d1fae5' : finalPf === 'FAIL' ? '#fee2e2' : '#f1f5f9'
+                                          const pfColor = finalPf === 'PASS' ? '#065f46' : finalPf === 'FAIL' ? '#991b1b' : '#374151'
+                                          return (
+                                            <tr key={p.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                              <td style={{ padding: '5px 8px', fontWeight: 600, color: '#111827' }}>{p.parameterName}</td>
+                                              <td style={{ padding: '5px 8px', fontFamily: 'monospace' }}>
+                                                <span style={{ color: p.isOos ? '#dc2626' : '#374151' }}>{p.rawValue} {p.uom}</span>
+                                                {p.isOos && <span style={{ marginLeft: 4, fontSize: 9, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 4px', borderRadius: 3 }}>OOS</span>}
+                                                {p.isOot && !p.isOos && <span style={{ marginLeft: 4, fontSize: 9, fontWeight: 700, background: '#fef3c7', color: '#92400e', padding: '1px 4px', borderRadius: 3 }}>OOT</span>}
+                                              </td>
+                                              {hasRetestCol && (
+                                                <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>
+                                                  {retestParam ? `${retestParam.rawValue} ${retestParam.uom}` : (execResults[latestRetest?.executionId] !== undefined ? '—' : 'Loading…')}
+                                                </td>
+                                              )}
+                                              {hasReworkCol && (
+                                                <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>
+                                                  {reworkParam ? `${reworkParam.rawValue} ${reworkParam.uom}` : (execResults[latestRework?.executionId] !== undefined ? '—' : 'Loading…')}
+                                                </td>
+                                              )}
+                                              <td style={{ padding: '5px 8px' }}>
+                                                {finalPf ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: pfBg, color: pfColor }}>{finalPf}</span> : '—'}
+                                              </td>
+                                            </tr>
+                                          )
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )
+                              })()}
                             </div>
                           )
                         })
@@ -858,85 +890,98 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                           const hasOosInGroup = execs.some(e => e.status === 'OOSOpen')
                           const retestCount = execs.filter(e => e.taskType === 'Retest').length
                           const reworkCount = execs.filter(e => e.taskType === 'Rework').length
+                          const isGroupExpanded = expandedGroupKey === label
                           return (
                             <div key={label} style={{ border: `1px solid ${hasOosInGroup ? '#fca5a5' : '#e5e7eb'}`, borderRadius: 8, background: '#fff', overflow: 'hidden' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', background: hasOosInGroup ? '#fff5f5' : '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+                              <div
+                                onClick={() => toggleGroupResults(label, execs)}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px', background: hasOosInGroup ? '#fff5f5' : '#f8fafc', borderBottom: '1px solid #e5e7eb', cursor: 'pointer' }}
+                              >
                                 <span style={{ fontSize: 13, fontWeight: 700, color: '#111827', flex: 1 }}>{label}</span>
                                 {hasOosInGroup && <span style={{ fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 6px', borderRadius: 4 }}>OOS</span>}
                                 {retestCount > 0 && <span style={{ fontSize: 10, background: '#ede9fe', color: '#6d28d9', padding: '1px 5px', borderRadius: 4 }}>🔁 {retestCount} retest</span>}
                                 {reworkCount > 0 && <span style={{ fontSize: 10, background: '#fff7ed', color: '#c2410c', padding: '1px 5px', borderRadius: 4 }}>🔧 {reworkCount} rework</span>}
+                                <span style={{ fontSize: 11, color: '#9ca3af', userSelect: 'none' }}>{isGroupExpanded ? '▲' : '▼'}</span>
                               </div>
                               {execs.map((e, i) => {
-                                const isExpanded = expandedExecId === e.executionId
-                                const params = execResults[e.executionId]
-                                const hasOos = params?.some(p => p.isOos)
                                 const isRetest = e.taskType === 'Retest'
                                 const isRework = e.taskType === 'Rework'
                                 const isNonStandard = isRetest || isRework
                                 return (
-                                  <div key={e.executionId} style={{ borderTop: i > 0 ? '1px solid #f3f4f6' : undefined }}>
-                                    <div
-                                      onClick={() => toggleExecResults(e.executionId)}
-                                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', paddingLeft: isNonStandard ? 26 : 14, cursor: 'pointer', background: isExpanded ? '#eff6ff' : '#fff' }}
-                                    >
-                                      {isNonStandard && <span style={{ fontSize: 11, color: '#9ca3af', marginRight: -2 }}>↳</span>}
-                                      <div style={{ flex: 1 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                          {isRetest && <span style={{ fontSize: 10, fontWeight: 700, background: '#ede9fe', color: '#6d28d9', padding: '1px 5px', borderRadius: 4 }}>Retest</span>}
-                                          {isRework && <span style={{ fontSize: 10, fontWeight: 700, background: '#fff7ed', color: '#c2410c', padding: '1px 5px', borderRadius: 4 }}>Rework</span>}
-                                          {!isNonStandard && execs.length > 1 && <span style={{ fontSize: 10, color: '#9ca3af' }}>Original</span>}
-                                          <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#6b7280' }}>#{e.executionId}</span>
-                                          <Badge status={e.status} />
-                                          {hasOos && <span style={{ fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: 4 }}>OOS</span>}
-                                        </div>
-                                        <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>👤 {e.analystName}</div>
-                                      </div>
-                                      <span style={{ fontSize: 12, color: '#9ca3af', userSelect: 'none' }}>{isExpanded ? '▲' : '▼'}</span>
-                                    </div>
-                                    {isExpanded && (
-                                      <div style={{ borderTop: '1px solid #e5e7eb', padding: '10px 14px', background: '#f8fafc' }}>
-                                        {!params ? (
-                                          <div style={{ fontSize: 12, color: '#9ca3af' }}>Loading parameters…</div>
-                                        ) : params.length === 0 ? (
-                                          <div style={{ fontSize: 12, color: '#9ca3af' }}>No results recorded for this execution.</div>
-                                        ) : (
-                                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                                            <thead>
-                                              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                                {['Parameter', 'Value', 'Calc. Result', 'Pass/Fail'].map(h => (
-                                                  <th key={h} style={{ textAlign: 'left', padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
-                                                ))}
-                                              </tr>
-                                            </thead>
-                                            <tbody>
-                                              {params.map(p => {
-                                                const pf = p.passFail
-                                                const pfBg    = pf === 'PASS' ? '#d1fae5' : pf === 'FAIL' ? '#fee2e2' : '#f1f5f9'
-                                                const pfColor = pf === 'PASS' ? '#065f46' : pf === 'FAIL' ? '#991b1b' : '#374151'
-                                                const calcDiffers = p.calculatedResult != null && Math.abs(p.calculatedResult - parseFloat(p.rawValue)) > 0.0001
-                                                return (
-                                                  <tr key={p.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                    <td style={{ padding: '5px 8px', fontWeight: 600, color: '#111827' }}>
-                                                      {p.parameterName}
-                                                      {p.isOos && <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: 4 }}>OOS</span>}
-                                                      {p.isOot && <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4 }}>OOT</span>}
-                                                    </td>
-                                                    <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>{p.rawValue} {p.uom}</td>
-                                                    <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#6b7280' }}>{calcDiffers ? `${p.calculatedResult} ${p.uom}` : '—'}</td>
-                                                    <td style={{ padding: '5px 8px' }}>
-                                                      {pf ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: pfBg, color: pfColor }}>{pf}</span> : '—'}
-                                                    </td>
-                                                  </tr>
-                                                )
-                                              })}
-                                            </tbody>
-                                          </table>
-                                        )}
-                                      </div>
-                                    )}
+                                  <div key={e.executionId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 14px', paddingLeft: isNonStandard ? 26 : 14, borderTop: i > 0 ? '1px solid #f3f4f6' : undefined }}>
+                                    {isNonStandard && <span style={{ fontSize: 11, color: '#d1d5db', marginRight: -2 }}>↳</span>}
+                                    {isRetest && <span style={{ fontSize: 10, fontWeight: 700, background: '#ede9fe', color: '#6d28d9', padding: '1px 5px', borderRadius: 4 }}>Retest</span>}
+                                    {isRework && <span style={{ fontSize: 10, fontWeight: 700, background: '#fff7ed', color: '#c2410c', padding: '1px 5px', borderRadius: 4 }}>Rework</span>}
+                                    {!isNonStandard && execs.length > 1 && <span style={{ fontSize: 10, color: '#9ca3af' }}>Original</span>}
+                                    <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#6b7280' }}>#{e.executionId}</span>
+                                    <Badge status={e.status} />
+                                    <span style={{ fontSize: 11, color: '#9ca3af' }}>👤 {e.analystName}</span>
                                   </div>
                                 )
                               })}
+                              {isGroupExpanded && (() => {
+                                const origExecs = execs.filter(e => e.taskType !== 'Retest' && e.taskType !== 'Rework')
+                                const retestExecs = execs.filter(e => e.taskType === 'Retest')
+                                const reworkExecs = execs.filter(e => e.taskType === 'Rework')
+                                const hasRetestCol = retestExecs.length > 0
+                                const hasReworkCol = reworkExecs.length > 0
+                                const baseExec = origExecs[0] ?? execs[0]
+                                const baseParams = execResults[baseExec?.executionId]
+                                const latestRetest = retestExecs[retestExecs.length - 1]
+                                const latestRework = reworkExecs[reworkExecs.length - 1]
+                                if (!baseParams) return <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>Loading…</div>
+                                if (baseParams.length === 0) return <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>No results recorded.</div>
+                                const thSt = { textAlign: 'left' as const, padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }
+                                return (
+                                  <div style={{ borderTop: '1px solid #e5e7eb', padding: '10px 14px', background: '#f8fafc' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                      <thead>
+                                        <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                          <th style={thSt}>Parameter</th>
+                                          <th style={thSt}>Original Value</th>
+                                          {hasRetestCol && <th style={thSt}>Retest Value</th>}
+                                          {hasReworkCol && <th style={thSt}>Rework Value</th>}
+                                          <th style={thSt}>Pass/Fail</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {baseParams.map(p => {
+                                          const retestParam = hasRetestCol && execResults[latestRetest?.executionId]
+                                            ? execResults[latestRetest.executionId].find(r => r.parameterId === p.parameterId) : undefined
+                                          const reworkParam = hasReworkCol && execResults[latestRework?.executionId]
+                                            ? execResults[latestRework.executionId].find(r => r.parameterId === p.parameterId) : undefined
+                                          const finalPf = retestParam?.passFail ?? reworkParam?.passFail ?? p.passFail
+                                          const pfBg = finalPf === 'PASS' ? '#d1fae5' : finalPf === 'FAIL' ? '#fee2e2' : '#f1f5f9'
+                                          const pfColor = finalPf === 'PASS' ? '#065f46' : finalPf === 'FAIL' ? '#991b1b' : '#374151'
+                                          return (
+                                            <tr key={p.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                              <td style={{ padding: '5px 8px', fontWeight: 600, color: '#111827' }}>{p.parameterName}</td>
+                                              <td style={{ padding: '5px 8px', fontFamily: 'monospace' }}>
+                                                <span style={{ color: p.isOos ? '#dc2626' : '#374151' }}>{p.rawValue} {p.uom}</span>
+                                                {p.isOos && <span style={{ marginLeft: 4, fontSize: 9, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 4px', borderRadius: 3 }}>OOS</span>}
+                                                {p.isOot && !p.isOos && <span style={{ marginLeft: 4, fontSize: 9, fontWeight: 700, background: '#fef3c7', color: '#92400e', padding: '1px 4px', borderRadius: 3 }}>OOT</span>}
+                                              </td>
+                                              {hasRetestCol && (
+                                                <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>
+                                                  {retestParam ? `${retestParam.rawValue} ${retestParam.uom}` : (execResults[latestRetest?.executionId] !== undefined ? '—' : 'Loading…')}
+                                                </td>
+                                              )}
+                                              {hasReworkCol && (
+                                                <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>
+                                                  {reworkParam ? `${reworkParam.rawValue} ${reworkParam.uom}` : (execResults[latestRework?.executionId] !== undefined ? '—' : 'Loading…')}
+                                                </td>
+                                              )}
+                                              <td style={{ padding: '5px 8px' }}>
+                                                {finalPf ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: pfBg, color: pfColor }}>{finalPf}</span> : '—'}
+                                              </td>
+                                            </tr>
+                                          )
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )
+                              })()}
                             </div>
                           )
                         })
