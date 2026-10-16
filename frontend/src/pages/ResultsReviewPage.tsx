@@ -458,11 +458,12 @@ export default function ResultsReviewPage() {
                                   paramGroups.get(key)!.push(ex)
                                 }
                                 return Array.from(paramGroups.entries()).map(([label, pexecs]) => {
-                                  // Pick final execution: rework > retest > original (last wins per type)
-                                  const reworks = pexecs.filter(e => e.taskType === 'Rework')
+                                  // Download the ORIGINAL execution — its PDF already includes OOS investigation
+                                  // section with the retest result (Section 4 of BatchAnalysisPdfDocument)
                                   const retests = pexecs.filter(e => e.taskType === 'Retest')
-                                  const finals = reworks.length > 0 ? reworks : retests.length > 0 ? retests : pexecs
-                                  const finalEx = finals[finals.length - 1]
+                                  const reworks = pexecs.filter(e => e.taskType === 'Rework')
+                                  const originals = pexecs.filter(e => !e.taskType || e.taskType === 'Standard')
+                                  const finalEx = originals[0] ?? pexecs[0]
                                   const hasRetest = retests.length > 0
                                   const hasRework = reworks.length > 0
                                   const hasOos = pexecs.some(e => e.status === 'OOSOpen')
