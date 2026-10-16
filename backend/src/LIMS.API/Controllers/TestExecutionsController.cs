@@ -189,7 +189,19 @@ public class TestExecutionsController : LimsControllerBase
         return Ok(new { executionId = result.Value, status = "Signed" });
     }
 
-    // �"��"� Sprint 6 � Intelligent Workflow Endpoints �"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"�
+    // POST api/v1/test-executions/{id}/complete-rework — document physical rework activity
+    [HttpPost("{id}/complete-rework")]
+    [Authorize(Roles = "Admin,Analyst,LabManager,QA")]
+    public async Task<IActionResult> CompleteRework(int id, [FromBody] CompleteReworkRequest request)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
+        var isAdmin = User.IsInRole("Admin") || User.IsInRole("QA");
+        var result = await _mediator.Send(new CompleteReworkCommand(id, userId, request.ReworkType, request.EquipmentUsed, request.Description, request.Notes, isAdmin));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { executionId = result.Value, status = "Completed" });
+    }
+
+    // 🔬 Sprint 6 � Intelligent Workflow Endpoints �"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"��"�
 
     // GET api/v1/test-executions/queue-intelligence?labId=1
     [HttpGet("queue-intelligence")]
@@ -285,6 +297,7 @@ public record SubmitResultsRequest(List<ResultEntryDto> Entries, EntryMethod Ent
 public record BatchRowRequest(int ExecutionId, List<ResultEntryDto> Entries);
 public record BatchSubmitRequest(List<BatchRowRequest> Rows);
 public record AdHocTestRequest(int SampleId, int ParameterId, string Reason);
+public record CompleteReworkRequest(string ReworkType, string EquipmentUsed, string Description, string? Notes);
 
 
 

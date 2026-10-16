@@ -305,6 +305,9 @@ export default function WorkQueuePage() {
   const [selectedGroup, setSelectedGroup] = useState<SampleGroup | null>(null)
   const [selectedContainerGroup, setSelectedContainerGroup] = useState<ContainerGroup | null>(null)
   const [fillFormSample, setFillFormSample] = useState<{ sampleId: number; sampleNumber: string } | null>(null)
+  const [reworkModal, setReworkModal] = useState<{ executionId: number; sampleNumber: string } | null>(null)
+  const [reworkForm, setReworkForm] = useState({ reworkType: '', equipmentUsed: '', description: '', notes: '' })
+  const [reworkSubmitting, setReworkSubmitting] = useState(false)
   const [expandedExecId, setExpandedExecId] = useState<number | null>(null)
   const [execResults, setExecResults] = useState<Record<number, {
     parameterId: number; parameterName: string; uom: string
@@ -581,6 +584,29 @@ export default function WorkQueuePage() {
     setImportExecId(execId)
     setImportResult(null)
     setTimeout(() => importFileRef.current?.click(), 50)
+  }
+
+  async function submitRework(e: React.FormEvent) {
+    e.preventDefault()
+    if (!reworkModal) return
+    if (!reworkForm.reworkType || !reworkForm.equipmentUsed || !reworkForm.description) {
+      toast('Fill in all required fields', 'error'); return
+    }
+    setReworkSubmitting(true)
+    try {
+      await api.post(`/test-executions/${reworkModal.executionId}/complete-rework`, {
+        reworkType: reworkForm.reworkType,
+        equipmentUsed: reworkForm.equipmentUsed,
+        description: reworkForm.description,
+        notes: reworkForm.notes,
+      })
+      toast('Rework documented successfully', 'success')
+      setReworkModal(null)
+      setReworkForm({ reworkType: '', equipmentUsed: '', description: '', notes: '' })
+      load()
+    } catch (err: unknown) {
+      toast(getErrorMessage(err, 'Failed to complete rework'), 'error')
+    } finally { setReworkSubmitting(false) }
   }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1090,7 +1116,14 @@ export default function WorkQueuePage() {
                             ▶ Start
                           </button>
                         )}
-                        {exec.status === 'InProgress' && (
+                        {exec.status === 'InProgress' && exec.taskType === 'Rework' && (
+                          <button
+                            onClick={() => { setReworkModal({ executionId: exec.executionId, sampleNumber: selectedGroup.sampleNumber }); setReworkForm({ reworkType: '', equipmentUsed: '', description: '', notes: '' }) }}
+                            style={{ padding: '5px 12px', background: '#c2410c', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
+                            🔧 Document Rework
+                          </button>
+                        )}
+                        {exec.status === 'InProgress' && exec.taskType !== 'Rework' && (
                           <>
                             <a href={`/test-execution/${exec.executionId}`}
                               style={{ padding: '5px 12px', background: '#7c3aed', color: '#fff', borderRadius: 6, fontWeight: 600, fontSize: 12, textDecoration: 'none' }}>
@@ -1519,6 +1552,59 @@ export default function WorkQueuePage() {
         onClose={() => setFillFormSample(null)}
         onSubmitted={() => { setFillFormSample(null); load() }}
       />
+    )}
+
+    {/* ── Rework Documentation Modal ───────────────────────────────────── */}
+    {reworkModal && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <div style={{ background: '#fff', borderRadius: 12, padding: 28, width: '100%', maxWidth: 500, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <span style={{ fontSize: 22 }}>🔧</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>Document Rework Activity</div>
+              <div style={{ fontSize: 12, color: '#6b7280' }}>Sample: {reworkModal.sampleNumber} · Execution #{reworkModal.executionId}</div>
+            </div>
+          </div>
+          <form onSubmit={submitRework} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Rework Type *</label>
+              <select value={reworkForm.reworkType} onChange={e => setReworkForm(f => ({ ...f, reworkType: e.target.value }))} required
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13 }}>
+                <option value="">Select rework type…</option>
+                <option value="Re-granulation">Re-granulation</option>
+                <option value="Re-mixing">Re-mixing</option>
+                <option value="Re-filtration">Re-filtration</option>
+                <option value="Re-processing">Re-processing</option>
+                <option value="Re-blending">Re-blending</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Equipment Used *</label>
+              <input value={reworkForm.equipmentUsed} onChange={e => setReworkForm(f => ({ ...f, equipmentUsed: e.target.value }))} required placeholder="e.g. Mixer M-02, Granulator G-01"
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Description of Rework Performed *</label>
+              <textarea value={reworkForm.description} onChange={e => setReworkForm(f => ({ ...f, description: e.target.value }))} required rows={3} placeholder="Describe what physical action was taken…"
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Notes (optional)</label>
+              <textarea value={reworkForm.notes} onChange={e => setReworkForm(f => ({ ...f, notes: e.target.value }))} rows={2} placeholder="Any additional observations…"
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button type="button" onClick={() => setReworkModal(null)} disabled={reworkSubmitting}
+                style={{ padding: '8px 18px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+              <button type="submit" disabled={reworkSubmitting}
+                style={{ padding: '8px 18px', background: '#c2410c', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer', opacity: reworkSubmitting ? 0.7 : 1 }}>
+                {reworkSubmitting ? '⏳ Saving…' : '✓ Complete Rework'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     )}
 
     {/* ── Hidden CSV file input ─────────────────────────────────────────── */}
