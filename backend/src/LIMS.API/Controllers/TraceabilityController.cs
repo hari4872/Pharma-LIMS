@@ -266,7 +266,7 @@ public class TraceabilityController : LimsControllerBase
         // ── Containers ────────────────────────────────────────────────────────
         var containers = await _db.SampleContainers
             .Include(c => c.LinkedOosInvestigation)
-            .Where(c => c.SampleId == sampleId)
+            .Where(c => c.SampleId == sampleId && c.Status == ContainerStatus.Available)
             .OrderBy(c => c.SampleContainerId)
             .ToListAsync(ct);
 
