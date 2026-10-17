@@ -212,7 +212,6 @@ export default function SampleRegistrationPage() {
   const [containersLoading, setContainersLoading] = useState(false)
   const [splitForm, setSplitForm]             = useState({ count: '3', containerType: 'Aliquot', volumePerContainer: '', volumeUom: '' })
   const [splitSaving, setSplitSaving]         = useState(false)
-  const [markingRetestId, setMarkingRetestId] = useState<number | null>(null)
   const [destroyingId, setDestroyingId]       = useState<number | null>(null)
   const [destroyForm, setDestroyForm]         = useState({ password: '', reason: '' })
   const [destroyError, setDestroyError]       = useState('')
@@ -250,17 +249,7 @@ export default function SampleRegistrationPage() {
     finally { setSplitSaving(false) }
   }
 
-  async function markAsRetest(containerId: number) {
-    setMarkingRetestId(containerId)
-    try {
-      await api.put(`/samples/${containerSample!.sampleId}/containers/${containerId}/mark-retest`)
-      toast('Container marked as Retest — linked to open OOS investigation', 'success')
-      loadContainers(containerSample!.sampleId)
-    } catch (err) { toast(getErrorMessage(err, 'Mark as Retest failed'), 'error') }
-    finally { setMarkingRetestId(null) }
-  }
-
-  async function submitDestroy(containerId: number) {
+async function submitDestroy(containerId: number) {
     setDestroyError('')
     try {
       await api.post(`/samples/${containerSample!.sampleId}/containers/${containerId}/destroy`, destroyForm)
