@@ -63,17 +63,16 @@ public class CreateRetestTaskHandler : IRequestHandler<CreateRetestTaskCommand, 
 
         inv.RetestExecutionId = retest.ExecutionId;
 
-        // Auto-flag the first available container on this sample as Retest
-        var container = await _db.SampleContainers
-            .Where(c => c.SampleId == original.SampleId
-                     && c.Status == ContainerStatus.Available
-                     && c.ContainerType != ContainerType.Retest)
-            .OrderBy(c => c.SampleContainerId)
-            .FirstOrDefaultAsync(ct);
-        if (container is not null)
+        // Auto-flag the container that triggered the OOS as Retest
+        if (original.SampleContainerId.HasValue)
         {
-            container.ContainerType = ContainerType.Retest;
-            container.LinkedOosInvestigationId = inv.InvestigationId;
+            var container = await _db.SampleContainers
+                .FirstOrDefaultAsync(c => c.SampleContainerId == original.SampleContainerId.Value, ct);
+            if (container is not null)
+            {
+                container.ContainerType = ContainerType.Retest;
+                container.LinkedOosInvestigationId = inv.InvestigationId;
+            }
         }
 
         await _db.SaveChangesAsync(ct);
