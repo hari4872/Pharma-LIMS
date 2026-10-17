@@ -726,7 +726,7 @@ export default function TraceabilityPage() {
   const [graph, setGraph]               = useState<TraceGraph | null>(null)
   const [graphLoading, setGraphLoading] = useState(false)
   const [graphError, setGraphError]     = useState('')
-  const [activeView, setActiveView]     = useState<'coc' | 'graph' | 'env' | 'oos'>('coc')
+  const [activeView, setActiveView]     = useState<'coc' | 'graph' | 'oos'>('coc')
 
   // ── OOS chain state ─────────────────────────────────────────────────────────
   const [oosChain, setOosChain]               = useState<OosChainItem[]>([])
@@ -986,14 +986,14 @@ export default function TraceabilityPage() {
                       {/* View toggle + PDF export */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 7, padding: 3, gap: 2, flexWrap: 'wrap' }}>
-                          {(['coc', 'graph', 'env', 'oos'] as const).map(v => (
+                          {(['coc', 'graph', 'oos'] as const).map(v => (
                             <button key={v} onClick={() => setActiveView(v)}
                               style={{ padding: '5px 14px', borderRadius: 5, border: 'none',
                                 cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
                                 background: activeView === v ? '#fff' : 'transparent',
                                 color: activeView === v ? (v === 'oos' ? '#dc2626' : '#2563eb') : '#6b7280',
                                 boxShadow: activeView === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>
-                              {v === 'coc' ? '📋 Chain of Custody' : v === 'graph' ? '🔗 Visual Graph' : v === 'env' ? '🌡 Environment' : '🔴 OOS Chain'}
+                              {v === 'coc' ? '📋 Chain of Custody' : v === 'graph' ? '🔗 Visual Graph' : '🔴 OOS Chain'}
                             </button>
                           ))}
                         </div>
