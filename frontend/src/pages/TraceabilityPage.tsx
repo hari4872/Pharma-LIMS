@@ -732,12 +732,6 @@ export default function TraceabilityPage() {
   const [oosChain, setOosChain]               = useState<OosChainItem[]>([])
   const [oosChainLoading, setOosChainLoading] = useState(false)
 
-  // ── Environment log state ───────────────────────────────────────────────
-  const [envLog, setEnvLog] = useState<{
-    windowStart: string | null; windowEnd: string | null
-    rows: { rowId: number; slotLabel: string; slotTime: string; checkpointCode: string; triggerMode: string
-      readings: { parameterName: string; uom: string; value: string; recordedBy: string }[] }[]
-  } | null>(null)
 
 
   // ── Recall state ────────────────────────────────────────────────────────
@@ -787,7 +781,7 @@ export default function TraceabilityPage() {
   async function loadTrace(item: SampleListItem) {
     const seq = ++loadSeqRef.current          // cancel any in-flight call
     setSelectedSampleId(item.sampleId)
-    setGraphLoading(true); setGraphError(''); setGraph(null); setEnvLog(null); setOosChain([])
+    setGraphLoading(true); setGraphError(''); setGraph(null); setOosChain([])
     setResolved({
       sampleId:       item.sampleId,
       sampleNumber:   item.sampleNumber,
@@ -798,13 +792,9 @@ export default function TraceabilityPage() {
       createdAt:      item.createdAt,
     })
     try {
-      const [graphRes, envRes] = await Promise.all([
-        api.get(`/traceability/samples/${item.sampleId}/graph`),
-        api.get(`/traceability/samples/${item.sampleId}/environment-log`).catch(() => ({ data: null })),
-      ])
+      const graphRes = await api.get(`/traceability/samples/${item.sampleId}/graph`)
       if (seq !== loadSeqRef.current) return   // superseded — discard stale result
       setGraph(graphRes.data)
-      setEnvLog(envRes.data)
     } catch (err) {
       if (seq !== loadSeqRef.current) return
       setGraphError(getErrorMessage(err, 'Failed to load trace.'))
