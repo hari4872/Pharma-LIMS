@@ -13,6 +13,7 @@ public class TraceabilityPdfDocument : IDocument
         string AnalystName, DateTimeOffset CreatedAt);
 
     public record GraphNodeRow(string NodeType, int NodeId, string Label, string Detail);
+    public record ContainerRow(string Label, string ContainerType, string Status, bool IsRetest, bool OosOpen);
 
     public record OosRow(
         int InvestigationId, string ParameterName, string FlagType, string Phase, string Status,
@@ -26,6 +27,7 @@ public class TraceabilityPdfDocument : IDocument
 
     public record TraceabilityPdfData(
         SampleInfo Sample,
+        List<ContainerRow> Containers,
         List<GraphNodeRow> UpstreamNodes,
         List<GraphNodeRow> LogbookNodes,
         List<GraphNodeRow> DownstreamNodes,
@@ -177,6 +179,49 @@ public class TraceabilityPdfDocument : IDocument
                     inner.Item().Text($"{_d.Sample.MaterialName} | {_d.Sample.SampleType} | {_d.Sample.Status}")
                         .FontSize(9).FontColor("#bfdbfe");
                 });
+
+                // Containers
+                if (_d.Containers.Any())
+                {
+                    col2.Item().PaddingTop(10).Text("SAMPLE CONTAINERS")
+                        .FontSize(8).Bold().FontColor("#6b7280").Italic();
+                    col2.Item().PaddingTop(4).Table(t =>
+                    {
+                        t.ColumnsDefinition(cd =>
+                        {
+                            cd.RelativeColumn(2f); // Label
+                            cd.RelativeColumn();   // Type
+                            cd.RelativeColumn();   // Status
+                            cd.RelativeColumn();   // OOS Flag
+                        });
+                        static void CH(IContainer c2, string txt) =>
+                            c2.Background("#e0f2fe").PaddingVertical(4).PaddingHorizontal(5)
+                              .Text(txt).Bold().FontSize(8).FontColor("#0369a1");
+                        t.Header(h =>
+                        {
+                            h.Cell().Element(c2 => CH(c2, "Container Label"));
+                            h.Cell().Element(c2 => CH(c2, "Type"));
+                            h.Cell().Element(c2 => CH(c2, "Status"));
+                            h.Cell().Element(c2 => CH(c2, "OOS Flag"));
+                        });
+                        foreach (var con in _d.Containers)
+                        {
+                            var bg = con.IsRetest ? "#fff7ed" : "#f8fafc";
+                            IContainer CC(IContainer c2) =>
+                                c2.Background(bg).BorderBottom(0.5f).BorderColor("#e2e8f0")
+                                  .PaddingVertical(4).PaddingHorizontal(5);
+                            t.Cell().Element(CC).Text(con.Label).FontSize(8.5f).Bold().FontFamily("Courier New");
+                            var typeText = t.Cell().Element(CC).Text(con.ContainerType).FontSize(8)
+                                .FontColor(con.IsRetest ? "#92400e" : "#374151");
+                            if (con.IsRetest) typeText.Bold();
+                            t.Cell().Element(CC).Text(con.Status).FontSize(8).FontColor("#6b7280");
+                            var oosFlag = con.IsRetest && con.OosOpen ? "⚠ OOS Retest" : con.IsRetest ? "Retest (Closed)" : "—";
+                            var oosFlagText = t.Cell().Element(CC).Text(oosFlag).FontSize(8)
+                                .FontColor(con.IsRetest && con.OosOpen ? "#92400e" : "#6b7280");
+                            if (con.IsRetest && con.OosOpen) oosFlagText.Bold();
+                        }
+                    });
+                }
 
                 // Logbook entry nodes
                 if (_d.LogbookNodes.Any())

@@ -263,6 +263,13 @@ public class TraceabilityController : LimsControllerBase
             )).ToList();
         }
 
+        // ── Containers ────────────────────────────────────────────────────────
+        var containers = await _db.SampleContainers
+            .Include(c => c.LinkedOosInvestigation)
+            .Where(c => c.SampleId == sampleId)
+            .OrderBy(c => c.SampleContainerId)
+            .ToListAsync(ct);
+
         // ── Build PDF data ────────────────────────────────────────────────────
         var data = new TraceabilityPdfDocument.TraceabilityPdfData(
             Sample: new TraceabilityPdfDocument.SampleInfo(
@@ -273,6 +280,13 @@ public class TraceabilityController : LimsControllerBase
                 sample.Status.ToString(),
                 sample.Analyst?.FullName ?? "—",
                 sample.CreatedAt),
+            Containers: containers.Select(c => new TraceabilityPdfDocument.ContainerRow(
+                c.ContainerLabel,
+                c.ContainerType.ToString(),
+                c.Status.ToString(),
+                c.ContainerType == ContainerType.Retest,
+                c.LinkedOosInvestigation?.Status == OosStatus.Open
+            )).ToList(),
             UpstreamNodes: graph?.UpstreamNodes.Select(n =>
                 new TraceabilityPdfDocument.GraphNodeRow(n.NodeType, n.NodeId, n.Label, n.Detail ?? "")).ToList()
                 ?? new(),
