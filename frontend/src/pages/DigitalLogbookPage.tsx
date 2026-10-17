@@ -294,14 +294,16 @@ export default function DigitalLogbookPage() {
               const c = TRIGGER_COLORS[r.triggerSource] ?? { bg: '#f3f4f6', color: '#374151' }
               return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: c.bg, color: c.color }}>{r.triggerSource}</span>
             }},
-            { header: 'Cal Value', accessor: r => (
-              <div>
-                <span style={{ fontFamily: 'monospace' }}>
-                  {r.calculatedResult !== null ? r.calculatedResult : r.rawValue}
-                </span>
-                {r.autoCorectionApplied && <span style={{ marginLeft: 4, fontSize: 10, background: '#fef9c3', color: '#854d0e', padding: '1px 4px', borderRadius: 4 }}>CORRECTED</span>}
-              </div>
-            )},
+            { header: 'Cal Value', accessor: r => {
+              const raw = r.calculatedResult !== null ? r.calculatedResult : parseFloat(r.rawValue)
+              const display = isNaN(raw) ? r.rawValue : parseFloat(raw.toFixed(10)).toString()
+              return (
+                <div>
+                  <span style={{ fontFamily: 'monospace' }}>{display}</span>
+                  {r.autoCorectionApplied && <span style={{ marginLeft: 4, fontSize: 10, background: '#fef9c3', color: '#854d0e', padding: '1px 4px', borderRadius: 4 }}>CORRECTED</span>}
+                </div>
+              )
+            }},
             { header: 'Spec (Min–Max)', accessor: r => r.specMinSnapshot !== null || r.specMaxSnapshot !== null
               ? `${r.specMinSnapshot ?? '—'} – ${r.specMaxSnapshot ?? '—'}` : '—' },
             { header: 'Result', accessor: r => (
