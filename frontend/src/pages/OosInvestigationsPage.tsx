@@ -508,20 +508,6 @@ export default function OosInvestigationsPage() {
                 onChange={e => setEscalateForm(f => ({ ...f, escalationReason: e.target.value }))}
                 required placeholder="Describe why Phase 1 investigation is insufficient and Phase 2 escalation is required…" />
             </Field>
-            <Field label="CAPA Reference">
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input style={{ ...inp, flex: 1 }} value={escalateForm.capaRef}
-                  onChange={e => setEscalateForm(f => ({ ...f, capaRef: e.target.value }))}
-                  placeholder="e.g. CAPA-2026-007" />
-                <select style={{ ...inp, width: 130 }} value={escalateForm.capaStatus}
-                  onChange={e => setEscalateForm(f => ({ ...f, capaStatus: e.target.value }))}>
-                  <option value="Open">Open</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Closed">Closed</option>
-                  <option value="N/A">N/A</option>
-                </select>
-              </div>
-            </Field>
             <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginTop: 16, marginBottom: 4 }}>E-Signature (21 CFR §11.300)</p>
             <Field label="Password (re-enter)">
               <input style={inp} type="password" autoFocus value={escalateForm.password}
@@ -781,20 +767,6 @@ export default function OosInvestigationsPage() {
               </div>
             </Field>
 
-            <Field label="CAPA Reference">
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input style={{ ...inp, flex: 1 }} value={closeForm.capaRef}
-                  onChange={e => setCloseForm(f => ({ ...f, capaRef: e.target.value }))}
-                  placeholder="e.g. CAPA-2026-005" />
-                <select style={{ ...inp, width: 130 }} value={closeForm.capaStatus}
-                  onChange={e => setCloseForm(f => ({ ...f, capaStatus: e.target.value }))}>
-                  <option value="Open">Open</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Closed">Closed</option>
-                  <option value="N/A">N/A</option>
-                </select>
-              </div>
-            </Field>
             <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginTop: 16, marginBottom: 4 }}>E-Signature (21 CFR §11.300)</p>
             <Field label="Password (re-enter)"><input style={inp} type="password" autoFocus value={closeForm.password} onChange={e => setCloseForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={closeForm.meaning} onChange={e => setCloseForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
