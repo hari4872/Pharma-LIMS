@@ -294,12 +294,11 @@ export default function DigitalLogbookPage() {
               const c = TRIGGER_COLORS[r.triggerSource] ?? { bg: '#f3f4f6', color: '#374151' }
               return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, background: c.bg, color: c.color }}>{r.triggerSource}</span>
             }},
-            { header: 'Raw / Calculated', accessor: r => (
+            { header: 'Cal Value', accessor: r => (
               <div>
-                <span style={{ fontFamily: 'monospace' }}>{r.rawValue}</span>
-                {r.calculatedResult !== null && r.calculatedResult.toString() !== r.rawValue && (
-                  <span style={{ marginLeft: 6, fontSize: 12, color: '#2563eb' }}>→ {r.calculatedResult}</span>
-                )}
+                <span style={{ fontFamily: 'monospace' }}>
+                  {r.calculatedResult !== null ? r.calculatedResult : r.rawValue}
+                </span>
                 {r.autoCorectionApplied && <span style={{ marginLeft: 4, fontSize: 10, background: '#fef9c3', color: '#854d0e', padding: '1px 4px', borderRadius: 4 }}>CORRECTED</span>}
               </div>
             )},

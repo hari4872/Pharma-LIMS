@@ -138,11 +138,6 @@ export default function SampleRegistrationPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm]       = useState(false)
   const [showReprint,  setShowReprint]  = useState<number | null>(null)
-  const [showRetest,     setShowRetest]     = useState<Sample | null>(null)
-  const [retestReason,   setRetestReason]   = useState('')
-  const [retestSaving,   setRetestSaving]   = useState(false)
-  const [testedParams,   setTestedParams]   = useState<{ parameterId: number; parameterName: string; uom: string; isOos: boolean; isOot: boolean; lastValue: string }[]>([])
-  const [selectedParams, setSelectedParams] = useState<number[]>([])
   const [showAddTest,   setShowAddTest]   = useState<Sample | null>(null)
   const [adHocParams,   setAdHocParams]   = useState<Parameter[]>([])
   const [adHocParamId,  setAdHocParamId]  = useState('')
@@ -747,22 +742,6 @@ async function submitDestroy(containerId: number) {
     finally { setAdHocSaving(false) }
   }
 
-  async function submitRetest(e: React.FormEvent) {
-    e.preventDefault(); setRetestSaving(true)
-    try {
-      const body = {
-        retestReason,
-        parameterIds: selectedParams.length > 0 ? selectedParams : null,  // null = full retest
-      }
-      const r = await api.post(`/samples/${showRetest!.sampleId}/retest`, body)
-      const msg = selectedParams.length > 0
-        ? `Selective retest — ${r.data.sampleNumber} (${selectedParams.length} parameter(s))`
-        : `Full retest registered — ${r.data.sampleNumber}`
-      toast(msg, 'success')
-      setShowRetest(null); setRetestReason(''); setSelectedParams([]); setTestedParams([]); load()
-    } catch (err) { toast(getErrorMessage(err, 'Retest failed'), 'error') }
-    finally { setRetestSaving(false) }
-  }
 
   async function submitReprint(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
@@ -981,22 +960,6 @@ async function submitDestroy(containerId: number) {
                   📋 Assign Test Plan
                 </button>
               )}
-              {selectedSample.status === 'Rejected' && (
-                <button
-                  onClick={async () => {
-                    setShowRetest(selectedSample); setRetestReason(''); setTestedParams([]); setSelectedParams([])
-                    setSelectedSample(null)
-                    try {
-                      const res = await api.get(`/samples/${selectedSample.sampleId}/tested-parameters`)
-                      setTestedParams(res.data)
-                      setSelectedParams(res.data.filter((p: { isOos: boolean; parameterId: number }) => p.isOos).map((p: { isOos: boolean; parameterId: number }) => p.parameterId))
-                    } catch { setTestedParams([]) }
-                  }}
-                  style={{ padding: '9px 14px', background: '#c2410c', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 13, cursor: 'pointer', width: '100%' }}
-                >
-                  🔁 Retest
-                </button>
-              )}
             </div>
           </DetailPane>
         ) : null}
@@ -1032,27 +995,13 @@ async function submitDestroy(containerId: number) {
           }
         },
         { header: 'Due', accessor: r => r.dueDate ? fmtDate(r.dueDate) : '—' },
-        { header: 'Registered By', accessor: 'analystName' },
+        { header: 'Raised By', accessor: 'analystName' },
         {
           header: 'Actions', accessor: r => (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 130 }}>
 
               {/* ── Primary actions: visible only when action is required ── */}
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {r.status === 'Rejected' && (
-                  <button onClick={async () => {
-                    setShowRetest(r); setRetestReason(''); setTestedParams([]); setSelectedParams([])
-                    try {
-                      const res = await api.get(`/samples/${r.sampleId}/tested-parameters`)
-                      setTestedParams(res.data)
-                      setSelectedParams(res.data.filter((p: { isOos: boolean; parameterId: number }) => p.isOos).map((p: { isOos: boolean; parameterId: number }) => p.parameterId))
-                    } catch { setTestedParams([]) }
-                  }}
-                    style={{ padding: '4px 10px', background: '#c2410c', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                    🔁 Retest
-                  </button>
-                )}
-              </div>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}></div>
 
               {/* ── ⋯ More dropdown ── */}
               <div style={{ position: 'relative' }}>
@@ -1334,82 +1283,6 @@ async function submitDestroy(containerId: number) {
         </Drawer>
       )}
 
-      {/* ── Retest Drawer ───────────────────────────────────────────────── */}
-      {showRetest && (
-        <Drawer title={`Request Retest — ${showRetest.sampleNumber}`} subtitle="FDA OOS Guidance 2006 §IV — OOS parameters pre-selected." onClose={() => setShowRetest(null)}>
-          <form onSubmit={submitRetest}>
-
-            {/* Parameter selection */}
-            {testedParams.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-                  Select Parameters to Retest
-                  <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 400, color: '#9ca3af' }}>
-                    ({selectedParams.length} selected — uncheck to skip)
-                  </span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {testedParams.map(p => (
-                    <label key={p.parameterId} style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '8px 12px', borderRadius: 7, cursor: 'pointer',
-                      border: `1.5px solid ${p.isOos ? '#fca5a5' : p.isOot ? '#fde68a' : '#e5e7eb'}`,
-                      background: p.isOos ? '#fff1f2' : p.isOot ? '#fffbeb' : '#fafafa',
-                    }}>
-                      <input type="checkbox"
-                        checked={selectedParams.includes(p.parameterId)}
-                        onChange={e => setSelectedParams(prev =>
-                          e.target.checked ? [...prev, p.parameterId] : prev.filter(id => id !== p.parameterId)
-                        )}
-                        style={{ accentColor: '#c2410c', width: 15, height: 15 }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{p.parameterName}</span>
-                        {p.uom && <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 6 }}>({p.uom})</span>}
-                        <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 8 }}>Last: {p.lastValue}</span>
-                      </div>
-                      {p.isOos && <span style={{ fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#991b1b', padding: '2px 6px', borderRadius: 4 }}>OOS</span>}
-                      {p.isOot && !p.isOos && <span style={{ fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: 4 }}>OOT</span>}
-                      {!p.isOos && !p.isOot && <span style={{ fontSize: 10, color: '#16a34a', fontWeight: 700 }}>✓ PASS</span>}
-                    </label>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <button type="button" onClick={() => setSelectedParams(testedParams.map(p => p.parameterId))}
-                    style={{ fontSize: 11, color: '#0d9488', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    Select all
-                  </button>
-                  <span style={{ color: '#d1d5db' }}>|</span>
-                  <button type="button" onClick={() => setSelectedParams(testedParams.filter(p => p.isOos).map(p => p.parameterId))}
-                    style={{ fontSize: 11, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    OOS only
-                  </button>
-                  <span style={{ color: '#d1d5db' }}>|</span>
-                  <button type="button" onClick={() => setSelectedParams([])}
-                    style={{ fontSize: 11, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    Clear all (full retest via spec engine)
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-              Retest Reason *
-            </label>
-            <textarea rows={3} required value={retestReason} onChange={e => setRetestReason(e.target.value)}
-              placeholder="e.g. OOS result on Assay — retesting per SOP-LAB-012"
-              style={{ width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 8, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }}
-            />
-
-            <DrawerFooter
-              saving={retestSaving}
-              onCancel={() => setShowRetest(null)}
-              label={selectedParams.length > 0 ? `Retest ${selectedParams.length} Parameter(s)` : 'Full Retest'}
-              disabled={!retestReason.trim()}
-            />
-          </form>
-        </Drawer>
-      )}
 
       {/* ── Barcode Reprint ───────────────────────────────────────────────── */}
       {showReprint && (
