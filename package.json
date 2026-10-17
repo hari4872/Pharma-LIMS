@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "docx": "^9.10.0",
     "pdfkit": "^0.18.0",
     "pptxgenjs": "^4.0.1"
   }

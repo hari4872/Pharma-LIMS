@@ -175,15 +175,15 @@ export default function SettingsPage() {
         background: '#fff',
         border: `1.5px solid ${group.color}`,
         borderRadius: '0 10px 10px 10px',
-        overflow: 'hidden',
       }}>
 
         {/* Sub-tab strip */}
         <div style={{
-          display: 'flex', gap: 2, flexWrap: 'wrap',
+          display: 'flex', gap: 2, flexWrap: 'nowrap', overflowX: 'auto',
           padding: '10px 14px 0',
           background: group.bg,
           borderBottom: '1px solid #e2e8f0',
+          borderRadius: '0 10px 0 0',
         }}>
           {group.subtabs.map(s => (
             <button
