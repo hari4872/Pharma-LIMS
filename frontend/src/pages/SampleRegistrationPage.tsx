@@ -2107,15 +2107,6 @@ export default function SampleRegistrationPage() {
                               style={{ padding: '2px 8px', background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', borderRadius: 4, cursor: 'pointer', fontSize: 11, alignSelf: 'flex-start' }}>
                               🖨 Barcode
                             </button>
-                            {c.status !== 'Destroyed' && c.containerType !== 'Retest' && (
-                              <button
-                                onClick={() => markAsRetest(c.sampleContainerId)}
-                                disabled={markingRetestId === c.sampleContainerId}
-                                title="Re-designate this container for OOS retest"
-                                style={{ padding: '2px 8px', background: '#fff7ed', color: '#92400e', border: '1px solid #fed7aa', borderRadius: 4, cursor: 'pointer', fontSize: 11, alignSelf: 'flex-start', fontWeight: 600 }}>
-                                {markingRetestId === c.sampleContainerId ? '…' : '⚠ Retest'}
-                              </button>
-                            )}
                             {c.status !== 'Destroyed' && (
                               <button onClick={() => { setDestroyingId(c.sampleContainerId); setDestroyForm({ password: '', reason: '' }); setDestroyError('') }}
                                 style={{ padding: '2px 8px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: 4, cursor: 'pointer', fontSize: 11, alignSelf: 'flex-start' }}>
