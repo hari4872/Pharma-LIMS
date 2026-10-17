@@ -38,6 +38,7 @@ interface SampleContainer {
   sampleContainerId: number; containerLabel: string; containerType: string
   volume: number | null; volumeUom: string | null; status: string
   createdBy: string; createdAt: string; destroyedAt: string | null
+  linkedOosInvestigationId: number | null; oosStatus: string | null
 }
 
 // Phase A — spec match preview
@@ -211,6 +212,7 @@ export default function SampleRegistrationPage() {
   const [containersLoading, setContainersLoading] = useState(false)
   const [splitForm, setSplitForm]             = useState({ count: '3', containerType: 'Aliquot', volumePerContainer: '', volumeUom: '' })
   const [splitSaving, setSplitSaving]         = useState(false)
+  const [markingRetestId, setMarkingRetestId] = useState<number | null>(null)
   const [destroyingId, setDestroyingId]       = useState<number | null>(null)
   const [destroyForm, setDestroyForm]         = useState({ password: '', reason: '' })
   const [destroyError, setDestroyError]       = useState('')
@@ -246,6 +248,16 @@ export default function SampleRegistrationPage() {
       loadContainers(containerSample!.sampleId)
     } catch (err) { toast(getErrorMessage(err, 'Split failed'), 'error') }
     finally { setSplitSaving(false) }
+  }
+
+  async function markAsRetest(containerId: number) {
+    setMarkingRetestId(containerId)
+    try {
+      await api.put(`/samples/${containerSample!.sampleId}/containers/${containerId}/mark-retest`)
+      toast('Container marked as Retest — linked to open OOS investigation', 'success')
+      loadContainers(containerSample!.sampleId)
+    } catch (err) { toast(getErrorMessage(err, 'Mark as Retest failed'), 'error') }
+    finally { setMarkingRetestId(null) }
   }
 
   async function submitDestroy(containerId: number) {
@@ -2027,7 +2039,7 @@ export default function SampleRegistrationPage() {
               </Field>
               <Field label="Container Type">
                 <select style={inp} value={splitForm.containerType} onChange={e => setSplitForm(f => ({ ...f, containerType: e.target.value }))}>
-                  {['Aliquot','Primary','RetainSample','Stability','QC','Retest'].map(t => <option key={t}>{t}</option>)}
+                  {['Aliquot','Primary','RetainSample','Stability','QC'].map(t => <option key={t}>{t}</option>)}
                 </select>
               </Field>
               <Field label="Volume (opt)">
@@ -2039,17 +2051,7 @@ export default function SampleRegistrationPage() {
                   onChange={e => setSplitForm(f => ({ ...f, volumeUom: e.target.value }))} placeholder="mL, g…" />
               </Field>
             </div>
-            {splitForm.containerType === 'Retest' && (
-              <div style={{ margin: '8px 0', padding: '8px 12px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                <span style={{ fontSize: 14 }}>⚠️</span>
-                <span style={{ fontSize: 12, color: '#92400e', lineHeight: 1.4 }}>
-                  <strong>OOS Retest container</strong> — this will be linked to the sample's open OOS investigation.
-                  The container will appear in the Work Queue with a Retest indicator.
-                  The indicator disappears once the OOS investigation is closed.
-                </span>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+<div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
               <button type="submit" disabled={splitSaving}
                 style={{ padding: '7px 18px', background: splitSaving ? '#9ca3af' : '#6d28d9', color: '#fff', border: 'none', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: splitSaving ? 'not-allowed' : 'pointer' }}>
                 {splitSaving ? 'Splitting…' : 'Split into Containers'}
@@ -2088,7 +2090,12 @@ export default function SampleRegistrationPage() {
                     <>
                       <tr key={c.sampleContainerId} style={{ borderBottom: '1px solid #f3f4f6' }}>
                         <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 600 }}>{c.containerLabel}</td>
-                        <td style={{ padding: '7px 10px', color: '#374151' }}>{c.containerType}</td>
+                        <td style={{ padding: '7px 10px', color: '#374151' }}>
+                          {c.containerType}
+                          {c.containerType === 'Retest' && c.oosStatus === 'Open' && (
+                            <span style={{ marginLeft: 6, fontSize: 10, background: '#fff7ed', color: '#92400e', border: '1px solid #fed7aa', padding: '1px 5px', borderRadius: 6, fontWeight: 700 }}>⚠ OOS</span>
+                          )}
+                        </td>
                         <td style={{ padding: '7px 10px', color: '#374151' }}>{c.volume != null ? `${c.volume} ${c.volumeUom ?? ''}` : '—'}</td>
                         <td style={{ padding: '7px 10px' }}>
                           <span style={{ padding: '2px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: sc.bg, color: sc.color }}>{fmtLabel(c.status)}</span>
@@ -2100,6 +2107,15 @@ export default function SampleRegistrationPage() {
                               style={{ padding: '2px 8px', background: '#eff6ff', color: '#1e40af', border: '1px solid #bfdbfe', borderRadius: 4, cursor: 'pointer', fontSize: 11, alignSelf: 'flex-start' }}>
                               🖨 Barcode
                             </button>
+                            {c.status !== 'Destroyed' && c.containerType !== 'Retest' && (
+                              <button
+                                onClick={() => markAsRetest(c.sampleContainerId)}
+                                disabled={markingRetestId === c.sampleContainerId}
+                                title="Re-designate this container for OOS retest"
+                                style={{ padding: '2px 8px', background: '#fff7ed', color: '#92400e', border: '1px solid #fed7aa', borderRadius: 4, cursor: 'pointer', fontSize: 11, alignSelf: 'flex-start', fontWeight: 600 }}>
+                                {markingRetestId === c.sampleContainerId ? '…' : '⚠ Retest'}
+                              </button>
+                            )}
                             {c.status !== 'Destroyed' && (
                               <button onClick={() => { setDestroyingId(c.sampleContainerId); setDestroyForm({ password: '', reason: '' }); setDestroyError('') }}
                                 style={{ padding: '2px 8px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca', borderRadius: 4, cursor: 'pointer', fontSize: 11, alignSelf: 'flex-start' }}>

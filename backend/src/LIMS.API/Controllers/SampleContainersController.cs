@@ -72,6 +72,34 @@ public class SampleContainersController : LimsControllerBase
         return Ok(new { containerIds = result.Value, count = result.Value!.Count });
     }
 
+    // PUT api/v1/samples/{sampleId}/containers/{id}/mark-retest
+    // Re-designates an existing container as Retest and links it to the open OOS investigation
+    [HttpPut("{id:int}/mark-retest")]
+    [Authorize(Roles = "Admin,QA,LabManager,Analyst")]
+    public async Task<IActionResult> MarkAsRetest(int sampleId, int id, CancellationToken ct)
+    {
+        var container = await _db.SampleContainers
+            .FirstOrDefaultAsync(c => c.SampleContainerId == id && c.SampleId == sampleId, ct);
+        if (container is null) return NotFound(new { error = "NOT_FOUND" });
+        if (container.Status == ContainerStatus.Destroyed)
+            return BadRequest(new { error = "CONTAINER_DESTROYED", message = "Cannot mark a destroyed container as Retest." });
+
+        var openOos = await _db.OosInvestigations
+            .Where(o => o.Execution.SampleId == sampleId && o.Status == OosStatus.Open)
+            .OrderByDescending(o => o.InvestigationId)
+            .FirstOrDefaultAsync(ct);
+
+        container.ContainerType = ContainerType.Retest;
+        container.LinkedOosInvestigationId = openOos?.InvestigationId;
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new {
+            containerId = id,
+            containerType = "Retest",
+            linkedOosInvestigationId = openOos?.InvestigationId
+        });
+    }
+
     // POST api/v1/samples/{sampleId}/containers/{id}/destroy — e-sig required
     [HttpPost("{id:int}/destroy")]
     [Authorize(Roles = "Admin,QA,LabManager")]
