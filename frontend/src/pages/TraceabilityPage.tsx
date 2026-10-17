@@ -1016,45 +1016,6 @@ export default function TraceabilityPage() {
                           ? <div style={{ textAlign: 'center', padding: 32, color: '#9ca3af', fontSize: 13 }}>⏳ Loading OOS investigations…</div>
                           : <OosChain items={oosChain} />
                       )}
-                      {activeView === 'env' && (
-                        <div>
-                          {envLog?.windowStart && (
-                            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12, padding: '8px 12px', background: '#f0f9ff', borderRadius: 6, border: '1px solid #bae6fd' }}>
-                              🕐 Test window: <strong>{new Date(envLog.windowStart).toLocaleString()}</strong> → <strong>{new Date(envLog.windowEnd!).toLocaleString()}</strong>
-                              <span style={{ marginLeft: 8, fontSize: 11, color: '#9ca3af' }}>(±1hr buffer included)</span>
-                            </div>
-                          )}
-                          {!envLog?.rows?.length ? (
-                            <div style={{ textAlign: 'center', padding: 32, color: '#9ca3af', fontSize: 13 }}>
-                              No environment log entries found for this sample's test window.<br />
-                              <span style={{ fontSize: 12 }}>ProcessLog checkpoints must be signed during testing for entries to appear here.</span>
-                            </div>
-                          ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                              {envLog.rows.map(row => (
-                                <div key={row.rowId} style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
-                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{row.slotLabel}</span>
-                                    <span style={{ fontSize: 11, color: '#6b7280' }}>{new Date(row.slotTime).toLocaleString()}</span>
-                                    <span style={{ fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#92400e', padding: '1px 6px', borderRadius: 4, marginLeft: 'auto' }}>
-                                      {row.checkpointCode}
-                                    </span>
-                                  </div>
-                                  <div style={{ padding: '8px 14px', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                                    {row.readings.map((rd, i) => (
-                                      <div key={i} style={{ fontSize: 12 }}>
-                                        <span style={{ color: '#6b7280' }}>{rd.parameterName}: </span>
-                                        <strong style={{ color: '#0f172a' }}>{rd.value} {rd.uom}</strong>
-                                      </div>
-                                    ))}
-                                    {row.readings.length === 0 && <span style={{ fontSize: 12, color: '#9ca3af' }}>No readings recorded</span>}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
