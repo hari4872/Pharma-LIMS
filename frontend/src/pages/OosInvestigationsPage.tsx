@@ -75,10 +75,9 @@ export default function OosInvestigationsPage() {
 
   // Retest modal state
   const [showRetest, setShowRetest] = useState<OosItem | null>(null)
-  const [retestForm, setRetestForm] = useState({ notes: '', containerId: '' })
+  const [retestForm, setRetestForm] = useState({ notes: '' })
   const [retestSaving, setRetestSaving] = useState(false)
   const [retestError, setRetestError] = useState('')
-  const [retestContainers, setRetestContainers] = useState<{ sampleContainerId: number; containerLabel: string; containerType: string }[]>([])
 
 
   // Authorize Rework drawer (Phase 2 GenuineOOS path)
@@ -216,11 +215,8 @@ export default function OosInvestigationsPage() {
     e.preventDefault(); setRetestSaving(true); setRetestError('')
     try {
       await api.post(`/oos-investigations/${showRetest!.investigationId}/create-retest`, { notes: retestForm.notes || null })
-      if (retestForm.containerId) {
-        await api.put(`/samples/${showRetest!.sampleId}/containers/${retestForm.containerId}/mark-retest`)
-      }
       setShowRetest(null)
-      setRetestForm({ notes: '', containerId: '' })
+      setRetestForm({ notes: '' })
       await load()
       toast(`Retest task created for ${showRetest!.sampleNumber}`, 'success')
     } catch (err) { setRetestError(getErrorMessage(err, 'Failed to create retest')) }
@@ -361,13 +357,7 @@ export default function OosInvestigationsPage() {
             )}
             {r.status === 'Open' && !r.retestExecutionId && (
               <button
-                onClick={async () => {
-                  setShowRetest(r); setRetestForm({ notes: '', containerId: '' }); setRetestError('')
-                  try {
-                    const res = await api.get(`/samples/${r.sampleId}/containers?status=Available`)
-                    setRetestContainers(res.data.filter((c: any) => c.containerType !== 'Retest'))
-                  } catch { setRetestContainers([]) }
-                }}
+                onClick={() => { setShowRetest(r); setRetestForm({ notes: '' }); setRetestError('') }}
                 title="Create Retest Task — same analyst, same parameter"
                 style={{
                   background: '#ede9fe', border: '1px solid #c4b5fd',
@@ -556,7 +546,7 @@ export default function OosInvestigationsPage() {
       )}
 
       {showRetest && (
-        <Drawer title={`Create Retest Task — ${showRetest.sampleNumber}`} onClose={() => { setShowRetest(null); setRetestContainers([]) }} blocking width={460}>
+        <Drawer title={`Create Retest Task — ${showRetest.sampleNumber}`} onClose={() => setShowRetest(null)} blocking width={460}>
           <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
             <p style={{ margin: 0, fontSize: 13, color: '#1e40af', fontWeight: 600 }}>Same analyst will be pre-assigned to the retest.</p>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#1e3a8a' }}>
@@ -564,17 +554,6 @@ export default function OosInvestigationsPage() {
             </p>
           </div>
           <form onSubmit={submitRetest}>
-            <Field label="Container for Retest">
-              <select style={inp} value={retestForm.containerId} onChange={e => setRetestForm(f => ({ ...f, containerId: e.target.value }))}>
-                <option value="">— Select available container (optional) —</option>
-                {retestContainers.map(c => (
-                  <option key={c.sampleContainerId} value={c.sampleContainerId}>
-                    {c.containerLabel} ({c.containerType})
-                  </option>
-                ))}
-              </select>
-              {retestContainers.length === 0 && <p style={{ fontSize: 11, color: '#9ca3af', margin: '4px 0 0' }}>No available containers — split the sample first if needed.</p>}
-            </Field>
             <Field label="Notes (optional)">
               <textarea style={{ ...inp, height: 72, resize: 'vertical' }}
                 value={retestForm.notes}
