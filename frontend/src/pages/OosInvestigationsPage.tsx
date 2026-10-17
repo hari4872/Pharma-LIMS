@@ -320,9 +320,6 @@ export default function OosInvestigationsPage() {
             )}
           </div>
         )},
-        { header: 'Root Cause', accessor: r => r.rootCause
-            ? <span title={r.rootCause} style={{ fontSize: 12, display: 'block', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.rootCause}</span>
-            : <span style={{ color: '#9ca3af', fontSize: 12 }}>Pending investigation</span> },
         { header: 'CAPA Ref', accessor: r => r.capaRef ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 600 }}>{r.capaRef}</span>
