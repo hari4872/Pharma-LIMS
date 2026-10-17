@@ -974,7 +974,7 @@ export default function TraceabilityPage() {
                 {graph && (
                   <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }}>
                     <div style={{ ...cardHeaderBase, borderLeft: '4px solid #2563eb',
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>
                           Sample Lineage — {resolved.sampleNumber}
@@ -984,8 +984,8 @@ export default function TraceabilityPage() {
                         </div>
                       </div>
                       {/* View toggle + PDF export */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 7, padding: 3, gap: 2 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 7, padding: 3, gap: 2, flexWrap: 'wrap' }}>
                           {(['coc', 'graph', 'env', 'oos'] as const).map(v => (
                             <button key={v} onClick={() => setActiveView(v)}
                               style={{ padding: '5px 14px', borderRadius: 5, border: 'none',
