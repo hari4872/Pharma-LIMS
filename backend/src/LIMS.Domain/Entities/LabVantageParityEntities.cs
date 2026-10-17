@@ -67,4 +67,8 @@ public class SampleContainer
     public ElectronicSignature? DestructionSignature { get; set; }
 
     public ICollection<SampleContainer> ChildContainers { get; set; } = [];
+
+    /// <summary>Set when ContainerType == Retest; links back to the OOS investigation this retest resolves.</summary>
+    public int? LinkedOosInvestigationId { get; set; }
+    public OosInvestigation? LinkedOosInvestigation { get; set; }
 }

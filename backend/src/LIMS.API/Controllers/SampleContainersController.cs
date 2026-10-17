@@ -33,6 +33,7 @@ public class SampleContainersController : LimsControllerBase
             query = query.Where(c => c.Status == statusEnum);
 
         var containers = await query
+            .Include(c => c.LinkedOosInvestigation)
             .OrderBy(c => c.CreatedAt)
             .Select(c => new {
                 c.SampleContainerId, c.SampleId,
@@ -42,7 +43,9 @@ public class SampleContainersController : LimsControllerBase
                 c.StorageLocationId,
                 Status          = c.Status.ToString(),
                 c.CreatedBy, c.CreatedAt,
-                c.DestroyedAt, c.DestroyedBy
+                c.DestroyedAt, c.DestroyedBy,
+                c.LinkedOosInvestigationId,
+                OosStatus = c.LinkedOosInvestigation != null ? c.LinkedOosInvestigation.Status.ToString() : null
             })
             .ToListAsync();
 

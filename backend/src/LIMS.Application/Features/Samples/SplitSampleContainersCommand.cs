@@ -37,9 +37,13 @@ public class SplitSampleContainersHandler : IRequestHandler<SplitSampleContainer
         if (sample is null)
             return Result<List<int>>.Failure("NOT_FOUND", "Sample not found.");
 
-        if (sample.Status != SampleStatus.Registered && sample.Status != SampleStatus.PendingTesting)
+        var allowedStatuses = cmd.ContainerType == ContainerType.Retest
+            ? new[] { SampleStatus.Registered, SampleStatus.PendingTesting, SampleStatus.InTesting }
+            : new[] { SampleStatus.Registered, SampleStatus.PendingTesting };
+
+        if (!allowedStatuses.Contains(sample.Status))
             return Result<List<int>>.Failure("INVALID_STATE",
-                $"Cannot split containers on a sample with status '{sample.Status}'. Must be Registered or PendingTesting.");
+                $"Cannot split containers on a sample with status '{sample.Status}'.");
 
         if (cmd.ContainerType == ContainerType.QC)
         {
@@ -60,6 +64,18 @@ public class SplitSampleContainersHandler : IRequestHandler<SplitSampleContainer
                 return Result<List<int>>.Failure("NOT_FOUND", "Storage location not found or inactive.");
         }
 
+        // For Retest containers, find the most recent open OOS investigation on this sample
+        int? linkedOosId = null;
+        if (cmd.ContainerType == ContainerType.Retest)
+        {
+            var openOos = await _db.OosInvestigations
+                .Where(o => o.Execution.SampleId == cmd.SampleId
+                         && o.Status == OosStatus.Open)
+                .OrderByDescending(o => o.InvestigationId)
+                .FirstOrDefaultAsync(ct);
+            linkedOosId = openOos?.InvestigationId;
+        }
+
         var containers = new List<SampleContainer>();
         var now = DateTimeOffset.UtcNow;
 
@@ -67,15 +83,16 @@ public class SplitSampleContainersHandler : IRequestHandler<SplitSampleContainer
         {
             var container = new SampleContainer
             {
-                SampleId          = cmd.SampleId,
-                ContainerLabel    = $"{sample.SampleNumber}-{cmd.ContainerType.ToString().ToUpper()[0]}{i:D3}",
-                ContainerType     = cmd.ContainerType,
-                Volume            = cmd.VolumePerContainer,
-                VolumeUom         = cmd.VolumeUom,
-                StorageLocationId = cmd.StorageLocationId,
-                Status            = ContainerStatus.Available,
-                CreatedBy         = cmd.CreatedBy,
-                CreatedAt         = now
+                SampleId                  = cmd.SampleId,
+                ContainerLabel            = $"{sample.SampleNumber}-{cmd.ContainerType.ToString().ToUpper()[0]}{i:D3}",
+                ContainerType             = cmd.ContainerType,
+                Volume                    = cmd.VolumePerContainer,
+                VolumeUom                 = cmd.VolumeUom,
+                StorageLocationId         = cmd.StorageLocationId,
+                Status                    = ContainerStatus.Available,
+                CreatedBy                 = cmd.CreatedBy,
+                CreatedAt                 = now,
+                LinkedOosInvestigationId  = linkedOosId
             };
             _db.SampleContainers.Add(container);
             containers.Add(container);

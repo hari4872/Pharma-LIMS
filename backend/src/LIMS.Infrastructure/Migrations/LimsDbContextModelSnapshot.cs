@@ -2348,6 +2348,9 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<int?>("DestructionSignatureId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("LinkedOosInvestigationId")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("ParentSampleContainerId")
                         .HasColumnType("integer");
 
@@ -2370,6 +2373,8 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasKey("SampleContainerId");
 
                     b.HasIndex("DestructionSignatureId");
+
+                    b.HasIndex("LinkedOosInvestigationId");
 
                     b.HasIndex("ParentSampleContainerId");
 
@@ -4757,6 +4762,10 @@ namespace LIMS.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("DestructionSignatureId");
 
+                    b.HasOne("LIMS.Domain.Entities.OosInvestigation", "LinkedOosInvestigation")
+                        .WithMany()
+                        .HasForeignKey("LinkedOosInvestigationId");
+
                     b.HasOne("LIMS.Domain.Entities.SampleContainer", "ParentContainer")
                         .WithMany("ChildContainers")
                         .HasForeignKey("ParentSampleContainerId")
@@ -4773,6 +4782,8 @@ namespace LIMS.Infrastructure.Migrations
                         .HasForeignKey("StorageLocationId");
 
                     b.Navigation("DestructionSignature");
+
+                    b.Navigation("LinkedOosInvestigation");
 
                     b.Navigation("ParentContainer");
 

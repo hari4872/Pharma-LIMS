@@ -79,7 +79,7 @@ public enum TrendFlag { Stable, WatchNeeded, ActionRequired }
 public enum LoginOutcome { Success, InvalidPassword, UserNotFound, AccountLocked, AccountInactive }
 
 // LabVantage Parity — Sample Containers / Aliquots
-public enum ContainerType { Primary, Aliquot, RetainSample, Stability, QC }
+public enum ContainerType { Primary, Aliquot, RetainSample, Stability, QC, Retest }
 public enum ContainerStatus { Available, InUse, Consumed, Destroyed }
 
 // OOS Retest

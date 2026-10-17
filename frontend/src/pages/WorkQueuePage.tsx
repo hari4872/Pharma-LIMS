@@ -831,6 +831,7 @@ export default function WorkQueuePage() {
                     <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f' }}>{r.containerLabel}</span>
                     <span style={{ marginLeft: 8, fontSize: 12, color: '#6b7280' }}>{r.containerType}</span>
                     {scanContainerIds?.has(r.containerId) && <span style={{ marginLeft: 6, fontSize: 11, background: '#fef9c3', color: '#854d0e', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>● MATCHED</span>}
+                    {r.containerType === 'Retest' && r.executions.some(e => e.status !== 'Completed' && e.status !== 'QCVerified' && e.status !== 'PeerReviewed') && <span style={{ marginLeft: 6, fontSize: 11, background: '#fff7ed', color: '#92400e', padding: '1px 6px', borderRadius: 8, fontWeight: 700, border: '1px solid #fed7aa' }}>⚠ OOS Retest</span>}
                     {r.executions.some(e => e.taskType === 'Retest' && e.status !== 'Completed' && e.status !== 'QCVerified') && <span style={{ marginLeft: 6, fontSize: 11, background: '#ede9fe', color: '#6d28d9', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>🔁 Retest</span>}
                     {r.executions.some(e => e.taskType === 'Rework' && e.status !== 'Completed' && e.status !== 'QCVerified') && <span style={{ marginLeft: 6, fontSize: 11, background: '#fff7ed', color: '#c2410c', padding: '1px 6px', borderRadius: 8, fontWeight: 700 }}>🔧 Rework</span>}
                   </div>

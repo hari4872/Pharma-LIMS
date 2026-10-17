@@ -2027,7 +2027,7 @@ export default function SampleRegistrationPage() {
               </Field>
               <Field label="Container Type">
                 <select style={inp} value={splitForm.containerType} onChange={e => setSplitForm(f => ({ ...f, containerType: e.target.value }))}>
-                  {['Aliquot','Primary','RetainSample','Stability','QC'].map(t => <option key={t}>{t}</option>)}
+                  {['Aliquot','Primary','RetainSample','Stability','QC','Retest'].map(t => <option key={t}>{t}</option>)}
                 </select>
               </Field>
               <Field label="Volume (opt)">
@@ -2039,6 +2039,16 @@ export default function SampleRegistrationPage() {
                   onChange={e => setSplitForm(f => ({ ...f, volumeUom: e.target.value }))} placeholder="mL, g…" />
               </Field>
             </div>
+            {splitForm.containerType === 'Retest' && (
+              <div style={{ margin: '8px 0', padding: '8px 12px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ fontSize: 14 }}>⚠️</span>
+                <span style={{ fontSize: 12, color: '#92400e', lineHeight: 1.4 }}>
+                  <strong>OOS Retest container</strong> — this will be linked to the sample's open OOS investigation.
+                  The container will appear in the Work Queue with a Retest indicator.
+                  The indicator disappears once the OOS investigation is closed.
+                </span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
               <button type="submit" disabled={splitSaving}
                 style={{ padding: '7px 18px', background: splitSaving ? '#9ca3af' : '#6d28d9', color: '#fff', border: 'none', borderRadius: 5, fontSize: 12, fontWeight: 600, cursor: splitSaving ? 'not-allowed' : 'pointer' }}>
