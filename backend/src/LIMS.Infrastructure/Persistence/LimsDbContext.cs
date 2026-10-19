@@ -99,6 +99,8 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<InstrumentImportLog> InstrumentImportLogs => Set<InstrumentImportLog>();
     // EM Samples
     public DbSet<EmSample> EmSamples => Set<EmSample>();
+    public DbSet<EmSystem> EmSystems => Set<EmSystem>();
+    public DbSet<EmSystemParameter> EmSystemParameters => Set<EmSystemParameter>();
     // LabVantage Parity
     public DbSet<LoginAuditLog> LoginAuditLogs => Set<LoginAuditLog>();
     public DbSet<StabilityTrendPoint> StabilityTrendPoints => Set<StabilityTrendPoint>();

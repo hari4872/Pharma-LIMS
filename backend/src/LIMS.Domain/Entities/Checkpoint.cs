@@ -19,7 +19,9 @@ public class Checkpoint
 
     // Environmental Monitoring extension (EM category)
     public string Category { get; set; } = "Batch";         // "Batch" | "Environmental"
-    public string? SystemName { get; set; }                 // one of the 6 standard EM types
+    public int? EmSystemId { get; set; }                    // FK → EmSystem master (nullable for backward compat)
+    public EmSystem? EmSystem { get; set; }
+    public string? SystemName { get; set; }                 // display name — synced from EmSystem on create
     public string? SystemCode { get; set; }                 // short code for sample ID prefix e.g. WFI, CA, CS
     public string? Location { get; set; }                   // sampling point / zone description
     public string? SamplingPointCode { get; set; }          // structured code for sample ID e.g. POU01, CA-01

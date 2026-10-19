@@ -94,6 +94,9 @@ public interface ILimsDbContext
     DbSet<InstrumentImportLog> InstrumentImportLogs { get; }
     // EM Samples — physical sample lifecycle tracking
     DbSet<EmSample> EmSamples { get; }
+    // EM System Master — system → default parameters with limits
+    DbSet<EmSystem> EmSystems { get; }
+    DbSet<EmSystemParameter> EmSystemParameters { get; }
     // LabVantage Parity
     DbSet<LoginAuditLog> LoginAuditLogs { get; }
     DbSet<StabilityTrendPoint> StabilityTrendPoints { get; }

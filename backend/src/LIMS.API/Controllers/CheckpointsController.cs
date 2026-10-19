@@ -93,7 +93,8 @@ public class CheckpointsController : LimsControllerBase
             request.CheckpointCode, request.LabId, request.TriggerMode,
             request.CheckpointType, request.TimeSlots, request.ShiftIntervalHrs,
             request.FormTemplateId, request.ParameterIds, username, paramLimits,
-            request.Category, request.SystemName, request.SystemCode, request.Location, request.SamplingPointCode, request.LifecycleStatus, request.ScheduledDate));
+            request.Category, request.SystemName, request.SystemCode, request.Location, request.SamplingPointCode, request.LifecycleStatus, request.ScheduledDate,
+            request.EmSystemId));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { checkpointId = result.Value });
     }
@@ -205,7 +206,8 @@ public record CreateCheckpointRequest(string CheckpointCode, int LabId, string T
     string? Location = null,
     string? SamplingPointCode = null,
     string LifecycleStatus = "Draft",
-    DateOnly? ScheduledDate = null);
+    DateOnly? ScheduledDate = null,
+    int? EmSystemId = null);
 public record TriggerCheckpointRequest(string? DeliveryOrder = null, bool IsOfflineSync = false, int? SampleId = null);
 public record ReadingRequest(int ParameterId, string Value);
 public record SignProcessLogRequest(string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null);

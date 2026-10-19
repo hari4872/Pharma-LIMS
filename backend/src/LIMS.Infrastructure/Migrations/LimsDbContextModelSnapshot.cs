@@ -273,6 +273,9 @@ namespace LIMS.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<int?>("EmSystemId")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("FormTemplateId")
                         .HasColumnType("integer");
 
@@ -315,6 +318,8 @@ namespace LIMS.Infrastructure.Migrations
 
                     b.HasIndex("CheckpointCode")
                         .IsUnique();
+
+                    b.HasIndex("EmSystemId");
 
                     b.HasIndex("FormTemplateId");
 
@@ -1104,6 +1109,75 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasIndex("CheckpointId", "SamplingDate", "SlotLabel");
 
                     b.ToTable("em_samples", (string)null);
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.EmSystem", b =>
+                {
+                    b.Property<int>("EmSystemId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("EmSystemId"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SystemCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SystemName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("EmSystemId");
+
+                    b.ToTable("EmSystems");
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.EmSystemParameter", b =>
+                {
+                    b.Property<int>("EmSystemParameterId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("EmSystemParameterId"));
+
+                    b.Property<decimal?>("ActionMax")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("ActionMin")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("AlertMax")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("AlertMin")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("EmSystemId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ParameterId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("EmSystemParameterId");
+
+                    b.HasIndex("EmSystemId");
+
+                    b.HasIndex("ParameterId");
+
+                    b.ToTable("EmSystemParameters");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.ExcursionAffectedSample", b =>
@@ -4069,6 +4143,10 @@ namespace LIMS.Infrastructure.Migrations
 
             modelBuilder.Entity("LIMS.Domain.Entities.Checkpoint", b =>
                 {
+                    b.HasOne("LIMS.Domain.Entities.EmSystem", "EmSystem")
+                        .WithMany()
+                        .HasForeignKey("EmSystemId");
+
                     b.HasOne("LIMS.Domain.Entities.FormTemplate", "FormTemplate")
                         .WithMany()
                         .HasForeignKey("FormTemplateId")
@@ -4079,6 +4157,8 @@ namespace LIMS.Infrastructure.Migrations
                         .HasForeignKey("LabId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("EmSystem");
 
                     b.Navigation("FormTemplate");
 
@@ -4413,6 +4493,25 @@ namespace LIMS.Infrastructure.Migrations
                     b.Navigation("Checkpoint");
 
                     b.Navigation("ProcessLogRow");
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.EmSystemParameter", b =>
+                {
+                    b.HasOne("LIMS.Domain.Entities.EmSystem", "EmSystem")
+                        .WithMany("DefaultParameters")
+                        .HasForeignKey("EmSystemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LIMS.Domain.Entities.TestMethodParameter", "Parameter")
+                        .WithMany()
+                        .HasForeignKey("ParameterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("EmSystem");
+
+                    b.Navigation("Parameter");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.ExcursionAffectedSample", b =>
@@ -5478,6 +5577,11 @@ namespace LIMS.Infrastructure.Migrations
             modelBuilder.Entity("LIMS.Domain.Entities.DigitalLogbookEntry", b =>
                 {
                     b.Navigation("Evidences");
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.EmSystem", b =>
+                {
+                    b.Navigation("DefaultParameters");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.FormTemplate", b =>

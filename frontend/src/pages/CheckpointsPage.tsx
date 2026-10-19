@@ -45,11 +45,24 @@ interface Lab        { labId: number; labName: string }
 interface Param      { parameterId: number; parameterName: string; parameterCode: string; uom: string }
 interface TestMethod { methodId: number; methodCode: string; methodName: string; status: string }
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-const EM_SYSTEM_TYPES = [
-  'Cleanroom Air', 'Settle Plates', 'Surface Monitoring',
-  'Non-viable Particle', 'Personnel Monitoring', 'Water/WFI',
-]
+// ── EM System type from master ─────────────────────────────────────────────────
+interface EmSystemMaster {
+  emSystemId: number
+  systemName: string
+  systemCode: string
+  description?: string
+  defaultParameters: {
+    emSystemParameterId: number
+    parameterId: number
+    parameterName: string
+    parameterCode: string
+    uom: string
+    alertMin?: number | null
+    alertMax?: number | null
+    actionMin?: number | null
+    actionMax?: number | null
+  }[]
+}
 
 const LIFECYCLE_CFG: Record<string, { bg: string; color: string; border: string }> = {
   Draft:   { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
@@ -418,6 +431,8 @@ export default function CheckpointsPage() {
 
   // EM fields
   const [category, setCategory]                   = useState('Batch')
+  const [emSystems, setEmSystems]                 = useState<EmSystemMaster[]>([])
+  const [emSystemId, setEmSystemId]               = useState<number | null>(null)
   const [systemName, setSystemName]               = useState('')
   const [systemCode, setSystemCode]               = useState('')
   const [location, setLocation]                   = useState('')
@@ -428,13 +443,14 @@ export default function CheckpointsPage() {
   async function load() {
     setLoading(true)
     try {
-      const [r, lr, pr, tmr] = await Promise.all([
+      const [r, lr, pr, tmr, emr] = await Promise.all([
         api.get('/checkpoints?triggerMode=TimeBased').catch(() => ({ data: [] })),
         api.get('/laboratories').catch(() => ({ data: [] })),
         api.get('/parameters').catch(() => ({ data: [] })),
         api.get('/test-methods').catch(() => ({ data: [] })),
+        api.get('/em-systems').catch(() => ({ data: [] })),
       ])
-      setData(r.data); setLabs(lr.data); setParams(pr.data); setTestMethods(tmr.data)
+      setData(r.data); setLabs(lr.data); setParams(pr.data); setTestMethods(tmr.data); setEmSystems(emr.data)
     } finally { setLoading(false) }
   }
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -467,7 +483,7 @@ export default function CheckpointsPage() {
     setCpName(''); setCpId(''); setLabId(''); setCpType('Single')
     setSelectedSlots(['08:00']); setManualSlot(''); setManualSlotError('')
     setSelectedParams([]); setParamLimits({}); setShowParamLimits(null); setError('')
-    setCategory('Batch'); setSystemName(''); setSystemCode(''); setLocation(''); setSamplingPointCode(''); setLifecycleStatus('Draft')
+    setCategory('Batch'); setEmSystemId(null); setSystemName(''); setSystemCode(''); setLocation(''); setSamplingPointCode(''); setLifecycleStatus('Draft')
     setSelectedMethodId(''); setEditTarget(null); setShowForm(true)
   }
 
@@ -519,6 +535,7 @@ export default function CheckpointsPage() {
         checkpointType: cpType,
         timeSlots: selectedSlots.length > 0 ? JSON.stringify(selectedSlots.sort()) : null,
         category,
+        emSystemId:        category === 'Environmental' ? emSystemId : null,
         systemName:        category === 'Environmental' ? (systemName || null) : null,
         systemCode:        category === 'Environmental' ? (systemCode || null) : null,
         location:          category === 'Environmental' ? (location || null) : null,
@@ -709,22 +726,71 @@ export default function CheckpointsPage() {
                   🌿 Environmental Monitoring Settings
                 </div>
 
-                {/* System Type + System Code */}
+                {/* System Master dropdown */}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 5 }}>
+                    EM System <span style={{ color: '#9ca3af', fontWeight: 400 }}>— auto-fills code and default parameters</span>
+                  </label>
+                  <select
+                    style={{ ...inp, margin: 0 }}
+                    value={emSystemId ?? ''}
+                    required={category === 'Environmental'}
+                    onChange={e => {
+                      const id = e.target.value ? Number(e.target.value) : null
+                      setEmSystemId(id)
+                      if (id) {
+                        const sys = emSystems.find(s => s.emSystemId === id)
+                        if (sys) {
+                          setSystemName(sys.systemName)
+                          setSystemCode(sys.systemCode)
+                          // Auto-populate parameters with system defaults
+                          const ids = sys.defaultParameters.map(p => p.parameterId)
+                          setSelectedParams(ids)
+                          const limits: Record<number, { alertMin?: string; alertMax?: string; actionMin?: string; actionMax?: string }> = {}
+                          sys.defaultParameters.forEach(p => {
+                            limits[p.parameterId] = {
+                              alertMin:  p.alertMin  != null ? String(p.alertMin)  : '',
+                              alertMax:  p.alertMax  != null ? String(p.alertMax)  : '',
+                              actionMin: p.actionMin != null ? String(p.actionMin) : '',
+                              actionMax: p.actionMax != null ? String(p.actionMax) : '',
+                            }
+                          })
+                          setParamLimits(limits)
+                        }
+                      } else {
+                        setSystemName(''); setSystemCode('')
+                      }
+                    }}>
+                    <option value="">— Select EM System —</option>
+                    {emSystems.map(s => (
+                      <option key={s.emSystemId} value={s.emSystemId}>
+                        {s.systemName} ({s.systemCode})
+                      </option>
+                    ))}
+                  </select>
+                  {emSystemId && (() => {
+                    const sys = emSystems.find(s => s.emSystemId === emSystemId)
+                    return sys?.description ? (
+                      <p style={{ margin: '4px 0 0', fontSize: 11, color: '#6b7280' }}>{sys.description}</p>
+                    ) : null
+                  })()}
+                </div>
+
+                {/* System Code (auto-filled, editable) */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 5 }}>System Type</label>
-                    <select style={{ ...inp, margin: 0 }} value={systemName} onChange={e => setSystemName(e.target.value)} required={category === 'Environmental'}>
-                      <option value="">Select system…</option>
-                      {EM_SYSTEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 5 }}>System Name</label>
+                    <input style={{ ...inp, margin: 0, background: emSystemId ? '#f0fdf9' : undefined }}
+                      value={systemName} onChange={e => setSystemName(e.target.value)}
+                      placeholder="Auto-filled from system selection" readOnly={!!emSystemId} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 5 }}>
-                      System Code <span style={{ color: '#9ca3af', fontWeight: 400 }}>— short prefix</span>
+                      System Code <span style={{ color: '#9ca3af', fontWeight: 400 }}>— sample ID prefix</span>
                     </label>
-                    <input style={{ ...inp, margin: 0, fontFamily: 'monospace', textTransform: 'uppercase' }}
+                    <input style={{ ...inp, margin: 0, fontFamily: 'monospace', textTransform: 'uppercase', background: emSystemId ? '#f0fdf9' : undefined }}
                       value={systemCode} onChange={e => setSystemCode(e.target.value.toUpperCase())}
-                      placeholder="e.g. WFI, CA, CS, PW" maxLength={10} />
+                      placeholder="e.g. WFI, CA, CS, PW" maxLength={10} readOnly={!!emSystemId} />
                   </div>
                 </div>
 

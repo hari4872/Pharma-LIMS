@@ -26,7 +26,8 @@ public record CreateCheckpointCommand(
     string? Location = null,
     string? SamplingPointCode = null,
     string LifecycleStatus = "Draft",
-    DateOnly? ScheduledDate = null) : IRequest<Result<int>>;   // preferred — IDs + two-tier limits
+    DateOnly? ScheduledDate = null,
+    int? EmSystemId = null) : IRequest<Result<int>>;        // preferred — IDs + two-tier limits
 
 public class CreateCheckpointValidator : AbstractValidator<CreateCheckpointCommand>
 {
@@ -59,6 +60,29 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
                 return Result<int>.Failure("FORM_TEMPLATE_NOT_FOUND", $"FormTemplate {request.FormTemplateId} not found or inactive.");
         }
 
+        // Resolve EmSystem — auto-fill SystemName/Code from master when EmSystemId provided
+        string? resolvedSystemName = request.SystemName;
+        string? resolvedSystemCode = request.SystemCode;
+        int? resolvedEmSystemId    = request.EmSystemId;
+        List<ParameterLimitsInput>? resolvedParameters = request.Parameters;
+
+        if (request.EmSystemId.HasValue)
+        {
+            var emSys = await _db.EmSystems
+                .Include(s => s.DefaultParameters)
+                .FirstOrDefaultAsync(s => s.EmSystemId == request.EmSystemId.Value && s.IsActive, ct);
+            if (emSys is not null)
+            {
+                resolvedSystemName = emSys.SystemName;
+                resolvedSystemCode = emSys.SystemCode;
+                // Use system defaults if caller didn't supply explicit parameters
+                if (resolvedParameters is null or { Count: 0 })
+                    resolvedParameters = emSys.DefaultParameters
+                        .Select(p => new ParameterLimitsInput(p.ParameterId, p.AlertMin, p.AlertMax, p.ActionMin, p.ActionMax))
+                        .ToList();
+            }
+        }
+
         var checkpoint = new Checkpoint
         {
             CheckpointCode = request.CheckpointCode,
@@ -69,8 +93,9 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
             ShiftIntervalHrs = request.ShiftIntervalHrs,
             FormTemplateId = request.FormTemplateId,
             Category = request.Category,
-            SystemName = request.SystemName,
-            SystemCode = request.SystemCode,
+            EmSystemId = resolvedEmSystemId,
+            SystemName = resolvedSystemName,
+            SystemCode = resolvedSystemCode,
             Location = request.Location,
             SamplingPointCode = request.SamplingPointCode,
             LifecycleStatus = request.LifecycleStatus,
@@ -79,9 +104,9 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
         _db.Checkpoints.Add(checkpoint);
 
         // Prefer Parameters (with limits) over plain ParameterIds
-        if (request.Parameters is { Count: > 0 })
+        if (resolvedParameters is { Count: > 0 })
         {
-            foreach (var p in request.Parameters.DistinctBy(x => x.ParameterId))
+            foreach (var p in resolvedParameters.DistinctBy(x => x.ParameterId))
             {
                 var paramExists = await _db.TestMethodParameters.AnyAsync(x => x.ParameterId == p.ParameterId, ct);
                 if (paramExists)
