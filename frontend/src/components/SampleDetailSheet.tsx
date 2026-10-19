@@ -530,7 +530,7 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                             {e.status === 'InProgress' && (
                               <a href={`/test-execution/${e.executionId}`} style={{ padding: '5px 14px', background: '#7c3aed', color: '#fff', borderRadius: 6, textDecoration: 'none', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>📋 Enter Results</a>
                             )}
-                            {(e.status === 'Completed' || e.status === 'OOSOpen') && (
+                            {(e.status === 'Completed' || e.status === 'QCVerified' || e.status === 'OosOpen') && (
                               <a href={`/test-execution/${e.executionId}`} style={{ padding: '5px 14px', background: '#f0fdf4', color: '#065f46', border: '1px solid #86efac', borderRadius: 6, textDecoration: 'none', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>🔍 View Results</a>
                             )}
                           </div>
