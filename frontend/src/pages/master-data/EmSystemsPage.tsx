@@ -277,7 +277,7 @@ export default function EmSystemsPage() {
                     {(['alertMin', 'alertMax', 'actionMin', 'actionMax'] as const).map(field => (
                       <input key={field} type="number" step="any" style={{ ...inp, fontSize: 12, textAlign: 'right' }}
                         placeholder="—"
-                        value={(row as Record<string, string>)[field]}
+                        value={(row as unknown as Record<string, string>)[field]}
                         onChange={e => setParamField(i, field, e.target.value)} />
                     ))}
                     <button type="button" onClick={() => removeParamRow(i)}
