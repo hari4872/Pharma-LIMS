@@ -899,66 +899,73 @@ export default function CheckpointsPage() {
                   </span>
                 )}
               </label>
-              <div style={{ border: '1.5px solid #e5e7eb', borderRadius: 8, maxHeight: 220, overflowY: 'auto', background: '#fff' }}>
-                {methodParamsLoading ? (
-                  <p style={{ padding: '16px', fontSize: 13, color: '#9ca3af', margin: 0 }}>Loading parameters…</p>
-                ) : params.length === 0 ? (
-                  <p style={{ padding: '16px', fontSize: 13, color: '#9ca3af', margin: 0 }}>
-                    {selectedMethodId ? 'No parameters for this method.' : 'Select a test method above, or parameters will appear here after one is created.'}
-                  </p>
-                ) : params.map((p, i) => {
-                  const checked    = selectedParams.includes(p.parameterId)
-                  const limitsOpen = showParamLimits === p.parameterId
-                  const lim        = paramLimits[p.parameterId] ?? {}
-                  const hasLim     = checked && (lim.alertMin || lim.alertMax || lim.actionMin || lim.actionMax)
-                  return (
-                    <div key={p.parameterId} style={{ borderBottom: i < params.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: checked ? '#f0f9ff' : '#fff', cursor: 'pointer' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} onClick={() => toggleParam(p.parameterId)}>
-                          <input type="checkbox" checked={checked} onChange={() => toggleParam(p.parameterId)}
-                            style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#1e3a5f' }} />
-                          <span style={{ fontSize: 13, color: '#111827' }}>{p.parameterName}</span>
-                          {p.parameterCode && (
-                            <span style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{p.parameterCode}</span>
-                          )}
-                          {hasLim && (
-                            <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 6, background: '#fef3c7', color: '#92400e', fontWeight: 600 }}>limits set</span>
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          {p.uom && <span style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>{p.uom}</span>}
-                          {checked && (
-                            <button type="button"
-                              onClick={e => { e.stopPropagation(); setShowParamLimits(limitsOpen ? null : p.parameterId) }}
-                              style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, border: '1px solid #d1d5db', background: limitsOpen ? '#1e3a5f' : '#f9fafb', color: limitsOpen ? '#fff' : '#374151', cursor: 'pointer', fontWeight: 600 }}>
-                              {limitsOpen ? '▲ Limits' : '▼ Limits'}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {checked && limitsOpen && (
-                        <div style={{ padding: '10px 14px 14px', background: '#fffbeb', borderTop: '1px solid #fde68a' }}>
-                          <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: '#92400e' }}>Two-Tier Limits</p>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            {(['alertMin','alertMax','actionMin','actionMax'] as const).map(field => (
-                              <div key={field}>
-                                <label style={{ display: 'block', fontSize: 11, color: '#6b7280', marginBottom: 3, fontWeight: 600 }}>
-                                  {field === 'alertMin' ? '⚠ Alert Min' : field === 'alertMax' ? '⚠ Alert Max' : field === 'actionMin' ? '🔴 Action Min' : '🔴 Action Max'}
-                                </label>
-                                <input style={{ ...inp, margin: 0, fontSize: 12, padding: '6px 10px', fontFamily: 'monospace' }}
-                                  type="number" step="any" placeholder="—"
-                                  value={lim[field] ?? ''}
-                                  onChange={e => setParamLimits(prev => ({ ...prev, [p.parameterId]: { ...prev[p.parameterId] ?? {}, [field]: e.target.value } }))}
-                                />
-                              </div>
-                            ))}
+              {(() => {
+                const displayParams = emSystemId
+                  ? params.filter(p => selectedParams.includes(p.parameterId))
+                  : params
+                return (
+                <div style={{ border: '1.5px solid #e5e7eb', borderRadius: 8, maxHeight: 220, overflowY: 'auto', background: '#fff' }}>
+                  {methodParamsLoading ? (
+                    <p style={{ padding: '16px', fontSize: 13, color: '#9ca3af', margin: 0 }}>Loading parameters…</p>
+                  ) : displayParams.length === 0 ? (
+                    <p style={{ padding: '16px', fontSize: 13, color: '#9ca3af', margin: 0 }}>
+                      {emSystemId ? 'No default parameters configured for this EM system.' : selectedMethodId ? 'No parameters for this method.' : 'Select a test method above, or parameters will appear here after one is created.'}
+                    </p>
+                  ) : displayParams.map((p, i) => {
+                    const checked    = selectedParams.includes(p.parameterId)
+                    const limitsOpen = showParamLimits === p.parameterId
+                    const lim        = paramLimits[p.parameterId] ?? {}
+                    const hasLim     = checked && (lim.alertMin || lim.alertMax || lim.actionMin || lim.actionMax)
+                    return (
+                      <div key={p.parameterId} style={{ borderBottom: i < displayParams.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: checked ? '#f0f9ff' : '#fff', cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} onClick={() => toggleParam(p.parameterId)}>
+                            <input type="checkbox" checked={checked} onChange={() => toggleParam(p.parameterId)}
+                              style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#1e3a5f' }} />
+                            <span style={{ fontSize: 13, color: '#111827' }}>{p.parameterName}</span>
+                            {p.parameterCode && (
+                              <span style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{p.parameterCode}</span>
+                            )}
+                            {hasLim && (
+                              <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 6, background: '#fef3c7', color: '#92400e', fontWeight: 600 }}>limits set</span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {p.uom && <span style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>{p.uom}</span>}
+                            {checked && (
+                              <button type="button"
+                                onClick={e => { e.stopPropagation(); setShowParamLimits(limitsOpen ? null : p.parameterId) }}
+                                style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, border: '1px solid #d1d5db', background: limitsOpen ? '#1e3a5f' : '#f9fafb', color: limitsOpen ? '#fff' : '#374151', cursor: 'pointer', fontWeight: 600 }}>
+                                {limitsOpen ? '▲ Limits' : '▼ Limits'}
+                              </button>
+                            )}
                           </div>
                         </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+                        {checked && limitsOpen && (
+                          <div style={{ padding: '10px 14px 14px', background: '#fffbeb', borderTop: '1px solid #fde68a' }}>
+                            <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: '#92400e' }}>Two-Tier Limits</p>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              {(['alertMin','alertMax','actionMin','actionMax'] as const).map(field => (
+                                <div key={field}>
+                                  <label style={{ display: 'block', fontSize: 11, color: '#6b7280', marginBottom: 3, fontWeight: 600 }}>
+                                    {field === 'alertMin' ? '⚠ Alert Min' : field === 'alertMax' ? '⚠ Alert Max' : field === 'actionMin' ? '🔴 Action Min' : '🔴 Action Max'}
+                                  </label>
+                                  <input style={{ ...inp, margin: 0, fontSize: 12, padding: '6px 10px', fontFamily: 'monospace' }}
+                                    type="number" step="any" placeholder="—"
+                                    value={lim[field] ?? ''}
+                                    onChange={e => setParamLimits(prev => ({ ...prev, [p.parameterId]: { ...prev[p.parameterId] ?? {}, [field]: e.target.value } }))}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                )
+              })()}
             </div>
 
             {error && (
