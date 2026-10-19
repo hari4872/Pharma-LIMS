@@ -87,3 +87,9 @@ public enum TaskType { Standard, Retest, Rework }
 public enum OosResolutionType { LabError, GenuineOOS }
 // Group C — Genuine OOS rework path
 public enum OosFinalDecision { Release, Reject }
+
+// EM Samples — lifecycle of a physical environmental monitoring sample
+public enum EmSampleStatus
+{
+    Scheduled, Collected, ReceivedByLab, UnderAnalysis, ResultsApproved, Invalid
+}

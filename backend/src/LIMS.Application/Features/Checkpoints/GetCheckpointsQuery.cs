@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.Application.Features.Checkpoints;
 
-public record GetCheckpointsQuery(int? LabId, string? TriggerMode) : IRequest<List<CheckpointDto>>;
+public record GetCheckpointsQuery(int? LabId, string? TriggerMode, DateOnly? ViewDate = null) : IRequest<List<CheckpointDto>>;
 
 public record CheckpointParameterDto(
     int ParameterId, string ParameterName, string ParameterCode, string? Uom, string DataType,
@@ -16,7 +16,8 @@ public record CheckpointDto(
     string CheckpointType, int? ShiftIntervalHrs, bool IsActive,
     int LocationCount, string? TimeSlots, List<CheckpointParameterDto> Parameters,
     List<string> ExecutedTodaySlots,
-    string Category, string? SystemName, DateOnly? ScheduledDate);
+    Dictionary<string, string> ExecutedSlotBreaches,   // slotLabel → "alert"|"action"
+    string Category, string? SystemName, string? SystemCode, string? Location, string? SamplingPointCode, string LifecycleStatus, DateOnly? ScheduledDate);
 
 public record GetProcessLogQuery(int CheckpointId, DateOnly? Date) : IRequest<List<ProcessLogRowDto>>;
 
@@ -43,16 +44,45 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
             query = query.Where(c => c.TriggerMode == triggerEnum);
         var list = await query.ToListAsync(ct);
 
-        // Fetch today's already-executed slot labels per checkpoint (UTC day)
-        // GroupBy done in memory — EF Core cannot translate .ToList() inside GroupBy to SQL
-        var todayUtc = DateOnly.FromDateTime(DateTime.UtcNow).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        // Fetch executed rows + their readings for the requested date
+        var targetDate = (request.ViewDate ?? DateOnly.FromDateTime(DateTime.UtcNow)).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var executedRows = await _db.ProcessLogRows
-            .Where(r => r.SlotTime >= todayUtc && r.SlotTime < todayUtc.AddDays(1))
-            .Select(r => new { r.CheckpointId, r.SlotLabel })
+            .Where(r => r.SlotTime >= targetDate && r.SlotTime < targetDate.AddDays(1))
+            .Include(r => r.Readings)
             .ToListAsync(ct);
+
         var executedDict = executedRows
             .GroupBy(r => r.CheckpointId)
             .ToDictionary(g => g.Key, g => g.Select(r => r.SlotLabel).ToList());
+
+        // Compute worst breach per slot label per checkpoint (alert < action)
+        var paramLimitsIndex = list.ToDictionary(
+            c => c.CheckpointId,
+            c => c.CheckpointParameters.ToDictionary(
+                cp => cp.ParameterId,
+                cp => (cp.AlertMin, cp.AlertMax, cp.ActionMin, cp.ActionMax)));
+
+        var breachDict = new Dictionary<int, Dictionary<string, string>>();
+        foreach (var row in executedRows)
+        {
+            if (!paramLimitsIndex.TryGetValue(row.CheckpointId, out var limits)) continue;
+            string? worst = null;
+            foreach (var reading in row.Readings)
+            {
+                if (!limits.TryGetValue(reading.ParameterId, out var lim)) continue;
+                if (!decimal.TryParse(reading.Value, out var val)) continue;
+                if ((lim.ActionMin.HasValue && val < lim.ActionMin) || (lim.ActionMax.HasValue && val > lim.ActionMax))
+                { worst = "action"; break; }
+                if ((lim.AlertMin.HasValue && val < lim.AlertMin) || (lim.AlertMax.HasValue && val > lim.AlertMax))
+                    worst = "alert";
+            }
+            if (worst != null)
+            {
+                if (!breachDict.ContainsKey(row.CheckpointId))
+                    breachDict[row.CheckpointId] = [];
+                breachDict[row.CheckpointId][row.SlotLabel] = worst;
+            }
+        }
 
         return list.Select(c => new CheckpointDto(
             c.CheckpointId, c.CheckpointCode, c.TriggerMode.ToString(),
@@ -66,7 +96,8 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
                 cp.Parameter.DataType.ToString(),
                 cp.AlertMin, cp.AlertMax, cp.ActionMin, cp.ActionMax)).ToList(),
             executedDict.TryGetValue(c.CheckpointId, out var todaySlots) ? todaySlots : [],
-            c.Category, c.SystemName, c.ScheduledDate))
+            breachDict.TryGetValue(c.CheckpointId, out var breaches) ? breaches : [],
+            c.Category, c.SystemName, c.SystemCode, c.Location, c.SamplingPointCode, c.LifecycleStatus, c.ScheduledDate))
             .ToList();
     }
 }

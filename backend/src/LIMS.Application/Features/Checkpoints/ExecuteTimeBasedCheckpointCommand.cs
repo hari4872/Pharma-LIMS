@@ -4,6 +4,7 @@ using LIMS.Domain.Entities;
 using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace LIMS.Application.Features.Checkpoints;
 
@@ -74,6 +75,81 @@ public class ExecuteTimeBasedCheckpointCommandHandler
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // ── EM: auto-update EmSample lifecycle after execution ─────────────────
+        // Reload checkpoint with parameters to evaluate limits
+        var cp = await _db.Checkpoints
+            .Include(c => c.CheckpointParameters)
+            .FirstOrDefaultAsync(c => c.CheckpointId == request.CheckpointId, ct);
+
+        if (cp?.Category == "Environmental" && request.Readings is { Count: > 0 })
+        {
+            var limitIndex = cp.CheckpointParameters.ToDictionary(
+                p => p.ParameterId,
+                p => (p.AlertMin, p.AlertMax, p.ActionMin, p.ActionMax));
+
+            // Compute worst breach across all readings
+            string resultStatus = "Pass";
+            foreach (var r in request.Readings.Where(r => !string.IsNullOrWhiteSpace(r.Value)))
+            {
+                if (!limitIndex.TryGetValue(r.ParameterId, out var lim)) continue;
+                if (!decimal.TryParse(r.Value, out var val)) continue;
+                if ((lim.ActionMin.HasValue && val < lim.ActionMin) || (lim.ActionMax.HasValue && val > lim.ActionMax))
+                { resultStatus = "ActionExceeded"; break; }
+                if ((lim.AlertMin.HasValue && val < lim.AlertMin) || (lim.AlertMax.HasValue && val > lim.AlertMax))
+                    resultStatus = "AlertExceeded";
+            }
+
+            // Find or create EmSample for this checkpoint + date + slot
+            var samplingDate = DateOnly.FromDateTime(now.UtcDateTime);
+            var emSample = await _db.EmSamples
+                .FirstOrDefaultAsync(s => s.CheckpointId == request.CheckpointId
+                    && s.SamplingDate == samplingDate && s.SlotLabel == request.SlotLabel, ct);
+
+            if (emSample is null)
+            {
+                // Auto-create if not pre-generated
+                var seq = await _db.EmSamples
+                    .CountAsync(s => s.CheckpointId == request.CheckpointId && s.SamplingDate == samplingDate, ct) + 1;
+                var prefix = cp.SystemCode ?? "EM";
+                var point  = cp.SamplingPointCode ?? cp.CheckpointCode[..Math.Min(10, cp.CheckpointCode.Length)];
+                var sampleNumber = $"{prefix}-{point}-{samplingDate:yyyyMMdd}-{seq:D3}";
+
+                emSample = new EmSample
+                {
+                    SampleNumber  = sampleNumber,
+                    CheckpointId  = request.CheckpointId,
+                    SlotLabel     = request.SlotLabel,
+                    SamplingDate  = samplingDate,
+                    ExpiresAt     = new DateTimeOffset(samplingDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc).AddDays(3)),
+                    CreatedBy     = username,
+                };
+                _db.EmSamples.Add(emSample);
+            }
+
+            // Advance lifecycle: mark collected → received → results in one step (execution = lab action)
+            emSample.Status            = EmSampleStatus.ResultsApproved;
+            emSample.CollectedAt     ??= now;
+            emSample.CollectedBy     ??= username;
+            emSample.ReceivedAt      ??= now;
+            emSample.ReceivedBy      ??= username;
+            emSample.AnalysisStartedAt ??= now;
+            emSample.AssignedAnalyst ??= username;
+            emSample.ProcessLogRowId   = row.RowId;
+            emSample.ResultStatus      = resultStatus;
+            emSample.ResultsApprovedAt = now;
+            emSample.ResultsApprovedBy = username;
+
+            // Auto-open investigation on Action breach
+            if (resultStatus == "ActionExceeded" && string.IsNullOrEmpty(emSample.InvestigationNumber))
+            {
+                emSample.InvestigationNumber = $"INV-EM-{emSample.SampleNumber}";
+                emSample.InvestigationStatus = "Open";
+            }
+
+            await _db.SaveChangesAsync(ct);
+        }
+
         return Result<int>.Success(row.RowId);
     }
 }

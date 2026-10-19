@@ -17,10 +17,14 @@ public class CheckpointsController : LimsControllerBase
     public CheckpointsController(IMediator mediator, ILimsDbContext db)
     { _mediator = mediator; _db = db; }
 
-    // GET api/v1/checkpoints?labId=1&triggerMode=TimeBased
+    // GET api/v1/checkpoints?labId=1&triggerMode=TimeBased&date=2026-10-19
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] int? labId, [FromQuery] string? triggerMode)
-        => Ok(await _mediator.Send(new GetCheckpointsQuery(labId, triggerMode)));
+    public async Task<IActionResult> GetAll([FromQuery] int? labId, [FromQuery] string? triggerMode, [FromQuery] string? date)
+    {
+        DateOnly? viewDate = null;
+        if (!string.IsNullOrEmpty(date) && DateOnly.TryParse(date, out var parsed)) viewDate = parsed;
+        return Ok(await _mediator.Send(new GetCheckpointsQuery(labId, triggerMode, viewDate)));
+    }
 
     // GET api/v1/checkpoints/{id} -- single checkpoint with its parameters
     [HttpGet("{id:int}")]
@@ -89,7 +93,7 @@ public class CheckpointsController : LimsControllerBase
             request.CheckpointCode, request.LabId, request.TriggerMode,
             request.CheckpointType, request.TimeSlots, request.ShiftIntervalHrs,
             request.FormTemplateId, request.ParameterIds, username, paramLimits,
-            request.Category, request.SystemName, request.ScheduledDate));
+            request.Category, request.SystemName, request.SystemCode, request.Location, request.SamplingPointCode, request.LifecycleStatus, request.ScheduledDate));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { checkpointId = result.Value });
     }
@@ -197,6 +201,10 @@ public record CreateCheckpointRequest(string CheckpointCode, int LabId, string T
     List<ParameterLimitsRequest>? Parameters = null,
     string Category = "Batch",
     string? SystemName = null,
+    string? SystemCode = null,
+    string? Location = null,
+    string? SamplingPointCode = null,
+    string LifecycleStatus = "Draft",
     DateOnly? ScheduledDate = null);
 public record TriggerCheckpointRequest(string? DeliveryOrder = null, bool IsOfflineSync = false, int? SampleId = null);
 public record ReadingRequest(int ParameterId, string Value);

@@ -987,15 +987,26 @@ export default function TraceabilityPage() {
                             </button>
                           ))}
                         </div>
-                        <a
-                          href={`/api/v1/traceability/samples/${resolved.sampleId}/pdf`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          onClick={async () => {
+                            const token = localStorage.getItem('lims_token')
+                            const res = await fetch(`/api/v1/traceability/samples/${resolved.sampleId}/pdf`, {
+                              headers: { Authorization: `Bearer ${token}` },
+                            })
+                            if (!res.ok) { alert('PDF generation failed'); return }
+                            const blob = await res.blob()
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement('a')
+                            a.href = url
+                            a.download = `traceability-${resolved.sampleNumber}.pdf`
+                            a.click()
+                            URL.revokeObjectURL(url)
+                          }}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 12px',
                             background: '#2563eb', color: '#fff', borderRadius: 6, fontSize: 12,
-                            fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                            fontWeight: 600, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                           ⬇ Export PDF
-                        </a>
+                        </button>
                       </div>
                     </div>
                     <div style={{ padding: '18px 20px' }}>

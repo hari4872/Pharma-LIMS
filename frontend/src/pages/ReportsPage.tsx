@@ -6,8 +6,24 @@ import {
 } from 'recharts'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type ReportType = 'samples' | 'results' | 'audit-trail' | 'multi-site-summary' | 'em-job-status' | 'em-sampling-report' | 'em-trend'
-type PageTab    = 'exports' | 'charts'
+type ReportType = 'samples' | 'results' | 'audit-trail' | 'multi-site-summary' | 'em-job-status' | 'em-sampling-report' | 'em-trend' | 'em-sampling-matrix'
+type PageTab    = 'exports' | 'charts' | 'history'
+
+interface HistReading { parameterName: string; uom: string | null; value: string; limitStatus: string }
+interface HistoryRow  { rowId: number; slotTime: string; slotLabel: string; checkpointCode: string; systemName: string; location: string | null; isSigned: boolean; readings: HistReading[] }
+
+interface MatrixCell  { date: string; status: 'done' | 'missed' | 'today' | 'upcoming'; samples: string[] }
+interface MatrixRow   { systemName: string; checkpointCode: string; cells: MatrixCell[] }
+interface MatrixData  { dates: string[]; rows: MatrixRow[] }
+
+const EM_SYSTEMS = ['Cleanroom Air', 'Settle Plates', 'Surface Monitoring', 'Non-viable Particle', 'Personnel Monitoring', 'Water/WFI']
+
+const CELL_COLORS: Record<string, { bg: string; color: string; border: string }> = {
+  done:     { bg: '#d1fae5', color: '#065f46', border: '#6ee7b7' },
+  missed:   { bg: '#fff7ed', color: '#9a3412', border: '#fdba74' },
+  today:    { bg: '#dbeafe', color: '#1e40af', border: '#93c5fd' },
+  upcoming: { bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0' },
+}
 
 interface SpcPoint  { executionId: number; sampleNumber: string; measuredAt: string; value: number; isOos: boolean; isOot: boolean }
 interface SpcResult { parameterId: number; parameterName: string; unit: string | null; n: number; mean: number; stddev: number; ucl: number; lcl: number; usl: number | null; lsl: number | null; cp: number | null; cpk: number | null; outOfControl: boolean; rules: string[]; points: SpcPoint[] }
@@ -53,12 +69,21 @@ const REPORTS = [
     adminOnly: true,
   },
   {
+    id: 'em-sampling-matrix' as ReportType,
+    title: 'EM Sampling Matrix',
+    desc: 'Manager\'s schedule matrix — system/area rows × dates. Shows sample numbers, missed, and due-today status.',
+    icon: '📅',
+    color: '#065f46',
+    bg: '#d1fae5',
+    filters: ['system'],
+  },
+  {
     id: 'em-job-status' as ReportType,
     title: 'EM Job Status',
     desc: 'Pivot matrix — location rows × sampling dates. Each cell shows Done / Late / Missed per run.',
     icon: '🌿',
     color: '#0f6e56',
-    bg: '#d1fae5',
+    bg: '#ecfdf5',
     filters: [],
   },
   {
@@ -105,15 +130,123 @@ function CustomDot(props: { cx?: number; cy?: number; payload?: { isOos?: boolea
   return <circle cx={cx} cy={cy} r={3} fill="#0d9488" />
 }
 
+// ── EM Sampling Matrix inline preview ────────────────────────────────────────
+function MatrixPreview({ data }: { data: MatrixData }) {
+  if (data.rows.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: 13 }}>
+        No active EM checkpoints found for the selected filters.
+      </div>
+    )
+  }
+
+  const formatDate = (d: string) => {
+    const dt = new Date(d + 'T12:00:00')
+    return dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  }
+
+  return (
+    <div>
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
+        {[
+          { key: 'done',     label: 'Sample collected' },
+          { key: 'missed',   label: 'Missed' },
+          { key: 'today',    label: 'Due Today' },
+          { key: 'upcoming', label: 'Scheduled' },
+        ].map(({ key, label }) => {
+          const c = CELL_COLORS[key]
+          return (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#6b7280' }}>
+              <span style={{ width: 12, height: 12, borderRadius: 3, background: c.bg, border: `1.5px solid ${c.border}`, display: 'inline-block' }} />
+              {label}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Matrix table */}
+      <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 8, maxHeight: 420, overflowY: 'auto' }}>
+        <table style={{ borderCollapse: 'collapse', minWidth: 400, fontSize: 11 }}>
+          <thead>
+            <tr style={{ background: '#f8fafc', position: 'sticky', top: 0, zIndex: 2 }}>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', borderBottom: '2px solid #e5e7eb', minWidth: 130, position: 'sticky', left: 0, background: '#f8fafc', zIndex: 3 }}>
+                System / Area
+              </th>
+              <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: '#374151', borderBottom: '2px solid #e5e7eb', minWidth: 110 }}>
+                Checkpoint
+              </th>
+              {data.dates.map(d => (
+                <th key={d} style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 700, color: '#374151', borderBottom: '2px solid #e5e7eb', minWidth: 64, whiteSpace: 'nowrap' }}>
+                  {formatDate(d)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.rows.map((row, i) => (
+              <tr key={row.checkpointCode} style={{ background: i % 2 === 0 ? '#fff' : '#fafafa', borderBottom: '1px solid #f1f5f9' }}>
+                <td style={{ padding: '7px 12px', fontWeight: 600, color: '#065f46', position: 'sticky', left: 0, background: i % 2 === 0 ? '#fff' : '#fafafa', borderRight: '1px solid #f1f5f9', zIndex: 1 }}>
+                  {row.systemName}
+                </td>
+                <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontSize: 11, color: '#374151', whiteSpace: 'nowrap' }}>
+                  {row.checkpointCode}
+                </td>
+                {row.cells.map(cell => {
+                  const c = CELL_COLORS[cell.status] ?? CELL_COLORS.upcoming
+                  return (
+                    <td key={cell.date} style={{ padding: '4px 4px', textAlign: 'center' }}>
+                      <span style={{
+                        display: 'inline-block', padding: '3px 6px', borderRadius: 5,
+                        background: c.bg, color: c.color, border: `1px solid ${c.border}`,
+                        fontWeight: 600, whiteSpace: 'nowrap', minWidth: 52,
+                      }}>
+                        {cell.status === 'done'
+                          ? (cell.samples.length > 0 && cell.samples[0] !== 'Done' ? cell.samples.join(', ') : '✓')
+                          : cell.status === 'missed' ? 'Missed'
+                          : cell.status === 'today' ? 'Due'
+                          : '—'}
+                      </span>
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p style={{ margin: '6px 0 0', fontSize: 11, color: '#9ca3af' }}>
+        {data.rows.length} checkpoint{data.rows.length !== 1 ? 's' : ''} · {data.dates.length} day{data.dates.length !== 1 ? 's' : ''}
+      </p>
+    </div>
+  )
+}
+
 export default function ReportsPage() {
   // ── Exports tab state ──
-  const [selected,    setSelected]    = useState<ReportType | null>(null)
-  const [from,        setFrom]        = useState('')
-  const [to,          setTo]          = useState('')
-  const [status,      setStatus]      = useState('')
-  const [entityType,  setEntityType]  = useState('')
-  const [downloading, setDownloading] = useState(false)
-  const [dlError,     setDlError]     = useState('')
+  const [selected,       setSelected]       = useState<ReportType | null>(null)
+  const [from,           setFrom]           = useState('')
+  const [to,             setTo]             = useState('')
+  const [status,         setStatus]         = useState('')
+  const [entityType,     setEntityType]     = useState('')
+  const [emSystem,       setEmSystem]       = useState('')
+  const [downloading,    setDownloading]    = useState(false)
+  const [dlError,        setDlError]        = useState('')
+
+  // ── EM Sampling Matrix preview ──
+  const [matrixData,     setMatrixData]     = useState<MatrixData | null>(null)
+  const [matrixLoading,  setMatrixLoading]  = useState(false)
+  const [matrixError,    setMatrixError]    = useState('')
+
+  // ── History tab state ──
+  const [histFrom,       setHistFrom]       = useState(new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10))
+  const [histTo,         setHistTo]         = useState(new Date().toISOString().slice(0, 10))
+  const [histSystem,     setHistSystem]     = useState('')
+  const [histPage,       setHistPage]       = useState(1)
+  const [histData,       setHistData]       = useState<null | { total: number; page: number; pageSize: number; items: HistoryRow[] }>(null)
+  const [histLoading,    setHistLoading]    = useState(false)
+  const [histError,      setHistError]      = useState('')
+  const [histExpanded,   setHistExpanded]   = useState<number | null>(null)
 
   // ── Charts tab state ──
   const [pageTab,     setPageTab]     = useState<PageTab>('exports')
@@ -152,6 +285,30 @@ export default function ReportsPage() {
     } finally { clearTimeout(timer); setSpcLoading(false) }
   }
 
+  async function previewMatrix() {
+    setMatrixLoading(true); setMatrixError(''); setMatrixData(null)
+    try {
+      const params = new URLSearchParams()
+      if (from)     params.set('from', from)
+      if (to)       params.set('to', to)
+      if (emSystem) params.set('system', emSystem)
+      const r = await api.get(`/reports/em-sampling-matrix?${params.toString()}`)
+      setMatrixData(r.data)
+    } catch { setMatrixError('Failed to load matrix. Check date range.') }
+    finally { setMatrixLoading(false) }
+  }
+
+  async function loadHistory(p = 1) {
+    setHistLoading(true); setHistError(''); setHistPage(p)
+    try {
+      const params = new URLSearchParams({ from: histFrom, to: histTo, page: String(p), pageSize: '50' })
+      if (histSystem) params.set('system', histSystem)
+      const r = await api.get(`/reports/em-history?${params.toString()}`)
+      setHistData(r.data)
+    } catch { setHistError('Failed to load history. Check date range.') }
+    finally { setHistLoading(false) }
+  }
+
   async function download() {
     if (!selected) return
     setDownloading(true); setDlError('')
@@ -161,6 +318,8 @@ export default function ReportsPage() {
       if (to)         params.set('to', to)
       if (status)     params.set('status', status)
       if (entityType) params.set('entityType', entityType)
+      if (emSystem)   params.set('system', emSystem)
+      if (selected === 'em-sampling-matrix') params.set('excel', 'true')
       const url = `/reports/${selected}?${params.toString()}`
       const response = await api.get(url, { responseType: 'blob' })
       const cd = response.headers['content-disposition'] ?? ''
@@ -186,7 +345,7 @@ export default function ReportsPage() {
 
       {/* ── Page tab nav ── */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: '#f8f9fa', border: '1px solid #e0e0e0', borderRadius: 10, padding: 4, width: 'fit-content' }}>
-        {(['exports', 'charts'] as PageTab[]).map(t => (
+        {([['exports', '⬇ Excel Exports'], ['charts', '📈 SPC Charts'], ['history', '📜 EM History']] as [PageTab, string][]).map(([t, label]) => (
           <button key={t} onClick={() => setPageTab(t)} style={{
             padding: '7px 22px', fontSize: 13, fontWeight: pageTab === t ? 700 : 500,
             color: pageTab === t ? '#0d9488' : '#5f6368',
@@ -195,7 +354,7 @@ export default function ReportsPage() {
             borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit',
             boxShadow: pageTab === t ? '0 1px 3px rgba(0,0,0,0.07)' : 'none',
           }}>
-            {t === 'exports' ? '⬇ Excel Exports' : '📈 SPC Charts'}
+            {label}
           </button>
         ))}
       </div>
@@ -258,19 +417,61 @@ export default function ReportsPage() {
                     </select>
                   </div>
                 )}
-                <div style={{ padding: '10px 14px', background: '#f0fdfa', borderRadius: 8, border: '1px solid #99f6e4', marginBottom: 16, fontSize: 12, color: '#0f766e' }}>
-                  📥 Output: Excel (.xlsx) — formatted with teal header row, auto-fitted columns, header/footer with date stamp
-                </div>
-                {dlError && <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', borderRadius: 6, fontSize: 12, color: '#991b1b' }}>{dlError}</div>}
-                <button onClick={download} disabled={downloading} style={{
-                  width: '100%', padding: '11px 0',
-                  background: downloading ? '#9ca3af' : report.color,
-                  color: '#fff', border: 'none', borderRadius: 9,
-                  cursor: downloading ? 'not-allowed' : 'pointer',
-                  fontWeight: 700, fontSize: 14, fontFamily: 'inherit',
-                }}>
-                  {downloading ? '⏳ Generating Excel…' : `⬇ Download ${report.title} Excel`}
-                </button>
+                {report.filters.includes('system') && (
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', display: 'block', marginBottom: 4 }}>System / Area (optional)</label>
+                    <select style={{ ...inp, width: '100%' }} value={emSystem} onChange={e => setEmSystem(e.target.value)}>
+                      <option value="">All Systems</option>
+                      {EM_SYSTEMS.map(s => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {/* EM Sampling Matrix: preview + download */}
+                {selected === 'em-sampling-matrix' ? (
+                  <>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                      <button onClick={previewMatrix} disabled={matrixLoading}
+                        style={{
+                          flex: 1, padding: '10px 0', fontWeight: 700, fontSize: 13,
+                          background: matrixLoading ? '#9ca3af' : '#065f46', color: '#fff',
+                          border: 'none', borderRadius: 8, cursor: matrixLoading ? 'not-allowed' : 'pointer',
+                          fontFamily: 'inherit',
+                        }}>
+                        {matrixLoading ? '⏳ Loading…' : '👁 Preview Matrix'}
+                      </button>
+                      <button onClick={download} disabled={downloading}
+                        style={{
+                          flex: 1, padding: '10px 0', fontWeight: 700, fontSize: 13,
+                          background: downloading ? '#9ca3af' : report.color, color: '#fff',
+                          border: 'none', borderRadius: 8, cursor: downloading ? 'not-allowed' : 'pointer',
+                          fontFamily: 'inherit',
+                        }}>
+                        {downloading ? '⏳ Generating…' : '⬇ Download Excel'}
+                      </button>
+                    </div>
+                    {matrixError && <div style={{ padding: '8px 12px', background: '#fee2e2', borderRadius: 6, fontSize: 12, color: '#991b1b', marginBottom: 10 }}>{matrixError}</div>}
+                    {matrixData && (
+                      <MatrixPreview data={matrixData} />
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div style={{ padding: '10px 14px', background: '#f0fdfa', borderRadius: 8, border: '1px solid #99f6e4', marginBottom: 16, fontSize: 12, color: '#0f766e' }}>
+                      📥 Output: Excel (.xlsx) — formatted with teal header row, auto-fitted columns, header/footer with date stamp
+                    </div>
+                    {dlError && <div style={{ marginBottom: 12, padding: '8px 12px', background: '#fee2e2', borderRadius: 6, fontSize: 12, color: '#991b1b' }}>{dlError}</div>}
+                    <button onClick={download} disabled={downloading} style={{
+                      width: '100%', padding: '11px 0',
+                      background: downloading ? '#9ca3af' : report.color,
+                      color: '#fff', border: 'none', borderRadius: 9,
+                      cursor: downloading ? 'not-allowed' : 'pointer',
+                      fontWeight: 700, fontSize: 14, fontFamily: 'inherit',
+                    }}>
+                      {downloading ? '⏳ Generating Excel…' : `⬇ Download ${report.title} Excel`}
+                    </button>
+                  </>
+                )}
               </>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af' }}>
@@ -280,6 +481,154 @@ export default function ReportsPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ══ HISTORY TAB ══ */}
+      {pageTab === 'history' && (
+        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '24px 28px' }}>
+          <div style={{ marginBottom: 16 }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 800, color: '#065f46' }}>EM Historic Sampling Records</h3>
+            <p style={{ margin: 0, fontSize: 12, color: '#6b7280' }}>All executed EM checkpoint slots with readings and breach status</p>
+          </div>
+
+          {/* Filters */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 18, flexWrap: 'wrap' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 3 }}>From</label>
+              <input type="date" value={histFrom} onChange={e => setHistFrom(e.target.value)} style={{ ...inp, fontSize: 12 }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 3 }}>To</label>
+              <input type="date" value={histTo} onChange={e => setHistTo(e.target.value)} style={{ ...inp, fontSize: 12 }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', marginBottom: 3 }}>System</label>
+              <select value={histSystem} onChange={e => setHistSystem(e.target.value)} style={{ ...inp, fontSize: 12 }}>
+                <option value="">All Systems</option>
+                {EM_SYSTEMS.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <button onClick={() => loadHistory(1)} disabled={histLoading}
+              style={{ padding: '8px 20px', background: '#065f46', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, fontFamily: 'inherit', cursor: histLoading ? 'not-allowed' : 'pointer', opacity: histLoading ? 0.7 : 1 }}>
+              {histLoading ? 'Loading…' : 'Load History'}
+            </button>
+          </div>
+
+          {histError && <div style={{ padding: '10px 14px', background: '#fee2e2', borderRadius: 8, fontSize: 13, color: '#991b1b', marginBottom: 16 }}>{histError}</div>}
+
+          {!histData && !histLoading && !histError && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: '#9ca3af' }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>📜</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Set date range and click Load History</div>
+              <div style={{ fontSize: 12 }}>Shows all executed EM checkpoint slots with parameter readings</div>
+            </div>
+          )}
+
+          {histData && (
+            <>
+              <p style={{ margin: '0 0 12px', fontSize: 12, color: '#6b7280' }}>
+                {histData.total} slot execution{histData.total !== 1 ? 's' : ''} — page {histData.page} of {Math.ceil(histData.total / histData.pageSize)}
+              </p>
+              <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 8 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc' }}>
+                      {['Date / Time', 'Checkpoint', 'System', 'Slot', 'Readings', 'Signed'].map(h => (
+                        <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {histData.items.map((row, i) => {
+                      const expanded = histExpanded === row.rowId
+                      const worstBreach = row.readings.some(r => r.limitStatus === 'Action') ? 'Action'
+                        : row.readings.some(r => r.limitStatus === 'Alert') ? 'Alert' : null
+                      return (
+                        <>
+                          <tr key={row.rowId}
+                            onClick={() => setHistExpanded(expanded ? null : row.rowId)}
+                            style={{ background: i % 2 === 0 ? '#fff' : '#fafafa', borderBottom: '1px solid #f1f5f9', cursor: row.readings.length > 0 ? 'pointer' : 'default' }}>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: '#111827', fontSize: 11 }}>
+                              {new Date(row.slotTime).toLocaleString()}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontWeight: 700, color: '#065f46', fontFamily: 'monospace', fontSize: 12 }}>{row.checkpointCode}</td>
+                            <td style={{ padding: '8px 12px', color: '#374151' }}>{row.systemName}</td>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: '#1e40af' }}>{row.slotLabel}</td>
+                            <td style={{ padding: '8px 12px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontSize: 11, color: '#6b7280' }}>{row.readings.length} reading{row.readings.length !== 1 ? 's' : ''}</span>
+                                {worstBreach === 'Action' && <span style={{ padding: '1px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5' }}>🔴 Action</span>}
+                                {worstBreach === 'Alert' && <span style={{ padding: '1px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: '#fffbeb', color: '#92400e', border: '1px solid #fcd34d' }}>⚠ Alert</span>}
+                                {row.readings.length > 0 && <span style={{ fontSize: 10, color: '#9ca3af' }}>{expanded ? '▲' : '▼'}</span>}
+                              </div>
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                              {row.isSigned
+                                ? <span style={{ fontSize: 11, color: '#065f46', fontWeight: 600 }}>✓ Signed</span>
+                                : <span style={{ fontSize: 11, color: '#9ca3af' }}>Unsigned</span>}
+                            </td>
+                          </tr>
+                          {expanded && row.readings.length > 0 && (
+                            <tr key={`${row.rowId}-exp`} style={{ background: '#f0fdf4' }}>
+                              <td colSpan={6} style={{ padding: '0 12px 12px 32px' }}>
+                                <table style={{ borderCollapse: 'collapse', fontSize: 11, marginTop: 6 }}>
+                                  <thead>
+                                    <tr>
+                                      {['Parameter', 'Value', 'Unit', 'Limit Status'].map(h => (
+                                        <th key={h} style={{ padding: '4px 12px', textAlign: 'left', fontWeight: 700, color: '#374151', borderBottom: '1px solid #d1fae5' }}>{h}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {row.readings.map((rd, j) => {
+                                      const bCfg = rd.limitStatus === 'Action' ? { bg: '#fef2f2', color: '#991b1b' }
+                                        : rd.limitStatus === 'Alert' ? { bg: '#fffbeb', color: '#92400e' }
+                                        : rd.limitStatus === 'Pass' ? { bg: '#d1fae5', color: '#065f46' }
+                                        : { bg: '#f8fafc', color: '#9ca3af' }
+                                      return (
+                                        <tr key={j} style={{ background: j % 2 === 0 ? '#fff' : '#f0fdf4' }}>
+                                          <td style={{ padding: '4px 12px', color: '#374151' }}>{rd.parameterName}</td>
+                                          <td style={{ padding: '4px 12px', fontFamily: 'monospace', fontWeight: 700 }}>{rd.value}</td>
+                                          <td style={{ padding: '4px 12px', color: '#9ca3af' }}>{rd.uom ?? '—'}</td>
+                                          <td style={{ padding: '4px 12px' }}>
+                                            <span style={{ padding: '1px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: bCfg.bg, color: bCfg.color }}>
+                                              {rd.limitStatus}
+                                            </span>
+                                          </td>
+                                        </tr>
+                                      )
+                                    })}
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {histData.total > histData.pageSize && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 12, justifyContent: 'center' }}>
+                  <button onClick={() => loadHistory(histPage - 1)} disabled={histPage <= 1 || histLoading}
+                    style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #d1d5db', background: histPage <= 1 ? '#f3f4f6' : '#fff', color: '#374151', fontSize: 12, fontWeight: 600, cursor: histPage <= 1 ? 'not-allowed' : 'pointer' }}>
+                    ← Prev
+                  </button>
+                  <span style={{ padding: '5px 12px', fontSize: 12, color: '#6b7280', lineHeight: '1.5' }}>
+                    Page {histPage} / {Math.ceil(histData.total / histData.pageSize)}
+                  </span>
+                  <button onClick={() => loadHistory(histPage + 1)} disabled={histPage >= Math.ceil(histData.total / histData.pageSize) || histLoading}
+                    style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #d1d5db', background: histPage >= Math.ceil(histData.total / histData.pageSize) ? '#f3f4f6' : '#fff', color: '#374151', fontSize: 12, fontWeight: 600, cursor: histPage >= Math.ceil(histData.total / histData.pageSize) ? 'not-allowed' : 'pointer' }}>
+                    Next →
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 

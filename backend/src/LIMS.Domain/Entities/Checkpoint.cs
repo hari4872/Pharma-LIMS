@@ -19,8 +19,12 @@ public class Checkpoint
 
     // Environmental Monitoring extension (EM category)
     public string Category { get; set; } = "Batch";         // "Batch" | "Environmental"
-    public string? SystemName { get; set; }                 // e.g. HVAC-Zone-A
-    public DateOnly? ScheduledDate { get; set; }            // next scheduled sampling date
+    public string? SystemName { get; set; }                 // one of the 6 standard EM types
+    public string? SystemCode { get; set; }                 // short code for sample ID prefix e.g. WFI, CA, CS
+    public string? Location { get; set; }                   // sampling point / zone description
+    public string? SamplingPointCode { get; set; }          // structured code for sample ID e.g. POU01, CA-01
+    public string LifecycleStatus { get; set; } = "Draft";  // "Draft" | "Active" | "Retired"
+    public DateOnly? ScheduledDate { get; set; }            // legacy — next scheduled sampling date
 
     public ICollection<CheckpointLocation> Locations { get; set; } = [];
     public ICollection<CheckpointTriggerLog> TriggerLogs { get; set; } = [];

@@ -1,20 +1,11 @@
-﻿// ─────────────────────────────────────────────────────────────────────────────
-// CheckpointExecutionPage.tsx — Analyst Execution View
-//
-// Analyst-focused page: shows all active checkpoints as cards with
-// clear status indicators and one-click action buttons.
-// No admin config (Add/Edit) — pure execution.
-// ─────────────────────────────────────────────────────────────────────────────
-
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState, useMemo } from 'react'
 import api from '@/api/client'
-import { fmtDateTime } from '@/utils/dateFormat'
 import { getErrorMessage } from '@/utils/errors'
 import { inp, Field } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
-import { useOfflineScanQueue } from '@/hooks/useOfflineScanQueue'
 import { toast } from '@/components/Toast'
 
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface CheckpointParam {
   parameterId:   number
   parameterName: string
@@ -53,236 +44,135 @@ const TIER_STYLE: Record<LimitTier, { border: string; background: string; badge?
 }
 
 interface Checkpoint {
-  checkpointId:       number
-  checkpointCode:     string
-  triggerMode:        string
-  checkpointType:     string
-  shiftIntervalHrs:   number | null
-  isActive:           boolean
-  locationCount:      number
-  timeSlots?:         string | null  // JSON string e.g. '["08:00","14:00"]' — now returned by API
-  parameters:         CheckpointParam[]
-  executedTodaySlots: string[]  // slot labels already recorded today (from backend)
-  category:           string          // "Batch" | "Environmental"
-  systemName:         string | null
-  scheduledDate:      string | null   // ISO date
+  checkpointId:         number
+  checkpointCode:       string
+  triggerMode:          string
+  checkpointType:       string
+  shiftIntervalHrs:     number | null
+  isActive:             boolean
+  locationCount:        number
+  timeSlots?:           string | null
+  parameters:           CheckpointParam[]
+  executedTodaySlots:   string[]
+  executedSlotBreaches: Record<string, string>  // slotLabel → "alert"|"action"
+  category:             string
+  systemName:           string | null
+  location?:            string | null
+  scheduledDate:        string | null
 }
 
-interface ProcessLogRow {
-  rowId:         number
-  slotTime:      string
-  slotLabel:     string
-  status:        string
-  isSigned:      boolean
-  sampleId?:     number
-  sampleNumber?: string
+// ── Date helpers ──────────────────────────────────────────────────────────────
+function toDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dy = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dy}`
 }
 
-const MODE_META: Record<string, { bg: string; color: string; icon: string; label: string }> = {
-  TimeBased:     { bg: '#dbeafe', color: '#1e40af', icon: '⏱', label: 'Time-Based (auto)' },
-  OperatorScan:  { bg: '#d1fae5', color: '#065f46', icon: '📷', label: 'Operator Scan' },
-  ProcessLog:    { bg: '#fef9c3', color: '#854d0e', icon: '📋', label: 'Process Log' },
-  DispatchEvent: { bg: '#ede9fe', color: '#6d28d9', icon: '🚚', label: 'Dispatch Event' },
+function getWeekDays(anchor: string): Date[] {
+  const anchorDate = new Date(anchor + 'T12:00:00')
+  const dow = anchorDate.getDay()
+  const monday = new Date(anchorDate)
+  monday.setDate(anchorDate.getDate() - ((dow + 6) % 7))
+  const days: Date[] = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    days.push(d)
+  }
+  return days
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
 function parseSlots(raw: string | null | undefined): string[] {
   if (!raw) return []
   try { return JSON.parse(raw) } catch { return [] }
 }
 
-function slotStatus(slot: string): 'done' | 'overdue' | 'upcoming' {
-  const now   = new Date()
+type CellState = 'done' | 'done-alert' | 'done-action' | 'overdue' | 'due' | 'upcoming' | 'empty'
+
+function getCellState(
+  slot: string, viewDate: string, executedSlots: string[],
+  todayStr: string, breaches?: Record<string, string>
+): CellState {
+  if (executedSlots.includes(slot)) {
+    const breach = breaches?.[slot]
+    if (breach === 'action') return 'done-action'
+    if (breach === 'alert')  return 'done-alert'
+    return 'done'
+  }
+  if (viewDate < todayStr) return 'overdue'
+  if (viewDate > todayStr) return 'upcoming'
+  // today: live time check
+  const now = new Date()
   const [h, m] = slot.split(':').map(Number)
   const slotDt = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m)
   const diffMin = (now.getTime() - slotDt.getTime()) / 60000
-  if (diffMin > 30)  return 'overdue'   // past by >30 min — needs execution
-  if (diffMin < -5)  return 'upcoming'  // future
-  return 'done'                          // within 5 min window — active now
+  if (Math.abs(diffMin) <= 30) return 'due'
+  if (diffMin > 30) return 'overdue'
+  return 'upcoming'
 }
 
-// ── Slot status pill ──────────────────────────────────────────────────────────
-function SlotPill({ slot, onExecute, executed }: { slot: string; onExecute?: () => void; executed?: boolean }) {
-  const s = executed ? 'recorded' : slotStatus(slot)
-  const styles: Record<string, { bg: string; color: string; dot: string }> = {
-    recorded: { bg: '#d1fae5', color: '#065f46', dot: '#16a34a' },
-    done:     { bg: '#d1fae5', color: '#065f46', dot: '#16a34a' },
-    overdue:  { bg: '#fff7ed', color: '#9a3412', dot: '#f97316' },
-    upcoming: { bg: '#f1f5f9', color: '#475569', dot: '#94a3b8' },
-  }
-  const st = styles[s]
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginRight: 6, marginBottom: 4 }}>
-      <span style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-        background: st.bg, color: st.color,
-        border: `1px solid ${st.dot}33`,
-      }}>
-        <span style={{ width: 7, height: 7, borderRadius: '50%', background: st.dot, flexShrink: 0, display: 'inline-block' }} />
-        {slot}
-      </span>
-      {executed ? (
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          padding: '4px 10px', borderRadius: 7, fontSize: 12, fontWeight: 600,
-          background: '#d1fae5', color: '#065f46',
-          border: '1.5px solid #16a34a44',
-        }}>
-          ✓ Recorded
-        </span>
-      ) : onExecute && (s === 'done' || s === 'overdue') ? (
-        <button
-          onClick={onExecute}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            padding: '4px 11px', borderRadius: 7, fontSize: 12, fontWeight: 600,
-            cursor: 'pointer',
-            background: '#fff', color: '#0d9488',
-            border: '1.5px solid #0d9488',
-            fontFamily: 'inherit',
-            transition: 'background 0.12s',
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f0fdfa' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = '#fff' }}
-        >
-          <svg viewBox="0 0 16 16" fill="none" width="12" height="12">
-            <path d="M5.5 3.5L12 8l-6.5 4.5V3.5z" fill="currentColor"/>
-          </svg>
-          Record
-        </button>
-      ) : null}
-    </span>
-  )
-}
-
-// ── Summary bar ───────────────────────────────────────────────────────────────
-function SummaryBar({ checkpoints }: { checkpoints: Checkpoint[] }) {
-  const auto      = checkpoints.filter(c => c.triggerMode === 'TimeBased').length
-  const manual    = checkpoints.filter(c => c.triggerMode === 'OperatorScan' || c.triggerMode === 'DispatchEvent').length
-  const processLog = checkpoints.filter(c => c.triggerMode === 'ProcessLog').length
-  const em        = checkpoints.filter(c => c.category === 'Environmental').length
-
-  return (
-    <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-      {[
-        { label: 'Total Active',   value: checkpoints.length, bg: '#f0f9ff', color: '#0369a1', border: '#bae6fd' },
-        { label: 'Auto (Timer)',   value: auto,               bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
-        { label: 'Manual Trigger', value: manual,             bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
-        { label: 'Process Log',    value: processLog,         bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
-        { label: '🌿 EM',          value: em,                 bg: '#ecfdf5', color: '#065f46', border: '#6ee7b7' },
-      ].map(s => (
-        <div key={s.label} style={{
-          padding: '12px 20px', borderRadius: 10,
-          background: s.bg, border: `1px solid ${s.border}`,
-          minWidth: 110, textAlign: 'center',
-        }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: s.color }}>{s.value}</div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: s.color, marginTop: 2 }}>{s.label}</div>
-        </div>
-      ))}
-    </div>
-  )
+const CELL_CFG: Record<CellState, { bg: string; color: string; border: string; label: string; clickable: boolean }> = {
+  done:        { bg: '#d1fae5', color: '#065f46', border: '#6ee7b7', label: '✓ Done',    clickable: false },
+  'done-alert':  { bg: '#fffbeb', color: '#92400e', border: '#fcd34d', label: '⚠ Done',  clickable: false },
+  'done-action': { bg: '#fef2f2', color: '#991b1b', border: '#fca5a5', label: '🔴 Done', clickable: false },
+  overdue:     { bg: '#fff7ed', color: '#9a3412', border: '#fdba74', label: '⚠ Due',     clickable: true  },
+  due:         { bg: '#dbeafe', color: '#1e40af', border: '#93c5fd', label: '● Due Now', clickable: true  },
+  upcoming:    { bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0', label: '—',         clickable: false },
+  empty:       { bg: 'transparent', color: '#d1d5db', border: 'transparent', label: '',  clickable: false },
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function CheckpointExecutionPage() {
+  const todayStr = toDateStr(new Date())
+  const [viewDate, setViewDate]         = useState(todayStr)
   const [checkpoints, setCheckpoints]   = useState<Checkpoint[]>([])
   const [loading, setLoading]           = useState(false)
-  const [filterMode, setFilterMode]     = useState('')
-  const [filterEM, setFilterEM]         = useState(false)
+  const [category, setCategory]         = useState<'all' | 'em' | 'batch'>('all')
 
-  // Process Log modal state
-  const [logRows, setLogRows]           = useState<ProcessLogRow[]>([])
-  const [logFor, setLogFor]             = useState<Checkpoint | null>(null)
-  const [logLoading, setLogLoading]     = useState(false)
-
-  // E-signature modal (Process Log sign)
-  const [signRow, setSignRow]           = useState<{ checkpointId: number; rowId: number; params: CheckpointParam[] } | null>(null)
-  const [signForm, setSignForm]         = useState({ password: '', meaning: 'I confirm this process log entry', reason: 'Routine process log sign-off' })
-  const [readings, setReadings]         = useState<Record<number, string>>({})
-  const [saving, setSaving]             = useState(false)
-  const [error, setError]               = useState('')
-
-  // Execute (TimeBased) modal state
+  // Execute drawer state
   const [execFor, setExecFor]           = useState<{ checkpoint: Checkpoint; slotLabel: string } | null>(null)
   const [execForm, setExecForm]         = useState({ password: '', meaning: 'I confirm this time-based checkpoint has been performed', reason: '' })
   const [execReadings, setExecReadings] = useState<Record<number, string>>({})
   const [execSaving, setExecSaving]     = useState(false)
   const [execError, setExecError]       = useState('')
-  const [execSampleId, setExecSampleId] = useState<number | null>(null)
   const [execSamples, setExecSamples]   = useState<{ sampleId: number; sampleNumber: string; materialName: string; lotNumber: string }[]>([])
+  const [execSampleId, setExecSampleId] = useState<number | null>(null)
 
-  const { triggerCheckpoint } = useOfflineScanQueue()
+  const weekDays = useMemo(() => getWeekDays(viewDate), [viewDate])
 
-  // ── Load checkpoints ───────────────────────────────────────────────────
   async function load() {
     setLoading(true)
     try {
-      const q = filterMode ? `?triggerMode=${filterMode}` : ''
-      const r = await api.get(`/checkpoints${q}`)
+      const dateParam = viewDate !== todayStr ? `&date=${viewDate}` : ''
+      const r = await api.get(`/checkpoints?triggerMode=TimeBased${dateParam}`)
       setCheckpoints(r.data.filter((c: Checkpoint) => c.isActive))
     } catch { toast('Failed to load checkpoints', 'error') }
     finally { setLoading(false) }
   }
-  useEffect(() => {
-    let cancelled = false
-    async function fetchCheckpoints() {
-      setLoading(true)
-      try {
-        const q = filterMode ? `?triggerMode=${filterMode}` : ''
-        const r = await api.get(`/checkpoints${q}`)
-        if (!cancelled) setCheckpoints(r.data.filter((c: Checkpoint) => c.isActive))
-      } finally { if (!cancelled) setLoading(false) }
-    }
-    fetchCheckpoints()
-    return () => { cancelled = true }
-  }, [filterMode])
 
-  // ── OperatorScan: load linked samples then trigger ─────────────────────
-  const [scanModal,       setScanModal]       = useState<Checkpoint | null>(null)
-  const [linkedSamples,   setLinkedSamples]   = useState<{ sampleId: number; sampleNumber: string; materialName: string; lotNumber: string; status: string }[]>([])
-  const [scanSampleId,    setScanSampleId]    = useState<number | null>(null)
-  const [scanLoading,     setScanLoading]     = useState(false)
+  useEffect(() => { load() }, [viewDate])
 
-  async function openScanModal(cp: Checkpoint) {
-    setScanModal(cp); setScanSampleId(null); setLinkedSamples([]); setScanLoading(true)
-    try {
-      const r = await api.get(`/checkpoints/${cp.checkpointId}/linked-samples`)
-      setLinkedSamples(r.data)
-    } catch { setLinkedSamples([]) }
-    finally { setScanLoading(false) }
+  const filtered = checkpoints.filter(c => {
+    if (category === 'em')    return c.category === 'Environmental'
+    if (category === 'batch') return c.category !== 'Environmental'
+    return true
+  })
+
+  const allSlots = useMemo(() => {
+    const set = new Set<string>()
+    filtered.forEach(c => parseSlots(c.timeSlots).forEach(s => set.add(s)))
+    return Array.from(set).sort()
+  }, [filtered])
+
+  function navigateWeek(dir: number) {
+    const d = new Date(viewDate + 'T12:00:00')
+    d.setDate(d.getDate() + dir * 7)
+    setViewDate(toDateStr(d))
   }
 
-  async function confirmScanTrigger() {
-    if (!scanModal) return
-    triggerCheckpoint(scanModal.checkpointId, scanSampleId ?? undefined)
-    setScanModal(null); setScanSampleId(null); setLinkedSamples([])
-    load()
-  }
-
-  // ── Trigger (Mode 2 / Mode 4) ──────────────────────────────────────────
-  async function handleTrigger(cp: Checkpoint) {
-    if (cp.triggerMode === 'OperatorScan') {
-      openScanModal(cp)
-    } else {
-      triggerCheckpoint(cp.checkpointId)
-      toast(`✅ "${cp.checkpointCode}" triggered successfully`, 'success')
-      load()
-    }
-  }
-
-  // ── Open Process Log (Mode 3) ──────────────────────────────────────────
-  async function openProcessLog(cp: Checkpoint) {
-    setLogFor(cp); setLogLoading(true); setError('')
-    try {
-      const r = await api.get(`/checkpoints/${cp.checkpointId}/process-log`)
-      setLogRows(r.data)
-    } catch { toast('Failed to load process log', 'error') }
-    finally { setLogLoading(false) }
-  }
-
-  // ── Open Execute modal for a time-based slot ───────────────────────────
   async function openExecute(cp: Checkpoint, slot: string) {
     setExecFor({ checkpoint: cp, slotLabel: slot })
     setExecForm({ password: '', meaning: 'I confirm this time-based checkpoint has been performed', reason: '' })
@@ -296,7 +186,6 @@ export default function CheckpointExecutionPage() {
     } catch { /* non-critical */ }
   }
 
-  // ── Submit Execute (Mode 1) ────────────────────────────────────────────
   async function handleExecute(e: React.FormEvent) {
     e.preventDefault()
     if (!execFor) return
@@ -313,7 +202,7 @@ export default function CheckpointExecutionPage() {
         readings:  readingsList,
         sampleId:  execSampleId ?? undefined,
       })
-      toast(`Checkpoint ${execFor.checkpoint.checkpointCode} @ ${execFor.slotLabel} recorded and signed`, 'success')
+      toast(`${execFor.checkpoint.checkpointCode} @ ${execFor.slotLabel} recorded ✓`, 'success')
       setExecFor(null)
       load()
     } catch (err) {
@@ -323,295 +212,291 @@ export default function CheckpointExecutionPage() {
     finally { setExecSaving(false) }
   }
 
-  // ── Sign row (Mode 3, 21 CFR §11) ─────────────────────────────────────
-  async function handleSign(e: React.FormEvent) {
-    e.preventDefault()
-    if (!signRow) return
-    setSaving(true); setError('')
-    try {
-      const readingsList = Object.entries(readings)
-        .filter(([, v]) => v.trim() !== '')
-        .map(([parameterId, value]) => ({ parameterId: Number(parameterId), value }))
-      await api.post(
-        `/checkpoints/${signRow.checkpointId}/process-log/${signRow.rowId}/sign`,
-        { ...signForm, readings: readingsList }
-      )
-      toast('Row signed and locked ✓', 'success')
-      setSignRow(null)
-      setReadings({})
-      setSignForm({ password: '', meaning: 'I confirm this process log entry', reason: '' })
-      if (logFor) openProcessLog(logFor)
-    } catch (err) {
-      const msg = getErrorMessage(err, 'E-signature failed')
-      setError(msg); toast(msg, 'error')
-    }
-    finally { setSaving(false) }
-  }
+  // Summary stats
+  const totalSlots   = filtered.reduce((acc, c) => acc + parseSlots(c.timeSlots).length, 0)
+  const doneSlots    = filtered.reduce((acc, c) => acc + c.executedTodaySlots.length, 0)
+  const overdueCount = filtered.reduce((acc, c) =>
+    acc + parseSlots(c.timeSlots).filter(s => getCellState(s, viewDate, c.executedTodaySlots, todayStr) === 'overdue').length, 0)
 
-  const filtered = checkpoints.filter(c => !filterEM || c.category === 'Environmental')
+  const viewDateDisplay = new Date(viewDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 
   return (
     <div>
-      {/* ── Header ──────────────────────────────────────────────────────── */}
+      {/* Header */}
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#0f172a' }}>
-          ✅ Checkpoint Execution
+          Checkpoint Timeline
         </h2>
         <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6b7280' }}>
-          Trigger checkpoints, sign process log rows, and monitor today's schedule
+          Time-based checkpoint schedule — click any due cell to record
         </p>
       </div>
 
-      {/* ── Summary ─────────────────────────────────────────────────────── */}
-      {!loading && <SummaryBar checkpoints={filtered} />}
-
-      {/* ── Filter bar ──────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {[
-          { label: 'All Checkpoints', value: '' },
-          { label: '⏱ Time-Based',   value: 'TimeBased' },
-          { label: '📷 Operator Scan', value: 'OperatorScan' },
-          { label: '📋 Process Log',  value: 'ProcessLog' },
-          { label: '🚚 Dispatch',     value: 'DispatchEvent' },
-        ].map(f => (
-          <button key={f.value} onClick={() => setFilterMode(f.value)}
-            style={{
-              padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-              cursor: 'pointer', border: '1.5px solid',
-              background: filterMode === f.value ? '#0f172a' : '#fff',
-              color: filterMode === f.value ? '#fff' : '#374151',
-              borderColor: filterMode === f.value ? '#0f172a' : '#e5e7eb',
-              transition: 'all 0.12s',
-            }}>
-            {f.label}
+      {/* Date navigation */}
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 20px', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+          <button onClick={() => navigateWeek(-1)}
+            style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer', fontWeight: 600, fontSize: 13, color: '#374151' }}>
+            ‹ Prev
           </button>
-        ))}
-        <button onClick={() => setFilterEM(f => !f)}
-          style={{
-            padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-            cursor: 'pointer', border: '1.5px solid',
-            background: filterEM ? '#065f46' : '#fff',
-            color: filterEM ? '#fff' : '#065f46',
-            borderColor: filterEM ? '#065f46' : '#6ee7b7',
-          }}>
-          🌿 EM only
-        </button>
-        <button onClick={load}
-          style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151', cursor: 'pointer' }}>
-          🔄 Refresh
-        </button>
+          <span style={{ fontWeight: 700, fontSize: 15, color: '#0f172a', flex: 1, textAlign: 'center', minWidth: 180 }}>
+            {viewDateDisplay}
+          </span>
+          <button onClick={() => navigateWeek(1)}
+            style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer', fontWeight: 600, fontSize: 13, color: '#374151' }}>
+            Next ›
+          </button>
+          <button onClick={() => setViewDate(todayStr)}
+            style={{
+              padding: '7px 18px', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', border: '1.5px solid',
+              background: viewDate === todayStr ? '#3b82f6' : '#fff',
+              color: viewDate === todayStr ? '#fff' : '#3b82f6',
+              borderColor: '#3b82f6',
+            }}>
+            Today
+          </button>
+          <button onClick={load}
+            style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer', fontSize: 12, color: '#6b7280' }}>
+            ↺
+          </button>
+        </div>
+
+        {/* Week strip */}
+        <div style={{ display: 'flex', gap: 4 }}>
+          {weekDays.map((d, i) => {
+            const ds = toDateStr(d)
+            const isSelected = ds === viewDate
+            const isToday    = ds === todayStr
+            return (
+              <button key={ds} onClick={() => setViewDate(ds)}
+                style={{
+                  flex: 1, padding: '8px 4px', borderRadius: 8, cursor: 'pointer', textAlign: 'center',
+                  border: `1.5px solid ${isSelected ? '#3b82f6' : isToday ? '#93c5fd' : '#e5e7eb'}`,
+                  background: isSelected ? '#3b82f6' : isToday ? '#eff6ff' : '#f9fafb',
+                  color: isSelected ? '#fff' : isToday ? '#1d4ed8' : '#374151',
+                  transition: 'all 0.1s',
+                }}>
+                <div style={{ fontSize: 10, fontWeight: 600 }}>{DAY_LABELS[i]}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, marginTop: 1 }}>{d.getDate()}</div>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      {/* ── Loading ─────────────────────────────────────────────────────── */}
-      {loading && (
+      {/* Category tabs + Stats */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 2, background: '#f1f5f9', borderRadius: 10, padding: 3 }}>
+          {([['all', 'All'], ['em', 'Environmental (EM)'], ['batch', 'Batch Parameters']] as const).map(([val, label]) => (
+            <button key={val} onClick={() => setCategory(val)}
+              style={{
+                padding: '6px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12,
+                background: category === val ? '#fff' : 'transparent',
+                color: category === val ? '#0f172a' : '#6b7280',
+                fontWeight: category === val ? 700 : 500,
+                boxShadow: category === val ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.1s',
+              }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+          {[
+            { label: 'Total Slots', value: totalSlots,   color: '#0369a1', bg: '#f0f9ff', border: '#bae6fd' },
+            { label: 'Done',        value: doneSlots,    color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0' },
+            { label: 'Overdue',     value: overdueCount, color: '#9a3412', bg: '#fff7ed', border: '#fed7aa' },
+          ].map(s => (
+            <div key={s.label} style={{ padding: '6px 14px', borderRadius: 8, background: s.bg, border: `1px solid ${s.border}`, textAlign: 'center', minWidth: 72 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{s.value}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: s.color }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Timeline grid */}
+      {loading ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#9ca3af', fontSize: 14 }}>
-          Loading checkpoints…
+          Loading timeline…
         </div>
-      )}
-
-      {/* ── Cards grid ──────────────────────────────────────────────────── */}
-      {!loading && filtered.length === 0 && (
+      ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#9ca3af' }}>
-          <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
-          <p style={{ margin: 0, fontSize: 14 }}>No active checkpoints found.</p>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>📅</div>
+          <p style={{ margin: 0, fontSize: 14 }}>No active time-based checkpoints found.</p>
+        </div>
+      ) : (
+        <div style={{ overflowX: 'auto', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+            <thead>
+              <tr style={{ background: '#f8fafc' }}>
+                <th style={{
+                  padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700,
+                  color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em',
+                  borderBottom: '2px solid #e5e7eb', minWidth: 170,
+                  position: 'sticky', left: 0, background: '#f8fafc', zIndex: 2,
+                }}>
+                  Checkpoint
+                </th>
+                {allSlots.map(slot => (
+                  <th key={slot} style={{
+                    padding: '12px 10px', textAlign: 'center', fontSize: 12, fontWeight: 700,
+                    color: '#374151', borderBottom: '2px solid #e5e7eb', minWidth: 95,
+                  }}>
+                    {slot}
+                  </th>
+                ))}
+                <th style={{
+                  padding: '12px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700,
+                  color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em',
+                  borderBottom: '2px solid #e5e7eb', minWidth: 80,
+                }}>
+                  Progress
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((cp, idx) => {
+                const cpSlots  = parseSlots(cp.timeSlots)
+                const done     = cp.executedTodaySlots.length
+                const total    = cpSlots.length
+                const allDone  = done === total && total > 0
+                const rowBg    = idx % 2 === 0 ? '#fff' : '#fafafa'
+
+                return (
+                  <tr key={cp.checkpointId} style={{ borderBottom: '1px solid #f1f5f9', background: rowBg }}>
+                    {/* Checkpoint label */}
+                    <td style={{
+                      padding: '10px 16px', position: 'sticky', left: 0, background: rowBg,
+                      zIndex: 1, borderRight: '1px solid #f1f5f9',
+                    }}>
+                      <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 800, color: '#0f172a' }}>
+                        {cp.checkpointCode}
+                      </div>
+                      {cp.category === 'Environmental' && (
+                        <>
+                          <div style={{
+                            fontSize: 10, fontWeight: 700, color: '#065f46',
+                            background: '#d1fae5', padding: '1px 7px', borderRadius: 4,
+                            display: 'inline-block', marginTop: 3, border: '1px solid #6ee7b7',
+                          }}>
+                            🌿 {cp.systemName ?? 'EM'}
+                          </div>
+                          {cp.location && (
+                            <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>{cp.location}</div>
+                          )}
+                        </>
+                      )}
+                      {cp.checkpointType && cp.category !== 'Environmental' && (
+                        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{cp.checkpointType}</div>
+                      )}
+                    </td>
+
+                    {/* Slot cells */}
+                    {allSlots.map(slot => {
+                      const hasSlot = cpSlots.includes(slot)
+                      if (!hasSlot) {
+                        return (
+                          <td key={slot} style={{ padding: '8px 6px', textAlign: 'center' }}>
+                            <span style={{ color: '#e5e7eb', fontSize: 13, userSelect: 'none' }}>—</span>
+                          </td>
+                        )
+                      }
+                      const state = getCellState(slot, viewDate, cp.executedTodaySlots, todayStr, cp.executedSlotBreaches)
+                      const cfg   = CELL_CFG[state]
+                      return (
+                        <td key={slot} style={{ padding: '6px 4px', textAlign: 'center' }}>
+                          <button
+                            onClick={cfg.clickable ? () => openExecute(cp, slot) : undefined}
+                            disabled={!cfg.clickable}
+                            title={cfg.clickable ? `Record ${cp.checkpointCode} @ ${slot}` : undefined}
+                            style={{
+                              padding: '6px 8px', borderRadius: 8, minWidth: 78,
+                              border: `1.5px solid ${cfg.border}`,
+                              background: cfg.bg, color: cfg.color,
+                              fontSize: 11, fontWeight: 700,
+                              cursor: cfg.clickable ? 'pointer' : 'default',
+                              opacity: state === 'upcoming' ? 0.55 : 1,
+                              transition: 'opacity 0.1s',
+                              fontFamily: 'inherit',
+                            }}>
+                            {cfg.label}
+                          </button>
+                        </td>
+                      )
+                    })}
+
+                    {/* Progress */}
+                    <td style={{ padding: '10px 10px', textAlign: 'center' }}>
+                      <span style={{
+                        fontSize: 13, fontWeight: 800,
+                        color: allDone ? '#15803d' : done > 0 ? '#0369a1' : '#9ca3af',
+                      }}>
+                        {done}/{total}
+                        {allDone && <span style={{ marginLeft: 4, fontSize: 12 }}>✓</span>}
+                      </span>
+                      {total > 0 && (
+                        <div style={{
+                          height: 3, background: '#e5e7eb', borderRadius: 2, marginTop: 4, width: 48, margin: '4px auto 0',
+                        }}>
+                          <div style={{
+                            height: 3, borderRadius: 2,
+                            background: allDone ? '#16a34a' : '#3b82f6',
+                            width: `${(done / total) * 100}%`,
+                            transition: 'width 0.3s',
+                          }} />
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
-        {filtered.map(cp => {
-          const meta   = MODE_META[cp.triggerMode] ?? { bg: '#f3f4f6', color: '#374151', icon: '•', label: cp.triggerMode }
-          const slots  = parseSlots(cp.timeSlots)
-          const isManual = cp.triggerMode === 'OperatorScan' || cp.triggerMode === 'DispatchEvent'
-          const isAuto   = cp.triggerMode === 'TimeBased'
-          const isLog    = cp.triggerMode === 'ProcessLog'
-
-          // Count overdue/due slots for badge — exclude already-recorded slots
-          const activeSlots = slots.filter(s =>
-            slotStatus(s) !== 'upcoming' && !cp.executedTodaySlots?.includes(s)
-          )
-
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+        {[
+          { state: 'done' as CellState,         desc: 'Recorded — within limits' },
+          { state: 'done-alert' as CellState,   desc: 'Recorded — alert limit breach' },
+          { state: 'done-action' as CellState,  desc: 'Recorded — action limit breach' },
+          { state: 'due' as CellState,          desc: 'Due now (±30 min)' },
+          { state: 'overdue' as CellState,      desc: 'Overdue / missed' },
+          { state: 'upcoming' as CellState,     desc: 'Upcoming' },
+        ].map(({ state, desc }) => {
+          const cfg = CELL_CFG[state]
           return (
-            <div key={cp.checkpointId} style={{
-              background: '#fff',
-              border: `1.5px solid ${isAuto && activeSlots.length > 0 ? '#fca5a5' : '#e5e7eb'}`,
-              borderRadius: 12,
-              padding: '18px 20px',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-              display: 'flex', flexDirection: 'column', gap: 12,
-            }}>
-              {/* Card header */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                <div>
-                  <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 800, color: '#111827', marginBottom: 4 }}>
-                    {cp.checkpointCode}
-                  </div>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 700,
-                    background: meta.bg, color: meta.color,
-                  }}>
-                    {meta.icon} {meta.label}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 8,
-                    background: '#dcfce7', color: '#15803d',
-                  }}>
-                    ● Active
-                  </span>
-                  {isAuto && activeSlots.length > 0 && (
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 8,
-                      background: '#fee2e2', color: '#991b1b',
-                    }}>
-                      {activeSlots.length} slot{activeSlots.length > 1 ? 's' : ''} due
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Type + EM badge row */}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ fontSize: 11, color: '#6b7280', background: '#f3f4f6', padding: '2px 8px', borderRadius: 6 }}>
-                  {cp.checkpointType}
-                </span>
-                {cp.shiftIntervalHrs && (
-                  <span style={{ fontSize: 11, color: '#6b7280', background: '#f3f4f6', padding: '2px 8px', borderRadius: 6 }}>
-                    Every {cp.shiftIntervalHrs}h
-                  </span>
-                )}
-                {cp.parameters.length > 0 && (
-                  <span style={{ fontSize: 11, color: '#6b7280', background: '#f3f4f6', padding: '2px 8px', borderRadius: 6 }}>
-                    {cp.parameters.length} parameter{cp.parameters.length > 1 ? 's' : ''}
-                  </span>
-                )}
-                {cp.category === 'Environmental' && (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#065f46', background: '#d1fae5', padding: '2px 9px', borderRadius: 6, border: '1px solid #6ee7b7' }}>
-                    🌿 EM
-                  </span>
-                )}
-              </div>
-
-              {/* EM info strip — system name + scheduled date */}
-              {cp.category === 'Environmental' && (
-                <div style={{
-                  display: 'flex', gap: 16, padding: '8px 12px',
-                  background: '#f0fdf4', borderRadius: 8,
-                  border: '1px solid #bbf7d0', fontSize: 12,
-                }}>
-                  <span style={{ color: '#065f46' }}>
-                    <strong>System:</strong> {cp.systemName ?? '—'}
-                  </span>
-                  {cp.scheduledDate && (
-                    <span style={{ color: '#065f46' }}>
-                      <strong>Scheduled:</strong> {cp.scheduledDate}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* ── Time-Based: show today's schedule slots with Execute buttons ── */}
-              {isAuto && slots.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Today's Schedule
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {[...slots].sort().map(slot => (
-                      <SlotPill
-                        key={slot}
-                        slot={slot}
-                        executed={cp.executedTodaySlots?.includes(slot)}
-                        onExecute={() => openExecute(cp, slot)}
-                      />
-                    ))}
-                  </div>
-                  {activeSlots.length === 0 && (
-                    <p style={{ margin: '6px 0 0', fontSize: 11, color: '#9ca3af' }}>
-                      No slots due yet — upcoming slots will activate at their scheduled time
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {isAuto && slots.length === 0 && (
-                <p style={{ margin: 0, fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>
-                  ⏱ No time slots configured — add slots in Settings → Checkpoints
-                </p>
-              )}
-
-              {/* ── Operator Scan / Dispatch: Trigger button ─────────────────── */}
-              {isManual && (
-                <div>
-                  <p style={{ margin: '0 0 10px', fontSize: 12, color: '#374151' }}>
-                    {cp.triggerMode === 'OperatorScan'
-                      ? 'Click when operator performs the scan / batch check'
-                      : 'Click when a dispatch order has been processed'}
-                  </p>
-                  <button
-                    onClick={() => handleTrigger(cp)}
-                    style={{
-                      width: '100%', padding: '12px 0',
-                      background: '#16a34a', color: '#fff',
-                      border: 'none', borderRadius: 8,
-                      fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      transition: 'background 0.12s',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#15803d')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '#16a34a')}
-                  >
-                    🔔 Trigger Now
-                  </button>
-                </div>
-              )}
-
-              {/* ── Process Log: open shift grid ─────────────────────────────── */}
-              {isLog && (
-                <div>
-                  <p style={{ margin: '0 0 10px', fontSize: 12, color: '#374151' }}>
-                    Sign each shift row after completing the process check
-                  </p>
-                  <button
-                    onClick={() => openProcessLog(cp)}
-                    style={{
-                      width: '100%', padding: '12px 0',
-                      background: '#7c3aed', color: '#fff',
-                      border: 'none', borderRadius: 8,
-                      fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      transition: 'background 0.12s',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#6d28d9')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '#7c3aed')}
-                  >
-                    📋 Open Process Log
-                  </button>
-                </div>
-              )}
+            <div key={state} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#6b7280' }}>
+              <span style={{
+                display: 'inline-block', width: 12, height: 12, borderRadius: 3,
+                background: cfg.bg, border: `1.5px solid ${cfg.border}`,
+              }} />
+              {desc}
             </div>
           )
         })}
       </div>
 
-      {/* ── Execute Time-Based Checkpoint Drawer ──────────────────────────── */}
+      {/* ── Execute drawer ────────────────────────────────────────────────── */}
       {execFor && (
         <Drawer
-          title={`Record Check — ${execFor.checkpoint.checkpointCode} @ ${execFor.slotLabel}`}
-          subtitle="Immutable audit entry (21 CFR Part 11)"
+          title={`Record — ${execFor.checkpoint.checkpointCode} @ ${execFor.slotLabel}`}
+          subtitle="21 CFR Part 11 — immutable audit entry"
           onClose={() => setExecFor(null)}
           blocking width={480}
         >
           <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
-            Record your readings and confirm with e-signature. This creates an immutable audit entry (21 CFR Part 11).
+            Record your readings and confirm with e-signature.
           </p>
           <form onSubmit={handleExecute}>
 
-            {/* ── Link to Sample (optional) ── */}
+            {/* Link to sample */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>
-                Link to Sample <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>(optional — for traceability)</span>
+                Link to Sample <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400 }}>(optional)</span>
               </label>
               <select
                 style={{ ...inp, margin: 0 }}
@@ -627,17 +512,17 @@ export default function CheckpointExecutionPage() {
               </select>
               {execSamples.length === 0 && (
                 <p style={{ margin: '4px 0 0', fontSize: 11, color: '#9ca3af' }}>
-                  No samples linked to this checkpoint yet. Link samples during Sample Registration.
+                  No samples linked to this checkpoint.
                 </p>
               )}
             </div>
             <div style={{ height: 1, background: '#e5e7eb', marginBottom: 16 }} />
 
-            {/* ── Parameter readings ── */}
+            {/* Parameter readings */}
             {execFor.checkpoint.parameters.length > 0 && (
               <div style={{ marginBottom: 18 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 10 }}>
-                  📊 Enter Parameter Readings
+                  Parameter Readings
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {execFor.checkpoint.parameters.map(p => {
@@ -672,7 +557,7 @@ export default function CheckpointExecutionPage() {
                             <select
                               style={{ ...inp, margin: 0, flex: 1 }}
                               value={rawVal}
-                              onChange={e2 => setExecReadings(r => ({ ...r, [p.parameterId]: e2.target.value }))}>
+                              onChange={e => setExecReadings(r => ({ ...r, [p.parameterId]: e.target.value }))}>
                               <option value="">— Select —</option>
                               <option value="Pass">Pass</option>
                               <option value="Fail">Fail</option>
@@ -682,7 +567,7 @@ export default function CheckpointExecutionPage() {
                               type="number" step="any"
                               style={{ ...inp, margin: 0, flex: 1, borderColor: ts.border }}
                               value={rawVal}
-                              onChange={e2 => setExecReadings(r => ({ ...r, [p.parameterId]: e2.target.value }))}
+                              onChange={e => setExecReadings(r => ({ ...r, [p.parameterId]: e.target.value }))}
                               placeholder="Enter value"
                             />
                           )}
@@ -721,271 +606,10 @@ export default function CheckpointExecutionPage() {
             <Field label="Reason / Observation">
               <input style={inp} value={execForm.reason}
                 onChange={e => setExecForm(f => ({ ...f, reason: e.target.value }))} required
-                placeholder="e.g. All readings within acceptable range — no anomalies observed" />
+                placeholder="e.g. All readings within acceptable range" />
             </Field>
             {execError && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>⚠ {execError}</p>}
             <DrawerFooter saving={execSaving} onCancel={() => setExecFor(null)} label="Submit & Sign" />
-          </form>
-        </Drawer>
-      )}
-
-      {/* ── OperatorScan: Linked Samples Modal ──────────────────────────── */}
-      {scanModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 460, padding: '24px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#111827' }}>
-              📷 Operator Scan — {scanModal.checkpointCode}
-            </h3>
-            <p style={{ margin: '0 0 18px', fontSize: 13, color: '#6b7280' }}>
-              Select the sample this scan is for. Only samples registered with this checkpoint are shown.
-            </p>
-
-            {scanLoading && <div style={{ textAlign: 'center', padding: 20, color: '#9ca3af', fontSize: 13 }}>Loading linked samples…</div>}
-
-            {!scanLoading && linkedSamples.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '20px 0', color: '#9ca3af', fontSize: 13 }}>
-                No samples are linked to this checkpoint yet.<br />
-                <span style={{ fontSize: 12 }}>Link samples by selecting this checkpoint during Sample Registration.</span>
-              </div>
-            )}
-
-            {!scanLoading && linkedSamples.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto' }}>
-                {linkedSamples.map(s => (
-                  <label key={s.sampleId} style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-                    border: `2px solid ${scanSampleId === s.sampleId ? '#0d9488' : '#e5e7eb'}`,
-                    background: scanSampleId === s.sampleId ? '#f0fdfa' : '#fafafa',
-                    transition: 'all 0.1s',
-                  }}>
-                    <input type="radio" name="scanSample" value={s.sampleId}
-                      checked={scanSampleId === s.sampleId}
-                      onChange={() => setScanSampleId(s.sampleId)}
-                      style={{ accentColor: '#0d9488' }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13, color: '#0f172a' }}>{s.sampleNumber}</div>
-                      <div style={{ fontSize: 11, color: '#6b7280' }}>{s.materialName} · Lot: {s.lotNumber}</div>
-                    </div>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                      background: s.status === 'InTesting' ? '#fde8d8' : s.status === 'Released' ? '#d1fae5' : '#f1f5f9',
-                      color: s.status === 'InTesting' ? '#9a3412' : s.status === 'Released' ? '#065f46' : '#475569',
-                    }}>{s.status}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'space-between', alignItems: 'center' }}>
-              {/* Always allow scan without sample link */}
-              {linkedSamples.length > 0 && (
-                <button onClick={() => { setScanSampleId(null); confirmScanTrigger() }}
-                  style={{ padding: '8px 14px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: '#6b7280' }}>
-                  Scan without sample link
-                </button>
-              )}
-              <div style={{ display: 'flex', gap: 10, marginLeft: 'auto' }}>
-                <button onClick={() => setScanModal(null)}
-                  style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Cancel
-                </button>
-                <button onClick={confirmScanTrigger}
-                  style={{ padding: '8px 20px', borderRadius: 7, border: 'none', fontWeight: 700, cursor: 'pointer',
-                    background: '#0d9488', color: '#fff', fontFamily: 'inherit' }}>
-                  ✅ {scanSampleId ? 'Confirm Scan' : linkedSamples.length === 0 ? 'Confirm Scan' : 'Confirm without selection'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Process Log Modal ────────────────────────────────────────────── */}
-      {logFor && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: 12, width: '100%', maxWidth: 520,
-            padding: '24px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-          }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>
-                  📋 Process Log
-                </h3>
-                <p style={{ margin: '3px 0 0', fontSize: 13, color: '#6b7280' }}>
-                  {logFor.checkpointCode} — Sign each completed shift
-                </p>
-              </div>
-              <button onClick={() => setLogFor(null)}
-                style={{ background: 'none', border: 'none', fontSize: 22, color: '#9ca3af', cursor: 'pointer' }}>
-                ×
-              </button>
-            </div>
-
-            {logLoading && <p style={{ color: '#9ca3af', fontSize: 13 }}>Loading shifts…</p>}
-
-            {!logLoading && logRows.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '30px 0', color: '#9ca3af' }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
-                <p style={{ margin: 0, fontSize: 13 }}>No shift slots for today yet.</p>
-                <p style={{ margin: '4px 0 0', fontSize: 12 }}>Scheduler generates slots at midnight UTC.</p>
-              </div>
-            )}
-
-            <div style={{ maxHeight: 360, overflowY: 'auto', marginBottom: 4 }}>
-            {!logLoading && logRows.map(row => {
-              const isOpen   = row.status === 'Open'
-              const isLocked = row.status === 'Locked' || row.isSigned
-              return (
-                <div key={row.rowId} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '12px 14px', borderRadius: 8, marginBottom: 8,
-                  background: isLocked ? '#f0fdf4' : '#fffbeb',
-                  border: `1px solid ${isLocked ? '#bbf7d0' : '#fde68a'}`,
-                }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#111827', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {row.slotLabel}
-                      {row.sampleNumber && (
-                        <span style={{ fontSize: 11, fontWeight: 700, background: '#f0fdfa', color: '#0d9488', border: '1px solid #99f6e4', borderRadius: 4, padding: '1px 6px' }}>
-                          {row.sampleNumber}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-                      {fmtDateTime(row.slotTime)}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {isLocked ? (
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#15803d', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        ✅ Signed
-                      </span>
-                    ) : isOpen ? (
-                      <button
-                        onClick={() => { setSignRow({ checkpointId: logFor.checkpointId, rowId: row.rowId, params: logFor.parameters ?? [] }); setReadings({}); setError('') }}
-                        style={{
-                          padding: '7px 16px', background: '#7c3aed', color: '#fff',
-                          border: 'none', borderRadius: 6, cursor: 'pointer',
-                          fontSize: 12, fontWeight: 700,
-                        }}>
-                        ✍️ Sign Row
-                      </button>
-                    ) : (
-                      <span style={{ fontSize: 12, color: '#9ca3af' }}>{row.status}</span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-            </div>{/* end scroll container */}
-
-            <div style={{ marginTop: 16, textAlign: 'right' }}>
-              <button onClick={() => setLogFor(null)}
-                style={{ padding: '9px 22px', background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 7, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── E-Signature Drawer (Process Log row) ──────────────────────────── */}
-      {signRow && (
-        <Drawer title="Sign Process Log Row" subtitle="21 CFR Part 11 — permanently recorded" onClose={() => setSignRow(null)} blocking width={460}>
-          <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>
-            21 CFR Part 11 — your signature will be permanently recorded.
-          </p>
-          <form onSubmit={handleSign}>
-
-            {/* ── Parameter readings ── */}
-            {signRow.params.length > 0 && (
-              <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginBottom: 10 }}>
-                  📊 Enter Parameter Readings
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {signRow.params.map(p => {
-                    const rawVal = readings[p.parameterId] ?? ''
-                    const tier   = rawVal !== '' ? checkLimits(rawVal, p) : 'none'
-                    const ts     = TIER_STYLE[tier]
-                    const hasLimits = p.alertMin != null || p.alertMax != null || p.actionMin != null || p.actionMax != null
-                    return (
-                      <div key={p.parameterId} style={{
-                        border: `1.5px solid ${ts.border}`,
-                        background: ts.background,
-                        borderRadius: 8,
-                        padding: '10px 12px',
-                        transition: 'border-color 0.15s, background 0.15s',
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <label style={{ fontSize: 13, color: '#374151', fontWeight: 600 }}>
-                            {p.parameterName}
-                            <span style={{ marginLeft: 6, fontSize: 11, color: '#9ca3af', fontFamily: 'monospace', fontWeight: 400 }}>{p.parameterCode}</span>
-                          </label>
-                          {ts.badge && rawVal !== '' && (
-                            <span style={{
-                              fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
-                              background: tier === 'action' ? '#fef2f2' : tier === 'alert' ? '#fffbeb' : '#f0fdf4',
-                              color:      tier === 'action' ? '#dc2626' : tier === 'alert' ? '#b45309' : '#15803d',
-                              border:     `1px solid ${tier === 'action' ? '#fca5a5' : tier === 'alert' ? '#fcd34d' : '#86efac'}`,
-                            }}>{ts.badge}</span>
-                          )}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {p.dataType === 'PassFail' ? (
-                            <select
-                              style={{ ...inp, margin: 0, flex: 1 }}
-                              value={rawVal}
-                              onChange={e => setReadings(r => ({ ...r, [p.parameterId]: e.target.value }))}>
-                              <option value="">— Select —</option>
-                              <option value="Pass">Pass</option>
-                              <option value="Fail">Fail</option>
-                            </select>
-                          ) : (
-                            <input
-                              type="number" step="any"
-                              style={{ ...inp, margin: 0, flex: 1, borderColor: ts.border }}
-                              value={rawVal}
-                              onChange={e => setReadings(r => ({ ...r, [p.parameterId]: e.target.value }))}
-                              placeholder="Enter value"
-                            />
-                          )}
-                          {p.uom && <span style={{ fontSize: 12, color: '#6b7280', whiteSpace: 'nowrap', minWidth: 30 }}>{p.uom}</span>}
-                        </div>
-                        {hasLimits && (
-                          <div style={{ marginTop: 5, fontSize: 11, color: '#9ca3af', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                            {(p.alertMin != null || p.alertMax != null) && (
-                              <span style={{ color: '#b45309' }}>
-                                ⚠ Alert: {p.alertMin != null ? `≥${p.alertMin}` : ''}{p.alertMin != null && p.alertMax != null ? ' – ' : ''}{p.alertMax != null ? `≤${p.alertMax}` : ''}
-                              </span>
-                            )}
-                            {(p.actionMin != null || p.actionMax != null) && (
-                              <span style={{ color: '#dc2626' }}>
-                                🔴 Action: {p.actionMin != null ? `≥${p.actionMin}` : ''}{p.actionMin != null && p.actionMax != null ? ' – ' : ''}{p.actionMax != null ? `≤${p.actionMax}` : ''}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-                <div style={{ height: 1, background: '#e5e7eb', margin: '14px 0' }} />
-              </div>
-            )}
-
-            <Field label="Password (re-enter to confirm identity)">
-              <input style={inp} type="password" value={signForm.password}
-                onChange={e => setSignForm(f => ({ ...f, password: e.target.value }))} required autoFocus />
-            </Field>
-            {error && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 8 }}>⚠ {error}</p>}
-            <DrawerFooter saving={saving} onCancel={() => setSignRow(null)} label="Sign & Lock Row" />
           </form>
         </Drawer>
       )}

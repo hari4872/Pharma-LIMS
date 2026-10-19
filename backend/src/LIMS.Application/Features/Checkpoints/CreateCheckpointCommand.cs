@@ -22,6 +22,10 @@ public record CreateCheckpointCommand(
     List<ParameterLimitsInput>? Parameters = null,
     string Category = "Batch",                              // EM extension
     string? SystemName = null,
+    string? SystemCode = null,
+    string? Location = null,
+    string? SamplingPointCode = null,
+    string LifecycleStatus = "Draft",
     DateOnly? ScheduledDate = null) : IRequest<Result<int>>;   // preferred — IDs + two-tier limits
 
 public class CreateCheckpointValidator : AbstractValidator<CreateCheckpointCommand>
@@ -33,10 +37,7 @@ public class CreateCheckpointValidator : AbstractValidator<CreateCheckpointComma
         RuleFor(x => x.TriggerMode).NotEmpty()
             .Must(m => new[] { "TimeBased", "OperatorScan", "ProcessLog", "DispatchEvent" }.Contains(m))
             .WithMessage("TriggerMode must be TimeBased, OperatorScan, ProcessLog, or DispatchEvent.");
-        // FormTemplate required for all modes except DispatchEvent (DispatchEventService selects it dynamically)
-        RuleFor(x => x.FormTemplateId)
-            .GreaterThan(0).WithMessage("FormTemplateId is required for this trigger mode.")
-            .When(x => x.TriggerMode != "DispatchEvent");
+        RuleFor(x => x.FormTemplateId).GreaterThan(0).When(x => x.FormTemplateId.HasValue);
     }
 }
 
@@ -69,6 +70,10 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
             FormTemplateId = request.FormTemplateId,
             Category = request.Category,
             SystemName = request.SystemName,
+            SystemCode = request.SystemCode,
+            Location = request.Location,
+            SamplingPointCode = request.SamplingPointCode,
+            LifecycleStatus = request.LifecycleStatus,
             ScheduledDate = request.ScheduledDate
         };
         _db.Checkpoints.Add(checkpoint);

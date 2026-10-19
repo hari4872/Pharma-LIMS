@@ -97,6 +97,8 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<CapacityBooking> CapacityBookings => Set<CapacityBooking>();
     // Instrument CSV Import
     public DbSet<InstrumentImportLog> InstrumentImportLogs => Set<InstrumentImportLog>();
+    // EM Samples
+    public DbSet<EmSample> EmSamples => Set<EmSample>();
     // LabVantage Parity
     public DbSet<LoginAuditLog> LoginAuditLogs => Set<LoginAuditLog>();
     public DbSet<StabilityTrendPoint> StabilityTrendPoints => Set<StabilityTrendPoint>();
@@ -192,6 +194,28 @@ public class LimsDbContext : DbContext, ILimsDbContext
              .WithMany()
              .HasForeignKey(i => i.PostReworkRetestExecutionId)
              .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // EmSample — physical EM sample lifecycle
+        modelBuilder.Entity<EmSample>(e =>
+        {
+            e.ToTable("em_samples");
+            e.HasKey(s => s.EmSampleId);
+            e.Property(s => s.SampleNumber).IsRequired().HasMaxLength(60);
+            e.Property(s => s.SlotLabel).IsRequired().HasMaxLength(10);
+            e.Property(s => s.CollectedBy).HasMaxLength(100);
+            e.Property(s => s.ReceivedBy).HasMaxLength(100);
+            e.Property(s => s.AssignedAnalyst).HasMaxLength(100);
+            e.Property(s => s.ResultsApprovedBy).HasMaxLength(100);
+            e.Property(s => s.ResultStatus).HasMaxLength(30);
+            e.Property(s => s.InvestigationNumber).HasMaxLength(50);
+            e.Property(s => s.InvestigationStatus).HasMaxLength(20);
+            e.Property(s => s.InvestigationNotes).HasMaxLength(2000);
+            e.Property(s => s.CreatedBy).IsRequired().HasMaxLength(100);
+            e.HasOne(s => s.Checkpoint).WithMany().HasForeignKey(s => s.CheckpointId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(s => s.ProcessLogRow).WithMany().HasForeignKey(s => s.ProcessLogRowId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(s => new { s.CheckpointId, s.SamplingDate, s.SlotLabel });
+            e.HasIndex(s => s.SampleNumber).IsUnique();
         });
 
         // All enums stored as strings for readability

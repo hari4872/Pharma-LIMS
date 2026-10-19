@@ -92,6 +92,8 @@ public interface ILimsDbContext
     DbSet<CapacityBooking> CapacityBookings { get; }
     // Instrument CSV Import
     DbSet<InstrumentImportLog> InstrumentImportLogs { get; }
+    // EM Samples — physical sample lifecycle tracking
+    DbSet<EmSample> EmSamples { get; }
     // LabVantage Parity
     DbSet<LoginAuditLog> LoginAuditLogs { get; }
     DbSet<StabilityTrendPoint> StabilityTrendPoints { get; }

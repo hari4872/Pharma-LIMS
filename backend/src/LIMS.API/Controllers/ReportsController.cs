@@ -463,6 +463,192 @@ public class ReportsController : ControllerBase
             $"LIMS_EM_Trend_{DateTime.UtcNow:yyyyMMdd}.xlsx");
     }
 
+    // GET api/v1/reports/em-sampling-matrix?from=2026-10-01&to=2026-10-31&system=Cleanroom+Air&excel=true
+    [HttpGet("em-sampling-matrix")]
+    public async Task<IActionResult> EmSamplingMatrix(
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] string? system, [FromQuery] bool excel = false)
+    {
+        var fromDate = from.HasValue ? DateOnly.FromDateTime(from.Value)
+            : new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        var toDate   = to.HasValue ? DateOnly.FromDateTime(to.Value)
+            : DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Cap to 90 days to keep the matrix readable
+        if (toDate.DayNumber - fromDate.DayNumber > 90) toDate = fromDate.AddDays(90);
+
+        var emCheckpoints = await _db.Checkpoints
+            .Where(c => c.Category == "Environmental" && c.IsActive
+                && (string.IsNullOrEmpty(system) || c.SystemName == system))
+            .OrderBy(c => c.SystemName ?? "").ThenBy(c => c.CheckpointCode)
+            .ToListAsync();
+
+        var fromDt = fromDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var toDt   = toDate.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
+        var cpIds  = emCheckpoints.Select(c => c.CheckpointId).ToList();
+
+        // EF Core returns empty list automatically when cpIds is empty (optimises to 1=0)
+        var logRows = await _db.ProcessLogRows.Include(r => r.Sample)
+            .Where(r => cpIds.Contains(r.CheckpointId) && r.SlotTime >= fromDt && r.SlotTime <= toDt)
+            .ToListAsync();
+
+        var dates     = Enumerable.Range(0, toDate.DayNumber - fromDate.DayNumber + 1)
+                            .Select(i => fromDate.AddDays(i)).ToList();
+        var todayDate = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        (string status, List<string> samples) GetCell(int cpId, DateOnly d)
+        {
+            var ds   = d.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            var de   = d.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Utc);
+            var rows = logRows.Where(r => r.CheckpointId == cpId && r.SlotTime >= ds && r.SlotTime <= de).ToList();
+            if (rows.Count > 0)
+            {
+                var nums = rows.Where(r => r.Sample != null).Select(r => r.Sample!.SampleNumber).Distinct().ToList();
+                return ("done", nums.Count > 0 ? nums : new List<string> { "Done" });
+            }
+            if (d < todayDate)  return ("missed",   new List<string>());
+            if (d == todayDate) return ("today",     new List<string>());
+            return ("upcoming", new List<string>());
+        }
+
+        if (excel)
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using var package = new ExcelPackage();
+            var ws = package.Workbook.Worksheets.Add("EM Sampling Matrix");
+
+            ws.Cells[1, 1].Value = "System / Area";
+            ws.Cells[1, 2].Value = "Checkpoint";
+            for (int d = 0; d < dates.Count; d++)
+                ws.Cells[1, d + 3].Value = dates[d].ToString("dd-MMM");
+            StyleHeader(ws, 1, dates.Count + 2, Color.FromArgb(6, 95, 70));
+
+            int r = 2;
+            foreach (var cp in emCheckpoints)
+            {
+                ws.Cells[r, 1].Value = cp.SystemName ?? "—";
+                ws.Cells[r, 2].Value = cp.CheckpointCode;
+                for (int d = 0; d < dates.Count; d++)
+                {
+                    var (status, samples) = GetCell(cp.CheckpointId, dates[d]);
+                    var cell = ws.Cells[r, d + 3];
+                    switch (status)
+                    {
+                        case "done":
+                            cell.Value = string.Join(", ", samples);
+                            cell.Style.Font.Color.SetColor(Color.FromArgb(6, 95, 70));
+                            cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                            cell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(209, 250, 229));
+                            break;
+                        case "missed":
+                            cell.Value = "Missed";
+                            cell.Style.Font.Color.SetColor(Color.FromArgb(154, 52, 18));
+                            cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                            cell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(255, 247, 237));
+                            break;
+                        case "today":
+                            cell.Value = "Due Today";
+                            cell.Style.Font.Color.SetColor(Color.FromArgb(29, 78, 216));
+                            cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                            cell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(219, 234, 254));
+                            break;
+                        default:
+                            cell.Value = "—";
+                            cell.Style.Font.Color.SetColor(Color.Gray);
+                            break;
+                    }
+                }
+                r++;
+            }
+            ws.Cells[ws.Dimension?.Address ?? "A1"].AutoFitColumns();
+            ws.HeaderFooter.OddHeader.CenteredText = $"LIMS — EM Sampling Schedule Matrix {DateTime.UtcNow:yyyy-MM-dd}";
+            var bytes = await package.GetAsByteArrayAsync();
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"LIMS_EM_SamplingMatrix_{DateTime.UtcNow:yyyyMMdd}.xlsx");
+        }
+        else
+        {
+            // JSON for inline preview in the UI
+            var result = new
+            {
+                dates = dates.Select(d => d.ToString("yyyy-MM-dd")).ToArray(),
+                rows  = emCheckpoints.Select(cp => new
+                {
+                    systemName     = cp.SystemName ?? "—",
+                    checkpointCode = cp.CheckpointCode,
+                    cells          = dates.Select(d =>
+                    {
+                        var (status, samples) = GetCell(cp.CheckpointId, d);
+                        return new { date = d.ToString("yyyy-MM-dd"), status, samples };
+                    }).ToArray()
+                }).ToArray()
+            };
+            return Ok(result);
+        }
+    }
+
+    // GET api/v1/reports/em-history?from=2026-10-01&to=2026-10-31&system=&page=1&pageSize=50
+    // Returns JSON for on-screen historic reports table
+    [HttpGet("em-history")]
+    public async Task<IActionResult> GetEmHistory(
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] string? system,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    {
+        var fromDt = (from ?? DateTime.UtcNow.AddDays(-30)).Date;
+        var toDt   = (to   ?? DateTime.UtcNow).Date.AddDays(1);
+        pageSize   = Math.Clamp(pageSize, 10, 200);
+        page       = Math.Max(1, page);
+
+        var q = _db.ProcessLogRows
+            .Include(r => r.Checkpoint).ThenInclude(cp => cp.CheckpointParameters)
+            .Include(r => r.Readings).ThenInclude(rd => rd.Parameter)
+            .Where(r => r.Checkpoint.Category == "Environmental"
+                     && r.SlotTime >= fromDt && r.SlotTime < toDt);
+
+        if (!string.IsNullOrWhiteSpace(system))
+            q = q.Where(r => r.Checkpoint.SystemName == system);
+
+        var total = await q.CountAsync();
+        var rows  = await q.OrderByDescending(r => r.SlotTime)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .ToListAsync();
+
+        var items = rows.Select(r =>
+        {
+            var cp = r.Checkpoint;
+            var readings = r.Readings.Select(rd =>
+            {
+                var cpParam = cp.CheckpointParameters.FirstOrDefault(p => p.ParameterId == rd.ParameterId);
+                string limitStatus = "—";
+                if (cpParam != null && decimal.TryParse(rd.Value, out var val))
+                {
+                    if ((cpParam.ActionMin.HasValue && val < cpParam.ActionMin) || (cpParam.ActionMax.HasValue && val > cpParam.ActionMax))
+                        limitStatus = "Action";
+                    else if ((cpParam.AlertMin.HasValue && val < cpParam.AlertMin) || (cpParam.AlertMax.HasValue && val > cpParam.AlertMax))
+                        limitStatus = "Alert";
+                    else if (cpParam.AlertMin.HasValue || cpParam.AlertMax.HasValue || cpParam.ActionMin.HasValue || cpParam.ActionMax.HasValue)
+                        limitStatus = "Pass";
+                }
+                return new { parameterName = rd.Parameter?.ParameterName ?? $"Param {rd.ParameterId}", uom = rd.Parameter?.Uom, value = rd.Value, limitStatus };
+            }).ToList();
+
+            return new
+            {
+                rowId          = r.RowId,
+                slotTime       = r.SlotTime,
+                slotLabel      = r.SlotLabel,
+                checkpointCode = cp.CheckpointCode,
+                systemName     = cp.SystemName ?? "—",
+                location       = cp.Location,
+                isSigned       = r.SignatureId.HasValue,
+                readings,
+            };
+        }).ToList();
+
+        return Ok(new { total, page, pageSize, items });
+    }
+
     private static void StyleHeader(ExcelWorksheet ws, int row, int colCount, Color bg)
     {
         for (int c = 1; c <= colCount; c++)

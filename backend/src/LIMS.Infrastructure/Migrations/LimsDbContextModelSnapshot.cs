@@ -259,6 +259,10 @@ namespace LIMS.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CheckpointId"));
 
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("CheckpointCode")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -278,8 +282,27 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<int>("LabId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("LifecycleStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Location")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SamplingPointCode")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly?>("ScheduledDate")
+                        .HasColumnType("date");
+
                     b.Property<int?>("ShiftIntervalHrs")
                         .HasColumnType("integer");
+
+                    b.Property<string>("SystemCode")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SystemName")
+                        .HasColumnType("text");
 
                     b.Property<string>("TimeSlots")
                         .HasColumnType("jsonb");
@@ -983,6 +1006,104 @@ namespace LIMS.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("electronic_signatures", (string)null);
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.EmSample", b =>
+                {
+                    b.Property<int>("EmSampleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("EmSampleId"));
+
+                    b.Property<DateTimeOffset?>("AnalysisStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AssignedAnalyst")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("CheckpointId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("CollectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CollectedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InvestigationNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("InvestigationNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("InvestigationStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int?>("ProcessLogRowId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReceivedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ResultStatus")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset?>("ResultsApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ResultsApprovedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("SampleNumber")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<DateOnly>("SamplingDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("SlotLabel")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("EmSampleId");
+
+                    b.HasIndex("ProcessLogRowId");
+
+                    b.HasIndex("SampleNumber")
+                        .IsUnique();
+
+                    b.HasIndex("CheckpointId", "SamplingDate", "SlotLabel");
+
+                    b.ToTable("em_samples", (string)null);
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.ExcursionAffectedSample", b =>
@@ -4274,6 +4395,24 @@ namespace LIMS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.EmSample", b =>
+                {
+                    b.HasOne("LIMS.Domain.Entities.Checkpoint", "Checkpoint")
+                        .WithMany()
+                        .HasForeignKey("CheckpointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LIMS.Domain.Entities.ProcessLogRow", "ProcessLogRow")
+                        .WithMany()
+                        .HasForeignKey("ProcessLogRowId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Checkpoint");
+
+                    b.Navigation("ProcessLogRow");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.ExcursionAffectedSample", b =>
