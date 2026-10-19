@@ -63,6 +63,9 @@ interface Checkpoint {
   timeSlots?:         string | null  // JSON string e.g. '["08:00","14:00"]' — now returned by API
   parameters:         CheckpointParam[]
   executedTodaySlots: string[]  // slot labels already recorded today (from backend)
+  category:           string          // "Batch" | "Environmental"
+  systemName:         string | null
+  scheduledDate:      string | null   // ISO date
 }
 
 interface ProcessLogRow {
@@ -158,6 +161,7 @@ function SummaryBar({ checkpoints }: { checkpoints: Checkpoint[] }) {
   const auto      = checkpoints.filter(c => c.triggerMode === 'TimeBased').length
   const manual    = checkpoints.filter(c => c.triggerMode === 'OperatorScan' || c.triggerMode === 'DispatchEvent').length
   const processLog = checkpoints.filter(c => c.triggerMode === 'ProcessLog').length
+  const em        = checkpoints.filter(c => c.category === 'Environmental').length
 
   return (
     <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -166,6 +170,7 @@ function SummaryBar({ checkpoints }: { checkpoints: Checkpoint[] }) {
         { label: 'Auto (Timer)',   value: auto,               bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
         { label: 'Manual Trigger', value: manual,             bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
         { label: 'Process Log',    value: processLog,         bg: '#fefce8', color: '#854d0e', border: '#fde68a' },
+        { label: '🌿 EM',          value: em,                 bg: '#ecfdf5', color: '#065f46', border: '#6ee7b7' },
       ].map(s => (
         <div key={s.label} style={{
           padding: '12px 20px', borderRadius: 10,
@@ -185,6 +190,7 @@ export default function CheckpointExecutionPage() {
   const [checkpoints, setCheckpoints]   = useState<Checkpoint[]>([])
   const [loading, setLoading]           = useState(false)
   const [filterMode, setFilterMode]     = useState('')
+  const [filterEM, setFilterEM]         = useState(false)
 
   // Process Log modal state
   const [logRows, setLogRows]           = useState<ProcessLogRow[]>([])
@@ -342,7 +348,7 @@ export default function CheckpointExecutionPage() {
     finally { setSaving(false) }
   }
 
-  const filtered = checkpoints
+  const filtered = checkpoints.filter(c => !filterEM || c.category === 'Environmental')
 
   return (
     <div>
@@ -380,6 +386,16 @@ export default function CheckpointExecutionPage() {
             {f.label}
           </button>
         ))}
+        <button onClick={() => setFilterEM(f => !f)}
+          style={{
+            padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+            cursor: 'pointer', border: '1.5px solid',
+            background: filterEM ? '#065f46' : '#fff',
+            color: filterEM ? '#fff' : '#065f46',
+            borderColor: filterEM ? '#065f46' : '#6ee7b7',
+          }}>
+          🌿 EM only
+        </button>
         <button onClick={load}
           style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151', cursor: 'pointer' }}>
           🔄 Refresh
@@ -455,8 +471,8 @@ export default function CheckpointExecutionPage() {
                 </div>
               </div>
 
-              {/* Type badge */}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {/* Type + EM badge row */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <span style={{ fontSize: 11, color: '#6b7280', background: '#f3f4f6', padding: '2px 8px', borderRadius: 6 }}>
                   {cp.checkpointType}
                 </span>
@@ -470,7 +486,30 @@ export default function CheckpointExecutionPage() {
                     {cp.parameters.length} parameter{cp.parameters.length > 1 ? 's' : ''}
                   </span>
                 )}
+                {cp.category === 'Environmental' && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#065f46', background: '#d1fae5', padding: '2px 9px', borderRadius: 6, border: '1px solid #6ee7b7' }}>
+                    🌿 EM
+                  </span>
+                )}
               </div>
+
+              {/* EM info strip — system name + scheduled date */}
+              {cp.category === 'Environmental' && (
+                <div style={{
+                  display: 'flex', gap: 16, padding: '8px 12px',
+                  background: '#f0fdf4', borderRadius: 8,
+                  border: '1px solid #bbf7d0', fontSize: 12,
+                }}>
+                  <span style={{ color: '#065f46' }}>
+                    <strong>System:</strong> {cp.systemName ?? '—'}
+                  </span>
+                  {cp.scheduledDate && (
+                    <span style={{ color: '#065f46' }}>
+                      <strong>Scheduled:</strong> {cp.scheduledDate}
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* ── Time-Based: show today's schedule slots with Execute buttons ── */}
               {isAuto && slots.length > 0 && (

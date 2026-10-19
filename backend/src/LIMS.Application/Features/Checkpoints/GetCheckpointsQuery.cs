@@ -15,7 +15,8 @@ public record CheckpointDto(
     int CheckpointId, string CheckpointCode, string TriggerMode,
     string CheckpointType, int? ShiftIntervalHrs, bool IsActive,
     int LocationCount, string? TimeSlots, List<CheckpointParameterDto> Parameters,
-    List<string> ExecutedTodaySlots);
+    List<string> ExecutedTodaySlots,
+    string Category, string? SystemName, DateOnly? ScheduledDate);
 
 public record GetProcessLogQuery(int CheckpointId, DateOnly? Date) : IRequest<List<ProcessLogRowDto>>;
 
@@ -64,7 +65,8 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
                 cp.Parameter.ParameterCode, cp.Parameter.Uom,
                 cp.Parameter.DataType.ToString(),
                 cp.AlertMin, cp.AlertMax, cp.ActionMin, cp.ActionMax)).ToList(),
-            executedDict.TryGetValue(c.CheckpointId, out var todaySlots) ? todaySlots : []))
+            executedDict.TryGetValue(c.CheckpointId, out var todaySlots) ? todaySlots : [],
+            c.Category, c.SystemName, c.ScheduledDate))
             .ToList();
     }
 }
