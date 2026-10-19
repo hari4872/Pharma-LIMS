@@ -139,7 +139,8 @@ VALUES
     (10, 'CO₂ System',            'CO2', 'Carbon dioxide purity and moisture monitoring',                    true, 'admin', '2026-01-01 00:00:00+00')
 ON CONFLICT (""EmSystemId"") DO NOTHING;
 
-SELECT setval(pg_get_serial_sequence('""EmSystems""', 'EmSystemId'), GREATEST(10, (SELECT MAX(""EmSystemId"") FROM ""EmSystems"")));
+-- Reset IDENTITY sequence so next auto-generated ID follows after seed data
+ALTER TABLE ""EmSystems"" ALTER COLUMN ""EmSystemId"" RESTART WITH 11;
 ");
 
             // ── Seed EM System Parameters (default limits from ISO 14644 / USP <1231>) ──
