@@ -23,6 +23,7 @@ interface TriggerLog { triggerId: number; triggerMode: string; triggeredBy: stri
 interface Checkpoint {
   checkpointId: number; checkpointCode: string; triggerMode: string
   checkpointType: string; shiftIntervalHrs: number; isActive: boolean; locationCount: number
+  category: string; systemName: string | null; scheduledDate: string | null
   parameters: CheckpointParam[]
 }
 interface ProcessLogRow {
@@ -137,6 +138,11 @@ export default function CheckpointsPage() {
   const [paramLimits, setParamLimits] = useState<Record<number, { alertMin: string; alertMax: string; actionMin: string; actionMax: string }>>({})
   const [showParamLimits, setShowParamLimits] = useState<number | null>(null)
 
+  // EM extension fields
+  const [category, setCategory]           = useState('Batch')
+  const [systemName, setSystemName]       = useState('')
+  const [scheduledDate, setScheduledDate] = useState('')
+
   const [signForm, setSignForm] = useState({
     password: '', meaning: 'I confirm this process log entry', reason: 'Routine checkpoint sign-off'
   })
@@ -235,6 +241,7 @@ export default function CheckpointsPage() {
     setTriggerMode('TimeBased'); setCpType('Single'); setShiftHrs('')
     setSelectedSlots(['08:00']); setManualSlot(''); setManualSlotError('')
     setSelectedParams([]); setParamLimits({}); setShowParamLimits(null); setError('')
+    setCategory('Batch'); setSystemName(''); setScheduledDate('')
     setEditTarget(null); setShowForm(true)
   }
 
@@ -285,6 +292,9 @@ export default function CheckpointsPage() {
         checkpointType: cpType,
         timeSlots,
         shiftIntervalHrs: shiftHrs ? Number(shiftHrs) : null,
+        category,
+        systemName: systemName || null,
+        scheduledDate: scheduledDate || null,
         parameters: selectedParams.map(id => {
           const lim = paramLimits[id] ?? {}
           return {
@@ -395,6 +405,11 @@ export default function CheckpointsPage() {
           }
         },
         { header: 'Type', accessor: 'checkpointType' },
+        {
+          header: 'Category', accessor: r => r.category === 'Environmental'
+            ? <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 11, background: '#d1fae5', color: '#065f46', fontWeight: 600 }}>🌿 EM</span>
+            : <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 11, background: '#f3f4f6', color: '#6b7280' }}>Batch</span>
+        },
         { header: 'Interval (hrs)', accessor: r => r.shiftIntervalHrs || '—' },
         {
           header: 'Parameters', accessor: r => (
@@ -581,6 +596,42 @@ export default function CheckpointsPage() {
                     onChange={e => setShiftHrs(e.target.value)} placeholder="e.g. 8" />
                 </div>
               )}
+
+              {/* ── Environmental Monitoring section ─────────────────── */}
+              <div style={{
+                marginBottom: 20, padding: '14px 16px',
+                border: category === 'Environmental' ? '1.5px solid #5DCAA5' : '1.5px solid #e5e7eb',
+                borderRadius: 8,
+                background: category === 'Environmental' ? '#f0fdf9' : '#fafafa',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: category === 'Environmental' ? 14 : 0 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Category</label>
+                    <select style={{ ...inp, margin: 0 }} value={category} onChange={e => setCategory(e.target.value)}>
+                      <option value="Batch">Batch (standard)</option>
+                      <option value="Environmental">Environmental Monitoring (EM)</option>
+                    </select>
+                  </div>
+                  {category === 'Environmental' && (
+                    <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: '#d1fae5', color: '#065f46', fontWeight: 600, whiteSpace: 'nowrap', marginTop: 22 }}>
+                      EM mode
+                    </span>
+                  )}
+                </div>
+                {category === 'Environmental' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>System / area name</label>
+                      <input style={{ ...inp, margin: 0 }} value={systemName} onChange={e => setSystemName(e.target.value)}
+                        placeholder="e.g. HVAC-Zone-A, Cleanroom-ISO5" />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Scheduled date</label>
+                      <input style={{ ...inp, margin: 0 }} type="date" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} />
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* ── Parameters checklist ─────────────────────────────── */}
               <div style={{ marginBottom: 24 }}>

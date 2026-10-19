@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type ReportType = 'samples' | 'results' | 'audit-trail' | 'multi-site-summary'
+type ReportType = 'samples' | 'results' | 'audit-trail' | 'multi-site-summary' | 'em-job-status' | 'em-sampling-report' | 'em-trend'
 type PageTab    = 'exports' | 'charts'
 
 interface SpcPoint  { executionId: number; sampleNumber: string; measuredAt: string; value: number; isOos: boolean; isOot: boolean }
@@ -51,6 +51,33 @@ const REPORTS = [
     bg: '#dbeafe',
     filters: [],
     adminOnly: true,
+  },
+  {
+    id: 'em-job-status' as ReportType,
+    title: 'EM Job Status',
+    desc: 'Pivot matrix — location rows × sampling dates. Each cell shows Done / Late / Missed per run.',
+    icon: '🌿',
+    color: '#0f6e56',
+    bg: '#d1fae5',
+    filters: [],
+  },
+  {
+    id: 'em-sampling-report' as ReportType,
+    title: 'EM Sampling Report',
+    desc: 'Row-level detail: date, location, parameter, measured value, limit status, analyst, sign-off.',
+    icon: '📋',
+    color: '#065f46',
+    bg: '#ecfdf5',
+    filters: [],
+  },
+  {
+    id: 'em-trend' as ReportType,
+    title: 'EM Historical Trend',
+    desc: 'Line chart of measured values per location over time with alert and action limit overlays.',
+    icon: '📈',
+    color: '#1d9e75',
+    bg: '#e1f5ee',
+    filters: [],
   },
 ]
 

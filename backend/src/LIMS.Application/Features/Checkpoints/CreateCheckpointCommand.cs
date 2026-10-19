@@ -19,7 +19,10 @@ public record CreateCheckpointCommand(
     int? FormTemplateId,
     List<int>? ParameterIds,                                 // legacy — plain IDs, no limits
     string CreatedBy,
-    List<ParameterLimitsInput>? Parameters = null) : IRequest<Result<int>>;   // preferred — IDs + two-tier limits
+    List<ParameterLimitsInput>? Parameters = null,
+    string Category = "Batch",                              // EM extension
+    string? SystemName = null,
+    DateOnly? ScheduledDate = null) : IRequest<Result<int>>;   // preferred — IDs + two-tier limits
 
 public class CreateCheckpointValidator : AbstractValidator<CreateCheckpointCommand>
 {
@@ -63,7 +66,10 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
             CheckpointType = request.CheckpointType,
             TimeSlots = request.TimeSlots,
             ShiftIntervalHrs = request.ShiftIntervalHrs,
-            FormTemplateId = request.FormTemplateId
+            FormTemplateId = request.FormTemplateId,
+            Category = request.Category,
+            SystemName = request.SystemName,
+            ScheduledDate = request.ScheduledDate
         };
         _db.Checkpoints.Add(checkpoint);
 

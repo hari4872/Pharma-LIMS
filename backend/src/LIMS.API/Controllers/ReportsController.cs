@@ -288,5 +288,190 @@ public class ReportsController : ControllerBase
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             $"LIMS_MultiSite_{DateTime.UtcNow:yyyyMMdd}.xlsx");
     }
+
+    // ── Environmental Monitoring Reports ─────────────────────────────────────
+
+    // GET api/v1/reports/em-job-status?from=2026-01-01&to=2026-12-31
+    [HttpGet("em-job-status")]
+    public async Task<IActionResult> ExportEmJobStatus(
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+    {
+        var fromDt = from.HasValue ? DateOnly.FromDateTime(from.Value) : DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30));
+        var toDt   = to.HasValue   ? DateOnly.FromDateTime(to.Value)   : DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var rows = await _db.ProcessLogRows
+            .Include(r => r.Checkpoint)
+            .Where(r => r.Checkpoint.Category == "Environmental"
+                     && r.SlotTime.Date >= fromDt.ToDateTime(TimeOnly.MinValue)
+                     && r.SlotTime.Date <= toDt.ToDateTime(TimeOnly.MaxValue))
+            .OrderBy(r => r.SlotTime)
+            .ToListAsync();
+
+        // Build pivot: location (from SlotLabel) × date
+        var dates     = rows.Select(r => DateOnly.FromDateTime(r.SlotTime.DateTime)).Distinct().OrderBy(d => d).ToList();
+        var checkpoints = rows.Select(r => r.Checkpoint).DistinctBy(c => c.CheckpointId).OrderBy(c => c.CheckpointCode).ToList();
+
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using var package = new ExcelPackage();
+        var ws = package.Workbook.Worksheets.Add("EM Job Status");
+
+        // Header: Checkpoint | SystemName | date1 | date2 | …
+        ws.Cells[1, 1].Value = "Checkpoint"; ws.Cells[1, 2].Value = "System / Area";
+        for (int d = 0; d < dates.Count; d++)
+        {
+            ws.Cells[1, d + 3].Value = dates[d].ToString("dd-MMM");
+            ws.Cells[1, d + 3].Style.Font.Bold = true;
+        }
+        StyleHeader(ws, 1, dates.Count + 2, Color.FromArgb(15, 110, 86));
+
+        var rowIdx = 2;
+        foreach (var cp in checkpoints)
+        {
+            ws.Cells[rowIdx, 1].Value = cp.CheckpointCode;
+            ws.Cells[rowIdx, 2].Value = cp.SystemName ?? "—";
+            for (int d = 0; d < dates.Count; d++)
+            {
+                var row = rows.FirstOrDefault(r => r.CheckpointId == cp.CheckpointId
+                    && DateOnly.FromDateTime(r.SlotTime.DateTime) == dates[d]);
+                if (row == null) { ws.Cells[rowIdx, d + 3].Value = "—"; continue; }
+                var cell = ws.Cells[rowIdx, d + 3];
+                if (row.Status == "Locked" || row.Status == "Signed") { cell.Value = "Done";   cell.Style.Font.Color.SetColor(Color.FromArgb(15, 110, 86)); }
+                else if (row.Status == "Open" && row.SlotTime < DateTimeOffset.UtcNow.AddHours(-4)) { cell.Value = "Late";   cell.Style.Font.Color.SetColor(Color.OrangeRed); }
+                else { cell.Value = "Open"; }
+            }
+            rowIdx++;
+        }
+        ws.Cells[ws.Dimension.Address].AutoFitColumns();
+        ws.HeaderFooter.OddHeader.CenteredText = $"LIMS — EM Job Status {DateTime.UtcNow:yyyy-MM-dd}";
+
+        var bytes = await package.GetAsByteArrayAsync();
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"LIMS_EM_JobStatus_{DateTime.UtcNow:yyyyMMdd}.xlsx");
+    }
+
+    // GET api/v1/reports/em-sampling-report?from=2026-01-01&to=2026-12-31
+    [HttpGet("em-sampling-report")]
+    public async Task<IActionResult> ExportEmSamplingReport(
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+    {
+        var fromDt = from ?? DateTime.UtcNow.AddDays(-30);
+        var toDt   = (to ?? DateTime.UtcNow).AddDays(1);
+
+        var readings = await _db.ProcessLogReadings
+            .Include(rd => rd.Row).ThenInclude(row => row.Checkpoint)
+            .Include(rd => rd.Parameter)
+            .Where(rd => rd.Row.Checkpoint.Category == "Environmental"
+                      && rd.RecordedAt >= fromDt && rd.RecordedAt < toDt)
+            .OrderBy(rd => rd.RecordedAt)
+            .ToListAsync();
+
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using var package = new ExcelPackage();
+        var ws = package.Workbook.Worksheets.Add("EM Sampling Report");
+
+        var headers = new[] { "Date", "Checkpoint", "System / Area", "Slot", "Parameter", "Value", "Unit", "Limit Status", "Recorded By", "Row Status" };
+        for (int c = 1; c <= headers.Length; c++) ws.Cells[1, c].Value = headers[c - 1];
+        StyleHeader(ws, 1, headers.Length, Color.FromArgb(6, 95, 70));
+
+        int row = 2;
+        foreach (var rd in readings)
+        {
+            var cp = rd.Row.Checkpoint;
+            ws.Cells[row, 1].Value = rd.RecordedAt.ToLocalTime().ToString("yyyy-MM-dd");
+            ws.Cells[row, 2].Value = cp.CheckpointCode;
+            ws.Cells[row, 3].Value = cp.SystemName ?? "—";
+            ws.Cells[row, 4].Value = rd.Row.SlotLabel;
+            ws.Cells[row, 5].Value = rd.Parameter?.ParameterName ?? $"Param {rd.ParameterId}";
+            ws.Cells[row, 6].Value = rd.Value;
+            ws.Cells[row, 7].Value = rd.Parameter?.Uom ?? "";
+            ws.Cells[row, 8].Value = "—";   // limit evaluation TBD per-parameter
+            ws.Cells[row, 9].Value = rd.RecordedBy;
+            ws.Cells[row, 10].Value = rd.Row.Status;
+            row++;
+        }
+        ws.Cells[ws.Dimension?.Address ?? "A1:J1"].AutoFitColumns();
+        ws.HeaderFooter.OddHeader.CenteredText = $"LIMS — EM Sampling Report {DateTime.UtcNow:yyyy-MM-dd}";
+
+        var bytes = await package.GetAsByteArrayAsync();
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"LIMS_EM_Sampling_{DateTime.UtcNow:yyyyMMdd}.xlsx");
+    }
+
+    // GET api/v1/reports/em-trend?from=2026-01-01&to=2026-12-31
+    [HttpGet("em-trend")]
+    public async Task<IActionResult> ExportEmTrend(
+        [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+    {
+        var fromDt = from ?? DateTime.UtcNow.AddDays(-90);
+        var toDt   = (to ?? DateTime.UtcNow).AddDays(1);
+
+        var readings = await _db.ProcessLogReadings
+            .Include(rd => rd.Row).ThenInclude(row => row.Checkpoint)
+                .ThenInclude(cp => cp.CheckpointParameters)
+            .Include(rd => rd.Parameter)
+            .Where(rd => rd.Row.Checkpoint.Category == "Environmental"
+                      && rd.RecordedAt >= fromDt && rd.RecordedAt < toDt)
+            .OrderBy(rd => rd.Row.Checkpoint.CheckpointCode)
+            .ThenBy(rd => rd.RecordedAt)
+            .ToListAsync();
+
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using var package = new ExcelPackage();
+
+        // One sheet per checkpoint
+        foreach (var group in readings.GroupBy(rd => rd.Row.Checkpoint.CheckpointId))
+        {
+            var cp = group.First().Row.Checkpoint;
+            var sheetName = (cp.SystemName ?? cp.CheckpointCode)[..Math.Min(31, (cp.SystemName ?? cp.CheckpointCode).Length)];
+            var ws = package.Workbook.Worksheets.Add(sheetName);
+
+            var headers = new[] { "Date/Time", "Slot", "Parameter", "Value", "Alert Min", "Alert Max", "Action Min", "Action Max", "Status" };
+            for (int c = 1; c <= headers.Length; c++) ws.Cells[1, c].Value = headers[c - 1];
+            StyleHeader(ws, 1, headers.Length, Color.FromArgb(29, 158, 117));
+
+            int row = 2;
+            foreach (var rd in group)
+            {
+                var limits = cp.CheckpointParameters.FirstOrDefault(p => p.ParameterId == rd.ParameterId);
+                ws.Cells[row, 1].Value = rd.RecordedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+                ws.Cells[row, 2].Value = rd.Row.SlotLabel;
+                ws.Cells[row, 3].Value = rd.Parameter?.ParameterName ?? $"Param {rd.ParameterId}";
+                ws.Cells[row, 4].Value = rd.Value;
+                ws.Cells[row, 5].Value = (object?)limits?.AlertMin ?? "—";
+                ws.Cells[row, 6].Value = (object?)limits?.AlertMax ?? "—";
+                ws.Cells[row, 7].Value = (object?)limits?.ActionMin ?? "—";
+                ws.Cells[row, 8].Value = (object?)limits?.ActionMax ?? "—";
+                if (decimal.TryParse(rd.Value, out var v))
+                {
+                    var isAction = (limits?.ActionMin.HasValue == true && v < limits.ActionMin) || (limits?.ActionMax.HasValue == true && v > limits.ActionMax);
+                    var isAlert  = (limits?.AlertMin.HasValue  == true && v < limits.AlertMin)  || (limits?.AlertMax.HasValue  == true && v > limits.AlertMax);
+                    ws.Cells[row, 9].Value = isAction ? "Action" : isAlert ? "Alert" : "Normal";
+                    if (isAction) ws.Cells[row, 9].Style.Font.Color.SetColor(Color.Red);
+                    else if (isAlert) ws.Cells[row, 9].Style.Font.Color.SetColor(Color.OrangeRed);
+                    else ws.Cells[row, 9].Style.Font.Color.SetColor(Color.FromArgb(15, 110, 86));
+                }
+                row++;
+            }
+            ws.Cells[ws.Dimension?.Address ?? "A1:I1"].AutoFitColumns();
+        }
+
+        if (package.Workbook.Worksheets.Count == 0)
+            package.Workbook.Worksheets.Add("No EM Data").Cells[1, 1].Value = "No EM readings found for the selected date range.";
+
+        var bytes = await package.GetAsByteArrayAsync();
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"LIMS_EM_Trend_{DateTime.UtcNow:yyyyMMdd}.xlsx");
+    }
+
+    private static void StyleHeader(ExcelWorksheet ws, int row, int colCount, Color bg)
+    {
+        for (int c = 1; c <= colCount; c++)
+        {
+            ws.Cells[row, c].Style.Font.Bold = true;
+            ws.Cells[row, c].Style.Fill.PatternType = ExcelFillStyle.Solid;
+            ws.Cells[row, c].Style.Fill.BackgroundColor.SetColor(bg);
+            ws.Cells[row, c].Style.Font.Color.SetColor(Color.White);
+        }
+    }
 }
 

@@ -88,7 +88,8 @@ public class CheckpointsController : LimsControllerBase
         var result = await _mediator.Send(new CreateCheckpointCommand(
             request.CheckpointCode, request.LabId, request.TriggerMode,
             request.CheckpointType, request.TimeSlots, request.ShiftIntervalHrs,
-            request.FormTemplateId, request.ParameterIds, username, paramLimits));
+            request.FormTemplateId, request.ParameterIds, username, paramLimits,
+            request.Category, request.SystemName, request.ScheduledDate));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { checkpointId = result.Value });
     }
@@ -193,7 +194,10 @@ public record ParameterLimitsRequest(int ParameterId, decimal? AlertMin, decimal
 public record CreateCheckpointRequest(string CheckpointCode, int LabId, string TriggerMode,
     string CheckpointType, string? TimeSlots, int? ShiftIntervalHrs, int? FormTemplateId,
     List<int>? ParameterIds = null,
-    List<ParameterLimitsRequest>? Parameters = null);
+    List<ParameterLimitsRequest>? Parameters = null,
+    string Category = "Batch",
+    string? SystemName = null,
+    DateOnly? ScheduledDate = null);
 public record TriggerCheckpointRequest(string? DeliveryOrder = null, bool IsOfflineSync = false, int? SampleId = null);
 public record ReadingRequest(int ParameterId, string Value);
 public record SignProcessLogRequest(string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null);

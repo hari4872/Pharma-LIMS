@@ -17,6 +17,11 @@ public class Checkpoint
     public FormTemplate? FormTemplate { get; set; }          // required for TimeBased/OperatorScan/ProcessLog; set by DispatchEventService for DispatchEvent
     public bool IsActive { get; set; } = true;
 
+    // Environmental Monitoring extension (EM category)
+    public string Category { get; set; } = "Batch";         // "Batch" | "Environmental"
+    public string? SystemName { get; set; }                 // e.g. HVAC-Zone-A
+    public DateOnly? ScheduledDate { get; set; }            // next scheduled sampling date
+
     public ICollection<CheckpointLocation> Locations { get; set; } = [];
     public ICollection<CheckpointTriggerLog> TriggerLogs { get; set; } = [];
     public ICollection<ProcessLogRow> ProcessLogRows { get; set; } = [];
