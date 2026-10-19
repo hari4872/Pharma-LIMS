@@ -120,7 +120,7 @@ const CELL_CFG: Record<CellState, { bg: string; color: string; border: string; l
   'done-action': { bg: '#fef2f2', color: '#991b1b', border: '#fca5a5', label: '🔴 Done', clickable: false },
   overdue:     { bg: '#fff7ed', color: '#9a3412', border: '#fdba74', label: '⚠ Due',     clickable: true  },
   due:         { bg: '#dbeafe', color: '#1e40af', border: '#93c5fd', label: '● Due Now', clickable: true  },
-  upcoming:    { bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0', label: '—',         clickable: false },
+  upcoming:    { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', label: '📅 Sched.',  clickable: false },
   empty:       { bg: 'transparent', color: '#d1d5db', border: 'transparent', label: '',  clickable: false },
 }
 
@@ -255,6 +255,17 @@ export default function CheckpointExecutionPage() {
             }}>
             Today
           </button>
+          <input
+            type="date"
+            value={viewDate}
+            onChange={e => e.target.value && setViewDate(e.target.value)}
+            title="Jump to date"
+            style={{
+              padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb',
+              background: '#f9fafb', cursor: 'pointer', fontSize: 13, color: '#374151',
+              fontFamily: 'inherit',
+            }}
+          />
           <button onClick={load}
             style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer', fontSize: 12, color: '#6b7280' }}>
             ↺
@@ -465,7 +476,7 @@ export default function CheckpointExecutionPage() {
           { state: 'done-action' as CellState,  desc: 'Recorded — action limit breach' },
           { state: 'due' as CellState,          desc: 'Due now (±30 min)' },
           { state: 'overdue' as CellState,      desc: 'Overdue / missed' },
-          { state: 'upcoming' as CellState,     desc: 'Upcoming' },
+          { state: 'upcoming' as CellState,     desc: 'Scheduled (future)' },
         ].map(({ state, desc }) => {
           const cfg = CELL_CFG[state]
           return (
