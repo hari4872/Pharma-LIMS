@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '@/api/client'
 import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
+import { fmtCalc } from '@/utils/formatLabel'
 import { toast } from '@/components/Toast'
 
 interface CoaLine {
@@ -97,7 +98,7 @@ export default function CoaDetailPage() {
         <td>${l.parameterName}</td>
         <td style="font-family:monospace;font-size:11px">${l.methodCode}</td>
         <td>${specText}</td>
-        <td style="font-family:monospace;font-weight:600">${l.calculatedResult ?? '—'}</td>
+        <td style="font-family:monospace;font-weight:600">${l.calculatedResult != null ? fmtCalc(l.calculatedResult) : '—'}</td>
         <td><span style="background:${passBg};color:${passColor};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${l.passFail}</span></td>
         <td style="font-size:11px;color:#6b7280">${l.analystName}</td>
       </tr>`
@@ -374,7 +375,7 @@ export default function CoaDetailPage() {
                     <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>{line.parameterName}</td>
                     <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace', fontSize: 11 }}>{line.methodCode}</td>
                     <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>{specText}</td>
-                    <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace' }}>{line.calculatedResult ?? '—'}</td>
+                    <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace' }}>{line.calculatedResult != null ? fmtCalc(line.calculatedResult) : '—'}</td>
                     <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>
                       <span style={{ padding: '1px 6px', borderRadius: 8, fontSize: 11, fontWeight: 600,
                         background: line.passFail === 'PASS' ? '#d1fae5' : '#fee2e2',

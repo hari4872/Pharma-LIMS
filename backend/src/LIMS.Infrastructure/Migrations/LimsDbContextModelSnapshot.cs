@@ -2187,6 +2187,9 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("BarcodePrintedAt")
                         .HasColumnType("timestamptz");
 
+                    b.Property<int?>("BatchSize")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamptz");
 
@@ -2243,6 +2246,9 @@ namespace LIMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(60)
                         .HasColumnType("character varying(60)");
+
+                    b.Property<int?>("SampleSize")
+                        .HasColumnType("integer");
 
                     b.Property<int>("SampleTypeId")
                         .HasColumnType("integer");

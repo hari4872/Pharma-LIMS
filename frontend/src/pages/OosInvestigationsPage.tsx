@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import api from '@/api/client'
 import { fmtDate } from '@/utils/dateFormat'
-import { fmtLabel } from '@/utils/formatLabel'
+import { fmtLabel, fmtCalc } from '@/utils/formatLabel'
 import { getErrorMessage } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Field, inp } from './master-data/LaboratoriesPage'
@@ -462,7 +462,7 @@ export default function OosInvestigationsPage() {
                 <select style={inp} value={addForm.entryId} onChange={e => setAddForm(f => ({ ...f, entryId: e.target.value }))} required>
                   {addEntries.map(en => (
                     <option key={en.entryId} value={en.entryId}>
-                      {en.parameterName} — result: {en.calculatedResult ?? en.rawValue} ({en.passFail})
+                      {en.parameterName} — result: {en.calculatedResult != null ? fmtCalc(en.calculatedResult) : en.rawValue} ({en.passFail})
                       {en.isOos ? ' ⚠ OOS' : ''}{en.isOot ? ' ⚠ OOT' : ''}
                     </option>
                   ))}
@@ -621,7 +621,7 @@ export default function OosInvestigationsPage() {
                     { label: 'Post-Rework Retest', data: comparisonData.postReworkRetest, bg: '#f0fdf4' },
                   ].filter(row => row.data).map(row => {
                     const val = row.data!.calculatedResult != null
-                      ? parseFloat(row.data!.calculatedResult.toPrecision(7)).toString()
+                      ? fmtCalc(row.data!.calculatedResult)
                       : row.data!.rawValue
                     const pf = row.data!.passFail
                     const pfBg = pf === 'Pass' ? '#dcfce7' : pf === 'Fail' ? '#fee2e2' : '#f1f5f9'

@@ -47,6 +47,18 @@ const LABEL_MAP: Record<string, string> = {
   Closed:           'Closed',
 }
 
+/**
+ * Format a calculated/numeric result — only rounds to 2dp when the value
+ * has more than 2 decimal places (e.g. 12.7272... → "12.73", 820 → "820", 17.2 → "17.2").
+ */
+export function fmtCalc(v: number | null | undefined): string {
+  if (v == null) return '—'
+  const str = String(v)
+  const dot = str.indexOf('.')
+  if (dot === -1 || str.length - dot - 1 <= 2) return str
+  return Number(v.toFixed(2)).toString()
+}
+
 /** Convert enum/camelCase status values to readable labels. */
 export function fmtLabel(value: string | null | undefined): string {
   if (!value) return '—'

@@ -32,6 +32,8 @@ public class Sample
     public string? SampleCondition           { get; set; }   // "OK" | "Damaged" | "Compromised" — stored as text
     public bool IsRush                     { get; set; } = false;
     public string? ExternalBatchId         { get; set; }    // MES/ERP batch reference
+    public int? BatchSize                  { get; set; }    // total units in the batch
+    public int? SampleSize                 { get; set; }    // units pulled for testing
     public string? SampleLabel             { get; set; }    // physical label as written on container
     public string? TankSourceId            { get; set; }    // source tank or vessel identifier
     public int? RetestOfSampleId           { get; set; }   // FK → original sample (null for first-run)

@@ -23,6 +23,8 @@ public record RegisterSampleCommand(
     string?  ExternalBatchId  = null,
     string?  SampleLabel      = null,      // physical label as written on container
     string?  TankSourceId     = null,      // source tank or vessel identifier
+    int?     BatchSize        = null,
+    int?     SampleSize       = null,
     // Phase A: spec engine override — null = auto-match, set = manual pick
     int?     OverrideSpecTemplateId = null,
     List<int>? CheckpointIds  = null,
@@ -120,6 +122,8 @@ public class RegisterSampleCommandHandler : IRequestHandler<RegisterSampleComman
             SampleCondition  = request.SampleCondition,
             IsRush           = request.IsRush,
             ExternalBatchId  = request.ExternalBatchId,
+            BatchSize        = request.BatchSize,
+            SampleSize       = request.SampleSize,
             SampleLabel      = request.SampleLabel,
             TankSourceId     = request.TankSourceId,
             CreatedBy        = request.CreatedBy,

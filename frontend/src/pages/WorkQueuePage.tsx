@@ -6,7 +6,7 @@ import { getErrorMessage, asApiError } from '@/utils/errors'
 import { useNavigate } from 'react-router-dom'
 import api from '@/api/client'
 import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
-import { fmtLabel } from '@/utils/formatLabel'
+import { fmtLabel, fmtCalc } from '@/utils/formatLabel'
 import DataTable from '@/components/DataTable'
 import { Field, inp } from './master-data/LaboratoriesPage'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
@@ -241,7 +241,13 @@ function groupByContainer(items: WorkItem[]): ContainerGroup[] {
     if (!map.has(key)) map.set(key, [])
     map.get(key)!.push(item)
   }
-  return Array.from(map.values()).map(execs => {
+  return Array.from(map.values())
+    .sort((a, b) => {
+      const aMax = Math.max(...a.map(e => new Date(e.createdAt).getTime()))
+      const bMax = Math.max(...b.map(e => new Date(e.createdAt).getTime()))
+      return bMax - aMax
+    })
+    .map(execs => {
     const completed  = execs.filter(e => e.status === 'Completed' || e.status === 'QCVerified').length
     const inProgress = execs.filter(e => e.status === 'InProgress').length
     const hasOOS     = execs.some(e => e.status === 'OOSOpen')
@@ -749,7 +755,7 @@ export default function WorkQueuePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {selectedContainerGroup.executions.map((exec, idx) => {
                   const sc = STATUS_COLORS[exec.status] ?? { bg: '#f3f4f6', color: '#374151' }
-                  const isDone = exec.status === 'Completed' || exec.status === 'QCVerified'
+                  const isDone = exec.status === 'Completed' || exec.status === 'QCVerified' || exec.status === 'OosOpen'
                   return (
                     <div key={exec.executionId} style={{
                       border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px',
@@ -1170,7 +1176,7 @@ export default function WorkQueuePage() {
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                             <thead>
                               <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                {['Parameter', 'Value', 'Calculated', 'Pass/Fail', 'SPC'].map(h => (
+                                {['Parameter', 'Calculated', 'Pass/Fail', 'SPC'].map(h => (
                                   <th key={h} style={{ textAlign: 'left', padding: '3px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
                                 ))}
                               </tr>
@@ -1195,8 +1201,7 @@ export default function WorkQueuePage() {
                                       {p.isOos && <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: 4 }}>OOS</span>}
                                       {p.isOot && <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#92400e', padding: '1px 5px', borderRadius: 4 }}>OOT</span>}
                                     </td>
-                                    <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#374151' }}>{p.rawValue} {p.uom}</td>
-                                    <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#6b7280' }}>{p.calculatedResult != null ? `${p.calculatedResult} ${p.uom}` : '—'}</td>
+                                    <td style={{ padding: '5px 8px', fontFamily: 'monospace', color: '#6b7280' }}>{p.calculatedResult != null ? `${fmtCalc(p.calculatedResult)}${p.uom ? ' ' + p.uom : ''}` : p.rawValue != null ? `${p.rawValue}${p.uom ? ' ' + p.uom : ''}` : '—'}</td>
                                     <td style={{ padding: '5px 8px' }}>
                                       {p.passFail ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: pfBg, color: pfColor }}>{p.passFail}</span> : '—'}
                                     </td>

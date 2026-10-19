@@ -126,8 +126,12 @@ export default function SpecLimitsPage() {
         { header: 'Parameter', accessor: 'parameterName' },
         { header: 'Material', accessor: 'materialName' },
         { header: 'Stage', accessor: r => stageLabel(r.stage) },
-        { header: 'Min', accessor: 'minValue' },
-        { header: 'Max', accessor: 'maxValue' },
+        { header: 'Spec Limit', accessor: r => {
+          const mn = r.minValue != null ? `≥ ${r.minValue}` : null
+          const mx = r.maxValue != null ? `≤ ${r.maxValue}` : null
+          if (mn && mx) return `${mn}  and  ${mx}`
+          return mn ?? mx ?? '—'
+        }},
         { header: 'OOT Min', accessor: 'ootMinValue' },
         { header: 'OOT Max', accessor: 'ootMaxValue' },
         { header: 'Reg. Tier', accessor: 'regulatoryTier' },
@@ -168,10 +172,10 @@ export default function SpecLimitsPage() {
               </select>
             </Field>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Min Value"><input style={inp} type="number" step="any" value={form.minValue} onChange={e => setForm(f => ({ ...f, minValue: e.target.value }))} /></Field>
-              <Field label="Max Value"><input style={inp} type="number" step="any" value={form.maxValue} onChange={e => setForm(f => ({ ...f, maxValue: e.target.value }))} /></Field>
-              <Field label="OOT Min"><input style={inp} type="number" step="any" value={form.ootMinValue} onChange={e => setForm(f => ({ ...f, ootMinValue: e.target.value }))} /></Field>
-              <Field label="OOT Max"><input style={inp} type="number" step="any" value={form.ootMaxValue} onChange={e => setForm(f => ({ ...f, ootMaxValue: e.target.value }))} /></Field>
+              <Field label="Min Value (≥)"><input style={inp} type="number" step="any" placeholder="e.g. 14.0" value={form.minValue} onChange={e => setForm(f => ({ ...f, minValue: e.target.value }))} /></Field>
+              <Field label="Max Value (≤)"><input style={inp} type="number" step="any" placeholder="e.g. 2.0" value={form.maxValue} onChange={e => setForm(f => ({ ...f, maxValue: e.target.value }))} /></Field>
+              <Field label="OOT Min (≥)"><input style={inp} type="number" step="any" value={form.ootMinValue} onChange={e => setForm(f => ({ ...f, ootMinValue: e.target.value }))} /></Field>
+              <Field label="OOT Max (≤)"><input style={inp} type="number" step="any" value={form.ootMaxValue} onChange={e => setForm(f => ({ ...f, ootMaxValue: e.target.value }))} /></Field>
             </div>
             <Field label="Regulatory Tier (optional)">
               <select style={inp} value={form.regulatoryTier} onChange={e => setForm(f => ({ ...f, regulatoryTier: e.target.value }))}>
@@ -194,10 +198,10 @@ export default function SpecLimitsPage() {
         <Drawer title={`Edit Spec Limit — ${editRow.parameterName}`} subtitle="Update OOS/OOT thresholds and regulatory limits" onClose={() => setEditRow(null)}>
           <form onSubmit={submitEdit}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Min Value"><input style={inp} type="number" step="any" value={editForm.minValue} onChange={e => setEditForm(f => ({ ...f, minValue: e.target.value }))} /></Field>
-              <Field label="Max Value"><input style={inp} type="number" step="any" value={editForm.maxValue} onChange={e => setEditForm(f => ({ ...f, maxValue: e.target.value }))} /></Field>
-              <Field label="OOT Min"><input style={inp} type="number" step="any" value={editForm.ootMinValue} onChange={e => setEditForm(f => ({ ...f, ootMinValue: e.target.value }))} /></Field>
-              <Field label="OOT Max"><input style={inp} type="number" step="any" value={editForm.ootMaxValue} onChange={e => setEditForm(f => ({ ...f, ootMaxValue: e.target.value }))} /></Field>
+              <Field label="Min Value (≥)"><input style={inp} type="number" step="any" value={editForm.minValue} onChange={e => setEditForm(f => ({ ...f, minValue: e.target.value }))} /></Field>
+              <Field label="Max Value (≤)"><input style={inp} type="number" step="any" value={editForm.maxValue} onChange={e => setEditForm(f => ({ ...f, maxValue: e.target.value }))} /></Field>
+              <Field label="OOT Min (≥)"><input style={inp} type="number" step="any" value={editForm.ootMinValue} onChange={e => setEditForm(f => ({ ...f, ootMinValue: e.target.value }))} /></Field>
+              <Field label="OOT Max (≤)"><input style={inp} type="number" step="any" value={editForm.ootMaxValue} onChange={e => setEditForm(f => ({ ...f, ootMaxValue: e.target.value }))} /></Field>
             </div>
             <Field label="Regulatory Tier">
               <select style={inp} value={editForm.regulatoryTier} onChange={e => setEditForm(f => ({ ...f, regulatoryTier: e.target.value }))}>

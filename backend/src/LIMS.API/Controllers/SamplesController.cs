@@ -45,8 +45,8 @@ public class SamplesController : LimsControllerBase
             // Phase A fields
             request.ReceivedTemp, request.SampleCondition, request.IsRush,
             request.ExternalBatchId, request.SampleLabel, request.TankSourceId,
-            request.OverrideSpecTemplateId, request.CheckpointIds,
-            scheduleItems));
+            request.BatchSize, request.SampleSize,
+            request.OverrideSpecTemplateId, request.CheckpointIds, scheduleItems));
 
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
 
@@ -350,7 +350,9 @@ public record RegisterSampleRequest(
     string?  TankSourceId           = null,     // source tank or vessel identifier
     int?     OverrideSpecTemplateId = null,     // set when user manually picks from MultipleMatches
     List<int>? CheckpointIds        = null,
-    List<ScheduleItemRequest>? ScheduleItems = null);
+    List<ScheduleItemRequest>? ScheduleItems = null,
+    int?     BatchSize              = null,
+    int?     SampleSize             = null);
 public record ReprintBarcodeRequest(string Reason);
 public record ApplySpecRequest(int SpecTemplateId);
 public record RetestRequest(string RetestReason, List<int>? ParameterIds = null);

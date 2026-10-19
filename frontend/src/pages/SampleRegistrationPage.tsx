@@ -160,6 +160,8 @@ export default function SampleRegistrationPage() {
   const [receivedTemp,   setReceivedTemp]   = useState('')
   const [sampleCondition, setSampleCondition] = useState('OK')
   const [isRush,         setIsRush]         = useState(false)
+  const [batchSize,      setBatchSize]      = useState('')
+  const [sampleSize,     setSampleSize]     = useState('')
   const [externalBatchId, setExternalBatchId] = useState('')
   // Phase A — spec engine
   const [specPreview,   setSpecPreview]   = useState<SpecPreview | null>(null)
@@ -675,6 +677,8 @@ async function submitDestroy(containerId: number) {
         receivedTemp:          receivedTemp ? parseFloat(receivedTemp) : null,
         sampleCondition:       sampleCondition || null,
         isRush,
+        batchSize:             batchSize ? Number(batchSize) : null,
+        sampleSize:            sampleSize ? Number(sampleSize) : null,
         externalBatchId:       externalBatchId || null,
         sampleLabel:           sampleLabel || null,
         tankSourceId:          tankSourceId || null,
@@ -828,8 +832,14 @@ async function submitDestroy(containerId: number) {
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <select style={{ ...inp, width: 180, margin: 0 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="">All Statuses</option>
-            {['Registered', 'PendingTesting', 'InTesting', 'PendingQAReview', 'Released', 'Rejected'].map(s =>
-              <option key={s} value={s}>{s}</option>)}
+            {[
+              { value: 'Registered',     label: 'Registered' },
+              { value: 'PendingTesting', label: 'Pending Testing' },
+              { value: 'InTesting',      label: 'In Testing' },
+              { value: 'PendingQAReview',label: 'Pending QA Review' },
+              { value: 'Released',       label: 'Released' },
+              { value: 'Rejected',       label: 'Rejected' },
+            ].map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
           {canRegister && (
             <button
@@ -1224,6 +1234,18 @@ async function submitDestroy(containerId: number) {
                   )}
                 </div>
 
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Batch Size (optional)</span>
+                    <input style={{ ...inp, marginTop: 4 }} type="number" min="1" placeholder="e.g. 10000" value={batchSize} onChange={e => setBatchSize(e.target.value)} />
+                    <span style={{ fontSize: 11, color: '#9ca3af' }}>Total units in the batch</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Sample Size (optional)</span>
+                    <input style={{ ...inp, marginTop: 4 }} type="number" min="1" placeholder="e.g. 200" value={sampleSize} onChange={e => setSampleSize(e.target.value)} />
+                    <span style={{ fontSize: 11, color: '#9ca3af' }}>Units pulled for testing</span>
+                  </div>
+                </div>
                 <p style={{ fontSize: 11, color: '#9ca3af', margin: '14px 0 0' }}>ℹ Sample ID is server-generated · Barcode auto-printed · 5 GMP checks run server-side</p>
               </Section>
 

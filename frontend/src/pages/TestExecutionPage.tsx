@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import { fmtDate, fmtDateTime, fmtTime } from '@/utils/dateFormat'
-import { fmtLabel } from '@/utils/formatLabel'
+import { fmtLabel, fmtCalc } from '@/utils/formatLabel'
 import { inp } from './master-data/LaboratoriesPage'
 import ESignatureDrawer from '@/components/ESignatureDrawer'
 import { getErrorMessage } from '@/utils/errors'
@@ -68,13 +68,18 @@ const DRAFT_KEY = (id: string) => `lims-draft-exec-${id}`
 function formatSpec(s: SpecLimit | undefined): string {
   if (!s) return '—'
   if (s.minValue !== null && s.maxValue !== null) return `${s.minValue} – ${s.maxValue}`
-  if (s.minValue !== null) return `NLT ${s.minValue}`
-  if (s.maxValue !== null) return `NMT ${s.maxValue}`
+  if (s.minValue !== null) return `≥ ${s.minValue}`
+  if (s.maxValue !== null) return `≤ ${s.maxValue}`
   return '—'
 }
 
 function evalValue(raw: string, spec: SpecLimit | undefined, dataType: string): 'pass' | 'fail' | 'oot' | 'pending' {
   if (!raw.trim()) return 'pending'
+  if (dataType === 'PassFail') {
+    if (raw === 'Pass') return 'pass'
+    if (raw === 'Fail') return 'fail'
+    return 'pending'
+  }
   if (dataType === 'Numeric' || dataType === 'Calculated') {
     const n = parseFloat(raw)
     if (isNaN(n)) return 'pending'
@@ -443,7 +448,8 @@ export default function TestExecutionPage() {
               const raw    = entries[p.parameterId] ?? ''
               const status = evalValue(raw, spec, p.dataType)
               const ss     = STATUS_STYLE[status]
-              const isNum  = p.dataType === 'Numeric' || p.dataType === 'Calculated'
+              const isNum       = p.dataType === 'Numeric' || p.dataType === 'Calculated'
+              const isPassFail  = p.dataType === 'PassFail'
 
               return (
                 <div key={p.parameterId} style={{
@@ -702,8 +708,8 @@ export default function TestExecutionPage() {
               <tbody>
                 {results.map(r => {
                   const specLabel = r.specMin !== null && r.specMax !== null ? `${r.specMin} – ${r.specMax}`
-                    : r.specMin !== null ? `NLT ${r.specMin}`
-                    : r.specMax !== null ? `NMT ${r.specMax}` : '—'
+                    : r.specMin !== null ? `≥ ${r.specMin}`
+                    : r.specMax !== null ? `≤ ${r.specMax}` : '—'
                   return (
                     <tr key={r.entryId} style={{ borderBottom: '1px solid #e5e7eb', background: r.isOos ? '#fff8f8' : r.isOot ? '#fffdf0' : '#fff' }}>
                       <td style={{ padding: '10px 12px', fontWeight: 600 }}>
@@ -712,7 +718,7 @@ export default function TestExecutionPage() {
                       </td>
                       <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 600 }}>{r.rawValue}</td>
                       <td style={{ padding: '10px 12px', color: '#1e3a5f', fontWeight: 500 }}>{specLabel}</td>
-                      <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>{r.calculatedResult ?? r.rawValue}</td>
+                      <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>{r.calculatedResult != null ? fmtCalc(r.calculatedResult) : r.rawValue}</td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{
                           padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700,

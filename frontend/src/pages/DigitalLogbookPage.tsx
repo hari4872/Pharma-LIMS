@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
 import { fmtDateTime } from '@/utils/dateFormat'
+import { fmtCalc } from '@/utils/formatLabel'
 import { getErrorMessage, asApiError } from '@/utils/errors'
 import DataTable from '@/components/DataTable'
 import { Field, inp } from './master-data/LaboratoriesPage'
@@ -296,7 +297,7 @@ export default function DigitalLogbookPage() {
             }},
             { header: 'Cal Value', accessor: r => {
               const raw = r.calculatedResult !== null ? r.calculatedResult : parseFloat(r.rawValue)
-              const display = isNaN(raw) ? r.rawValue : parseFloat(raw.toFixed(10)).toString()
+              const display = isNaN(raw) ? r.rawValue : fmtCalc(raw)
               return (
                 <div>
                   <span style={{ fontFamily: 'monospace' }}>{display}</span>
