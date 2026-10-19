@@ -22,6 +22,7 @@ import UsersPage              from './master-data/UsersPage'
 import UserTrainingRecordsPage from './UserTrainingRecordsPage'
 import WorkflowConfigPage     from './WorkflowConfigPage'
 import CheckpointsPage        from './CheckpointsPage'
+import EmSystemsPage          from './master-data/EmSystemsPage'
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 type TabId = 'lab-setup' | 'materials' | 'methods-specs' | 'users-training' | 'workflow' | 'nav-visibility'
@@ -68,6 +69,7 @@ const TAB_GROUPS: TabGroup[] = [
       { id: 'test-methods',           label: 'Test Methods',      icon: '📋', component: TestMethodsPage },
       { id: 'parameters',             label: 'Parameters',        icon: '⚙',  component: ParametersPage },
       { id: 'checkpoints',            label: 'Checkpoints',       icon: '🔔', component: CheckpointsPage },
+      { id: 'em-systems',             label: 'EM Systems',         icon: '🌡', component: EmSystemsPage },
       { id: 'spec-limits',            label: 'Spec Limits',       icon: '📊', component: SpecLimitsPage },
       { id: 'form-templates',         label: 'Monitoring & Log Forms',  icon: '📄', component: FormTemplatesPage },
       { id: 'spec-templates',         label: 'Product Test Plans',      icon: '📝', component: SpecificationTemplatesPage },

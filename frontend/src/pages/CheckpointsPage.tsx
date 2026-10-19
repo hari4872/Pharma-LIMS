@@ -81,29 +81,6 @@ const PRESETS = [
   { label: 'Every 2 h',           slots: ALL_SLOTS },
 ]
 
-// ── Two-tier limit helpers ────────────────────────────────────────────────────
-type LimitTier = 'ok' | 'alert' | 'action' | 'none'
-function checkLimits(value: string, p: CheckpointParam): LimitTier {
-  const n = parseFloat(value)
-  if (isNaN(n)) return 'none'
-  const hasAction = p.actionMin != null || p.actionMax != null
-  const hasAlert  = p.alertMin  != null || p.alertMax  != null
-  if (hasAction) {
-    const out = (p.actionMin != null && n < p.actionMin) || (p.actionMax != null && n > p.actionMax)
-    if (out) return 'action'
-  }
-  if (hasAlert) {
-    const out = (p.alertMin != null && n < p.alertMin) || (p.alertMax != null && n > p.alertMax)
-    if (out) return 'alert'
-  }
-  return (hasAction || hasAlert) ? 'ok' : 'none'
-}
-const TIER_STYLE: Record<LimitTier, { border: string; background: string; badge?: string }> = {
-  ok:     { border: '#16a34a', background: '#f0fdf4', badge: 'Within limits' },
-  alert:  { border: '#f59e0b', background: '#fffbeb', badge: '⚠ Alert limit' },
-  action: { border: '#dc2626', background: '#fef2f2', badge: '🔴 Action limit!' },
-  none:   { border: '#d1d5db', background: '#fff' },
-}
 
 // ── Slot chip ─────────────────────────────────────────────────────────────────
 function SlotChip({ time, selected, onToggle }: { time: string; selected: boolean; onToggle: () => void }) {
@@ -746,7 +723,7 @@ export default function CheckpointsPage() {
                           // Auto-populate parameters with system defaults
                           const ids = sys.defaultParameters.map(p => p.parameterId)
                           setSelectedParams(ids)
-                          const limits: Record<number, { alertMin?: string; alertMax?: string; actionMin?: string; actionMax?: string }> = {}
+                          const limits: Record<number, { alertMin: string; alertMax: string; actionMin: string; actionMax: string }> = {}
                           sys.defaultParameters.forEach(p => {
                             limits[p.parameterId] = {
                               alertMin:  p.alertMin  != null ? String(p.alertMin)  : '',

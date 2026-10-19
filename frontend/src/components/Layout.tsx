@@ -134,6 +134,7 @@ const BREADCRUMB_MAP: Record<string, { section?: string; label: string }> = {
   '/master-data/sampling-plans':       { section: 'Master Data', label: 'Sampling Plans' },
   '/master-data/stability-protocols':  { section: 'Master Data', label: 'Stability Protocols' },
   '/master-data/instrument-mapping':   { section: 'Master Data', label: 'Instrument Mapping' },
+  '/master-data/em-systems':           { section: 'Master Data', label: 'EM Systems' },
   '/samples':                          { section: 'Operations', label: 'Sample Registration' },
   '/checkpoints':                      { section: 'Operations', label: 'Checkpoints' },
   '/checkpoint-tasks':                 { section: 'Operations', label: 'Checkpoint Execution' },

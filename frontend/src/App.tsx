@@ -25,6 +25,7 @@ const ReagentsPage              = lazy(() => import('@/pages/master-data/Reagent
 const SamplingPlansPage         = lazy(() => import('@/pages/master-data/SamplingPlansPage'))
 const StabilityProtocolsPage    = lazy(() => import('@/pages/master-data/StabilityProtocolsPage'))
 const InstrumentMappingPage     = lazy(() => import('@/pages/master-data/InstrumentMappingPage'))
+const EmSystemsPage             = lazy(() => import('@/pages/master-data/EmSystemsPage'))
 
 // Core workflow
 const DashboardPage             = lazy(() => import('@/pages/DashboardPage'))
@@ -160,6 +161,7 @@ export default function App() {
         <Route path="master-data/sampling-plans"          element={<RequireRole roles={MASTER_DATA_ROLES}><SamplingPlansPage /></RequireRole>} />
         <Route path="master-data/stability-protocols"     element={<RequireRole roles={MASTER_DATA_ROLES}><StabilityProtocolsPage /></RequireRole>} />
         <Route path="master-data/instrument-mapping"      element={<RequireRole roles={MASTER_DATA_ROLES}><InstrumentMappingPage /></RequireRole>} />
+        <Route path="master-data/em-systems"              element={<RequireRole roles={MASTER_DATA_ROLES}><EmSystemsPage /></RequireRole>} />
         <Route path="master-data/training-records"        element={<RequireRole roles={LAB_ROLES}><UserTrainingRecordsPage /></RequireRole>} />
 
         {/* ── Core Workflow ─────────────────────────────────────────────────── */}
