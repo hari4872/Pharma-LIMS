@@ -449,7 +449,6 @@ export default function TestExecutionPage() {
               const status = evalValue(raw, spec, p.dataType)
               const ss     = STATUS_STYLE[status]
               const isNum       = p.dataType === 'Numeric' || p.dataType === 'Calculated'
-              const isPassFail  = p.dataType === 'PassFail'
 
               return (
                 <div key={p.parameterId} style={{
