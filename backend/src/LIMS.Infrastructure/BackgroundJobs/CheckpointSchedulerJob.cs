@@ -1,5 +1,7 @@
+using LIMS.Application.Features.EmSamples;
 using LIMS.Application.Interfaces;
 using LIMS.Domain.Enums;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -37,6 +39,7 @@ public class CheckpointSchedulerJob : BackgroundService
                     .Where(c => c.TriggerMode == TriggerType.TimeBased && c.IsActive && c.TimeSlots != null)
                     .ToListAsync(stoppingToken);
 
+                bool anyEmTriggered = false;
                 foreach (var cp in activeCheckpoints)
                 {
                     // TimeSlots stored as JSONB array of "HH:mm" strings
@@ -50,7 +53,22 @@ public class CheckpointSchedulerJob : BackgroundService
                         await notifications.PushToGroupAsync("Analyst", "CheckpointTriggered",
                             new { cp.CheckpointId, cp.CheckpointCode, TriggerMode = "TimeBased" }, stoppingToken);
                         _logger.LogInformation("Checkpoint {Code} triggered at {Time} (Mode 1 Time-Based)", cp.CheckpointCode, now);
+
+                        if (cp.Category == "Environmental")
+                            anyEmTriggered = true;
                     }
+                }
+
+                // Auto-generate EM samples when any Environmental checkpoint fires
+                if (anyEmTriggered)
+                {
+                    var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+                    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                    var result = await mediator.Send(new GenerateEmSamplesCommand(today, "System"), stoppingToken);
+                    if (result.IsSuccess)
+                        _logger.LogInformation("[CheckpointSchedulerJob] Auto-generated {Count} EM sample(s) for {Date}", result.Value, today);
+                    else
+                        _logger.LogWarning("[CheckpointSchedulerJob] EM sample auto-generation skipped: {Error}", result.ErrorMessage);
                 }
 
                 await Task.Delay(TimeSpan.FromMinutes(intervalMinutes), stoppingToken);
