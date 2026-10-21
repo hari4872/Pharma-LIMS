@@ -42,7 +42,20 @@ const TRIGGER_COLORS: Record<string, { bg: string; color: string }> = {
   DispatchEvent: { bg: '#ede9fe', color: '#6d28d9' },
 }
 
-type Tab = 'logbook' | 'processlog'
+interface EmReading {
+  readingId: number; rowId: number
+  emSampleNumber: string; emSampleId: number | null
+  checkpointCode: string; systemName: string | null; location: string | null
+  slotLabel: string; samplingDate: string
+  parameterName: string; uom: string | null; value: string
+  resultStatus: string | null
+  alertMin: number | null; alertMax: number | null
+  actionMin: number | null; actionMax: number | null
+  recordedBy: string; recordedAt: string
+  signedBy: string | null; signedAt: string | null
+}
+
+type Tab = 'logbook' | 'processlog' | 'emreadings'
 
 export default function DigitalLogbookPage() {
   const role = useSelector((s: RootState) => s.auth.role) ?? ''
@@ -72,6 +85,22 @@ export default function DigitalLogbookPage() {
   const [uploadDesc, setUploadDesc]   = useState('')
   const [uploadSaving, setUploadSaving] = useState(false)
   const [uploadError, setUploadError] = useState('')
+
+  // ── EM Readings tab state ──────────────────────────────────────────────────
+  const [emReadings, setEmReadings]   = useState<EmReading[]>([])
+  const [emRLoading, setEmRLoading]   = useState(false)
+  const [emRDate, setEmRDate]         = useState<string>(new Date().toISOString().slice(0, 10))
+
+  async function loadEmReadings(date?: string) {
+    setEmRLoading(true)
+    try {
+      const d = date ?? emRDate
+      const r = await api.get(`/checkpoints/em-readings?date=${d}`)
+      setEmReadings(Array.isArray(r.data) ? r.data : [])
+    } catch { setEmReadings([]) }
+    finally { setEmRLoading(false) }
+  }
+  useEffect(() => { const t = setTimeout(() => { if (tab === 'emreadings') loadEmReadings(emRDate) }, 0); return () => clearTimeout(t) }, [tab, emRDate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Process Log tab state ──────────────────────────────────────────────────
   const [plRows, setPlRows]           = useState<ProcessLogRow[]>([])
@@ -235,8 +264,9 @@ export default function DigitalLogbookPage() {
       {/* ── Tab strip ──────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid #e2e8f0', marginBottom: 20 }}>
         {[
-          { id: 'logbook' as Tab,    label: '📋 Test Results',   desc: 'Sample test execution records' },
-          { id: 'processlog' as Tab, label: '📝 Process Log',    desc: 'Checkpoint shift sign-offs' },
+          { id: 'logbook' as Tab,     label: '📋 Test Results',    desc: 'Sample test execution records' },
+          { id: 'processlog' as Tab,  label: '📝 Process Log',    desc: 'Checkpoint shift sign-offs' },
+          { id: 'emreadings' as Tab,  label: '🌿 EM Readings',    desc: 'Environmental monitoring readings' },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             padding: '10px 20px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
@@ -475,6 +505,94 @@ export default function DigitalLogbookPage() {
               <p style={{ fontSize: 32, margin: '0 0 8px' }}>📋</p>
               <p style={{ margin: 0, fontSize: 14 }}>No process log rows for {plDate}.</p>
               <p style={{ margin: '4px 0 0', fontSize: 12 }}>Rows are auto-created at midnight UTC based on checkpoint shift intervals.</p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB 3 — EM Readings (Environmental checkpoint readings + EM sample ID)
+      ══════════════════════════════════════════════════════════════════════ */}
+      {tab === 'emreadings' && (
+        <>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginRight: 6 }}>Date</label>
+              <input type="date" style={{ ...inp, width: 170, marginTop: 0 }} value={emRDate}
+                onChange={e => { setEmRDate(e.target.value); loadEmReadings(e.target.value) }} />
+            </div>
+            <button onClick={() => loadEmReadings()}
+              style={{ padding: '8px 16px', background: '#065f46', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              🔄 Refresh
+            </button>
+            <span style={{ marginLeft: 'auto', fontSize: 12, color: '#6b7280' }}>
+              {emReadings.length} reading{emReadings.length !== 1 ? 's' : ''} — signed &amp; locked
+            </span>
+          </div>
+
+          {emRLoading && <p style={{ color: '#9ca3af', fontSize: 13 }}>Loading EM readings…</p>}
+
+          {!emRLoading && emReadings.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
+              <p style={{ fontSize: 32, margin: '0 0 8px' }}>🌿</p>
+              <p style={{ margin: 0, fontSize: 14 }}>No signed EM readings for {emRDate}.</p>
+              <p style={{ margin: '4px 0 0', fontSize: 12 }}>Readings appear here after an Environmental checkpoint is signed &amp; locked.</p>
+            </div>
+          )}
+
+          {!emRLoading && emReadings.length > 0 && (
+            <div style={{ overflowX: 'auto', border: '1px solid #d1fae5', borderRadius: 8 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f0fdf9' }}>
+                    {['EM Sample ID', 'Checkpoint / System', 'Location', 'Slot', 'Parameter', 'Value', 'Limits (Alert / Action)', 'Result', 'Recorded By', 'Signed By', 'Signed At'].map(h => (
+                      <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#065f46', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid #d1fae5', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {emReadings.map((r, i) => {
+                    const resultCfg = r.resultStatus === 'ActionExceeded'
+                      ? { bg: '#fef2f2', color: '#991b1b', label: '🔴 Action' }
+                      : r.resultStatus === 'AlertExceeded'
+                      ? { bg: '#fffbeb', color: '#92400e', label: '⚠ Alert' }
+                      : r.resultStatus === 'Pass'
+                      ? { bg: '#d1fae5', color: '#065f46', label: '✓ Pass' }
+                      : null
+                    const alertRange = (r.alertMin != null || r.alertMax != null)
+                      ? `${r.alertMin ?? '—'} – ${r.alertMax ?? '—'}` : '—'
+                    const actionRange = (r.actionMin != null || r.actionMax != null)
+                      ? `${r.actionMin ?? '—'} – ${r.actionMax ?? '—'}` : '—'
+                    return (
+                      <tr key={r.readingId} style={{ background: i % 2 === 0 ? '#fff' : '#f9fffe', borderBottom: '1px solid #f0fdf9' }}>
+                        <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#065f46', fontSize: 12, whiteSpace: 'nowrap' }}>
+                          {r.emSampleNumber}
+                        </td>
+                        <td style={{ padding: '8px 12px' }}>
+                          <div style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e3a5f', fontSize: 12 }}>{r.checkpointCode}</div>
+                          {r.systemName && <div style={{ fontSize: 11, color: '#065f46' }}>{r.systemName}</div>}
+                        </td>
+                        <td style={{ padding: '8px 12px', fontSize: 11, color: '#6b7280' }}>{r.location ?? '—'}</td>
+                        <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: '#1e40af', fontWeight: 600 }}>{r.slotLabel}</td>
+                        <td style={{ padding: '8px 12px', color: '#374151' }}>{r.parameterName}{r.uom && <span style={{ color: '#9ca3af', marginLeft: 4 }}>{r.uom}</span>}</td>
+                        <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#111827' }}>{r.value}</td>
+                        <td style={{ padding: '8px 12px', fontSize: 11, color: '#6b7280' }}>
+                          <div>⚠ {alertRange}</div>
+                          <div style={{ color: '#991b1b' }}>🔴 {actionRange}</div>
+                        </td>
+                        <td style={{ padding: '8px 12px' }}>
+                          {resultCfg
+                            ? <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: resultCfg.bg, color: resultCfg.color }}>{resultCfg.label}</span>
+                            : <span style={{ color: '#9ca3af', fontSize: 11 }}>—</span>}
+                        </td>
+                        <td style={{ padding: '8px 12px', fontSize: 11, color: '#374151' }}>{r.recordedBy}</td>
+                        <td style={{ padding: '8px 12px', fontSize: 11, color: '#374151' }}>{r.signedBy ?? '—'}</td>
+                        <td style={{ padding: '8px 12px', fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap' }}>{r.signedAt ? fmtDateTime(r.signedAt) : '—'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </>

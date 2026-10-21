@@ -173,6 +173,14 @@ public class CheckpointsController : LimsControllerBase
     public async Task<IActionResult> GetAllProcessLog([FromQuery] DateOnly? date)
         => Ok(await _mediator.Send(new GetAllProcessLogQuery(date)));
 
+    // GET api/v1/checkpoints/em-readings?date=2026-10-21 -- EM readings joined with EmSamples, for Digital Logbook EM tab
+    [HttpGet("em-readings")]
+    public async Task<IActionResult> GetEmReadings([FromQuery] DateOnly? date)
+    {
+        var d = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        return Ok(await _mediator.Send(new GetEmReadingsQuery(d)));
+    }
+
     // GET api/v1/checkpoints/{id}/process-log?date=2026-05-12 -- Mode 3 rows (per checkpoint)
     [HttpGet("{id}/process-log")]
     public async Task<IActionResult> GetProcessLog(int id, [FromQuery] DateOnly? date)
