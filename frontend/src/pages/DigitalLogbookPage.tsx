@@ -545,7 +545,7 @@ export default function DigitalLogbookPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: '#f0fdf9' }}>
-                    {['EM Sample ID', 'Checkpoint / System', 'Location', 'Slot', 'Parameter', 'Value', 'Limits (Alert / Action)', 'Result', 'Recorded By', 'Signed By', 'Signed At'].map(h => (
+                    {['EM Sample ID', 'Checkpoint / System', 'Location', 'Slot', 'Parameter', 'Value', 'Limits (Alert / Action)', 'Result', 'Recorded By', 'Recorded At', 'Signed By', 'Signed At'].map(h => (
                       <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#065f46', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid #d1fae5', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -586,6 +586,7 @@ export default function DigitalLogbookPage() {
                             : <span style={{ color: '#9ca3af', fontSize: 11 }}>—</span>}
                         </td>
                         <td style={{ padding: '8px 12px', fontSize: 11, color: '#374151' }}>{r.recordedBy}</td>
+                        <td style={{ padding: '8px 12px', fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap' }}>{fmtDateTime(r.recordedAt)}</td>
                         <td style={{ padding: '8px 12px', fontSize: 11, color: '#374151' }}>{r.signedBy ?? '—'}</td>
                         <td style={{ padding: '8px 12px', fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap' }}>{r.signedAt ? fmtDateTime(r.signedAt) : '—'}</td>
                       </tr>
