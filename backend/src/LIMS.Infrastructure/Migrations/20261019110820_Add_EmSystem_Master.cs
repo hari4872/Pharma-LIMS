@@ -93,7 +93,7 @@ namespace LIMS.Infrastructure.Migrations
 INSERT INTO test_methods
     (""MethodId"", ""MethodCode"", ""MethodName"", ""MethodType"", ""Status"", ""Version"", ""IsActive"", ""CreatedBy"", ""CreatedAt"")
 VALUES
-    (100, 'EM-STD', 'Environmental Monitoring Standard Tests', 'Microbiological', 'Active', '1.0', true, 'admin', '2026-01-01 00:00:00+00')
+    (100, 'EM-STD', 'Environmental Monitoring Standard Tests', 'Microbiological', 'Approved', '1.0', true, 'admin', '2026-01-01 00:00:00+00')
 ON CONFLICT (""MethodId"") DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('test_methods', 'MethodId'), GREATEST(100, (SELECT MAX(""MethodId"") FROM test_methods)));
