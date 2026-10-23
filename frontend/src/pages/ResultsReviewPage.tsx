@@ -141,6 +141,7 @@ export default function ResultsReviewPage() {
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
   const [pdfDropdown, setPdfDropdown] = useState<number | null>(null)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [conditionalSampleIds, setConditionalSampleIds] = useState<Set<number>>(new Set())
 
   function toggleExpand(sampleId: number) {
     setExpanded(prev => {
@@ -175,8 +176,17 @@ export default function ResultsReviewPage() {
   async function load() {
     setLoading(true)
     try {
-      const c = await api.get('/test-executions')
-      setAll(c.data ?? [])
+      const [execs, oos] = await Promise.all([
+        api.get('/test-executions'),
+        api.get('/oos-investigations?status=Closed').catch(() => ({ data: [] })),
+      ])
+      setAll(execs.data ?? [])
+      const condIds = new Set<number>(
+        (oos.data ?? [])
+          .filter((i: any) => i.resolutionType === 'ConditionalRelease')
+          .map((i: any) => i.sampleId as number)
+      )
+      setConditionalSampleIds(condIds)
     } catch { setAll([]) }
     finally { setLoading(false) }
   }
@@ -383,6 +393,11 @@ export default function ResultsReviewPage() {
                         {g.reworkCount > 0 && (
                           <span style={{ padding: '0px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: '#fff7ed', color: '#c2410c' }}>
                             {g.reworkCount} rework{g.reworkCount > 1 ? 's' : ''}
+                          </span>
+                        )}
+                        {conditionalSampleIds.has(g.sampleId) && (
+                          <span style={{ padding: '0px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: '#fef3c7', color: '#92400e' }}>
+                            ⚠ Conditional
                           </span>
                         )}
                       </div>
