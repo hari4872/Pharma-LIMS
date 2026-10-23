@@ -142,6 +142,7 @@ export default function ResultsReviewPage() {
   const [pdfDropdown, setPdfDropdown] = useState<number | null>(null)
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [conditionalSampleIds, setConditionalSampleIds] = useState<Set<number>>(new Set())
+  const [conditionalOosMap, setConditionalOosMap] = useState<Map<number, {parameterName: string; note: string}[]>>(new Map())
 
   function toggleExpand(sampleId: number) {
     setExpanded(prev => {
@@ -181,12 +182,15 @@ export default function ResultsReviewPage() {
         api.get('/oos-investigations?status=Closed').catch(() => ({ data: [] })),
       ])
       setAll(execs.data ?? [])
-      const condIds = new Set<number>(
-        (oos.data ?? [])
-          .filter((i: any) => i.resolutionType === 'ConditionalRelease')
-          .map((i: any) => i.sampleId as number)
-      )
+      const condItems: any[] = (oos.data ?? []).filter((i: any) => i.resolutionType === 'ConditionalRelease' && i.conditionalReleaseNote)
+      const condIds = new Set<number>(condItems.map((i: any) => i.sampleId as number))
+      const condMap = new Map<number, {parameterName: string; note: string}[]>()
+      for (const i of condItems) {
+        if (!condMap.has(i.sampleId)) condMap.set(i.sampleId, [])
+        condMap.get(i.sampleId)!.push({ parameterName: i.parameterName, note: i.conditionalReleaseNote })
+      }
       setConditionalSampleIds(condIds)
+      setConditionalOosMap(condMap)
     } catch { setAll([]) }
     finally { setLoading(false) }
   }
@@ -636,6 +640,21 @@ export default function ResultsReviewPage() {
               This will apply to all <strong>{showReview.executionIds.length} tests</strong> for this sample.
             </div>
           )}
+          {(() => {
+            const sampleId = all.find(e => e.executionId === showReview.executionIds[0])?.sampleId
+            const notes = sampleId != null ? (conditionalOosMap.get(sampleId) ?? []) : []
+            if (notes.length === 0) return null
+            return (
+              <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '10px 12px', marginBottom: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#92400e', marginBottom: 6 }}>⚠️ OOS Conditional Release</div>
+                {notes.map((n, i) => (
+                  <div key={i} style={{ fontSize: 12, color: '#78350f', marginBottom: i < notes.length - 1 ? 4 : 0 }}>
+                    <strong>{n.parameterName}:</strong> {n.note}
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 14, lineHeight: 1.6 }}>
             <strong>21 CFR Part 11:</strong> {showReview.type === 'peer'
               ? 'You must not be the original analyst.'
