@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.Application.Features.TestExecutions;
 
-public record ResultEntryDto(int ParameterId, string RawValue, string? EvidenceFileRef = null, int? InstrumentId = null);
+public record ResultEntryDto(int ParameterId, string RawValue, string? EvidenceFileRef = null, int? InstrumentId = null, string? RawInputsJson = null);
 
 // Step 4–5: Save raw values, run formula + OOS/OOT detection, create Pending logbook entries
 public record SubmitTestResultsCommand(
@@ -150,7 +150,7 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
                 ExecutionId = cmd.ExecutionId,
                 ParameterId = item.ParameterId,
                 TriggerSource = TriggerType.OperatorScan,
-                RawValue = item.RawValue,
+                RawValue = item.RawInputsJson ?? item.RawValue,
                 CalculatedResult = calculated,
                 AutoCorrectionApplied = autoCorrected,
                 CorrectionDetail = correctionDetail,

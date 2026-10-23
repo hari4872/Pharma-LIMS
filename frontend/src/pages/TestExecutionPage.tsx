@@ -283,11 +283,18 @@ export default function TestExecutionPage() {
   async function submitResults(e: React.FormEvent) {
     e.preventDefault(); setSubmitting(true); setError('')
     try {
-      const entryList = Object.entries(entries).map(([pid, raw]) => ({
-        parameterId: Number(pid), rawValue: raw,
-        evidenceFileRef: evidence[Number(pid)] || undefined,
-        instrumentId: paramInstruments[Number(pid)] || undefined
-      }))
+      const entryList = Object.entries(entries).map(([pid, raw]) => {
+        const numPid = Number(pid)
+        const rawInputMap = rawInputs[numPid]
+        const hasMultiInputs = rawInputMap && Object.keys(rawInputMap).length > 0
+        return {
+          parameterId: numPid,
+          rawValue: raw,
+          rawInputsJson: hasMultiInputs ? JSON.stringify(rawInputMap) : undefined,
+          evidenceFileRef: evidence[numPid] || undefined,
+          instrumentId: paramInstruments[numPid] || undefined,
+        }
+      })
       const r = await api.post(`/test-executions/${id}/results`, { entries: entryList, entryMethod: 'Manual' })
       setResults(r.data.results)
       setHasOos(r.data.hasOos)
@@ -715,7 +722,18 @@ export default function TestExecutionPage() {
                         {r.parameterName}
                         {r.isCritical && <span style={{ marginLeft: 6, fontSize: 10, background: '#fee2e2', color: '#991b1b', padding: '1px 5px', borderRadius: 4 }}>CRITICAL</span>}
                       </td>
-                      <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 600 }}>{r.rawValue}</td>
+                      <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: 600 }}>
+                        {(() => {
+                          try {
+                            if (r.rawValue?.startsWith('{')) {
+                              const o = JSON.parse(r.rawValue)
+                              const parts = ['UNITS_INSPECTED','UNITS_PASSED','UNITS_FAILED'].filter(k => o[k] != null)
+                              if (parts.length) return <span style={{ fontSize: 11 }}>{parts.map(k => `${k.replace('UNITS_','')}: ${o[k]}`).join(' | ')}</span>
+                            }
+                          } catch {}
+                          return r.rawValue
+                        })()}
+                      </td>
                       <td style={{ padding: '10px 12px', color: '#1e3a5f', fontWeight: 500 }}>{specLabel}</td>
                       <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>{r.calculatedResult != null ? fmtCalc(r.calculatedResult) : r.rawValue}</td>
                       <td style={{ padding: '10px 12px' }}>
