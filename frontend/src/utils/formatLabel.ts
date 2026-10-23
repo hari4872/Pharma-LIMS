@@ -48,15 +48,17 @@ const LABEL_MAP: Record<string, string> = {
 }
 
 /**
- * Format a calculated/numeric result — only rounds to 2dp when the value
- * has more than 2 decimal places (e.g. 12.7272... → "12.73", 820 → "820", 17.2 → "17.2").
+ * Format a calculated/numeric result.
+ * Uses toPrecision(10) first to eliminate floating-point noise
+ * (e.g. 0.7999999999999998 → 0.8), then rounds to 2 dp only when needed.
  */
 export function fmtCalc(v: number | null | undefined): string {
   if (v == null) return '—'
-  const str = String(v)
+  const clean = parseFloat(v.toPrecision(10))
+  const str = String(clean)
   const dot = str.indexOf('.')
   if (dot === -1 || str.length - dot - 1 <= 2) return str
-  return Number(v.toFixed(2)).toString()
+  return Number(clean.toFixed(2)).toString()
 }
 
 /** Convert enum/camelCase status values to readable labels. */

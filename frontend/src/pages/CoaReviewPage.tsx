@@ -15,6 +15,7 @@ interface CoaLine {
   coaLineId: number; parameterId: number; parameterName: string; methodCode: string
   specMin: number | null; specMax: number | null; regulatoryTier: string | null
   calculatedResult: number | null; passFail: string; analystName: string; displayOrder: number
+  uom?: string
 }
 
 interface CoaApproval {
@@ -323,19 +324,23 @@ export default function CoaReviewPage() {
     const issuedDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
     const lineRows = coa.lines.map((l, i) => {
+      const uom = l.uom && l.uom !== 'N/A' ? l.uom : ''
       const specText = l.specMin !== null && l.specMax !== null
-        ? `${l.specMin} – ${l.specMax}`
-        : l.specMin !== null ? `NLT ${l.specMin}`
-        : l.specMax !== null ? `NMT ${l.specMax}`
+        ? `${l.specMin} – ${l.specMax}${uom ? ' ' + uom : ''}`
+        : l.specMin !== null ? `NLT ${l.specMin}${uom ? ' ' + uom : ''}`
+        : l.specMax !== null ? `NMT ${l.specMax}${uom ? ' ' + uom : ''}`
+        : '—'
+      const resultText = l.calculatedResult != null
+        ? `${fmtCalc(l.calculatedResult)}${uom ? ' ' + uom : ''}`
         : '—'
       const passColor = l.passFail === 'PASS' ? '#065f46' : '#991b1b'
       const passBg    = l.passFail === 'PASS' ? '#d1fae5' : '#fee2e2'
       return `<tr>
         <td style="text-align:center;color:#6b7280">${i + 1}</td>
         <td>${l.parameterName}</td>
-        <td style="font-family:monospace;font-size:11px">${l.methodCode}</td>
-        <td>${specText}</td>
-        <td style="font-family:monospace;font-weight:600">${l.calculatedResult != null ? fmtCalc(l.calculatedResult) : '—'}</td>
+        <td style="font-family:monospace;font-size:11px">${l.methodCode || '—'}</td>
+        <td style="font-family:monospace">${specText}</td>
+        <td style="font-family:monospace;font-weight:700;color:${passColor}">${resultText}</td>
         <td><span style="background:${passBg};color:${passColor};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${l.passFail}</span></td>
         <td style="font-size:11px;color:#6b7280">${l.analystName}</td>
       </tr>`
@@ -590,26 +595,39 @@ export default function CoaReviewPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: '#f9fafb' }}>
-                    {['Parameter', 'Method', 'Spec Min–Max', 'Result', 'Pass/Fail', 'Analyst'].map(h => (
+                    {['Parameter', 'Method', 'Spec (UoM)', 'Result', 'Pass/Fail', 'Analyst'].map(h => (
                       <th key={h} style={{ padding: '6px 8px', textAlign: 'left', borderBottom: '1px solid #e5e7eb', color: '#6b7280', fontWeight: 500 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {selected.lines.map(line => (
+                  {selected.lines.map(line => {
+                    const uom = line.uom && line.uom !== 'N/A' ? line.uom : null
+                    const specLabel = uom
+                      ? `${line.specMin ?? '—'} – ${line.specMax ?? '—'} ${uom}`
+                      : `${line.specMin ?? '—'} – ${line.specMax ?? '—'}`
+                    const resultLabel = line.calculatedResult != null ? fmtCalc(line.calculatedResult) : '—'
+                    const resultWithUom = uom && line.calculatedResult != null ? `${resultLabel} ${uom}` : resultLabel
+                    return (
                     <tr key={line.coaLineId}>
-                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>{line.parameterName}</td>
-                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace', fontSize: 11 }}>{line.methodCode}</td>
-                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>{line.specMin ?? '—'} – {line.specMax ?? '—'}</td>
-                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace' }}>{line.calculatedResult != null ? fmtCalc(line.calculatedResult) : '—'}</td>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontWeight: 500 }}>{line.parameterName}</td>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace', fontSize: 11 }}>{line.methodCode || '—'}</td>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace' }}>{specLabel}</td>
                       <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>
-                        <span style={{ padding: '1px 6px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700,
+                          color: line.passFail === 'PASS' ? '#065f46' : '#991b1b' }}>
+                          {resultWithUom}
+                        </span>
+                      </td>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                        <span style={{ padding: '1px 6px', borderRadius: 8, fontSize: 11, fontWeight: 700,
                           background: line.passFail === 'PASS' ? '#d1fae5' : '#fee2e2',
                           color: line.passFail === 'PASS' ? '#065f46' : '#991b1b' }}>{line.passFail}</span>
                       </td>
                       <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>{line.analystName}</td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
