@@ -112,6 +112,16 @@ export default function OosInvestigationsPage() {
       loadComparison(showClose.investigationId)
     }
   }, [showClose])
+  // Auto-set resolution type from the latest completed retest cycle result
+  useEffect(() => {
+    if (!showClose || !comparisonData) return
+    const cycles = comparisonData.retestCycles ?? []
+    const lastCompleted = [...cycles].reverse().find(c => c.completed && c.passFail != null)
+    if (!lastCompleted) return
+    const suggested = lastCompleted.passFail === 'Pass' ? 'LabError' : 'GenuineOOS'
+    setCloseForm(f => ({ ...f, resolutionType: suggested }))
+  }, [comparisonData])
+
   // Auto-fetch comparison data when Final Decision drawer opens
   useEffect(() => { if (showFinalDecision) loadComparison(showFinalDecision.investigationId) }, [showFinalDecision])
 
@@ -814,6 +824,31 @@ export default function OosInvestigationsPage() {
               )}
               <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={closeForm.rootCause} onChange={e => setCloseForm(f => ({ ...f, rootCause: e.target.value }))} required placeholder="Describe the root cause of the OOS/OOT result…" />
             </Field>
+
+            {/* Resolution suggestion banner derived from latest retest cycle */}
+            {(() => {
+              const cycles = comparisonData?.retestCycles ?? []
+              const last = [...cycles].reverse().find(c => c.completed && c.passFail != null)
+              if (!last) return null
+              const isPass = last.passFail === 'Pass'
+              return (
+                <div style={{
+                  background: isPass ? '#f0fdf4' : '#fef2f2',
+                  border: `1px solid ${isPass ? '#86efac' : '#fca5a5'}`,
+                  borderRadius: 8, padding: '8px 12px', marginBottom: 12,
+                  display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
+                }}>
+                  <span style={{ fontSize: 16 }}>{isPass ? '✅' : '❌'}</span>
+                  <span style={{ color: isPass ? '#15803d' : '#991b1b' }}>
+                    <strong>Retest {last.cycleNumber} {isPass ? 'passed' : 'failed'}</strong>
+                    {' — '}
+                    {isPass
+                      ? 'Lab Error auto-selected. OOS flag will be cleared on close.'
+                      : 'Genuine OOS auto-selected. Sample will be placed on Hold.'}
+                  </span>
+                </div>
+              )
+            })()}
 
             <Field label="Resolution Type">
               <div style={{ display: 'flex', gap: 16 }}>
