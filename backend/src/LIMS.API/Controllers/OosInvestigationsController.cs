@@ -229,7 +229,7 @@ public class OosInvestigationsController : LimsControllerBase
         var resolutionType = Enum.TryParse<LIMS.Domain.Enums.OosResolutionType>(request.ResolutionType, true, out var rt)
             ? rt : LIMS.Domain.Enums.OosResolutionType.LabError;
         var result = await _mediator.Send(new CloseOosInvestigationCommand(
-            id, userId, request.RootCause, request.CapaRef, request.CapaStatus, resolutionType, request.Password, request.Meaning, request.Reason));
+            id, userId, request.RootCause, request.CapaRef, request.CapaStatus, resolutionType, request.Password, request.Meaning, request.Reason, request.ConditionalReleaseNote));
         if (!result.IsSuccess)
         {
             if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
@@ -453,7 +453,7 @@ Return JSON only:
     }
 }
 
-public record CloseOosRequest(string RootCause, string? CapaRef, string? CapaStatus, string ResolutionType, string Password, string Meaning, string Reason);
+public record CloseOosRequest(string RootCause, string? CapaRef, string? CapaStatus, string ResolutionType, string Password, string Meaning, string Reason, string? ConditionalReleaseNote = null);
 public record EscalatePhase2Request(string EscalationReason, string? CapaRef, string? CapaStatus, string Password, string Meaning, string Reason);
 public record CreateOosRequest(int EntryId, string FlagType);
 public record CreateRetestRequest(string? Notes);

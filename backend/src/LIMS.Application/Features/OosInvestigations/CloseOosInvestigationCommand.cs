@@ -11,7 +11,8 @@ public record CloseOosInvestigationCommand(
     int InvestigationId, int UserId,
     string RootCause, string? CapaRef, string? CapaStatus,
     OosResolutionType ResolutionType,
-    string Password, string Meaning, string Reason) : IRequest<Result<int>>;
+    string Password, string Meaning, string Reason,
+    string? ConditionalReleaseNote = null) : IRequest<Result<int>>;
 
 public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigationCommand, Result<int>>
 {
@@ -38,6 +39,10 @@ public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigatio
         var sig = await _esig.CreateSignatureAsync(cmd.UserId, cmd.Password, cmd.Meaning, cmd.Reason, "OosInvestigation.Close", ct);
         if (sig is null) return Result<int>.Failure("ESIGN_AUTH_FAILED", "Password incorrect — e-signature rejected. (21 CFR §11.300)");
 
+        if (cmd.ResolutionType == OosResolutionType.ConditionalRelease
+            && string.IsNullOrWhiteSpace(cmd.ConditionalReleaseNote))
+            return Result<int>.Failure("CONDITIONAL_NOTE_REQUIRED", "Conditional Release requires documented justification/conditions.");
+
         inv.Status = OosStatus.Closed;
         inv.RootCause = cmd.RootCause;
         inv.CapaRef = cmd.CapaRef;
@@ -45,11 +50,13 @@ public class CloseOosInvestigationHandler : IRequestHandler<CloseOosInvestigatio
         inv.SignatureId = sig.SignatureId;
         inv.ClosedAt = DateTimeOffset.UtcNow;
         inv.ResolutionType = cmd.ResolutionType;
+        if (cmd.ResolutionType == OosResolutionType.ConditionalRelease)
+            inv.ConditionalReleaseNote = cmd.ConditionalReleaseNote;
 
-        // Lab Error: clear IsOos flag on the original logbook entry so Results Review
-        // no longer shows a red OOS badge — investigation record retains full history
+        // Lab Error: clear IsOos flag so Results Review no longer shows red OOS badge
         if (cmd.ResolutionType == OosResolutionType.LabError && inv.Entry is not null)
             inv.Entry.IsOos = false;
+        // Conditional Release: OOS flag kept (not cleared) but investigation is closed
 
         // Check if all OTHER OOS for this execution are already closed.
         // Must exclude the current investigation (inv) because it is still Open in the DB

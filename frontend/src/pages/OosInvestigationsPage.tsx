@@ -55,7 +55,7 @@ export default function OosInvestigationsPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showClose, setShowClose] = useState<OosItem | null>(null)
-  const [closeForm, setCloseForm] = useState({ rootCause: '', resolutionType: 'LabError', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' })
+  const [closeForm, setCloseForm] = useState({ rootCause: '', resolutionType: 'LabError', conditionalReleaseNote: '', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
@@ -224,7 +224,7 @@ export default function OosInvestigationsPage() {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post(`/oos-investigations/${showClose!.investigationId}/close`, closeForm)
-      setCloseForm({ rootCause: '', resolutionType: 'LabError', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' })
+      setCloseForm({ rootCause: '', resolutionType: 'LabError', conditionalReleaseNote: '', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' })
       setShowClose(null); await load()
       setStatusFilter('Closed')
     } catch (err) { setError(getErrorMessage(err, 'Close failed')) }
@@ -342,6 +342,12 @@ export default function OosInvestigationsPage() {
                 {r.retestCompleted ? '✓ Retest Done' : 'Retest Pending'}
               </span>
             )}
+            {r.resolutionType === 'ConditionalRelease' && (
+              <span style={{ padding: '1px 7px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+                background: '#fef3c7', color: '#92400e', width: 'fit-content' }}>
+                ⚠ Conditional
+              </span>
+            )}
           </div>
         )},
         { header: 'Opened', accessor: r => fmtDate(r.openedAt) },
@@ -415,7 +421,7 @@ export default function OosInvestigationsPage() {
             )}
             {r.status === 'Open' && (
               <button
-                onClick={() => { setShowClose(r); setCloseForm({ rootCause: '', resolutionType: 'LabError', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' }); setError(''); setRcSuggestions([]) }}
+                onClick={() => { setShowClose(r); setCloseForm({ rootCause: '', resolutionType: 'LabError', conditionalReleaseNote: '', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' }); setError(''); setRcSuggestions([]) }}
                 style={{
                   background: '#dcfce7', border: '1px solid #86efac',
                   color: '#15803d', cursor: 'pointer', fontSize: 12,
@@ -833,30 +839,36 @@ export default function OosInvestigationsPage() {
               const isPass = last.passFail === 'Pass'
               return (
                 <div style={{
-                  background: isPass ? '#f0fdf4' : '#fef2f2',
-                  border: `1px solid ${isPass ? '#86efac' : '#fca5a5'}`,
+                  background: isPass ? '#f0fdf4' : '#fffbeb',
+                  border: `1px solid ${isPass ? '#86efac' : '#fcd34d'}`,
                   borderRadius: 8, padding: '8px 12px', marginBottom: 12,
-                  display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
+                  fontSize: 12,
                 }}>
-                  <span style={{ fontSize: 16 }}>{isPass ? '✅' : '❌'}</span>
-                  <span style={{ color: isPass ? '#15803d' : '#991b1b' }}>
-                    <strong>Retest {last.cycleNumber} {isPass ? 'passed' : 'failed'}</strong>
-                    {' — '}
-                    {isPass
-                      ? 'Lab Error auto-selected. OOS flag will be cleared on close.'
-                      : 'Genuine OOS auto-selected. Sample will be placed on Hold.'}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 16 }}>{isPass ? '✅' : '⚠️'}</span>
+                    <span style={{ color: isPass ? '#15803d' : '#92400e', fontWeight: 600 }}>
+                      Retest {last.cycleNumber} {isPass ? 'passed' : 'failed'}
+                    </span>
+                  </div>
+                  {isPass ? (
+                    <p style={{ margin: '4px 0 0 24px', color: '#166534' }}>Lab Error auto-selected — OOS flag will be cleared on close.</p>
+                  ) : (
+                    <p style={{ margin: '4px 0 0 24px', color: '#78350f' }}>
+                      Genuine OOS auto-selected. You may also choose <strong>Conditional Release</strong> to approve with documented conditions (e.g. reduced shelf-life, CAPA).
+                    </p>
+                  )}
                 </div>
               )
             })()}
 
             <Field label="Resolution Type">
-              <div style={{ display: 'flex', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
-                  { value: 'LabError', label: 'Lab Error', desc: 'Clerical / instrument / analyst error — OOS flag cleared' },
-                  { value: 'GenuineOOS', label: 'Genuine OOS', desc: 'Product failure — sample placed on Hold' },
+                  { value: 'LabError', label: 'Lab Error', desc: 'Clerical / instrument / analyst error — OOS flag cleared', accent: '#6d28d9', accentBg: '#faf5ff' },
+                  { value: 'GenuineOOS', label: 'Genuine OOS', desc: 'Product failure confirmed — sample placed on Hold', accent: '#991b1b', accentBg: '#fff1f2' },
+                  { value: 'ConditionalRelease', label: 'Conditional Release', desc: 'Release with documented conditions (e.g. reduced shelf-life, CAPA required)', accent: '#b45309', accentBg: '#fffbeb' },
                 ].map(opt => (
-                  <label key={opt.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', flex: 1, padding: '8px 10px', borderRadius: 8, border: `2px solid ${closeForm.resolutionType === opt.value ? '#6d28d9' : '#e5e7eb'}`, background: closeForm.resolutionType === opt.value ? '#faf5ff' : '#fff' }}>
+                  <label key={opt.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: '8px 10px', borderRadius: 8, border: `2px solid ${closeForm.resolutionType === opt.value ? opt.accent : '#e5e7eb'}`, background: closeForm.resolutionType === opt.value ? opt.accentBg : '#fff' }}>
                     <input type="radio" name="resolutionType" value={opt.value}
                       checked={closeForm.resolutionType === opt.value}
                       onChange={() => setCloseForm(f => ({ ...f, resolutionType: opt.value }))}
@@ -868,6 +880,20 @@ export default function OosInvestigationsPage() {
                   </label>
                 ))}
               </div>
+              {closeForm.resolutionType === 'ConditionalRelease' && (
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>
+                    Conditions / Justification <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <textarea
+                    style={{ ...inp, height: 72, resize: 'vertical', borderColor: '#f59e0b' }}
+                    value={closeForm.conditionalReleaseNote}
+                    onChange={e => setCloseForm(f => ({ ...f, conditionalReleaseNote: e.target.value }))}
+                    required
+                    placeholder="e.g. Batch released conditionally with reduced shelf-life (18 months). CAPA-2026-041 to be completed within 30 days. Distribution restricted to Zone A only."
+                  />
+                </div>
+              )}
             </Field>
 
             <p style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginTop: 16, marginBottom: 4 }}>E-Signature (21 CFR §11.300)</p>

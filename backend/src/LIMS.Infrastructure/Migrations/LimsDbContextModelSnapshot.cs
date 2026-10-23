@@ -1880,6 +1880,9 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("ClosedAt")
                         .HasColumnType("timestamptz");
 
+                    b.Property<string>("ConditionalReleaseNote")
+                        .HasColumnType("text");
+
                     b.Property<string>("CreatedBy")
                         .IsRequired()
                         .HasMaxLength(200)

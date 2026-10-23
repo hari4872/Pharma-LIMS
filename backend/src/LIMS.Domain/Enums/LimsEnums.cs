@@ -84,7 +84,7 @@ public enum ContainerStatus { Available, InUse, Consumed, Destroyed }
 
 // OOS Retest
 public enum TaskType { Standard, Retest, Rework }
-public enum OosResolutionType { LabError, GenuineOOS }
+public enum OosResolutionType { LabError, GenuineOOS, ConditionalRelease }
 // Group C — Genuine OOS rework path
 public enum OosFinalDecision { Release, Reject }
 

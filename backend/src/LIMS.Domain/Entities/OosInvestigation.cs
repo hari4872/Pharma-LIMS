@@ -27,7 +27,8 @@ public class OosInvestigation
     public int? RetestExecutionId { get; set; }
     public TestExecution? RetestExecution { get; set; }
     public List<OosRetestCycle> RetestCycles { get; set; } = new();
-    public OosResolutionType? ResolutionType { get; set; }  // set on close: LabError | GenuineOOS
+    public OosResolutionType? ResolutionType { get; set; }  // set on close: LabError | GenuineOOS | ConditionalRelease
+    public string? ConditionalReleaseNote { get; set; }     // required when ResolutionType = ConditionalRelease
 
     // Group C — Genuine OOS rework path
     public int? ReworkExecutionId { get; set; }
