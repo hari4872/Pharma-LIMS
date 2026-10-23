@@ -160,6 +160,8 @@ public class SamplesController : LimsControllerBase
                 _   => sample.SampleCondition ?? "OK"
             },
             sample.ExternalBatchId,
+            sample.LotReleasedQty,
+            sample.LotScrappedQty,
             SpecTemplateName = sample.SpecTemplate != null ? sample.SpecTemplate.TemplateName : null,
             sample.SpecTemplateId,
             sample.FormTemplateId,

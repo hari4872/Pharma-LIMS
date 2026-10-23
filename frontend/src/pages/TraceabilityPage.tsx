@@ -29,6 +29,7 @@ interface SampleListItem {
 interface SampleLookup {
   sampleId: number; sampleNumber: string; lotNumber: string
   materialName: string; sampleTypeName: string; status: string; createdAt: string
+  lotReleasedQty?: number | null; lotScrappedQty?: number | null
 }
 interface AffectedSample {
   sampleId: number; sampleNumber: string; materialName: string
@@ -792,9 +793,17 @@ export default function TraceabilityPage() {
       createdAt:      item.createdAt,
     })
     try {
-      const graphRes = await api.get(`/traceability/samples/${item.sampleId}/graph`)
+      const [graphRes, sampleRes] = await Promise.allSettled([
+        api.get(`/traceability/samples/${item.sampleId}/graph`),
+        api.get(`/samples/${item.sampleId}`),
+      ])
       if (seq !== loadSeqRef.current) return   // superseded — discard stale result
-      setGraph(graphRes.data)
+      if (graphRes.status === 'fulfilled') setGraph(graphRes.value.data)
+      else setGraphError(getErrorMessage(graphRes.reason, 'Failed to load trace.'))
+      if (sampleRes.status === 'fulfilled') {
+        const d = sampleRes.value.data
+        setResolved(r => r ? { ...r, lotReleasedQty: d.lotReleasedQty ?? null, lotScrappedQty: d.lotScrappedQty ?? null } : r)
+      }
     } catch (err) {
       if (seq !== loadSeqRef.current) return
       setGraphError(getErrorMessage(err, 'Failed to load trace.'))
@@ -958,6 +967,33 @@ export default function TraceabilityPage() {
                     <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Registered</div>
                     <div style={{ fontSize: 13, color: '#6b7280' }}>{new Date(resolved.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
                   </div>
+                  {(resolved.lotReleasedQty != null || resolved.lotScrappedQty != null) && (
+                    <>
+                      <div style={{ width: 1, background: '#e5e7eb', alignSelf: 'stretch', margin: '0 4px' }} />
+                      <div>
+                        <div style={{ fontSize: 11, color: '#065f46', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Released Qty</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: '#065f46', fontFamily: 'monospace' }}>
+                          {resolved.lotReleasedQty?.toLocaleString() ?? '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#dc2626', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Scrapped Qty</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: '#dc2626', fontFamily: 'monospace' }}>
+                          {resolved.lotScrappedQty?.toLocaleString() ?? '—'}
+                        </div>
+                      </div>
+                      {resolved.lotReleasedQty != null && resolved.lotScrappedQty != null && (
+                        <div>
+                          <div style={{ fontSize: 11, color: '#374151', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Yield</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#374151', fontFamily: 'monospace' }}>
+                            {(resolved.lotReleasedQty + resolved.lotScrappedQty) > 0
+                              ? ((resolved.lotReleasedQty / (resolved.lotReleasedQty + resolved.lotScrappedQty)) * 100).toFixed(1) + '%'
+                              : '—'}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 {/* Lineage panel with view toggle */}
