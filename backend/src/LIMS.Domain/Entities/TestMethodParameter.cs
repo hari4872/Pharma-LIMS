@@ -22,6 +22,7 @@ public class TestMethodParameter
     public bool IsCritical { get; set; } = false;
     public bool IsMandatory { get; set; } = true;
     public ColumnFrequency? ColumnFrequency { get; set; }
+    public InspectionScope InspectionScope { get; set; } = InspectionScope.SampleBased;
     public string CreatedBy { get; set; } = default!;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

@@ -36,4 +36,8 @@ public class OosInvestigation
     public OosFinalDecision? FinalDecision { get; set; }
     public DateTimeOffset? FinalDecisionAt { get; set; }
     public string? FinalDecisionBy { get; set; }
+
+    // Unit-level disposition (only populated when Parameter.InspectionScope == UnitBased)
+    public decimal? UnitReleasedQty { get; set; }
+    public decimal? UnitScrappedQty { get; set; }
 }

@@ -24,6 +24,10 @@ interface OosItem {
   postReworkRetestExecutionId?: number
   postReworkRetestCompleted?: boolean
   finalDecision?: string
+  // Unit-level inspection
+  inspectionScope?: string
+  unitReleasedQty?: number | null
+  unitScrappedQty?: number | null
 }
 
 interface ComparisonEntry { rawValue: string; calculatedResult: number | null; specMin?: number | null; specMax?: number | null; passFail: string; date: string; analystName?: string }
@@ -96,7 +100,7 @@ export default function OosInvestigationsPage() {
 
   // QA Final Decision drawer
   const [showFinalDecision, setShowFinalDecision] = useState<OosItem | null>(null)
-  const [finalDecisionForm, setFinalDecisionForm] = useState({ decision: 'Release', notes: '', password: '', meaning: 'I confirm the QA final disposition of this batch', reason: '' })
+  const [finalDecisionForm, setFinalDecisionForm] = useState({ decision: 'Release', notes: '', password: '', meaning: 'I confirm the QA final disposition of this batch', reason: '', unitReleasedQty: '', unitScrappedQty: '' })
   const [finalDecisionSaving, setFinalDecisionSaving] = useState(false)
   const [finalDecisionError, setFinalDecisionError] = useState('')
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null)
@@ -259,9 +263,18 @@ export default function OosInvestigationsPage() {
   async function submitFinalDecision(e: React.FormEvent) {
     e.preventDefault(); setFinalDecisionSaving(true); setFinalDecisionError('')
     try {
-      await api.post(`/oos-investigations/${showFinalDecision!.investigationId}/final-decision`, finalDecisionForm)
+      const payload: Record<string, unknown> = { ...finalDecisionForm }
+      const isUnitBased = showFinalDecision!.inspectionScope === 'UnitBased'
+      if (isUnitBased && finalDecisionForm.decision === 'Release') {
+        payload.unitReleasedQty = finalDecisionForm.unitReleasedQty ? parseFloat(finalDecisionForm.unitReleasedQty) : null
+        payload.unitScrappedQty = finalDecisionForm.unitScrappedQty ? parseFloat(finalDecisionForm.unitScrappedQty) : null
+      } else {
+        delete payload.unitReleasedQty
+        delete payload.unitScrappedQty
+      }
+      await api.post(`/oos-investigations/${showFinalDecision!.investigationId}/final-decision`, payload)
       setShowFinalDecision(null)
-      setFinalDecisionForm({ decision: 'Release', notes: '', password: '', meaning: 'I confirm the QA final disposition of this batch', reason: '' })
+      setFinalDecisionForm({ decision: 'Release', notes: '', password: '', meaning: 'I confirm the QA final disposition of this batch', reason: '', unitReleasedQty: '', unitScrappedQty: '' })
       setComparisonData(null)
       await load()
       toast(`QA final decision recorded: ${finalDecisionForm.decision}`, 'success')
@@ -664,6 +677,30 @@ export default function OosInvestigationsPage() {
                 ))}
               </div>
             </Field>
+            {showFinalDecision?.inspectionScope === 'UnitBased' && finalDecisionForm.decision === 'Release' && (
+              <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '12px 14px', marginBottom: 8 }}>
+                <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700, color: '#0369a1' }}>Unit-Level Disposition</p>
+                <p style={{ margin: '0 0 10px', fontSize: 11, color: '#6b7280' }}>
+                  100% inspection result — specify how many units are sorted out vs released to the next stage.
+                </p>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>Released Units</label>
+                    <input style={{ ...inp, borderColor: '#7dd3fc' }} type="number" min="0" step="1"
+                      value={finalDecisionForm.unitReleasedQty}
+                      onChange={e => setFinalDecisionForm(f => ({ ...f, unitReleasedQty: e.target.value }))}
+                      placeholder="e.g. 800" required />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 12, color: '#374151', display: 'block', marginBottom: 4 }}>Scrapped / Sorted Units</label>
+                    <input style={{ ...inp, borderColor: '#fca5a5' }} type="number" min="0" step="1"
+                      value={finalDecisionForm.unitScrappedQty}
+                      onChange={e => setFinalDecisionForm(f => ({ ...f, unitScrappedQty: e.target.value }))}
+                      placeholder="e.g. 200" required />
+                  </div>
+                </div>
+              </div>
+            )}
             <Field label="Notes (optional)">
               <textarea style={{ ...inp, height: 60, resize: 'vertical' }}
                 value={finalDecisionForm.notes}

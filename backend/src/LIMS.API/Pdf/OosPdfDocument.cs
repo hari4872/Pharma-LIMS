@@ -52,7 +52,8 @@ public class OosPdfDocument : IDocument
         DateTimeOffset? PostReworkRetestCompletedAt,
         string? FinalDecision,     // "Release" | "Reject" | null
         string? FinalDecisionBy,
-        DateTimeOffset? FinalDecisionAt
+        DateTimeOffset? FinalDecisionAt,
+        string? CapaRef = null
     );
 
     private readonly OosReportData _d;

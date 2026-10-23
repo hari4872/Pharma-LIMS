@@ -1937,6 +1937,12 @@ namespace LIMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<decimal?>("UnitReleasedQty")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("UnitScrappedQty")
+                        .HasColumnType("numeric");
+
                     b.HasKey("InvestigationId");
 
                     b.HasIndex("EntryId");
@@ -3706,6 +3712,10 @@ namespace LIMS.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("InputFields")
+                        .HasColumnType("text");
+
+                    b.Property<string>("InspectionScope")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("InstrumentType")

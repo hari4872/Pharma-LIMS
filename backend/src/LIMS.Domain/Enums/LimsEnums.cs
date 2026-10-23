@@ -88,6 +88,9 @@ public enum OosResolutionType { LabError, GenuineOOS }
 // Group C — Genuine OOS rework path
 public enum OosFinalDecision { Release, Reject }
 
+// Whether a parameter is tested on a sample (lot-level decision) or every unit (unit-level sort)
+public enum InspectionScope { SampleBased, UnitBased }
+
 // EM Samples — lifecycle of a physical environmental monitoring sample
 public enum EmSampleStatus
 {
