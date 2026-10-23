@@ -481,7 +481,9 @@ export default function ResultsReviewPage() {
                                         <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#fff7ed', color: '#c2410c' }}>+Rework</span>
                                       )}
                                       {!hasRework && hasRetest && (
-                                        <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#ede9fe', color: '#6d28d9' }}>+Retest</span>
+                                        <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: '#ede9fe', color: '#6d28d9' }}>
+                                          +{retests.length > 1 ? `${retests.length}×` : ''}Retest
+                                        </span>
                                       )}
                                       {hasOos && (
                                         <span style={{ fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '1px 5px', borderRadius: 4 }}>OOS</span>
@@ -539,11 +541,22 @@ export default function ResultsReviewPage() {
                                   if (aIsRetest && !bIsRetest) return 1
                                   return a.executionId - b.executionId
                                 })
+                                // Assign cycle numbers to retests (ordered by executionId = creation order)
+                                const retestsByOriginal: Record<number, number[]> = {}
+                                sorted.filter(e => e.taskType === 'Retest' && e.retestOfExecutionId != null)
+                                  .sort((a, b) => a.executionId - b.executionId)
+                                  .forEach(e => {
+                                    const origId = e.retestOfExecutionId!
+                                    if (!retestsByOriginal[origId]) retestsByOriginal[origId] = []
+                                    retestsByOriginal[origId].push(e.executionId)
+                                  })
                                 return sorted.map((ex, idx) => {
                                   const sc = STATUS_CFG[ex.status] ?? STATUS_CFG.default
                                   const isRetest = ex.taskType === 'Retest'
                                   const isRework = ex.taskType === 'Rework'
-                                  const originalInGroup = isRetest && ex.retestOfExecutionId != null && execIds.has(ex.retestOfExecutionId)
+                                  const cycleNum = isRetest && ex.retestOfExecutionId != null
+                                    ? (retestsByOriginal[ex.retestOfExecutionId]?.indexOf(ex.executionId) ?? -1) + 1
+                                    : 0
                                   return (
                                     <div key={ex.executionId}
                                       style={{
@@ -566,7 +579,7 @@ export default function ResultsReviewPage() {
                                       {/* Task type badges */}
                                       {isRetest && (
                                         <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: '#ede9fe', color: '#6d28d9', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                          RETEST{originalInGroup ? ` of EXE-${String(ex.retestOfExecutionId!).padStart(5,'0')}` : ''}
+                                          RETEST {cycleNum > 0 ? cycleNum : ''}
                                         </span>
                                       )}
                                       {isRework && (

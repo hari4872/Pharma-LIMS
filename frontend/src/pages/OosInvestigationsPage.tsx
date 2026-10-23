@@ -105,8 +105,13 @@ export default function OosInvestigationsPage() {
   const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null)
   const [comparisonLoading, setComparisonLoading] = useState(false)
 
-  // Auto-fetch AI suggestions when Close modal opens — no button needed
-  useEffect(() => { if (showClose) { fetchRcSuggestions() } }, [showClose])
+  // Auto-fetch AI suggestions + retest cycle data when Close modal opens
+  useEffect(() => {
+    if (showClose) {
+      fetchRcSuggestions()
+      loadComparison(showClose.investigationId)
+    }
+  }, [showClose])
   // Auto-fetch comparison data when Final Decision drawer opens
   useEffect(() => { if (showFinalDecision) loadComparison(showFinalDecision.investigationId) }, [showFinalDecision])
 
@@ -727,6 +732,36 @@ export default function OosInvestigationsPage() {
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
             FDA OOS Guidance Phase 1 — Root cause required before investigation can be closed.
           </p>
+
+          {/* Retest cycle summary — shown when any cycle data exists */}
+          {(comparisonData?.retestCycles ?? []).length > 0 && (
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
+              <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: '#334155' }}>Retest Results</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {comparisonData!.retestCycles!.map(c => {
+                  const pf = c.passFail
+                  const pfColor = pf === 'Pass' ? '#15803d' : pf === 'Fail' ? '#dc2626' : '#6b7280'
+                  const pfBg = pf === 'Pass' ? '#dcfce7' : pf === 'Fail' ? '#fee2e2' : '#f1f5f9'
+                  return (
+                    <div key={c.cycleNumber} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                      <span style={{ fontWeight: 700, color: '#374151', minWidth: 60 }}>Retest {c.cycleNumber}</span>
+                      {c.completed ? (
+                        <>
+                          <span style={{ fontFamily: 'monospace', color: pfColor }}>
+                            {c.calculatedResult != null ? fmtCalc(c.calculatedResult) : c.rawValue ?? '—'}
+                          </span>
+                          <span style={{ padding: '1px 8px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: pfBg, color: pfColor }}>{pf ?? '—'}</span>
+                        </>
+                      ) : (
+                        <span style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: 11 }}>Analyst has not submitted yet</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           <form onSubmit={submitClose}>
             <Field label="Root Cause (mandatory)">
               {rcLoading && (
