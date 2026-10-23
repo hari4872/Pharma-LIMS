@@ -66,6 +66,7 @@ export default function CoaReviewPage() {
   const [showReject, setShowReject] = useState(false)
   const [form, setForm] = useState({ password: '', meaning: '', reason: '', justification: '', conditionalJustification: '', lotReleasedQty: '', lotScrappedQty: '' })
   const [unitInspLines, setUnitInspLines] = useState<{parameterName: string; inspected: number; passed: number; failed: number}[]>([])
+  const [conditionalOosNotes, setConditionalOosNotes] = useState<{parameterName: string; note: string}[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -206,6 +207,14 @@ export default function CoaReviewPage() {
 
   async function openDetail(coa: CoaItem) {
     setSelected(coa); setChecklistLoading(true); setError(''); setChecklistExpanded(false)
+    setConditionalOosNotes([])
+    // Fetch conditional release OOS notes for this sample
+    api.get(`/oos-investigations?sampleId=${coa.sampleId}&status=Closed`).then(r => {
+      const notes = (r.data ?? [])
+        .filter((i: any) => i.resolutionType === 'ConditionalRelease' && i.conditionalReleaseNote)
+        .map((i: any) => ({ parameterName: i.parameterName, note: i.conditionalReleaseNote as string }))
+      setConditionalOosNotes(notes)
+    }).catch(() => {})
     try {
       const r = await api.get(`/coas/${coa.coaId}/checklist`)
       const cl = r.data
@@ -604,6 +613,26 @@ export default function CoaReviewPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* OOS Conditional Release notes — QA must read before approving */}
+            {conditionalOosNotes.length > 0 && (
+              <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '12px 14px', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 16 }}>⚠️</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>Conditional Release — OOS Investigation</span>
+                </div>
+                <p style={{ margin: '0 0 8px', fontSize: 12, color: '#78350f' }}>
+                  This sample has {conditionalOosNotes.length} OOS parameter{conditionalOosNotes.length > 1 ? 's' : ''} closed as Conditional Release.
+                  Review the conditions below before signing the CoA.
+                </p>
+                {conditionalOosNotes.map((n, i) => (
+                  <div key={i} style={{ background: '#fff', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 10px', marginTop: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#b45309', display: 'block', marginBottom: 3 }}>{n.parameterName}</span>
+                    <span style={{ fontSize: 12, color: '#374151' }}>{n.note}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Approve / Reject Buttons */}
             {selected.status === 'Draft' && (

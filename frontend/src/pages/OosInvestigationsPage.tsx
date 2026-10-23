@@ -20,6 +20,7 @@ interface OosItem {
   retestCompleted?: boolean
   retestCycleCount?: number
   resolutionType?: string
+  conditionalReleaseNote?: string
   // Group C — Genuine OOS rework path
   reworkExecutionId?: number
   postReworkRetestExecutionId?: number

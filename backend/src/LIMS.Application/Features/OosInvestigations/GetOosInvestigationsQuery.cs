@@ -19,7 +19,8 @@ public record OosInvestigationDto(
     bool RetestCompleted = false,
     bool PostReworkRetestCompleted = false,
     string InspectionScope = "SampleBased",
-    int RetestCycleCount = 0);
+    int RetestCycleCount = 0,
+    string? ConditionalReleaseNote = null);
 
 public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQuery, List<OosInvestigationDto>>
 {
@@ -56,7 +57,8 @@ public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQ
                 i.RetestExecution != null && i.RetestExecution.Status == TestExecutionStatus.Completed,
                 i.PostReworkRetestExecution != null && i.PostReworkRetestExecution.Status == TestExecutionStatus.Completed,
                 i.Parameter != null ? i.Parameter.InspectionScope.ToString() : "SampleBased",
-                i.RetestCycles.Count))
+                i.RetestCycles.Count,
+                i.ConditionalReleaseNote))
             .ToListAsync(ct);
     }
 }
