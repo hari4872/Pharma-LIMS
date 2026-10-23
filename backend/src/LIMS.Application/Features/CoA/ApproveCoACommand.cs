@@ -14,7 +14,10 @@ public record ApproveCoACommand(
     int CoaId, int QaUserId,
     string Password, string Meaning, string Reason,
     bool IsConditionalRelease = false,
-    string? ConditionalJustification = null) : IRequest<Result<int>>;
+    string? ConditionalJustification = null,
+    // Lot-level disposition for 100% inspection samples (null = not applicable / reject-all)
+    decimal? LotReleasedQty = null,
+    decimal? LotScrappedQty = null) : IRequest<Result<int>>;
 
 public class ApproveCoAHandler : IRequestHandler<ApproveCoACommand, Result<int>>
 {
@@ -84,6 +87,13 @@ public class ApproveCoAHandler : IRequestHandler<ApproveCoACommand, Result<int>>
         coa.ConditionalJustification = cmd.ConditionalJustification;
         // PDF generation: embed 3 e-sigs — stored as minimal marker for now (full PDF renderer in Phase 9 infra)
         coa.PdfBlob = System.Text.Encoding.UTF8.GetBytes($"COA:{coa.CoaNumber}|LOCKED:{coa.LockedAt:O}|QA:{sig.FullName}");
+
+        // Record lot-level disposition for 100% inspection samples
+        if (cmd.LotReleasedQty.HasValue || cmd.LotScrappedQty.HasValue)
+        {
+            coa.Sample.LotReleasedQty = cmd.LotReleasedQty;
+            coa.Sample.LotScrappedQty = cmd.LotScrappedQty;
+        }
 
         // Sample stays PendingQAReview — Released only after Batch Release decision (21 CFR 211.192)
 

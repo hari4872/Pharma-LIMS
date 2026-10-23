@@ -10,10 +10,7 @@ public record QAFinalDecisionCommand(
     int InvestigationId, int UserId,
     OosFinalDecision Decision,
     string? Notes,
-    string Password, string Meaning, string Reason,
-    // Unit-based disposition (required when Parameter.InspectionScope == UnitBased)
-    decimal? UnitReleasedQty = null,
-    decimal? UnitScrappedQty = null) : IRequest<Result<int>>;
+    string Password, string Meaning, string Reason) : IRequest<Result<int>>;
 
 public class QAFinalDecisionHandler : IRequestHandler<QAFinalDecisionCommand, Result<int>>
 {
@@ -44,15 +41,6 @@ public class QAFinalDecisionHandler : IRequestHandler<QAFinalDecisionCommand, Re
         if (inv.Execution?.Sample is null)
             return Result<int>.Failure("DATA_ERROR", "Sample data could not be loaded.");
 
-        // Unit-based parameters require a qty split instead of binary Release/Reject
-        var isUnitBased = inv.Parameter?.InspectionScope == InspectionScope.UnitBased;
-        if (isUnitBased && cmd.Decision == OosFinalDecision.Release)
-        {
-            if (!cmd.UnitReleasedQty.HasValue || !cmd.UnitScrappedQty.HasValue)
-                return Result<int>.Failure("QTY_REQUIRED", "Released and scrapped quantities are required for unit-level inspection results.");
-            if (cmd.UnitReleasedQty.Value < 0 || cmd.UnitScrappedQty.Value < 0)
-                return Result<int>.Failure("QTY_INVALID", "Quantities must be non-negative.");
-        }
 
         var sig = await _esig.CreateSignatureAsync(cmd.UserId, cmd.Password, cmd.Meaning, cmd.Reason,
             "OosInvestigation.FinalDecision", ct);
@@ -71,15 +59,8 @@ public class QAFinalDecisionHandler : IRequestHandler<QAFinalDecisionCommand, Re
         if (!string.IsNullOrWhiteSpace(cmd.Notes))
             inv.RootCause = string.IsNullOrWhiteSpace(inv.RootCause) ? cmd.Notes : inv.RootCause + "; " + cmd.Notes;
 
-        // Store unit qty split when applicable
-        if (isUnitBased && cmd.Decision == OosFinalDecision.Release)
-        {
-            inv.UnitReleasedQty = cmd.UnitReleasedQty;
-            inv.UnitScrappedQty = cmd.UnitScrappedQty;
-        }
-
-        // Unit-based Release: lot continues — move to PendingQAReview with sorted units noted
-        // SampleBased Release: same path. Reject always marks lot as Rejected.
+        // Release → PendingQAReview (QA records final lot qty at CoA approval)
+        // Reject  → Rejected
         inv.Execution.Sample.Status = cmd.Decision == OosFinalDecision.Release
             ? SampleStatus.PendingQAReview
             : SampleStatus.Rejected;

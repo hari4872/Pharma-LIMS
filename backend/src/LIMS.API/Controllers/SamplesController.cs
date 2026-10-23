@@ -198,6 +198,35 @@ public class SamplesController : LimsControllerBase
         return Ok(result.Value);
     }
 
+    // GET api/v1/samples/{id}/unit-inspection-summary -- UnitBased parameters with inspected/passed/failed counts
+    [HttpGet("{id}/unit-inspection-summary")]
+    public async Task<IActionResult> GetUnitInspectionSummary(int id, CancellationToken ct)
+    {
+        // Latest signed logbook entry per UnitBased parameter
+        var entries = await _db.DigitalLogbookEntries
+            .Where(e => e.SampleId == id && e.Parameter.InspectionScope == InspectionScope.UnitBased)
+            .Include(e => e.Parameter)
+            .GroupBy(e => e.ParameterId)
+            .Select(g => new {
+                ParameterName = g.First().Parameter.ParameterName,
+                RawValue = g.OrderByDescending(e => e.CreatedAt).First().RawValue,
+            })
+            .ToListAsync(ct);
+
+        var result = entries.Select(e => {
+            int inspected = 0, passed = 0, failed = 0;
+            try {
+                var doc = System.Text.Json.JsonDocument.Parse(e.RawValue ?? "{}");
+                doc.RootElement.TryGetProperty("UNITS_INSPECTED", out var vi); int.TryParse(vi.GetString(), out inspected);
+                doc.RootElement.TryGetProperty("UNITS_PASSED",    out var vp); int.TryParse(vp.GetString(), out passed);
+                doc.RootElement.TryGetProperty("UNITS_FAILED",    out var vf); int.TryParse(vf.GetString(), out failed);
+            } catch { }
+            return new { parameterName = e.ParameterName, inspected, passed, failed };
+        }).Where(r => r.inspected > 0).ToList();
+
+        return Ok(result);
+    }
+
     // GET api/v1/samples/{id}/tested-parameters -- parameters tested on original sample with pass/fail
     [HttpGet("{id}/tested-parameters")]
     public async Task<IActionResult> GetTestedParameters(int id, CancellationToken ct)

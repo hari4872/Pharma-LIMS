@@ -232,6 +232,34 @@ public class CoAPdfDocument : IDocument
                     });
                 });
 
+            // ── Lot Disposition (UnitBased — 100% inspection) ───────────────
+            if (_coa.LotReleasedQty.HasValue || _coa.LotScrappedQty.HasValue)
+            {
+                col.Item().PaddingTop(12)
+                    .Border(0.5f).BorderColor("#a7f3d0")
+                    .Background("#ecfdf5").Padding(10).Column(disp =>
+                    {
+                        disp.Item().Text("LOT DISPOSITION — 100% INSPECTION RESULTS")
+                            .FontSize(8.5f).Bold().FontColor("#065f46");
+                        disp.Item().PaddingTop(6).Table(t =>
+                        {
+                            t.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(); c.RelativeColumn(); c.RelativeColumn(); });
+                            void KV3(string label, string val, string col2) =>
+                                t.Cell().Padding(5).Column(inner =>
+                                {
+                                    inner.Item().Text(label).FontSize(8).FontColor("#6b7280");
+                                    inner.Item().PaddingTop(2).Text(val).FontSize(12).Bold().FontColor(col2);
+                                });
+                            KV3("Units Released", _coa.LotReleasedQty?.ToString("N0") ?? "—", "#065f46");
+                            KV3("Units Scrapped", _coa.LotScrappedQty?.ToString("N0") ?? "—", "#dc2626");
+                            var total = (_coa.LotReleasedQty ?? 0) + (_coa.LotScrappedQty ?? 0);
+                            KV3("Total Inspected", total > 0 ? total.ToString("N0") : "—", "#374151");
+                            var pct = total > 0 ? ((_coa.LotReleasedQty ?? 0) / total * 100m).ToString("N1") + "%" : "—";
+                            KV3("Yield", pct, "#374151");
+                        });
+                    });
+            }
+
             // ── E-Signatures & Authorization ─────────────────────────────────
             col.Item().PaddingTop(16).Column(sig =>
             {

@@ -53,7 +53,10 @@ public class OosPdfDocument : IDocument
         string? FinalDecision,     // "Release" | "Reject" | null
         string? FinalDecisionBy,
         DateTimeOffset? FinalDecisionAt,
-        string? CapaRef = null
+        string? CapaRef = null,
+        // Lot-level disposition (set at CoA approval for UnitBased parameters)
+        decimal? LotReleasedQty = null,
+        decimal? LotScrappedQty = null
     );
 
     private readonly OosReportData _d;
@@ -418,7 +421,33 @@ public class OosPdfDocument : IDocument
                 col.Item().PaddingTop(14);
             }
 
-            // ── Section 5: Regulatory Basis ──────────────────────────────
+            // ── Section 5: Lot Disposition (UnitBased — set at CoA approval) ─────
+            if (_d.LotReleasedQty.HasValue || _d.LotScrappedQty.HasValue)
+            {
+                col.SectionBox("5. LOT DISPOSITION — 100% INSPECTION", "#065f46", col2 =>
+                {
+                    col2.Item().Table(t =>
+                    {
+                        t.ColumnsDefinition(cd => { cd.RelativeColumn(); cd.RelativeColumn(); cd.RelativeColumn(); cd.RelativeColumn(); });
+                        static void KV2(IContainer c2, string label, string val, string color) =>
+                            c2.Padding(6).Column(inner =>
+                            {
+                                inner.Item().Text(label).FontSize(8).FontColor("#6b7280");
+                                inner.Item().Text(val).FontSize(13).Bold().FontColor(color);
+                            });
+                        t.Cell().Element(c2 => KV2(c2, "Units Released", _d.LotReleasedQty?.ToString("N0") ?? "—", "#065f46"));
+                        t.Cell().Element(c2 => KV2(c2, "Units Scrapped", _d.LotScrappedQty?.ToString("N0") ?? "—", "#dc2626"));
+                        var total = (_d.LotReleasedQty ?? 0) + (_d.LotScrappedQty ?? 0);
+                        t.Cell().Element(c2 => KV2(c2, "Total Inspected", total > 0 ? total.ToString("N0") : "—", "#374151"));
+                        var pct = total > 0 ? ((_d.LotReleasedQty ?? 0) / total * 100m).ToString("N1") + "%" : "—";
+                        t.Cell().Element(c2 => KV2(c2, "Yield", pct, "#374151"));
+                    });
+                    col2.Item().PaddingTop(6).Text("Disposition recorded by QA at CoA approval (21 CFR 211.192).").FontSize(8).FontColor("#6b7280").Italic();
+                });
+                col.Item().PaddingTop(14);
+            }
+
+            // ── Section 6: Regulatory Basis ──────────────────────────────
             col.Item().Background("#fef9c3").Border(0.5f).BorderColor("#fde68a").Padding(10).Column(note =>
             {
                 note.Item().Text("REGULATORY BASIS").FontSize(8).Bold().FontColor("#854d0e");

@@ -24,7 +24,9 @@ public record CoADto(
     string? QaSignedBy, DateTimeOffset? QaSignedAt,
     int? SupersededById,
     List<CoALineDto> Lines,
-    List<CoAApprovalDto> Approvals);
+    List<CoAApprovalDto> Approvals,
+    decimal? LotReleasedQty = null,
+    decimal? LotScrappedQty = null);
 
 public record CoAApprovalDto(
     int ApprovalId, string Decision, string? Justification,
@@ -79,7 +81,9 @@ public class GetCoAHandler : IRequestHandler<GetCoAQuery, List<CoADto>>
                 l.DisplayOrder)).ToList(),
             c.Approvals.OrderByDescending(a => a.DecidedAt).Select(a => new CoAApprovalDto(
                 a.ApprovalId, a.Decision, a.Justification,
-                a.Signature.FullName, a.DecidedAt)).ToList()
+                a.Signature.FullName, a.DecidedAt)).ToList(),
+            LotReleasedQty: c.Sample.LotReleasedQty,
+            LotScrappedQty: c.Sample.LotScrappedQty
         )).ToList();
     }
 }

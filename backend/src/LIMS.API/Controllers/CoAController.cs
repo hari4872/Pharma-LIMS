@@ -70,7 +70,8 @@ public class CoAController : LimsControllerBase
         if (!TryGetUserId(out var qaUserId)) return Unauthorized(new { error = "Invalid token claims." });
         var result = await _mediator.Send(new ApproveCoACommand(id, qaUserId,
             request.Password, request.Meaning, request.Reason,
-            request.IsConditionalRelease, request.ConditionalJustification));
+            request.IsConditionalRelease, request.ConditionalJustification,
+            request.LotReleasedQty, request.LotScrappedQty));
         if (!result.IsSuccess)
         {
             if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
@@ -143,7 +144,8 @@ public class CoAController : LimsControllerBase
 
 public record GenerateCoARequest(int SampleId, int ExecutionId);
 public record CoASignRequest(string Password, string Meaning, string Reason,
-    bool IsConditionalRelease = false, string? ConditionalJustification = null);
+    bool IsConditionalRelease = false, string? ConditionalJustification = null,
+    decimal? LotReleasedQty = null, decimal? LotScrappedQty = null);
 public record CoARejectRequest(string Justification, string Password, string Meaning, string Reason);
 public record ReissueCoARequest(string Password, string Meaning, string Reason);
 

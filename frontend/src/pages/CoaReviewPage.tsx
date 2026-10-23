@@ -64,7 +64,8 @@ export default function CoaReviewPage() {
   const [showApprove, setShowApprove] = useState(false)
   const [showConditional, setShowConditional] = useState(false)
   const [showReject, setShowReject] = useState(false)
-  const [form, setForm] = useState({ password: '', meaning: '', reason: '', justification: '', conditionalJustification: '' })
+  const [form, setForm] = useState({ password: '', meaning: '', reason: '', justification: '', conditionalJustification: '', lotReleasedQty: '', lotScrappedQty: '' })
+  const [unitInspLines, setUnitInspLines] = useState<{parameterName: string; inspected: number; passed: number; failed: number}[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -225,12 +226,26 @@ export default function CoaReviewPage() {
     setChecklistLoading(false)
   }
 
+  async function loadUnitInspection(sampleId: number) {
+    try {
+      const r = await api.get(`/samples/${sampleId}/unit-inspection-summary`)
+      setUnitInspLines(r.data ?? [])
+      // Pre-fill from max failed (conservative)
+      const maxFailed = Math.max(0, ...(r.data ?? []).map((l: any) => l.failed ?? 0))
+      const maxPassed = Math.max(0, ...(r.data ?? []).map((l: any) => l.passed ?? 0))
+      if (maxFailed > 0) setForm(f => ({ ...f, lotScrappedQty: String(maxFailed), lotReleasedQty: String(maxPassed) }))
+    } catch { setUnitInspLines([]) }
+  }
+
   async function submitApprove(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
     try {
-      await api.post(`/coas/${selected!.coaId}/approve`, {
-        password: form.password, meaning: form.meaning, reason: form.reason
-      })
+      const body: Record<string, unknown> = { password: form.password, meaning: form.meaning, reason: form.reason }
+      if (unitInspLines.length > 0 && form.lotReleasedQty) {
+        body.lotReleasedQty = parseFloat(form.lotReleasedQty)
+        body.lotScrappedQty = form.lotScrappedQty ? parseFloat(form.lotScrappedQty) : 0
+      }
+      await api.post(`/coas/${selected!.coaId}/approve`, body)
       toast(`CoA ${selected!.coaNumber} approved and locked successfully`, 'success')
       setShowApprove(false); setSelected(null); await load()
       setStatusFilter('Released')
@@ -607,7 +622,12 @@ export default function CoaReviewPage() {
                 )}
                 <button
                   disabled={!allChecklistPassed}
-                  onClick={() => { setShowApprove(true); setForm(f => ({ ...f, meaning: 'I approve the release of this batch. This CoA is accurate.', reason: '', password: '' })) }}
+                  onClick={() => {
+                    setShowApprove(true)
+                    setForm(f => ({ ...f, meaning: 'I approve the release of this batch. This CoA is accurate.', reason: '', password: '', lotReleasedQty: '', lotScrappedQty: '' }))
+                    setUnitInspLines([])
+                    loadUnitInspection(selected!.sampleId)
+                  }}
                   style={{ padding: '7px 16px', background: allChecklistPassed ? '#16a34a' : '#9ca3af',
                     color: '#fff', border: 'none', borderRadius: 4,
                     cursor: allChecklistPassed ? 'pointer' : 'not-allowed', fontSize: 13 }}>
@@ -674,10 +694,49 @@ export default function CoaReviewPage() {
 
       {/* Approve Drawer */}
       {showApprove && selected && (
-        <Drawer title="Approve CoA — E-Signature" onClose={() => { setShowApprove(false); setError('') }} blocking width={440}>
+        <Drawer title="Approve CoA — E-Signature" onClose={() => { setShowApprove(false); setError('') }} blocking width={480}>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 14 }}>
             This will lock the CoA PDF atomically and release the sample. All 3 e-signatures embedded in locked PDF (21 CFR Part 11).
           </p>
+          {unitInspLines.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>100% Inspection Results — Lot Disposition</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginBottom: 10 }}>
+                <thead>
+                  <tr style={{ background: '#f1f5f9' }}>
+                    {['Parameter', 'Inspected', 'Passed', 'Failed'].map(h => (
+                      <th key={h} style={{ padding: '5px 8px', textAlign: h === 'Parameter' ? 'left' : 'right', fontWeight: 600, color: '#374151', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {unitInspLines.map((l, i) => (
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb' }}>
+                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9' }}>{l.parameterName}</td>
+                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontFamily: 'monospace' }}>{l.inspected}</td>
+                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontFamily: 'monospace', color: '#16a34a', fontWeight: 600 }}>{l.passed}</td>
+                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontFamily: 'monospace', color: l.failed > 0 ? '#dc2626' : '#374151', fontWeight: l.failed > 0 ? 700 : 400 }}>{l.failed}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 4 }}>
+                <Field label="Released Qty">
+                  <input style={inp} type="number" min="0" step="1" value={form.lotReleasedQty}
+                    onChange={e => setForm(f => ({ ...f, lotReleasedQty: e.target.value }))}
+                    placeholder="Units released to next stage" />
+                </Field>
+                <Field label="Scrapped Qty">
+                  <input style={inp} type="number" min="0" step="1" value={form.lotScrappedQty}
+                    onChange={e => setForm(f => ({ ...f, lotScrappedQty: e.target.value }))}
+                    placeholder="Units sorted out / destroyed" />
+                </Field>
+              </div>
+              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>
+                Pre-filled from inspection data. Adjust if parameters overlap (e.g. same defective units flagged by multiple tests).
+              </div>
+            </div>
+          )}
           <form onSubmit={submitApprove}>
             <Field label="Password (re-enter)"><input style={inp} type="password" autoFocus value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={form.meaning} onChange={e => setForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>

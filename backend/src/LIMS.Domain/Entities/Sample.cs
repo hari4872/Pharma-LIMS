@@ -47,6 +47,10 @@ public class Sample
     public DateTimeOffset? SpecAssignedAt  { get; set; }
     public SpecAssignmentReason? SpecAssignmentReason { get; set; }  // AutoMatch|ManualOverride|NoTemplateFound
 
+    // Lot-level disposition for 100% inspection results — set by QA at CoA approval
+    public decimal? LotReleasedQty { get; set; }  // units/containers released to next stage
+    public decimal? LotScrappedQty { get; set; }  // units/containers sorted out/destroyed
+
     public string CreatedBy { get; set; } = default!;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

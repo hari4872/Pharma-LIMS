@@ -135,8 +135,7 @@ public class OosInvestigationsController : LimsControllerBase
         if (!Enum.TryParse<LIMS.Domain.Enums.OosFinalDecision>(request.Decision, true, out var decision))
             return BadRequest(new { error = "INVALID_DECISION", message = "Decision must be 'Release' or 'Reject'." });
         var result = await _mediator.Send(new QAFinalDecisionCommand(
-            id, userId, decision, request.Notes, request.Password, request.Meaning, request.Reason,
-            request.UnitReleasedQty, request.UnitScrappedQty));
+            id, userId, decision, request.Notes, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {
             if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
@@ -296,7 +295,9 @@ public class OosInvestigationsController : LimsControllerBase
             FinalDecision:               inv.FinalDecision?.ToString(),
             FinalDecisionBy:             inv.FinalDecisionBy,
             FinalDecisionAt:             inv.FinalDecisionAt,
-            CapaRef:                     inv.CapaRef
+            CapaRef:                     inv.CapaRef,
+            LotReleasedQty:              inv.Execution.Sample.LotReleasedQty,
+            LotScrappedQty:              inv.Execution.Sample.LotScrappedQty
         );
 
         QuestPDF.Settings.License = LicenseType.Community;
@@ -431,6 +432,5 @@ public record EscalatePhase2Request(string EscalationReason, string? CapaRef, st
 public record CreateOosRequest(int EntryId, string FlagType);
 public record CreateRetestRequest(string? Notes);
 public record AuthorizeReworkRequest(string? Notes);
-public record QAFinalDecisionRequest(string Decision, string? Notes, string Password, string Meaning, string Reason,
-    decimal? UnitReleasedQty = null, decimal? UnitScrappedQty = null);
+public record QAFinalDecisionRequest(string Decision, string? Notes, string Password, string Meaning, string Reason);
 

@@ -18,10 +18,7 @@ public record OosInvestigationDto(
     int? ReworkExecutionId, int? PostReworkRetestExecutionId, string? FinalDecision,
     bool RetestCompleted = false,
     bool PostReworkRetestCompleted = false,
-    // Unit-level inspection
-    string InspectionScope = "SampleBased",
-    decimal? UnitReleasedQty = null,
-    decimal? UnitScrappedQty = null);
+    string InspectionScope = "SampleBased");
 
 public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQuery, List<OosInvestigationDto>>
 {
@@ -56,8 +53,7 @@ public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQ
                 i.FinalDecision != null ? i.FinalDecision.ToString() : null,
                 i.RetestExecution != null && i.RetestExecution.Status == TestExecutionStatus.Completed,
                 i.PostReworkRetestExecution != null && i.PostReworkRetestExecution.Status == TestExecutionStatus.Completed,
-                i.Parameter != null ? i.Parameter.InspectionScope.ToString() : "SampleBased",
-                i.UnitReleasedQty, i.UnitScrappedQty))
+                i.Parameter != null ? i.Parameter.InspectionScope.ToString() : "SampleBased"))
             .ToListAsync(ct);
     }
 }

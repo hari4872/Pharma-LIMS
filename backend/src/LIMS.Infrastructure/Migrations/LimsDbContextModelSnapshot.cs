@@ -1937,12 +1937,6 @@ namespace LIMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal?>("UnitReleasedQty")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal?>("UnitScrappedQty")
-                        .HasColumnType("numeric");
-
                     b.HasKey("InvestigationId");
 
                     b.HasIndex("EntryId");
@@ -2421,6 +2415,12 @@ namespace LIMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<decimal?>("LotReleasedQty")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("LotScrappedQty")
+                        .HasColumnType("numeric");
 
                     b.Property<int>("MaterialId")
                         .HasColumnType("integer");
