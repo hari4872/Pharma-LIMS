@@ -683,7 +683,7 @@ export default function OosInvestigationsPage() {
       {showClose && (
         <Drawer title={`Close ${showClose.flagType} Investigation — ${showClose.sampleNumber}`} onClose={() => setShowClose(null)} blocking width={480}>
           <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-            FDA OOS Guidance Phase 1 — Root cause and CAPA reference required before investigation can be closed.
+            FDA OOS Guidance Phase 1 — Root cause required before investigation can be closed.
           </p>
           <form onSubmit={submitClose}>
             <Field label="Root Cause (mandatory)">
