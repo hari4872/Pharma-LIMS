@@ -1956,6 +1956,42 @@ namespace LIMS.Infrastructure.Migrations
                     b.ToTable("oos_investigations", (string)null);
                 });
 
+            modelBuilder.Entity("LIMS.Domain.Entities.OosRetestCycle", b =>
+                {
+                    b.Property<int>("CycleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("CycleId"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("CycleNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ExecutionId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("InvestigationId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.HasKey("CycleId");
+
+                    b.HasIndex("ExecutionId");
+
+                    b.HasIndex("InvestigationId");
+
+                    b.ToTable("oos_retest_cycles", (string)null);
+                });
+
             modelBuilder.Entity("LIMS.Domain.Entities.ParameterLookupRow", b =>
                 {
                     b.Property<int>("RowId")
@@ -4783,6 +4819,25 @@ namespace LIMS.Infrastructure.Migrations
                     b.Navigation("Signature");
                 });
 
+            modelBuilder.Entity("LIMS.Domain.Entities.OosRetestCycle", b =>
+                {
+                    b.HasOne("LIMS.Domain.Entities.TestExecution", "Execution")
+                        .WithMany()
+                        .HasForeignKey("ExecutionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LIMS.Domain.Entities.OosInvestigation", "Investigation")
+                        .WithMany("RetestCycles")
+                        .HasForeignKey("InvestigationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Execution");
+
+                    b.Navigation("Investigation");
+                });
+
             modelBuilder.Entity("LIMS.Domain.Entities.ParameterLookupRow", b =>
                 {
                     b.HasOne("LIMS.Domain.Entities.ParameterLookupTable", "LookupTable")
@@ -5625,6 +5680,11 @@ namespace LIMS.Infrastructure.Migrations
             modelBuilder.Entity("LIMS.Domain.Entities.Material", b =>
                 {
                     b.Navigation("SpecLimits");
+                });
+
+            modelBuilder.Entity("LIMS.Domain.Entities.OosInvestigation", b =>
+                {
+                    b.Navigation("RetestCycles");
                 });
 
             modelBuilder.Entity("LIMS.Domain.Entities.ParameterLookupTable", b =>

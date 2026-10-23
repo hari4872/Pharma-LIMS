@@ -23,9 +23,10 @@ public class OosInvestigation
     public DateTimeOffset? ClosedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
 
-    // OOS Retest (Phase 1 retest)
+    // OOS Retest (Phase 1 retest) — RetestExecutionId kept for backward compat, points to latest cycle
     public int? RetestExecutionId { get; set; }
     public TestExecution? RetestExecution { get; set; }
+    public List<OosRetestCycle> RetestCycles { get; set; } = new();
     public OosResolutionType? ResolutionType { get; set; }  // set on close: LabError | GenuineOOS
 
     // Group C — Genuine OOS rework path

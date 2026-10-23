@@ -18,6 +18,7 @@ interface OosItem {
   openedAt: string; closedAt: string | null; createdBy: string
   retestExecutionId?: number
   retestCompleted?: boolean
+  retestCycleCount?: number
   resolutionType?: string
   // Group C — Genuine OOS rework path
   reworkExecutionId?: number
@@ -28,7 +29,8 @@ interface OosItem {
 }
 
 interface ComparisonEntry { rawValue: string; calculatedResult: number | null; specMin?: number | null; specMax?: number | null; passFail: string; date: string; analystName?: string }
-interface ComparisonData { parameterId: number; parameterName: string; uom: string; original: ComparisonEntry; retest?: ComparisonEntry | null; postReworkRetest?: ComparisonEntry | null }
+interface RetestCycleEntry { cycleNumber: number; executionId: number; completed: boolean; rawValue?: string | null; calculatedResult?: number | null; specMin?: number | null; specMax?: number | null; passFail?: string | null; analystName?: string; date?: string | null }
+interface ComparisonData { parameterId: number; parameterName: string; uom: string; original: ComparisonEntry; retestCycles?: RetestCycleEntry[]; retest?: ComparisonEntry | null; postReworkRetest?: ComparisonEntry | null }
 
 const FLAG_COLORS: Record<string, { bg: string; color: string }> = {
   OOS: { bg: '#fee2e2', color: '#991b1b' },
@@ -344,17 +346,17 @@ export default function OosInvestigationsPage() {
                 ↑ Phase 2
               </button>
             )}
-            {r.status === 'Open' && !r.retestExecutionId && (
+            {r.status === 'Open' && (
               <button
                 onClick={() => { setShowRetest(r); setRetestForm({ notes: '' }); setRetestError('') }}
-                title="Create Retest Task — same analyst, same parameter"
+                title={`Create Retest Task — same analyst, same parameter${r.retestCycleCount ? ` (${r.retestCycleCount} previous)` : ''}`}
                 style={{
                   background: '#ede9fe', border: '1px solid #c4b5fd',
                   color: '#6d28d9', cursor: 'pointer', fontSize: 12,
                   fontWeight: 700, padding: '4px 10px', borderRadius: 6,
                   whiteSpace: 'nowrap',
                 }}>
-                🔁 Retest
+                🔁 Retest{r.retestCycleCount ? ` (${r.retestCycleCount})` : ''}
               </button>
             )}
             {r.status === 'Open' && r.phase === 'Phase2' && !r.reworkExecutionId && (
@@ -521,9 +523,11 @@ export default function OosInvestigationsPage() {
       )}
 
       {showRetest && (
-        <Drawer title={`Create Retest Task — ${showRetest.sampleNumber}`} onClose={() => setShowRetest(null)} blocking width={460}>
+        <Drawer title={`Create Retest Task — ${showRetest.sampleNumber}${showRetest.retestCycleCount ? ` (Cycle ${showRetest.retestCycleCount + 1})` : ''}`} onClose={() => setShowRetest(null)} blocking width={460}>
           <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
-            <p style={{ margin: 0, fontSize: 13, color: '#1e40af', fontWeight: 600 }}>Same analyst will be pre-assigned to the retest.</p>
+            <p style={{ margin: 0, fontSize: 13, color: '#1e40af', fontWeight: 600 }}>
+              {showRetest.retestCycleCount ? `Creating Retest Cycle ${showRetest.retestCycleCount + 1} of 5.` : 'Same analyst will be pre-assigned to the retest.'}
+            </p>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#1e3a8a' }}>
               A new test execution appears in the Work Queue tagged <b>RETEST</b>. The Lab Manager can reassign if required. The original FAIL result is permanently retained per 21 CFR Part 11.
             </p>
@@ -608,10 +612,31 @@ export default function OosInvestigationsPage() {
                 </thead>
                 <tbody>
                   {[
-                    { label: 'Original', data: comparisonData.original, bg: '#fef2f2' },
-                    { label: 'Retest', data: comparisonData.retest, bg: '#f0fdf4' },
-                    { label: 'Post-Rework Retest', data: comparisonData.postReworkRetest, bg: '#f0fdf4' },
-                  ].filter(row => row.data).map(row => {
+                    { label: 'Original', data: comparisonData.original as ComparisonEntry | null, bg: '#fef2f2', cycleNum: 0 },
+                    // Multi-cycle retests (new path)
+                    ...(comparisonData.retestCycles ?? []).map(c => ({
+                      label: `Retest ${c.cycleNumber}`,
+                      data: c.completed && c.rawValue != null ? {
+                        rawValue: c.rawValue!, calculatedResult: c.calculatedResult ?? null,
+                        specMin: c.specMin, specMax: c.specMax,
+                        passFail: c.passFail ?? 'Pending', date: c.date ?? '', analystName: c.analystName
+                      } as ComparisonEntry : null,
+                      pendingLabel: !c.completed ? `Retest ${c.cycleNumber} — pending` : null,
+                      bg: '#f0fdf4', cycleNum: c.cycleNumber,
+                    })),
+                    // Legacy single-retest fallback (investigations before multi-cycle)
+                    ...((comparisonData.retestCycles ?? []).length === 0 && comparisonData.retest
+                      ? [{ label: 'Retest', data: comparisonData.retest, bg: '#f0fdf4', cycleNum: 1, pendingLabel: undefined }]
+                      : []),
+                    { label: 'Post-Rework Retest', data: comparisonData.postReworkRetest ?? null, bg: '#f0fdf4', cycleNum: 0 },
+                  ].filter(row => row.data || (row as any).pendingLabel).map(row => {
+                    if ((row as any).pendingLabel) return (
+                      <tr key={row.label} style={{ background: '#f8fafc' }}>
+                        <td colSpan={6} style={{ padding: '6px 10px', fontSize: 12, color: '#6b7280', fontStyle: 'italic', borderBottom: '1px solid #e2e8f0' }}>
+                          {(row as any).pendingLabel} — analyst has not submitted results yet
+                        </td>
+                      </tr>
+                    )
                     const val = row.data!.calculatedResult != null
                       ? fmtCalc(row.data!.calculatedResult)
                       : row.data!.rawValue

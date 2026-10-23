@@ -49,6 +49,7 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<TestExecution> TestExecutions => Set<TestExecution>();
     public DbSet<DigitalLogbookEntry> DigitalLogbookEntries => Set<DigitalLogbookEntry>();
     public DbSet<OosInvestigation> OosInvestigations => Set<OosInvestigation>();
+    public DbSet<OosRetestCycle> OosRetestCycles => Set<OosRetestCycle>();
     public DbSet<ResultsReview> ResultsReviews => Set<ResultsReview>();
     public DbSet<ResultEvidence> ResultEvidences => Set<ResultEvidence>();
     // Phase 4: CoA Generation + QA Review + Dispatch QC
@@ -195,6 +196,20 @@ public class LimsDbContext : DbContext, ILimsDbContext
             e.HasOne(i => i.PostReworkRetestExecution)
              .WithMany()
              .HasForeignKey(i => i.PostReworkRetestExecutionId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(i => i.RetestCycles)
+             .WithOne(c => c.Investigation)
+             .HasForeignKey(c => c.InvestigationId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OosRetestCycle>(e =>
+        {
+            e.ToTable("oos_retest_cycles");
+            e.HasKey(c => c.CycleId);
+            e.HasOne(c => c.Execution)
+             .WithMany()
+             .HasForeignKey(c => c.ExecutionId)
              .OnDelete(DeleteBehavior.Restrict);
         });
 

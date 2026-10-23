@@ -44,6 +44,7 @@ public interface ILimsDbContext
     DbSet<TestExecution> TestExecutions { get; }
     DbSet<DigitalLogbookEntry> DigitalLogbookEntries { get; }
     DbSet<OosInvestigation> OosInvestigations { get; }
+    DbSet<OosRetestCycle> OosRetestCycles { get; }
     DbSet<ResultsReview> ResultsReviews { get; }
     DbSet<ResultEvidence> ResultEvidences { get; }
     // Phase 4: CoA Generation + QA Review + Dispatch QC

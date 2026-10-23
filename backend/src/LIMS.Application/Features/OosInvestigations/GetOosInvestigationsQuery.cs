@@ -18,7 +18,8 @@ public record OosInvestigationDto(
     int? ReworkExecutionId, int? PostReworkRetestExecutionId, string? FinalDecision,
     bool RetestCompleted = false,
     bool PostReworkRetestCompleted = false,
-    string InspectionScope = "SampleBased");
+    string InspectionScope = "SampleBased",
+    int RetestCycleCount = 0);
 
 public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQuery, List<OosInvestigationDto>>
 {
@@ -31,6 +32,7 @@ public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQ
             .Include(i => i.Execution).ThenInclude(e => e.Sample)
             .Include(i => i.Parameter)
             .Include(i => i.RetestExecution)
+            .Include(i => i.RetestCycles)
             .Include(i => i.PostReworkRetestExecution)
             .AsQueryable();
 
@@ -53,7 +55,8 @@ public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQ
                 i.FinalDecision != null ? i.FinalDecision.ToString() : null,
                 i.RetestExecution != null && i.RetestExecution.Status == TestExecutionStatus.Completed,
                 i.PostReworkRetestExecution != null && i.PostReworkRetestExecution.Status == TestExecutionStatus.Completed,
-                i.Parameter != null ? i.Parameter.InspectionScope.ToString() : "SampleBased"))
+                i.Parameter != null ? i.Parameter.InspectionScope.ToString() : "SampleBased",
+                i.RetestCycles.Count))
             .ToListAsync(ct);
     }
 }

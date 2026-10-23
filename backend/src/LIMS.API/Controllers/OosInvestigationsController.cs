@@ -152,14 +152,38 @@ public class OosInvestigationsController : LimsControllerBase
         var inv = await _db.OosInvestigations
             .Include(i => i.Parameter)
             .Include(i => i.Entry).ThenInclude(e => e.Analyst)
-            .Include(i => i.RetestExecution).ThenInclude(re => re!.LogbookEntries)
+            .Include(i => i.RetestCycles).ThenInclude(c => c.Execution).ThenInclude(ex => ex.LogbookEntries)
+            .Include(i => i.RetestCycles).ThenInclude(c => c.Execution).ThenInclude(ex => ex.Analyst)
+            .Include(i => i.RetestExecution).ThenInclude(re => re!.LogbookEntries)  // backward compat
             .Include(i => i.ReworkExecution)
             .Include(i => i.PostReworkRetestExecution).ThenInclude(pr => pr!.LogbookEntries)
             .FirstOrDefaultAsync(i => i.InvestigationId == id);
 
         if (inv is null) return NotFound();
 
-        var retestEntry = inv.RetestExecution?.LogbookEntries.FirstOrDefault(e => e.ParameterId == inv.ParameterId);
+        // Build per-cycle retest entries (new multi-cycle path)
+        var retestCycles = inv.RetestCycles
+            .OrderBy(c => c.CycleNumber)
+            .Select(c => {
+                var entry = c.Execution.LogbookEntries.FirstOrDefault(e => e.ParameterId == inv.ParameterId);
+                return new {
+                    cycleNumber      = c.CycleNumber,
+                    executionId      = c.ExecutionId,
+                    completed        = c.Execution.Status == LIMS.Domain.Enums.TestExecutionStatus.Completed,
+                    rawValue         = entry?.RawValue,
+                    calculatedResult = entry?.CalculatedResult,
+                    specMin          = entry?.SpecMinSnapshot,
+                    specMax          = entry?.SpecMaxSnapshot,
+                    passFail         = entry?.PassFail,
+                    analystName      = c.Execution.Analyst?.FullName ?? "Unknown",
+                    date             = entry?.CreatedAt
+                };
+            }).ToList();
+
+        // Legacy single-retest fallback (for investigations created before multi-cycle)
+        var legacyRetestEntry = retestCycles.Count == 0
+            ? inv.RetestExecution?.LogbookEntries.FirstOrDefault(e => e.ParameterId == inv.ParameterId)
+            : null;
         var postReworkEntry = inv.PostReworkRetestExecution?.LogbookEntries.FirstOrDefault(e => e.ParameterId == inv.ParameterId);
 
         return Ok(new {
@@ -175,13 +199,15 @@ public class OosInvestigationsController : LimsControllerBase
                 analystName       = inv.Entry.Analyst?.FullName ?? "Unknown",
                 date              = inv.Entry.CreatedAt
             },
-            retest = retestEntry is null ? null : new {
-                rawValue         = retestEntry.RawValue,
-                calculatedResult = retestEntry.CalculatedResult,
-                specMin          = retestEntry.SpecMinSnapshot,
-                specMax          = retestEntry.SpecMaxSnapshot,
-                passFail         = retestEntry.PassFail,
-                date             = retestEntry.CreatedAt
+            retestCycles,
+            // Keep legacy "retest" field for backward compat with existing frontend
+            retest = legacyRetestEntry is null ? null : new {
+                rawValue         = legacyRetestEntry.RawValue,
+                calculatedResult = legacyRetestEntry.CalculatedResult,
+                specMin          = legacyRetestEntry.SpecMinSnapshot,
+                specMax          = legacyRetestEntry.SpecMaxSnapshot,
+                passFail         = legacyRetestEntry.PassFail,
+                date             = legacyRetestEntry.CreatedAt
             },
             postReworkRetest = postReworkEntry is null ? null : new {
                 rawValue         = postReworkEntry.RawValue,
