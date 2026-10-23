@@ -618,11 +618,27 @@ export default function OosInvestigationsPage() {
                     const pf = row.data!.passFail
                     const pfBg = pf === 'Pass' ? '#dcfce7' : pf === 'Fail' ? '#fee2e2' : '#f1f5f9'
                     const pfColor = pf === 'Pass' ? '#15803d' : pf === 'Fail' ? '#991b1b' : '#374151'
+                    // Parse unit counts from JSON rawValue (UnitBased parameters)
+                    let unitCounts: { inspected?: string; passed?: string; failed?: string } | null = null
+                    try {
+                      if (row.data!.rawValue?.startsWith('{')) {
+                        const o = JSON.parse(row.data!.rawValue)
+                        if (o.UNITS_INSPECTED != null || o.UNITS_PASSED != null || o.UNITS_FAILED != null)
+                          unitCounts = { inspected: o.UNITS_INSPECTED, passed: o.UNITS_PASSED, failed: o.UNITS_FAILED }
+                      }
+                    } catch {}
                     return (
                     <tr key={row.label} style={{ background: row.bg }}>
                       <td style={{ padding: '6px 10px', fontWeight: 600, color: '#374151', borderBottom: '1px solid #e2e8f0' }}>{row.label}</td>
                       <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', borderBottom: '1px solid #e2e8f0', color: pf === 'Fail' ? '#dc2626' : '#111827' }}>
                         {val} {comparisonData.uom}
+                        {unitCounts && (
+                          <div style={{ fontSize: 10, color: '#6b7280', fontFamily: 'sans-serif', marginTop: 2 }}>
+                            {unitCounts.inspected && `${unitCounts.inspected} inspected`}
+                            {unitCounts.passed && ` · ${unitCounts.passed} passed`}
+                            {unitCounts.failed && <span style={{ color: '#dc2626' }}> · {unitCounts.failed} failed</span>}
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: '6px 10px', textAlign: 'center', color: '#6b7280', borderBottom: '1px solid #e2e8f0' }}>
                         {row.data!.specMin != null ? `${row.data!.specMin} – ${row.data!.specMax} ${comparisonData.uom}` : '—'}
