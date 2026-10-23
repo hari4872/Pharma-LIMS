@@ -14,7 +14,7 @@ interface OosItem {
   investigationId: number; executionId: number; sampleId: number; sampleNumber: string
   parameterId: number; parameterName: string
   flagType: string; phase: string; status: string
-  rootCause: string | null; capaRef: string | null; capaStatus: string | null
+  rootCause: string | null
   openedAt: string; closedAt: string | null; createdBy: string
   retestExecutionId?: number
   retestCompleted?: boolean
@@ -52,7 +52,7 @@ export default function OosInvestigationsPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showClose, setShowClose] = useState<OosItem | null>(null)
-  const [closeForm, setCloseForm] = useState({ rootCause: '', capaRef: '', capaStatus: 'Open', resolutionType: 'LabError', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' })
+  const [closeForm, setCloseForm] = useState({ rootCause: '', resolutionType: 'LabError', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
@@ -61,7 +61,7 @@ export default function OosInvestigationsPage() {
 
   // Phase 2 escalation modal
   const [showEscalate, setShowEscalate] = useState<OosItem | null>(null)
-  const [escalateForm, setEscalateForm] = useState({ escalationReason: '', capaRef: '', capaStatus: 'Open', password: '', meaning: 'I authorise escalation of this investigation to Phase 2', reason: '' })
+  const [escalateForm, setEscalateForm] = useState({ escalationReason: '', password: '', meaning: 'I authorise escalation of this investigation to Phase 2', reason: '' })
   const [escalateSaving, setEscalateSaving] = useState(false)
   const [escalateError, setEscalateError] = useState('')
 
@@ -166,7 +166,7 @@ export default function OosInvestigationsPage() {
     try {
       await api.post(`/oos-investigations/${showEscalate!.investigationId}/escalate-phase2`, escalateForm)
       setShowEscalate(null)
-      setEscalateForm({ escalationReason: '', capaRef: '', capaStatus: 'Open', password: '', meaning: 'I authorise escalation of this investigation to Phase 2', reason: '' })
+      setEscalateForm({ escalationReason: '', password: '', meaning: 'I authorise escalation of this investigation to Phase 2', reason: '' })
       await load()
       toast(`Investigation escalated to Phase 2`, 'success')
     } catch (err) { setEscalateError(getErrorMessage(err, 'Escalation failed')) }
@@ -206,7 +206,7 @@ export default function OosInvestigationsPage() {
     e.preventDefault(); setSaving(true); setError('')
     try {
       await api.post(`/oos-investigations/${showClose!.investigationId}/close`, closeForm)
-      setCloseForm({ rootCause: '', capaRef: '', capaStatus: 'Open', resolutionType: 'LabError', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' })
+      setCloseForm({ rootCause: '', resolutionType: 'LabError', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' })
       setShowClose(null); await load()
       setStatusFilter('Closed')
     } catch (err) { setError(getErrorMessage(err, 'Close failed')) }
@@ -326,28 +326,13 @@ export default function OosInvestigationsPage() {
             )}
           </div>
         )},
-        { header: 'CAPA Ref', accessor: r => r.capaRef ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <span style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 600 }}>{r.capaRef}</span>
-            {r.capaStatus && (() => {
-              const cs: Record<string, { bg: string; color: string }> = {
-                'Open':        { bg: '#fee2e2', color: '#991b1b' },
-                'In Progress': { bg: '#fef3c7', color: '#92400e' },
-                'Closed':      { bg: '#d1fae5', color: '#065f46' },
-                'N/A':         { bg: '#f1f5f9', color: '#64748b' },
-              }
-              const s = cs[r.capaStatus] ?? cs['N/A']
-              return <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 10, background: s.bg, color: s.color, width: 'fit-content' }}>{r.capaStatus}</span>
-            })()}
-          </div>
-        ) : <span style={{ color: '#9ca3af' }}>—</span> },
         { header: 'Opened', accessor: r => fmtDate(r.openedAt) },
         { header: 'Closed', accessor: r => r.closedAt ? fmtDate(r.closedAt) : '—' },
         { header: 'Actions', accessor: r => (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'nowrap' }}>
             {r.status === 'Open' && r.phase === 'Phase1' && (
               <button
-                onClick={() => { setShowEscalate(r); setEscalateForm({ escalationReason: '', capaRef: '', capaStatus: 'Open', password: '', meaning: 'I authorise escalation of this investigation to Phase 2', reason: '' }); setEscalateError('') }}
+                onClick={() => { setShowEscalate(r); setEscalateForm({ escalationReason: '', password: '', meaning: 'I authorise escalation of this investigation to Phase 2', reason: '' }); setEscalateError('') }}
                 title="Escalate to Phase 2 — FDA OOS Guidance"
                 style={{
                   background: '#fef3c7', border: '1px solid #fcd34d',
@@ -412,7 +397,7 @@ export default function OosInvestigationsPage() {
             )}
             {r.status === 'Open' && (
               <button
-                onClick={() => { setShowClose(r); setCloseForm({ rootCause: '', capaRef: '', capaStatus: 'Open', resolutionType: 'LabError', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' }); setError(''); setRcSuggestions([]) }}
+                onClick={() => { setShowClose(r); setCloseForm({ rootCause: '', resolutionType: 'LabError', password: '', meaning: 'I confirm this OOS/OOT investigation is complete', reason: '' }); setError(''); setRcSuggestions([]) }}
                 style={{
                   background: '#dcfce7', border: '1px solid #86efac',
                   color: '#15803d', cursor: 'pointer', fontSize: 12,

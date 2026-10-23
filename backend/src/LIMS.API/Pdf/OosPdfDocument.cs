@@ -28,7 +28,6 @@ public class OosPdfDocument : IDocument
         string PassFail,
         string AnalystName,
         string? RootCause,
-        string? CapaRef,
         string CreatedBy,
         DateTimeOffset OpenedAt,
         DateTimeOffset? ClosedAt,
@@ -39,6 +38,7 @@ public class OosPdfDocument : IDocument
         decimal? RetestCalculatedResult,
         string? RetestPassFail,
         string? RetestAnalystName,
+        DateTimeOffset? RetestCompletedAt,
         string? ResolutionType,    // "LabError" | "GenuineOOS" | null
         // Group C — Rework & Post-Rework Retest
         int?    ReworkExecutionId,
@@ -49,6 +49,7 @@ public class OosPdfDocument : IDocument
         decimal? PostReworkCalculatedResult,
         string? PostReworkPassFail,
         string? PostReworkAnalystName,
+        DateTimeOffset? PostReworkRetestCompletedAt,
         string? FinalDecision,     // "Release" | "Reject" | null
         string? FinalDecisionBy,
         DateTimeOffset? FinalDecisionAt
@@ -250,6 +251,10 @@ public class OosPdfDocument : IDocument
                         row.AutoItem().Text($"Retest Analyst: {_d.RetestAnalystName ?? "—"}").FontSize(9).FontColor("#6b7280").Italic();
                         row.ConstantItem(20);
                         row.AutoItem().Text($"Execution: EXE-{_d.RetestExecutionId:D5}").FontSize(9).FontColor("#6b7280").Italic();
+                        row.ConstantItem(20);
+                        row.AutoItem().Text(_d.RetestCompletedAt.HasValue
+                            ? $"Completed: {_d.RetestCompletedAt.Value:yyyy-MM-dd HH:mm} UTC"
+                            : "Completed: In Progress").FontSize(9).FontColor("#6b7280").Italic();
                         if (!string.IsNullOrEmpty(_d.ResolutionType))
                         {
                             row.ConstantItem(20);

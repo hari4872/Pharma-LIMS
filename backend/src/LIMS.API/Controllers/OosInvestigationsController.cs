@@ -269,7 +269,6 @@ public class OosInvestigationsController : LimsControllerBase
             PassFail:        inv.Entry.PassFail,
             AnalystName:     inv.Entry.Analyst?.FullName ?? "Unknown",
             RootCause:       inv.RootCause,
-            CapaRef:         inv.CapaRef,
             CreatedBy:       inv.CreatedBy,
             OpenedAt:        inv.OpenedAt,
             ClosedAt:        inv.ClosedAt,
@@ -279,6 +278,8 @@ public class OosInvestigationsController : LimsControllerBase
             RetestCalculatedResult: retestEntry?.CalculatedResult,
             RetestPassFail:         retestEntry?.PassFail,
             RetestAnalystName:      inv.RetestExecution?.Analyst?.FullName,
+            RetestCompletedAt:      inv.RetestExecution?.Status == LIMS.Domain.Enums.TestExecutionStatus.Completed
+                                        ? inv.RetestExecution.CompletedAt : null,
             ResolutionType:         inv.ResolutionType?.ToString(),
             // Group C — Rework & Post-Rework Retest
             ReworkExecutionId:           inv.ReworkExecutionId,
@@ -289,6 +290,8 @@ public class OosInvestigationsController : LimsControllerBase
             PostReworkCalculatedResult:  postReworkEntry?.CalculatedResult,
             PostReworkPassFail:          postReworkEntry?.PassFail,
             PostReworkAnalystName:       inv.PostReworkRetestExecution?.Analyst?.FullName,
+            PostReworkRetestCompletedAt: inv.PostReworkRetestExecution?.Status == LIMS.Domain.Enums.TestExecutionStatus.Completed
+                                             ? inv.PostReworkRetestExecution.CompletedAt : null,
             FinalDecision:               inv.FinalDecision?.ToString(),
             FinalDecisionBy:             inv.FinalDecisionBy,
             FinalDecisionAt:             inv.FinalDecisionAt
