@@ -15,7 +15,9 @@ public record OosInvestigationDto(
     DateTimeOffset OpenedAt, DateTimeOffset? ClosedAt, string CreatedBy,
     int? RetestExecutionId, string? ResolutionType,
     // Group C — Genuine OOS rework path
-    int? ReworkExecutionId, int? PostReworkRetestExecutionId, string? FinalDecision);
+    int? ReworkExecutionId, int? PostReworkRetestExecutionId, string? FinalDecision,
+    bool RetestCompleted = false,
+    bool PostReworkRetestCompleted = false);
 
 public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQuery, List<OosInvestigationDto>>
 {
@@ -27,6 +29,8 @@ public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQ
         var query = _db.OosInvestigations
             .Include(i => i.Execution).ThenInclude(e => e.Sample)
             .Include(i => i.Parameter)
+            .Include(i => i.RetestExecution)
+            .Include(i => i.PostReworkRetestExecution)
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(q.Status) && Enum.TryParse<OosStatus>(q.Status, out var s))
@@ -45,7 +49,9 @@ public class GetOosInvestigationsHandler : IRequestHandler<GetOosInvestigationsQ
                 i.RootCause, i.CapaRef, i.CapaStatus, i.OpenedAt, i.ClosedAt, i.CreatedBy,
                 i.RetestExecutionId, i.ResolutionType != null ? i.ResolutionType.ToString() : null,
                 i.ReworkExecutionId, i.PostReworkRetestExecutionId,
-                i.FinalDecision != null ? i.FinalDecision.ToString() : null))
+                i.FinalDecision != null ? i.FinalDecision.ToString() : null,
+                i.RetestExecution != null && i.RetestExecution.Status == TestExecutionStatus.Completed,
+                i.PostReworkRetestExecution != null && i.PostReworkRetestExecution.Status == TestExecutionStatus.Completed))
             .ToListAsync(ct);
     }
 }

@@ -17,10 +17,12 @@ interface OosItem {
   rootCause: string | null; capaRef: string | null; capaStatus: string | null
   openedAt: string; closedAt: string | null; createdBy: string
   retestExecutionId?: number
+  retestCompleted?: boolean
   resolutionType?: string
   // Group C — Genuine OOS rework path
   reworkExecutionId?: number
   postReworkRetestExecutionId?: number
+  postReworkRetestCompleted?: boolean
   finalDecision?: string
 }
 
@@ -316,7 +318,11 @@ export default function OosInvestigationsPage() {
               background: r.status === 'Open' ? '#fee2e2' : '#d1fae5',
               color: r.status === 'Open' ? '#991b1b' : '#065f46', fontWeight: 500 }}>{fmtLabel(r.status)}</span>
             {r.retestExecutionId && (
-              <span style={{ padding: '1px 7px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: '#ede9fe', color: '#6d28d9', width: 'fit-content' }}>Retest Pending</span>
+              <span style={{ padding: '1px 7px', borderRadius: 10, fontSize: 11, fontWeight: 600,
+                background: r.retestCompleted ? '#dcfce7' : '#ede9fe',
+                color: r.retestCompleted ? '#16a34a' : '#6d28d9', width: 'fit-content' }}>
+                {r.retestCompleted ? '✓ Retest Done' : 'Retest Pending'}
+              </span>
             )}
           </div>
         )},
