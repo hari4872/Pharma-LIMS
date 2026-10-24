@@ -20,6 +20,7 @@ interface Parameter {
   uom: string; dataType: string; isCritical: boolean; isMandatory: boolean
   instrumentType: string | null
   calcFormula: string | null; inputFields: string | null; decimalPlaces: number | null
+  inspectionScope?: string
 }
 interface InputField { key: string; label: string }
 
@@ -440,17 +441,113 @@ export default function TestExecutionPage() {
         )}
 
         <form onSubmit={submitResults}>
+
+          {/* ── Unit Inspection grouped card ───────────────────────────────── */}
+          {(() => {
+            const unitEntry = parameters.filter(p => p.inspectionScope === 'UnitBased' && !p.calcFormula)
+            const unitCalc  = parameters.filter(p => p.inspectionScope === 'UnitBased' && !!p.calcFormula)
+            if (unitEntry.length === 0 && unitCalc.length === 0) return null
+
+            // Live AQL preview: replace param codes with entered values
+            function previewCalc(formula: string): string {
+              try {
+                let expr = formula
+                for (const up of unitEntry) {
+                  const val = entries[up.parameterId] || '0'
+                  expr = expr.replace(new RegExp(`\\b${up.parameterCode}\\b`, 'gi'), val)
+                }
+                // eslint-disable-next-line no-new-func
+                const result = Function(`"use strict"; return (${expr})`)()
+                if (!isFinite(result)) return '—'
+                return parseFloat(result.toFixed(4)).toString()
+              } catch { return '—' }
+            }
+
+            return (
+              <div style={{ border: '2px solid #fcd34d', borderRadius: 10, padding: '16px 18px', marginBottom: 16, background: '#fffbeb' }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#92400e', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ background: '#f59e0b', color: '#fff', borderRadius: 6, padding: '2px 10px', fontSize: 12 }}>Unit Inspection</span>
+                  <span style={{ fontWeight: 400, fontSize: 12, color: '#a16207' }}>Enter total counts for this lot</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${unitEntry.length}, 1fr)${unitCalc.length > 0 ? ' 2fr' : ''}`, gap: 12, alignItems: 'end' }}>
+                  {unitEntry.map(p => {
+                    const raw = entries[p.parameterId] ?? ''
+                    const spec = specFor(p.parameterId)
+                    const status = evalValue(raw, spec, p.dataType)
+                    return (
+                      <div key={p.parameterId}>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: '#92400e', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          {p.parameterName} {p.uom ? `(${p.uom})` : ''}
+                          {p.isMandatory && <span style={{ color: '#dc2626' }}> *</span>}
+                        </label>
+                        <input
+                          type="number" step="1" min="0"
+                          value={raw}
+                          onChange={e => setEntries(prev => ({ ...prev, [p.parameterId]: e.target.value }))}
+                          required={p.isMandatory}
+                          placeholder="0"
+                          style={{ ...inp, margin: 0, fontFamily: 'monospace', fontWeight: 700, fontSize: 16,
+                            borderColor: status === 'fail' ? '#fca5a5' : status === 'pass' ? '#86efac' : '#fcd34d',
+                            background: '#fff' }}
+                        />
+                        {raw && spec && (
+                          <div style={{ fontSize: 11, marginTop: 3, fontWeight: 600,
+                            color: status === 'fail' ? '#dc2626' : status === 'pass' ? '#16a34a' : '#6b7280' }}>
+                            {status === 'fail' ? '❌ OOS' : status === 'pass' ? '✅ Pass' : ''}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {unitCalc.map(p => {
+                    const preview = previewCalc(p.calcFormula!)
+                    const spec = specFor(p.parameterId)
+                    const status = evalValue(preview, spec, 'Numeric')
+                    const cellResult = results.find(r => r.parameterId === p.parameterId)
+                    const displayVal = cellResult?.calculatedResult != null
+                      ? String(cellResult.calculatedResult)
+                      : preview
+                    return (
+                      <div key={p.parameterId} style={{ background: '#fff', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#a16207', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                          {p.parameterName} {p.uom ? `(${p.uom})` : ''} — Auto-calculated
+                        </div>
+                        <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 22,
+                          color: status === 'fail' ? '#dc2626' : displayVal === '—' ? '#d1d5db' : '#0f172a' }}>
+                          {displayVal}{displayVal !== '—' && p.uom ? ` ${p.uom}` : ''}
+                        </div>
+                        {spec && displayVal !== '—' && (
+                          <div style={{ fontSize: 11, marginTop: 4 }}>
+                            <span style={{ color: '#6b7280' }}>Spec: </span>
+                            <span style={{ fontWeight: 600, color: '#1e3a5f' }}>{formatSpec(spec)}</span>
+                            <span style={{ marginLeft: 8, fontWeight: 700,
+                              color: status === 'fail' ? '#dc2626' : '#16a34a' }}>
+                              {status === 'fail' ? '❌ OOS' : status === 'pass' ? '✅ Pass' : ''}
+                            </span>
+                          </div>
+                        )}
+                        {!cellResult && <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>Preview — finalised on submit</div>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
+
           {/* Column headers */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: '28px 2fr 1.4fr 1.4fr minmax(200px, 1.5fr) 100px',
-            gap: 12, padding: '6px 10px', marginBottom: 6,
-            fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em'
-          }}>
-            <span>#</span><span>Parameter</span><span>Spec Limit</span><span>Value</span><span>Instrument</span><span>Status</span>
-          </div>
+          {parameters.some(p => p.inspectionScope !== 'UnitBased') && (
+            <div style={{
+              display: 'grid', gridTemplateColumns: '28px 2fr 1.4fr 1.4fr minmax(200px, 1.5fr) 100px',
+              gap: 12, padding: '6px 10px', marginBottom: 6,
+              fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em'
+            }}>
+              <span>#</span><span>Parameter</span><span>Spec Limit</span><span>Value</span><span>Instrument</span><span>Status</span>
+            </div>
+          )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {parameters.map((p, idx) => {
+            {parameters.filter(p => p.inspectionScope !== 'UnitBased').map((p, idx) => {
               const spec   = specFor(p.parameterId)
               const raw    = entries[p.parameterId] ?? ''
               const status = evalValue(raw, spec, p.dataType)

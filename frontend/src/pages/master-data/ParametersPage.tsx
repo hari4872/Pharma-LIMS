@@ -7,7 +7,7 @@ import { toast } from '@/components/Toast'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface InputField { key: string; label: string }
-interface Param { parameterId: number; methodName: string; parameterName: string; parameterCode: string; uom: string; dataType: string; formulaType: string; instrumentType: string; columnFrequency: string; isCritical: boolean; isMandatory: boolean; inputFields?: string | null }
+interface Param { parameterId: number; methodName: string; parameterName: string; parameterCode: string; uom: string; dataType: string; formulaType: string; instrumentType: string; columnFrequency: string; isCritical: boolean; isMandatory: boolean; inputFields?: string | null; inspectionScope?: string }
 
 const MATH_KEYWORDS = new Set(['Math','abs','sqrt','pow','log','exp','round','floor','ceil','min','max','PI','E'])
 
@@ -27,11 +27,11 @@ export default function ParametersPage() {
   const [methods, setMethods] = useState<Method[]>([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[] })
+  const [form, setForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [editRow, setEditRow] = useState<Param | null>(null)
-  const [editForm, setEditForm] = useState({ parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[] })
+  const [editForm, setEditForm] = useState({ parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased' })
 
   function openEdit(r: Param) {
     setEditRow(r)
@@ -41,6 +41,7 @@ export default function ParametersPage() {
       instrumentType: r.instrumentType || '', columnFrequency: r.columnFrequency || '',
       isCritical: r.isCritical, isMandatory: r.isMandatory,
       inputFields: parseInputFields(r.inputFields),
+      inspectionScope: r.inspectionScope || 'SampleBased',
     })
   }
 
@@ -52,6 +53,7 @@ export default function ParametersPage() {
         instrumentType: editForm.instrumentType || null,
         columnFrequency: editForm.columnFrequency || null,
         inputFields: editForm.inputFields.length > 0 ? JSON.stringify(editForm.inputFields) : null,
+        inspectionScope: editForm.inspectionScope,
       })
       setEditRow(null); load()
       toast(`Parameter "${editForm.parameterName}" updated successfully`, 'success')
@@ -80,6 +82,7 @@ export default function ParametersPage() {
         instrumentType: form.instrumentType || null,
         columnFrequency: form.columnFrequency || null,
         inputFields: form.inputFields.length > 0 ? JSON.stringify(form.inputFields) : null,
+        inspectionScope: form.inspectionScope,
       })
       setShowForm(false)
       toast(`Parameter "${form.parameterName}" added successfully`, 'success')
@@ -90,7 +93,7 @@ export default function ParametersPage() {
 
   return (
     <div>
-      <PageHeader title="Parameters" onAdd={() => { setForm({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] }); setError(''); setShowForm(true) }} />
+      <PageHeader title="Parameters" onAdd={() => { setForm({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [], inspectionScope: 'SampleBased' }); setError(''); setShowForm(true) }} />
       <DataTable loading={loading} data={data} exportFilename="Parameters" columns={[
         { header: 'Code', accessor: 'parameterCode' },
         { header: 'Name', accessor: 'parameterName' },
@@ -100,6 +103,9 @@ export default function ParametersPage() {
         { header: 'Formula', accessor: 'formulaType' },
         { header: 'Instrument Type', accessor: r => r.instrumentType || '—' },
         { header: 'Col. Frequency', accessor: r => r.columnFrequency || '—' },
+        { header: 'Type', accessor: r => r.inspectionScope === 'UnitBased'
+            ? <span style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>Unit-based</span>
+            : <span style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7', borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>Sample-based</span> },
         { header: 'Critical', accessor: r => r.isCritical ? <span style={{ color: '#dc2626', fontWeight: 700 }}>✓ Critical</span> : '' },
         { header: 'Mandatory', accessor: r => r.isMandatory ? '✓' : '' },
         { header: 'Edit', accessor: r => (
@@ -162,6 +168,12 @@ export default function ParametersPage() {
                 <option value="Daily">Daily</option>
                 <option value="Weekly">Weekly</option>
                 <option value="Periodic">Periodic</option>
+              </select>
+            </Field>
+            <Field label="Inspection Type">
+              <select style={inp} value={editForm.inspectionScope} onChange={e => setEditForm(f => ({ ...f, inspectionScope: e.target.value }))}>
+                <option value="SampleBased">Sample-based — single measured result per sample</option>
+                <option value="UnitBased">Unit-based — counts units inspected / passed / failed</option>
               </select>
             </Field>
             <div style={{ display: 'flex', gap: 24 }}>
@@ -237,6 +249,12 @@ export default function ParametersPage() {
                 <option value="Daily">Daily</option>
                 <option value="Weekly">Weekly</option>
                 <option value="Periodic">Periodic</option>
+              </select>
+            </Field>
+            <Field label="Inspection Type">
+              <select style={inp} value={form.inspectionScope} onChange={e => setForm(f => ({ ...f, inspectionScope: e.target.value }))}>
+                <option value="SampleBased">Sample-based — single measured result per sample</option>
+                <option value="UnitBased">Unit-based — counts units inspected / passed / failed</option>
               </select>
             </Field>
             <div style={{ display: 'flex', gap: 24 }}>

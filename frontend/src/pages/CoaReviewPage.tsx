@@ -746,41 +746,51 @@ export default function CoaReviewPage() {
             This will lock the CoA PDF atomically and release the sample. All 3 e-signatures embedded in locked PDF (21 CFR Part 11).
           </p>
           {unitInspLines.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>100% Inspection Results — Lot Disposition</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginBottom: 10 }}>
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: '#0f172a', marginBottom: 4 }}>Unit Inspection — Lot Disposition</div>
+              <p style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>
+                The analyst entered unit counts per parameter below. Confirm how many units are <strong style={{ color: '#16a34a' }}>Accepted</strong> (move to next stage) and <strong style={{ color: '#dc2626' }}>Rejected</strong> (sort out / destroy) for the whole lot.
+              </p>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginBottom: 12 }}>
                 <thead>
-                  <tr style={{ background: '#f1f5f9' }}>
-                    {['Parameter', 'Inspected', 'Passed', 'Failed'].map(h => (
-                      <th key={h} style={{ padding: '5px 8px', textAlign: h === 'Parameter' ? 'left' : 'right', fontWeight: 600, color: '#374151', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                  <tr style={{ background: '#e2e8f0' }}>
+                    {['Parameter', 'Inspected', 'Passed ✓', 'Failed ✗'].map(h => (
+                      <th key={h} style={{ padding: '5px 8px', textAlign: h === 'Parameter' ? 'left' : 'right', fontWeight: 600, color: '#374151', borderBottom: '1px solid #cbd5e1' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {unitInspLines.map((l, i) => (
-                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb' }}>
-                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9' }}>{l.parameterName}</td>
-                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontFamily: 'monospace' }}>{l.inspected}</td>
-                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontFamily: 'monospace', color: '#16a34a', fontWeight: 600 }}>{l.passed}</td>
-                      <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontFamily: 'monospace', color: l.failed > 0 ? '#dc2626' : '#374151', fontWeight: l.failed > 0 ? 700 : 400 }}>{l.failed}</td>
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', fontWeight: 500 }}>{l.parameterName}</td>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontFamily: 'monospace' }}>{l.inspected}</td>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontFamily: 'monospace', color: '#16a34a', fontWeight: 700 }}>{l.passed}</td>
+                      <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontFamily: 'monospace', color: l.failed > 0 ? '#dc2626' : '#374151', fontWeight: l.failed > 0 ? 700 : 400 }}>{l.failed}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 4 }}>
-                <Field label="Released Qty">
-                  <input style={inp} type="number" min="0" step="1" value={form.lotReleasedQty}
-                    onChange={e => setForm(f => ({ ...f, lotReleasedQty: e.target.value }))}
-                    placeholder="Units released to next stage" />
-                </Field>
-                <Field label="Scrapped Qty">
-                  <input style={inp} type="number" min="0" step="1" value={form.lotScrappedQty}
-                    onChange={e => setForm(f => ({ ...f, lotScrappedQty: e.target.value }))}
-                    placeholder="Units sorted out / destroyed" />
-                </Field>
-              </div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>
-                Pre-filled from inspection data. Adjust if parameters overlap (e.g. same defective units flagged by multiple tests).
+              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, padding: '10px 12px' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Enter Final Lot Count</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', display: 'block', marginBottom: 3 }}>Accepted Units (Released)</label>
+                    <input style={{ ...inp, borderColor: '#86efac' }} type="number" min="0" step="1" value={form.lotReleasedQty}
+                      onChange={e => setForm(f => ({ ...f, lotReleasedQty: e.target.value }))}
+                      placeholder="e.g. 800" />
+                    <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>Units that pass — move to packaging / next stage</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', display: 'block', marginBottom: 3 }}>Rejected Units (Scrapped)</label>
+                    <input style={{ ...inp, borderColor: '#fca5a5' }} type="number" min="0" step="1" value={form.lotScrappedQty}
+                      onChange={e => setForm(f => ({ ...f, lotScrappedQty: e.target.value }))}
+                      placeholder="e.g. 200" />
+                    <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>Units that fail — sorted out and destroyed</div>
+                  </div>
+                </div>
+                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 8 }}>
+                  💡 Pre-filled from inspection data (worst-case parameter). Adjust if the same defective units were flagged by multiple parameters.
+                </div>
               </div>
             </div>
           )}

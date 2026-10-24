@@ -10,7 +10,7 @@ public record ParameterDto(int ParameterId, int MethodId, string MethodName, str
     string ParameterCode, string Uom, string DataType, string FormulaType, string? CalcFormula,
     int? LookupTableId, string? InstrumentType, bool IsCritical, bool IsMandatory,
     string? ColumnFrequency, string CreatedBy, DateTimeOffset CreatedAt, int? DecimalPlaces,
-    string? InputFields);
+    string? InputFields, string InspectionScope = "SampleBased");
 
 public class GetParametersQueryHandler : IRequestHandler<GetParametersQuery, List<ParameterDto>>
 {
@@ -27,6 +27,7 @@ public class GetParametersQueryHandler : IRequestHandler<GetParametersQuery, Lis
             p.Uom, p.DataType.ToString(), p.FormulaType.ToString(), p.CalcFormula,
             p.LookupTableId, p.InstrumentType, p.IsCritical, p.IsMandatory,
             p.ColumnFrequency.HasValue ? p.ColumnFrequency.ToString() : null,
-            p.CreatedBy, p.CreatedAt, p.DecimalPlaces, p.InputFields)).ToListAsync(ct);
+            p.CreatedBy, p.CreatedAt, p.DecimalPlaces, p.InputFields,
+            p.InspectionScope.ToString())).ToListAsync(ct);
     }
 }
