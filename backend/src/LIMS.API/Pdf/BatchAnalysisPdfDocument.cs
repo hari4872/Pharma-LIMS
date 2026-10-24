@@ -34,7 +34,9 @@ public class BatchAnalysisPdfDocument : IDocument
         decimal? PostReworkRetestResult = null,
         string? PostReworkRetestPassFail = null,
         string? PostReworkRetestAnalystName = null,
-        DateTimeOffset? PostReworkRetestCompletedAt = null
+        DateTimeOffset? PostReworkRetestCompletedAt = null,
+        // Multi-cycle retests in chronological order (replaces single RetestResult when present)
+        List<OosPdfDocument.OosRetestCycleEntry>? RetestCycles = null
     );
 
     public record ReviewRow(
@@ -232,12 +234,26 @@ public class BatchAnalysisPdfDocument : IDocument
                                     .Text(_d.CompletedAt.HasValue ? _d.CompletedAt.Value.ToString("yyyy-MM-dd HH:mm") : "—")
                                     .FontSize(8f).FontColor("#6b7280");
 
-                                // Row 2 — Retest (only when present)
-                                if (r.RetestResult.HasValue)
+                                // Rows 2..N — Retest cycles (chronological) or single legacy retest
+                                var hasCycles = r.RetestCycles?.Count > 0;
+                                var retestRows = new List<(string Label, decimal? Result, string PassFail, string? Analyst, DateTimeOffset? At, bool IsLast)>();
+                                if (hasCycles)
                                 {
-                                    var rtPf    = r.RetestPassFail ?? "—";
-                                    var rtPfClr = rtPf == "PASS" ? "#065f46" : rtPf == "FAIL" ? "#dc2626" : "#6b7280";
-                                    var hasRework = r.ReworkResult.HasValue;
+                                    for (var ci = 0; ci < r.RetestCycles!.Count; ci++)
+                                    {
+                                        var c = r.RetestCycles[ci];
+                                        retestRows.Add(($"Cycle {c.CycleNumber}", c.CalculatedResult, c.PassFail ?? "—", c.AnalystName, c.CompletedAt, ci == r.RetestCycles.Count - 1));
+                                    }
+                                }
+                                else if (r.RetestResult.HasValue)
+                                {
+                                    retestRows.Add(("Retest", r.RetestResult, r.RetestPassFail ?? "—", r.RetestAnalystName, r.RetestCompletedAt, true));
+                                }
+
+                                foreach (var rt in retestRows)
+                                {
+                                    var rtPfClr = rt.PassFail == "PASS" ? "#065f46" : rt.PassFail == "FAIL" ? "#dc2626" : "#6b7280";
+                                    var hasRework = rt.IsLast && r.ReworkResult.HasValue;
 
                                     IContainer RCell(IContainer c2) =>
                                         c2.Background("#f0fdf4").BorderBottom(hasRework ? 0 : 0.5f).BorderColor("#bfdbfe")
@@ -245,67 +261,68 @@ public class BatchAnalysisPdfDocument : IDocument
 
                                     t.Cell().Element(RCell).Text("↳").FontSize(8f).FontColor("#9ca3af");
                                     t.Cell().Element(RCell)
-                                        .Text("Retest").FontSize(8f).Bold().FontColor("#6d28d9");
+                                        .Text(hasCycles ? rt.Label.Replace("↳ ", "") : "Retest")
+                                        .FontSize(8f).Bold().FontColor("#6d28d9");
                                     t.Cell().Element(RCell)
-                                        .Text(Fmt(r.RetestResult))
-                                        .FontSize(8.5f).Bold().FontColor(rtPf == "PASS" ? "#065f46" : "#dc2626");
+                                        .Text(Fmt(rt.Result))
+                                        .FontSize(8.5f).Bold().FontColor(rt.PassFail == "PASS" ? "#065f46" : "#dc2626");
                                     t.Cell().Element(RCell).Text(Fmt(r.SpecMin)).FontSize(8.5f);
                                     t.Cell().Element(RCell).Text(Fmt(r.SpecMax)).FontSize(8.5f);
-                                    t.Cell().Element(RCell).Text(rtPf).Bold().FontSize(8f).FontColor(rtPfClr);
-                                    t.Cell().Element(RCell).Text(r.RetestAnalystName ?? "—").FontSize(8f).FontColor("#374151");
+                                    t.Cell().Element(RCell).Text(rt.PassFail).Bold().FontSize(8f).FontColor(rtPfClr);
+                                    t.Cell().Element(RCell).Text(rt.Analyst ?? "—").FontSize(8f).FontColor("#374151");
                                     t.Cell().Element(RCell)
-                                        .Text(r.RetestCompletedAt.HasValue ? r.RetestCompletedAt.Value.ToString("yyyy-MM-dd HH:mm") : "—")
+                                        .Text(rt.At.HasValue ? rt.At.Value.ToString("yyyy-MM-dd HH:mm") : "—")
+                                        .FontSize(8f).FontColor("#6b7280");
+                                } // end foreach retestRows
+
+                                // Row N+1 — Rework (only on last retest cycle or legacy)
+                                if (r.ReworkResult.HasValue)
+                                {
+                                    var rwPf    = r.ReworkPassFail ?? "—";
+                                    var rwPfClr = rwPf == "PASS" ? "#065f46" : rwPf == "FAIL" ? "#dc2626" : "#6b7280";
+                                    var hasPostRework = r.PostReworkRetestResult.HasValue;
+
+                                    IContainer WCell(IContainer c2) =>
+                                        c2.Background("#fff7ed").BorderBottom(hasPostRework ? 0 : 0.5f).BorderColor("#bfdbfe")
+                                          .PaddingVertical(4).PaddingHorizontal(4).PaddingLeft(10);
+
+                                    t.Cell().Element(WCell).Text("↳").FontSize(8f).FontColor("#9ca3af");
+                                    t.Cell().Element(WCell)
+                                        .Text("Rework").FontSize(8f).Bold().FontColor("#b45309");
+                                    t.Cell().Element(WCell)
+                                        .Text(Fmt(r.ReworkResult))
+                                        .FontSize(8.5f).Bold().FontColor(rwPf == "PASS" ? "#065f46" : "#dc2626");
+                                    t.Cell().Element(WCell).Text(Fmt(r.SpecMin)).FontSize(8.5f);
+                                    t.Cell().Element(WCell).Text(Fmt(r.SpecMax)).FontSize(8.5f);
+                                    t.Cell().Element(WCell).Text(rwPf).Bold().FontSize(8f).FontColor(rwPfClr);
+                                    t.Cell().Element(WCell).Text(r.ReworkAnalystName ?? "—").FontSize(8f).FontColor("#374151");
+                                    t.Cell().Element(WCell)
+                                        .Text(r.ReworkCompletedAt.HasValue ? r.ReworkCompletedAt.Value.ToString("yyyy-MM-dd HH:mm") : "—")
                                         .FontSize(8f).FontColor("#6b7280");
 
-                                    // Row 3 — Rework (only when present)
-                                    if (hasRework)
+                                    // Row N+2 — Post-Rework Retest (only when present)
+                                    if (hasPostRework)
                                     {
-                                        var rwPf    = r.ReworkPassFail ?? "—";
-                                        var rwPfClr = rwPf == "PASS" ? "#065f46" : rwPf == "FAIL" ? "#dc2626" : "#6b7280";
-                                        var hasPostRework = r.PostReworkRetestResult.HasValue;
+                                        var prPf    = r.PostReworkRetestPassFail ?? "—";
+                                        var prPfClr = prPf == "PASS" ? "#065f46" : prPf == "FAIL" ? "#dc2626" : "#6b7280";
 
-                                        IContainer WCell(IContainer c2) =>
-                                            c2.Background("#fff7ed").BorderBottom(hasPostRework ? 0 : 0.5f).BorderColor("#bfdbfe")
+                                        IContainer PRCell(IContainer c2) =>
+                                            c2.Background("#f0fdf4").BorderBottom(0.5f).BorderColor("#bfdbfe")
                                               .PaddingVertical(4).PaddingHorizontal(4).PaddingLeft(10);
 
-                                        t.Cell().Element(WCell).Text("↳").FontSize(8f).FontColor("#9ca3af");
-                                        t.Cell().Element(WCell)
-                                            .Text("Rework").FontSize(8f).Bold().FontColor("#b45309");
-                                        t.Cell().Element(WCell)
-                                            .Text(Fmt(r.ReworkResult))
-                                            .FontSize(8.5f).Bold().FontColor(rwPf == "PASS" ? "#065f46" : "#dc2626");
-                                        t.Cell().Element(WCell).Text(Fmt(r.SpecMin)).FontSize(8.5f);
-                                        t.Cell().Element(WCell).Text(Fmt(r.SpecMax)).FontSize(8.5f);
-                                        t.Cell().Element(WCell).Text(rwPf).Bold().FontSize(8f).FontColor(rwPfClr);
-                                        t.Cell().Element(WCell).Text(r.ReworkAnalystName ?? "—").FontSize(8f).FontColor("#374151");
-                                        t.Cell().Element(WCell)
-                                            .Text(r.ReworkCompletedAt.HasValue ? r.ReworkCompletedAt.Value.ToString("yyyy-MM-dd HH:mm") : "—")
+                                        t.Cell().Element(PRCell).Text("↳").FontSize(8f).FontColor("#9ca3af");
+                                        t.Cell().Element(PRCell)
+                                            .Text("Post-Rework").FontSize(8f).Bold().FontColor("#065f46");
+                                        t.Cell().Element(PRCell)
+                                            .Text(Fmt(r.PostReworkRetestResult))
+                                            .FontSize(8.5f).Bold().FontColor(prPf == "PASS" ? "#065f46" : "#dc2626");
+                                        t.Cell().Element(PRCell).Text(Fmt(r.SpecMin)).FontSize(8.5f);
+                                        t.Cell().Element(PRCell).Text(Fmt(r.SpecMax)).FontSize(8.5f);
+                                        t.Cell().Element(PRCell).Text(prPf).Bold().FontSize(8f).FontColor(prPfClr);
+                                        t.Cell().Element(PRCell).Text(r.PostReworkRetestAnalystName ?? "—").FontSize(8f).FontColor("#374151");
+                                        t.Cell().Element(PRCell)
+                                            .Text(r.PostReworkRetestCompletedAt.HasValue ? r.PostReworkRetestCompletedAt.Value.ToString("yyyy-MM-dd HH:mm") : "—")
                                             .FontSize(8f).FontColor("#6b7280");
-
-                                        // Row 4 — Post-Rework Retest (only when present)
-                                        if (hasPostRework)
-                                        {
-                                            var prPf    = r.PostReworkRetestPassFail ?? "—";
-                                            var prPfClr = prPf == "PASS" ? "#065f46" : prPf == "FAIL" ? "#dc2626" : "#6b7280";
-
-                                            IContainer PRCell(IContainer c2) =>
-                                                c2.Background("#f0fdf4").BorderBottom(0.5f).BorderColor("#bfdbfe")
-                                                  .PaddingVertical(4).PaddingHorizontal(4).PaddingLeft(10);
-
-                                            t.Cell().Element(PRCell).Text("↳").FontSize(8f).FontColor("#9ca3af");
-                                            t.Cell().Element(PRCell)
-                                                .Text("Post-Rework").FontSize(8f).Bold().FontColor("#065f46");
-                                            t.Cell().Element(PRCell)
-                                                .Text(Fmt(r.PostReworkRetestResult))
-                                                .FontSize(8.5f).Bold().FontColor(prPf == "PASS" ? "#065f46" : "#dc2626");
-                                            t.Cell().Element(PRCell).Text(Fmt(r.SpecMin)).FontSize(8.5f);
-                                            t.Cell().Element(PRCell).Text(Fmt(r.SpecMax)).FontSize(8.5f);
-                                            t.Cell().Element(PRCell).Text(prPf).Bold().FontSize(8f).FontColor(prPfClr);
-                                            t.Cell().Element(PRCell).Text(r.PostReworkRetestAnalystName ?? "—").FontSize(8f).FontColor("#374151");
-                                            t.Cell().Element(PRCell)
-                                                .Text(r.PostReworkRetestCompletedAt.HasValue ? r.PostReworkRetestCompletedAt.Value.ToString("yyyy-MM-dd HH:mm") : "—")
-                                                .FontSize(8f).FontColor("#6b7280");
-                                        }
                                     }
                                 }
                             }

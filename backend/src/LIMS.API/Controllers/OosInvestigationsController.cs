@@ -271,12 +271,27 @@ public class OosInvestigationsController : LimsControllerBase
             .Include(i => i.ReworkExecution).ThenInclude(rw => rw!.Analyst)
             .Include(i => i.PostReworkRetestExecution).ThenInclude(pr => pr!.Analyst)
             .Include(i => i.PostReworkRetestExecution).ThenInclude(pr => pr!.LogbookEntries)
+            .Include(i => i.RetestCycles).ThenInclude(c => c.Execution).ThenInclude(ex => ex.Analyst)
+            .Include(i => i.RetestCycles).ThenInclude(c => c.Execution).ThenInclude(ex => ex.LogbookEntries)
             .FirstOrDefaultAsync(i => i.InvestigationId == id);
 
         if (inv is null) return NotFound();
 
         var retestEntry        = inv.RetestExecution?.LogbookEntries.FirstOrDefault(le => le.ParameterId == inv.ParameterId);
         var postReworkEntry    = inv.PostReworkRetestExecution?.LogbookEntries.FirstOrDefault(le => le.ParameterId == inv.ParameterId);
+
+        var retestCyclesForPdf = inv.RetestCycles
+            .OrderBy(c => c.CycleNumber)
+            .Select(c =>
+            {
+                var entry = c.Execution.LogbookEntries.FirstOrDefault(le => le.ParameterId == inv.ParameterId);
+                return new OosPdfDocument.OosRetestCycleEntry(
+                    c.CycleNumber, c.ExecutionId,
+                    entry?.RawValue, entry?.CalculatedResult, entry?.PassFail,
+                    c.Execution.Analyst?.FullName,
+                    c.Execution.Status == LIMS.Domain.Enums.TestExecutionStatus.Completed ? c.Execution.CompletedAt : null
+                );
+            }).ToList();
 
         var data = new OosPdfDocument.OosReportData(
             InvestigationId: inv.InvestigationId,
@@ -323,7 +338,8 @@ public class OosInvestigationsController : LimsControllerBase
             FinalDecisionAt:             inv.FinalDecisionAt,
             CapaRef:                     inv.CapaRef,
             LotReleasedQty:              inv.Execution.Sample.LotReleasedQty,
-            LotScrappedQty:              inv.Execution.Sample.LotScrappedQty
+            LotScrappedQty:              inv.Execution.Sample.LotScrappedQty,
+            RetestCycles:                retestCyclesForPdf.Count > 0 ? retestCyclesForPdf : null
         );
 
         QuestPDF.Settings.License = LicenseType.Community;

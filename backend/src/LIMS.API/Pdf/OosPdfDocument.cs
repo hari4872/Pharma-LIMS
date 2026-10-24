@@ -56,7 +56,19 @@ public class OosPdfDocument : IDocument
         string? CapaRef = null,
         // Lot-level disposition (set at CoA approval for UnitBased parameters)
         decimal? LotReleasedQty = null,
-        decimal? LotScrappedQty = null
+        decimal? LotScrappedQty = null,
+        // Multi-cycle retests (chronological order — replaces legacy single RetestExecutionId when present)
+        List<OosRetestCycleEntry>? RetestCycles = null
+    );
+
+    public record OosRetestCycleEntry(
+        int CycleNumber,
+        int ExecutionId,
+        string? RawValue,
+        decimal? CalculatedResult,
+        string? PassFail,
+        string? AnalystName,
+        DateTimeOffset? CompletedAt
     );
 
     private readonly OosReportData _d;
@@ -195,77 +207,103 @@ public class OosPdfDocument : IDocument
 
             col.Item().PaddingTop(14);
 
-            // ── Section 2B: Retest Result (only when retest exists) ──────────
-            if (_d.RetestExecutionId.HasValue)
+            // ── Section 2B: Retest Result(s) — multi-cycle preferred, legacy fallback ──
+            var hasCycles = _d.RetestCycles?.Count > 0;
+            var hasLegacy = !hasCycles && _d.RetestExecutionId.HasValue;
+            if (hasCycles || hasLegacy)
             {
-                var retestPass = _d.RetestPassFail == "PASS";
-                var sectionLabel = retestPass
-                    ? "2B. RETEST RESULT — PASS (Lab Error Confirmed)"
-                    : "2B. RETEST RESULT — FAIL (Genuine OOS)";
-                var sectionColor = retestPass ? "#065f46" : "#dc2626";
-                var bgColor      = retestPass ? "#f0fdf4" : "#fff1f2";
-                var borderColor  = retestPass ? "#86efac" : "#fca5a5";
-                var thBg         = retestPass ? "#dcfce7" : "#fee2e2";
-                var thColor      = retestPass ? "#065f46" : "#991b1b";
+                // Determine overall pass/fail from last completed cycle (or legacy)
+                var lastPassFail = hasCycles
+                    ? (_d.RetestCycles!.LastOrDefault(c => c.PassFail != null)?.PassFail ?? "—")
+                    : _d.RetestPassFail ?? "—";
+                var anyPass      = lastPassFail == "PASS";
+                var sectionLabel = hasCycles
+                    ? $"2B. RETEST RESULTS — {_d.RetestCycles!.Count} CYCLE(S) — {lastPassFail}"
+                    : anyPass
+                        ? "2B. RETEST RESULT — PASS (Lab Error Confirmed)"
+                        : "2B. RETEST RESULT — FAIL (Genuine OOS)";
+                var sectionColor = anyPass ? "#065f46" : "#dc2626";
+                var thBg         = anyPass ? "#dcfce7" : "#fee2e2";
+                var thColor      = anyPass ? "#065f46" : "#991b1b";
 
                 col.SectionBox(sectionLabel, sectionColor, col2 =>
                 {
-                    col2.Item()
-                        .Background(bgColor).Border(0.5f).BorderColor(borderColor)
-                        .Padding(10).Table(t =>
-                        {
-                            t.ColumnsDefinition(cd =>
-                            {
-                                cd.RelativeColumn(2); cd.RelativeColumn();
-                                cd.RelativeColumn(); cd.RelativeColumn();
-                                cd.RelativeColumn(); cd.ConstantColumn(60);
-                            });
+                    // Build rows: multi-cycle or single legacy
+                    var cycleRows = hasCycles
+                        ? _d.RetestCycles!  // already ordered by CycleNumber from controller
+                        : new List<OosRetestCycleEntry>
+                          {
+                              new(_d.RetestExecutionId!.Value, _d.RetestExecutionId!.Value,
+                                  _d.RetestRawValue, _d.RetestCalculatedResult,
+                                  _d.RetestPassFail, _d.RetestAnalystName, _d.RetestCompletedAt)
+                          };
 
-                            void TH2(IContainer c2, string txt) =>
-                                c2.Background(thBg).PaddingVertical(5).PaddingHorizontal(6)
-                                  .Text(txt).Bold().FontSize(8.5f).FontColor(thColor);
-
-                            t.Header(h =>
-                            {
-                                h.Cell().Element(c2 => TH2(c2, "Parameter"));
-                                h.Cell().Element(c2 => TH2(c2, "UOM"));
-                                h.Cell().Element(c2 => TH2(c2, "Spec Min"));
-                                h.Cell().Element(c2 => TH2(c2, "Spec Max"));
-                                h.Cell().Element(c2 => TH2(c2, "Retest Result"));
-                                h.Cell().Element(c2 => TH2(c2, "Pass/Fail"));
-                            });
-
-                            IContainer TD2(IContainer c2) =>
-                                c2.BorderBottom(0.5f).BorderColor(borderColor).PaddingVertical(6).PaddingHorizontal(6);
-
-                            t.Cell().Element(TD2).Text(_d.ParameterName).Bold().FontSize(9);
-                            t.Cell().Element(TD2).Text(_d.Uom).FontSize(9).FontColor("#6b7280");
-                            t.Cell().Element(TD2).Text(_d.SpecMin?.ToString() ?? "—").FontSize(9);
-                            t.Cell().Element(TD2).Text(_d.SpecMax?.ToString() ?? "—").FontSize(9);
-                            t.Cell().Element(TD2)
-                                .Text(_d.RetestCalculatedResult?.ToString() ?? _d.RetestRawValue ?? "—")
-                                .Bold().FontSize(9);
-                            t.Cell().Element(TD2)
-                                .Text(_d.RetestPassFail ?? "—").Bold().FontSize(9)
-                                .FontColor(retestPass ? "#065f46" : "#dc2626");
-                        });
-
-                    col2.Item().PaddingTop(8).Row(row =>
+                    foreach (var cycle in cycleRows)
                     {
-                        row.AutoItem().Text($"Retest Analyst: {_d.RetestAnalystName ?? "—"}").FontSize(9).FontColor("#6b7280").Italic();
-                        row.ConstantItem(20);
-                        row.AutoItem().Text($"Execution: EXE-{_d.RetestExecutionId:D5}").FontSize(9).FontColor("#6b7280").Italic();
-                        row.ConstantItem(20);
-                        row.AutoItem().Text(_d.RetestCompletedAt.HasValue
-                            ? $"Completed: {_d.RetestCompletedAt.Value:yyyy-MM-dd HH:mm} UTC"
-                            : "Completed: In Progress").FontSize(9).FontColor("#6b7280").Italic();
-                        if (!string.IsNullOrEmpty(_d.ResolutionType))
-                        {
-                            row.ConstantItem(20);
-                            row.AutoItem().Text($"Resolution: {_d.ResolutionType}").FontSize(9)
-                                .FontColor(_d.ResolutionType == "LabError" ? "#065f46" : "#dc2626").Bold();
-                        }
-                    });
+                        var cyclePass    = cycle.PassFail == "PASS";
+                        var bgColor      = cyclePass ? "#f0fdf4" : "#fff1f2";
+                        var borderColor  = cyclePass ? "#86efac" : "#fca5a5";
+                        var cycleLabel   = hasCycles ? $"Retest Cycle {cycle.CycleNumber}" : "Retest";
+
+                        col2.Item().PaddingBottom(6)
+                            .Background(bgColor).Border(0.5f).BorderColor(borderColor)
+                            .Padding(10).Column(inner =>
+                            {
+                                inner.Item().Text(cycleLabel).Bold().FontSize(9).FontColor(sectionColor);
+                                inner.Item().PaddingTop(4).Table(t =>
+                                {
+                                    t.ColumnsDefinition(cd =>
+                                    {
+                                        cd.RelativeColumn(2); cd.RelativeColumn();
+                                        cd.RelativeColumn(); cd.RelativeColumn();
+                                        cd.RelativeColumn(); cd.ConstantColumn(60);
+                                    });
+
+                                    void TH2(IContainer c2, string txt) =>
+                                        c2.Background(thBg).PaddingVertical(4).PaddingHorizontal(6)
+                                          .Text(txt).Bold().FontSize(8f).FontColor(thColor);
+
+                                    t.Header(h =>
+                                    {
+                                        h.Cell().Element(c2 => TH2(c2, "Parameter"));
+                                        h.Cell().Element(c2 => TH2(c2, "UOM"));
+                                        h.Cell().Element(c2 => TH2(c2, "Spec Min"));
+                                        h.Cell().Element(c2 => TH2(c2, "Spec Max"));
+                                        h.Cell().Element(c2 => TH2(c2, "Result"));
+                                        h.Cell().Element(c2 => TH2(c2, "Pass/Fail"));
+                                    });
+
+                                    IContainer TD2(IContainer c2) =>
+                                        c2.BorderBottom(0.5f).BorderColor(borderColor).PaddingVertical(5).PaddingHorizontal(6);
+
+                                    t.Cell().Element(TD2).Text(_d.ParameterName).Bold().FontSize(9);
+                                    t.Cell().Element(TD2).Text(_d.Uom).FontSize(9).FontColor("#6b7280");
+                                    t.Cell().Element(TD2).Text(_d.SpecMin?.ToString() ?? "—").FontSize(9);
+                                    t.Cell().Element(TD2).Text(_d.SpecMax?.ToString() ?? "—").FontSize(9);
+                                    t.Cell().Element(TD2)
+                                        .Text(cycle.CalculatedResult?.ToString() ?? cycle.RawValue ?? "—")
+                                        .Bold().FontSize(9);
+                                    t.Cell().Element(TD2)
+                                        .Text(cycle.PassFail ?? "—").Bold().FontSize(9)
+                                        .FontColor(cyclePass ? "#065f46" : "#dc2626");
+                                });
+
+                                inner.Item().PaddingTop(6).Row(row =>
+                                {
+                                    row.AutoItem().Text($"Analyst: {cycle.AnalystName ?? "—"}").FontSize(9).FontColor("#6b7280").Italic();
+                                    row.ConstantItem(20);
+                                    row.AutoItem().Text($"EXE-{cycle.ExecutionId:D5}").FontSize(9).FontColor("#6b7280").Italic();
+                                    row.ConstantItem(20);
+                                    row.AutoItem().Text(cycle.CompletedAt.HasValue
+                                        ? $"Completed: {cycle.CompletedAt.Value:yyyy-MM-dd HH:mm} UTC"
+                                        : "In Progress").FontSize(9).FontColor("#6b7280").Italic();
+                                });
+                            });
+                    }
+
+                    if (!string.IsNullOrEmpty(_d.ResolutionType))
+                        col2.Item().PaddingTop(4).Text($"Resolution: {_d.ResolutionType}").FontSize(9)
+                            .FontColor(_d.ResolutionType == "LabError" ? "#065f46" : "#dc2626").Bold();
                 });
 
                 col.Item().PaddingTop(14);

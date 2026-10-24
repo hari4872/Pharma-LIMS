@@ -108,6 +108,10 @@ public class ResultsReviewController : LimsControllerBase
                     .ThenInclude(oi => oi.PostReworkRetestExecution).ThenInclude(re => re!.Analyst)
                 .Include(e => e.OosInvestigations)
                     .ThenInclude(oi => oi.PostReworkRetestExecution).ThenInclude(re => re!.LogbookEntries)
+                .Include(e => e.OosInvestigations)
+                    .ThenInclude(oi => oi.RetestCycles).ThenInclude(c => c.Execution).ThenInclude(ex => ex.Analyst)
+                .Include(e => e.OosInvestigations)
+                    .ThenInclude(oi => oi.RetestCycles).ThenInclude(c => c.Execution).ThenInclude(ex => ex.LogbookEntries)
                 .FirstOrDefaultAsync(e => e.ExecutionId == executionId);
         }
         catch (Exception ex)
@@ -144,6 +148,18 @@ public class ResultsReviewController : LimsControllerBase
                     .FirstOrDefault(rle => rle.ParameterId == le.ParameterId);
                 var postReworkEntry = inv?.PostReworkRetestExecution?.LogbookEntries
                     .FirstOrDefault(rle => rle.ParameterId == le.ParameterId);
+                var retestCycles = inv?.RetestCycles
+                    .OrderBy(c => c.CycleNumber)
+                    .Select(c =>
+                    {
+                        var ce = c.Execution.LogbookEntries.FirstOrDefault(rle => rle.ParameterId == le.ParameterId);
+                        return new OosPdfDocument.OosRetestCycleEntry(
+                            c.CycleNumber, c.ExecutionId,
+                            ce?.RawValue, ce?.CalculatedResult, ce?.PassFail,
+                            c.Execution.Analyst?.FullName,
+                            c.Execution.Status == LIMS.Domain.Enums.TestExecutionStatus.Completed ? c.Execution.CompletedAt : null
+                        );
+                    }).ToList();
                 return new BatchAnalysisPdfDocument.TestResultRow(
                     le.Parameter?.ParameterName ?? "—",
                     le.RawValue,
@@ -166,7 +182,8 @@ public class ResultsReviewController : LimsControllerBase
                     postReworkEntry?.CalculatedResult,
                     postReworkEntry?.PassFail,
                     inv?.PostReworkRetestExecution?.Analyst?.FullName,
-                    inv?.PostReworkRetestExecution?.CompletedAt
+                    inv?.PostReworkRetestExecution?.CompletedAt,
+                    retestCycles?.Count > 0 ? retestCycles : null
                 );
             }).ToList(),
             Reviews: exec.ResultsReviews.Select(r => new BatchAnalysisPdfDocument.ReviewRow(
