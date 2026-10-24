@@ -551,7 +551,6 @@ export default function ResultsReviewPage() {
                               </div>
                               {/* Tests within container — originals first, retests nested under them */}
                               {(() => {
-                                const execIds = new Set(cg.execs.map(e => e.executionId))
                                 // Sort: standards/reworks first (by executionId asc), retests last
                                 const sorted = [...cg.execs].sort((a, b) => {
                                   const aIsRetest = a.taskType === 'Retest'
