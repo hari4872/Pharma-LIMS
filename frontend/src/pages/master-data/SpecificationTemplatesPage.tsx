@@ -52,7 +52,7 @@ interface SpecTemplateItem {
 
 interface Material   { materialId: number; materialName: string }
 interface SampleType { sampleTypeId: number; typeName: string; typeCode: string }
-interface Parameter  { parameterId: number; methodId: number; parameterName: string; parameterCode: string; uom: string }
+interface Parameter  { parameterId: number; methodId: number; parameterName: string; parameterCode: string; uom: string; parameterGroup?: string | null }
 interface TestMethod { methodId: number; methodName: string; methodCode: string }
 
 const STAGES  = ['Incoming', 'InProcess', 'Finished', 'Stability']
@@ -413,6 +413,7 @@ interface DraftItem {
   parameterId:     number | null   // null = method-level item (LabVantage model)
   parameterName:   string | null
   parameterCode:   string | null
+  parameterGroup:  string | null
   testMethodId:    number | null
   turnaroundHours: number
   isMandatory:     boolean
@@ -428,15 +429,19 @@ function TestItemDesigner({
   onSaved:     () => void
 }) {
   const [items,    setItems]    = useState<DraftItem[]>(
-    template.items.map(i => ({
-      id:              String(i.specTemplateItemId),
-      parameterId:     i.parameterId,
-      parameterName:   i.parameterName,
-      parameterCode:   i.parameterCode,
-      testMethodId:    i.testMethodId,
-      turnaroundHours: i.turnaroundHours,
-      isMandatory:     i.isMandatory,
-    }))
+    template.items.map(i => {
+      const fullParam = parameters.find(p => p.parameterId === i.parameterId)
+      return {
+        id:              String(i.specTemplateItemId),
+        parameterId:     i.parameterId,
+        parameterName:   i.parameterName,
+        parameterCode:   i.parameterCode,
+        parameterGroup:  fullParam?.parameterGroup ?? null,
+        testMethodId:    i.testMethodId,
+        turnaroundHours: i.turnaroundHours,
+        isMandatory:     i.isMandatory,
+      }
+    })
   )
   const [paramSearch,  setParamSearch]  = useState('')
   const [methodSearch, setMethodSearch] = useState('')
@@ -466,6 +471,7 @@ function TestItemDesigner({
       parameterId:     p.parameterId,
       parameterName:   p.parameterName,
       parameterCode:   p.parameterCode,
+      parameterGroup:  p.parameterGroup ?? null,
       testMethodId:    null,
       turnaroundHours: 24,
       isMandatory:     true,
@@ -480,6 +486,7 @@ function TestItemDesigner({
       parameterId:     null,
       parameterName:   null,
       parameterCode:   null,
+      parameterGroup:  null,
       testMethodId:    m.methodId,
       turnaroundHours: 24,
       isMandatory:     true,
@@ -573,6 +580,9 @@ function TestItemDesigner({
                   >
                     <span style={{ fontSize: 11, background: '#f0f4f8', padding: '1px 6px', borderRadius: 4, fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>{p.parameterCode}</span>
                     <span style={{ color: '#111111', flex: 1 }}>{p.parameterName}</span>
+                    {p.parameterGroup && (
+                      <span style={{ fontSize: 10, background: '#ede9fe', color: '#6d28d9', padding: '1px 6px', borderRadius: 4, fontWeight: 700, whiteSpace: 'nowrap' }}>{p.parameterGroup}</span>
+                    )}
                     {p.uom && <span style={{ fontSize: 11, color: '#9ca3af' }}>{p.uom}</span>}
                     <span style={{ fontSize: 11, color: '#0d6e6e', fontWeight: 600, whiteSpace: 'nowrap' }}>+ Add</span>
                   </div>
@@ -654,7 +664,12 @@ function TestItemDesigner({
                     <td style={{ padding: '8px 10px' }}>
                       {item.parameterId != null ? (
                         <>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#111111' }}>{item.parameterName}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#111111', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {item.parameterName}
+                            {item.parameterGroup && (
+                              <span style={{ fontSize: 10, background: '#ede9fe', color: '#6d28d9', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>{item.parameterGroup}</span>
+                            )}
+                          </div>
                           <div style={{ fontSize: 11, color: '#5f6368' }}>{item.parameterCode}</div>
                         </>
                       ) : (
@@ -739,6 +754,9 @@ function TestItemDesigner({
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ fontSize: 10, background: '#e0f2fe', padding: '1px 6px', borderRadius: 4, fontWeight: 700, color: '#0369a1' }}>{p.parameterCode}</span>
                           <span style={{ fontSize: 12, color: '#374151' }}>{p.parameterName}</span>
+                          {p.parameterGroup && (
+                            <span style={{ fontSize: 10, background: '#ede9fe', color: '#6d28d9', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>{p.parameterGroup}</span>
+                          )}
                           {p.uom && <span style={{ fontSize: 11, color: '#9ca3af' }}>{p.uom}</span>}
                         </div>
                       </td>
