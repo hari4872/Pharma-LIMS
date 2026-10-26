@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import type { RootState } from '@/store'
 import api from '@/api/client'
@@ -89,19 +89,29 @@ export default function BatchResultEntryPage() {
 
   const hasAnyEntry = Object.values(entries).some(v => v.trim())
 
-  // Split parameters by inspection type
-  const unitEntryParams = parameters.filter(p => p.inspectionScope === 'UnitBased' && !p.calcFormula)
-  const unitCalcParams  = parameters.filter(p => p.inspectionScope === 'UnitBased' && !!p.calcFormula)
-  const sampleParams    = parameters.filter(p => p.inspectionScope !== 'UnitBased')
-  const hasUnitBased    = unitEntryParams.length > 0
+  // Group-aware parameter splitting
+  const hasGroups          = parameters.some(p => p.parameterGroup)
+  const groupNames         = [...new Set(parameters.filter(p => p.parameterGroup).map(p => p.parameterGroup!))]
+  const groupDefs          = groupNames.map(g => ({
+    name:      g,
+    unitEntry: parameters.filter(p => p.parameterGroup === g && p.inspectionScope === 'UnitBased' && !p.calcFormula),
+    unitCalc:  parameters.filter(p => p.parameterGroup === g && p.inspectionScope === 'UnitBased' && !!p.calcFormula),
+    sample:    parameters.filter(p => p.parameterGroup === g && p.inspectionScope !== 'UnitBased'),
+  }))
+  const ungroupedUnitEntry = parameters.filter(p => !p.parameterGroup && p.inspectionScope === 'UnitBased' && !p.calcFormula)
+  const ungroupedUnitCalc  = parameters.filter(p => !p.parameterGroup && p.inspectionScope === 'UnitBased' && !!p.calcFormula)
+  const ungroupedSample    = parameters.filter(p => !p.parameterGroup && p.inspectionScope !== 'UnitBased')
+  // Legacy (no groups) aliases
+  const unitEntryParams    = hasGroups ? ungroupedUnitEntry : parameters.filter(p => p.inspectionScope === 'UnitBased' && !p.calcFormula)
+  const unitCalcParams     = hasGroups ? ungroupedUnitCalc  : parameters.filter(p => p.inspectionScope === 'UnitBased' && !!p.calcFormula)
+  const sampleParams       = hasGroups ? ungroupedSample    : parameters.filter(p => p.inspectionScope !== 'UnitBased')
+  const hasUnitBased       = unitEntryParams.length > 0 || groupDefs.some(g => g.unitEntry.length > 0)
 
-  // Live-compute calculated unit params (e.g. AQL%) by substituting param codes as variables
-  function computeUnitCalc(p: Parameter, execId: number): string {
+  function computeCalcForGroup(p: Parameter, execId: number, gUnitEntry: Parameter[]): string {
     if (!p.calcFormula) return '—'
     try {
       let expr = p.calcFormula
-      // Replace each unit entry param's code with its current entered value
-      for (const up of unitEntryParams) {
+      for (const up of gUnitEntry) {
         const val = entries[cellKey(execId, up.parameterId)] || '0'
         expr = expr.replace(new RegExp(`\\b${up.parameterCode}\\b`, 'gi'), val)
       }
@@ -110,6 +120,10 @@ export default function BatchResultEntryPage() {
       if (!isFinite(result)) return '—'
       return parseFloat(result.toFixed(4)).toString()
     } catch { return '—' }
+  }
+
+  function computeUnitCalc(p: Parameter, execId: number): string {
+    return computeCalcForGroup(p, execId, unitEntryParams)
   }
 
   return (
@@ -155,51 +169,136 @@ export default function BatchResultEntryPage() {
           <div style={{ overflowX: 'auto', background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                {/* Group header row — only when unit-based params exist */}
-                {hasUnitBased && (
+                {/* Row 1: group labels (or single "Unit Inspection" label when no groups) */}
+                {(hasUnitBased || hasGroups) && (
                   <tr style={{ background: '#1e293b' }}>
                     <th style={{ borderRight: '1px solid #334155' }} />
-                    {/* Unit Inspection group */}
-                    <th colSpan={unitEntryParams.length + unitCalcParams.length}
-                      style={{ padding: '5px 12px', textAlign: 'center', color: '#fcd34d', fontWeight: 700, fontSize: 11, borderRight: sampleParams.length > 0 ? '2px solid #f59e0b' : undefined }}>
-                      Unit Inspection
-                    </th>
-                    {sampleParams.length > 0 && (
-                      <th colSpan={sampleParams.length}
-                        style={{ padding: '5px 12px', textAlign: 'center', color: '#94a3b8', fontWeight: 700, fontSize: 11 }}>
-                        Sample-based
-                      </th>
+                    {hasGroups ? (
+                      <>
+                        {groupDefs.map((g, gi) => {
+                          const colSpan = g.unitEntry.length + g.unitCalc.length + g.sample.length
+                          const hasAfterGroups = ungroupedUnitEntry.length > 0 || ungroupedUnitCalc.length > 0 || ungroupedSample.length > 0
+                          return (
+                            <th key={g.name} colSpan={colSpan}
+                              style={{ padding: '5px 12px', textAlign: 'center', color: '#e9d5ff', fontWeight: 700, fontSize: 11,
+                                borderRight: gi < groupDefs.length - 1 || hasAfterGroups ? '2px solid #7c3aed' : undefined,
+                                background: '#2d1b69' }}>
+                              {g.name}
+                            </th>
+                          )
+                        })}
+                        {(ungroupedUnitEntry.length > 0 || ungroupedUnitCalc.length > 0) && (
+                          <th colSpan={ungroupedUnitEntry.length + ungroupedUnitCalc.length}
+                            style={{ padding: '5px 12px', textAlign: 'center', color: '#fcd34d', fontWeight: 700, fontSize: 11,
+                              borderRight: ungroupedSample.length > 0 ? '2px solid #f59e0b' : undefined }}>
+                            Unit Inspection
+                          </th>
+                        )}
+                        {ungroupedSample.length > 0 && (
+                          <th colSpan={ungroupedSample.length}
+                            style={{ padding: '5px 12px', textAlign: 'center', color: '#94a3b8', fontWeight: 700, fontSize: 11 }}>
+                            Sample-based
+                          </th>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <th colSpan={unitEntryParams.length + unitCalcParams.length}
+                          style={{ padding: '5px 12px', textAlign: 'center', color: '#fcd34d', fontWeight: 700, fontSize: 11,
+                            borderRight: sampleParams.length > 0 ? '2px solid #f59e0b' : undefined }}>
+                          Unit Inspection
+                        </th>
+                        {sampleParams.length > 0 && (
+                          <th colSpan={sampleParams.length}
+                            style={{ padding: '5px 12px', textAlign: 'center', color: '#94a3b8', fontWeight: 700, fontSize: 11 }}>
+                            Sample-based
+                          </th>
+                        )}
+                      </>
                     )}
                   </tr>
                 )}
+                {/* Row 2: individual parameter column names */}
                 <tr style={{ background: '#0f172a' }}>
                   <th style={{ padding: '10px 14px', textAlign: 'left', color: '#fff', fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', minWidth: 160, borderRight: '1px solid #334155' }}>
                     Sample
                   </th>
-                  {/* Unit entry columns (amber) */}
-                  {unitEntryParams.map(p => (
-                    <th key={p.parameterId} style={{ padding: '10px 12px', textAlign: 'center', color: '#fde68a', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', minWidth: 100, borderRight: '1px solid #334155', background: '#1c1917' }}>
-                      <div>{p.parameterName}</div>
-                      {p.uom && <div style={{ fontWeight: 400, color: '#a8a29e', fontSize: 10 }}>{p.uom}</div>}
-                      {p.isMandatory && <div style={{ fontSize: 9, color: '#fbbf24' }}>Required</div>}
-                    </th>
-                  ))}
-                  {/* Unit calc columns (amber + auto badge) */}
-                  {unitCalcParams.map((p, idx) => (
-                    <th key={p.parameterId} style={{ padding: '10px 12px', textAlign: 'center', color: '#fde68a', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', minWidth: 100, borderRight: idx === unitCalcParams.length - 1 && sampleParams.length > 0 ? '2px solid #f59e0b' : '1px solid #334155', background: '#1c1917' }}>
-                      <div>{p.parameterName}</div>
-                      {p.uom && <div style={{ fontWeight: 400, color: '#a8a29e', fontSize: 10 }}>{p.uom}</div>}
-                      <div style={{ fontSize: 9, color: '#86efac' }}>Auto-calculated</div>
-                    </th>
-                  ))}
-                  {/* Sample-based columns */}
-                  {sampleParams.map(p => (
-                    <th key={p.parameterId} style={{ padding: '10px 12px', textAlign: 'center', color: '#fff', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', minWidth: 110, borderRight: '1px solid #334155' }}>
-                      <div>{p.parameterName}</div>
-                      {p.uom && <div style={{ fontWeight: 400, color: '#94a3b8', fontSize: 10 }}>{p.uom}</div>}
-                      {p.isMandatory && <div style={{ fontSize: 9, color: '#fde68a' }}>Required</div>}
-                    </th>
-                  ))}
+                  {hasGroups ? (
+                    <>
+                      {groupDefs.map(g => (
+                        <React.Fragment key={g.name}>
+                          {g.unitEntry.map(p => (
+                            <th key={p.parameterId} style={{ padding: '10px 12px', textAlign: 'center', color: '#fde68a', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', minWidth: 100, borderRight: '1px solid #334155', background: '#1c1917' }}>
+                              <div>{p.parameterName}</div>
+                              {p.uom && <div style={{ fontWeight: 400, color: '#a8a29e', fontSize: 10 }}>{p.uom}</div>}
+                              {p.isMandatory && <div style={{ fontSize: 9, color: '#fbbf24' }}>Required</div>}
+                            </th>
+                          ))}
+                          {g.unitCalc.map(p => (
+                            <th key={p.parameterId} style={{ padding: '10px 12px', textAlign: 'center', color: '#fde68a', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', minWidth: 100, borderRight: '1px solid #334155', background: '#1c1917' }}>
+                              <div>{p.parameterName}</div>
+                              {p.uom && <div style={{ fontWeight: 400, color: '#a8a29e', fontSize: 10 }}>{p.uom}</div>}
+                              <div style={{ fontSize: 9, color: '#86efac' }}>Auto-calculated</div>
+                            </th>
+                          ))}
+                          {g.sample.map((p, idx) => (
+                            <th key={p.parameterId} style={{ padding: '10px 12px', textAlign: 'center', color: '#fff', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', minWidth: 110,
+                              borderRight: idx === g.sample.length - 1 ? '2px solid #7c3aed' : '1px solid #334155' }}>
+                              <div>{p.parameterName}</div>
+                              {p.uom && <div style={{ fontWeight: 400, color: '#94a3b8', fontSize: 10 }}>{p.uom}</div>}
+                              {p.isMandatory && <div style={{ fontSize: 9, color: '#fde68a' }}>Required</div>}
+                            </th>
+                          ))}
+                        </React.Fragment>
+                      ))}
+                      {ungroupedUnitEntry.map(p => (
+                        <th key={p.parameterId} style={{ padding: '10px 12px', textAlign: 'center', color: '#fde68a', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', minWidth: 100, borderRight: '1px solid #334155', background: '#1c1917' }}>
+                          <div>{p.parameterName}</div>
+                          {p.uom && <div style={{ fontWeight: 400, color: '#a8a29e', fontSize: 10 }}>{p.uom}</div>}
+                          {p.isMandatory && <div style={{ fontSize: 9, color: '#fbbf24' }}>Required</div>}
+                        </th>
+                      ))}
+                      {ungroupedUnitCalc.map((p, idx) => (
+                        <th key={p.parameterId} style={{ padding: '10px 12px', textAlign: 'center', color: '#fde68a', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', minWidth: 100,
+                          borderRight: idx === ungroupedUnitCalc.length - 1 && ungroupedSample.length > 0 ? '2px solid #f59e0b' : '1px solid #334155', background: '#1c1917' }}>
+                          <div>{p.parameterName}</div>
+                          {p.uom && <div style={{ fontWeight: 400, color: '#a8a29e', fontSize: 10 }}>{p.uom}</div>}
+                          <div style={{ fontSize: 9, color: '#86efac' }}>Auto-calculated</div>
+                        </th>
+                      ))}
+                      {ungroupedSample.map(p => (
+                        <th key={p.parameterId} style={{ padding: '10px 12px', textAlign: 'center', color: '#fff', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', minWidth: 110, borderRight: '1px solid #334155' }}>
+                          <div>{p.parameterName}</div>
+                          {p.uom && <div style={{ fontWeight: 400, color: '#94a3b8', fontSize: 10 }}>{p.uom}</div>}
+                          {p.isMandatory && <div style={{ fontSize: 9, color: '#fde68a' }}>Required</div>}
+                        </th>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      {unitEntryParams.map(p => (
+                        <th key={p.parameterId} style={{ padding: '10px 12px', textAlign: 'center', color: '#fde68a', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', minWidth: 100, borderRight: '1px solid #334155', background: '#1c1917' }}>
+                          <div>{p.parameterName}</div>
+                          {p.uom && <div style={{ fontWeight: 400, color: '#a8a29e', fontSize: 10 }}>{p.uom}</div>}
+                          {p.isMandatory && <div style={{ fontSize: 9, color: '#fbbf24' }}>Required</div>}
+                        </th>
+                      ))}
+                      {unitCalcParams.map((p, idx) => (
+                        <th key={p.parameterId} style={{ padding: '10px 12px', textAlign: 'center', color: '#fde68a', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', minWidth: 100, borderRight: idx === unitCalcParams.length - 1 && sampleParams.length > 0 ? '2px solid #f59e0b' : '1px solid #334155', background: '#1c1917' }}>
+                          <div>{p.parameterName}</div>
+                          {p.uom && <div style={{ fontWeight: 400, color: '#a8a29e', fontSize: 10 }}>{p.uom}</div>}
+                          <div style={{ fontSize: 9, color: '#86efac' }}>Auto-calculated</div>
+                        </th>
+                      ))}
+                      {sampleParams.map(p => (
+                        <th key={p.parameterId} style={{ padding: '10px 12px', textAlign: 'center', color: '#fff', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap', minWidth: 110, borderRight: '1px solid #334155' }}>
+                          <div>{p.parameterName}</div>
+                          {p.uom && <div style={{ fontWeight: 400, color: '#94a3b8', fontSize: 10 }}>{p.uom}</div>}
+                          {p.isMandatory && <div style={{ fontSize: 9, color: '#fde68a' }}>Required</div>}
+                        </th>
+                      ))}
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -235,73 +334,210 @@ export default function BatchResultEntryPage() {
                         )}
                       </td>
 
-                      {/* Unit entry cells */}
-                      {unitEntryParams.map((p, idx) => {
-                        const key = cellKey(ex.executionId, p.parameterId)
-                        const val = entries[key] ?? ''
-                        const cellResult = rowResult?.results.find(r => r.parameterId === p.parameterId)
-                        const cellBorder = cellResult?.isOos ? '#fca5a5' : cellResult?.passFail === 'Pass' ? '#bbf7d0' : '#fcd34d'
-                        return (
-                          <td key={p.parameterId} style={{ padding: '6px 8px', borderRight: idx === unitEntryParams.length - 1 && unitCalcParams.length === 0 && sampleParams.length > 0 ? '2px solid #f59e0b' : '1px solid #e5e7eb', verticalAlign: 'middle', background: rowBg === '#ffffff' ? '#fffbeb' : rowBg === '#f8fafc' ? '#fefce8' : rowBg }}>
-                            <input type="number" step="1" min="0" value={val}
-                              onChange={e => setCell(ex.executionId, p.parameterId, e.target.value)}
-                              required={p.isMandatory && !results.length}
-                              placeholder="0"
-                              style={{ ...inp, borderColor: cellBorder, width: '100%' }} />
-                            {cellResult && (
-                              <div style={{ fontSize: 10, textAlign: 'center', marginTop: 2, fontWeight: 700,
-                                color: cellResult.isOos ? '#dc2626' : '#16a34a' }}>
-                                {cellResult.isOos ? 'OOS' : 'PASS'}
-                              </div>
-                            )}
-                          </td>
-                        )
-                      })}
-
-                      {/* Unit calc cells (auto-calculated, read-only) */}
-                      {unitCalcParams.map((p, idx) => {
-                        const calcVal = computeUnitCalc(p, ex.executionId)
-                        const cellResult = rowResult?.results.find(r => r.parameterId === p.parameterId)
-                        return (
-                          <td key={p.parameterId} style={{ padding: '6px 8px', borderRight: idx === unitCalcParams.length - 1 && sampleParams.length > 0 ? '2px solid #f59e0b' : '1px solid #e5e7eb', verticalAlign: 'middle', textAlign: 'center', background: rowBg === '#ffffff' ? '#fffbeb' : rowBg === '#f8fafc' ? '#fefce8' : rowBg }}>
-                            <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13,
-                              color: cellResult?.isOos ? '#dc2626' : calcVal === '—' ? '#9ca3af' : '#0f172a' }}>
-                              {cellResult ? cellResult.rawValue ?? calcVal : calcVal}
-                              {p.uom && calcVal !== '—' ? ` ${p.uom}` : ''}
-                            </div>
-                            {cellResult ? (
-                              <div style={{ fontSize: 10, fontWeight: 700, color: cellResult.isOos ? '#dc2626' : '#16a34a' }}>
-                                {cellResult.isOos ? 'OOS' : 'PASS'}
-                              </div>
-                            ) : (
-                              <div style={{ fontSize: 9, color: '#9ca3af' }}>preview</div>
-                            )}
-                          </td>
-                        )
-                      })}
-
-                      {/* Sample-based cells */}
-                      {sampleParams.map(p => {
-                        const key = cellKey(ex.executionId, p.parameterId)
-                        const val = entries[key] ?? ''
-                        const cellResult = rowResult?.results.find(r => r.parameterId === p.parameterId)
-                        const cellBorder = cellResult?.isOos ? '#fca5a5' : cellResult?.isOot ? '#fde68a' : cellResult?.passFail === 'Pass' ? '#bbf7d0' : '#d1d5db'
-                        return (
-                          <td key={p.parameterId} style={{ padding: '6px 8px', borderRight: '1px solid #e5e7eb', verticalAlign: 'middle' }}>
-                            <input type="number" step="any" value={val}
-                              onChange={e => setCell(ex.executionId, p.parameterId, e.target.value)}
-                              required={p.isMandatory && !results.length}
-                              placeholder="—"
-                              style={{ ...inp, borderColor: cellBorder, width: '100%' }} />
-                            {cellResult && (
-                              <div style={{ fontSize: 10, textAlign: 'center', marginTop: 2, fontWeight: 700,
-                                color: cellResult.isOos ? '#dc2626' : cellResult.isOot ? '#d97706' : '#16a34a' }}>
-                                {cellResult.isOos ? 'OOS' : cellResult.isOot ? 'OOT' : 'PASS'}
-                              </div>
-                            )}
-                          </td>
-                        )
-                      })}
+                      {hasGroups ? (
+                        <>
+                          {/* Per-group cells: entry → calc → sample, separated by purple border */}
+                          {groupDefs.map(g => (
+                            <React.Fragment key={g.name}>
+                              {g.unitEntry.map(p => {
+                                const key = cellKey(ex.executionId, p.parameterId)
+                                const val = entries[key] ?? ''
+                                const cellResult = rowResult?.results.find(r => r.parameterId === p.parameterId)
+                                const cellBorder = cellResult?.isOos ? '#fca5a5' : cellResult?.passFail === 'Pass' ? '#bbf7d0' : '#fcd34d'
+                                return (
+                                  <td key={p.parameterId} style={{ padding: '6px 8px', borderRight: '1px solid #e5e7eb', verticalAlign: 'middle', background: rowBg === '#ffffff' ? '#fffbeb' : rowBg === '#f8fafc' ? '#fefce8' : rowBg }}>
+                                    <input type="number" step="1" min="0" value={val}
+                                      onChange={e => setCell(ex.executionId, p.parameterId, e.target.value)}
+                                      required={p.isMandatory && !results.length}
+                                      placeholder="0"
+                                      style={{ ...inp, borderColor: cellBorder, width: '100%' }} />
+                                    {cellResult && (
+                                      <div style={{ fontSize: 10, textAlign: 'center', marginTop: 2, fontWeight: 700,
+                                        color: cellResult.isOos ? '#dc2626' : '#16a34a' }}>
+                                        {cellResult.isOos ? 'OOS' : 'PASS'}
+                                      </div>
+                                    )}
+                                  </td>
+                                )
+                              })}
+                              {g.unitCalc.map(p => {
+                                const calcVal = computeCalcForGroup(p, ex.executionId, g.unitEntry)
+                                const cellResult = rowResult?.results.find(r => r.parameterId === p.parameterId)
+                                return (
+                                  <td key={p.parameterId} style={{ padding: '6px 8px', borderRight: '1px solid #e5e7eb', verticalAlign: 'middle', textAlign: 'center', background: rowBg === '#ffffff' ? '#fffbeb' : rowBg === '#f8fafc' ? '#fefce8' : rowBg }}>
+                                    <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13,
+                                      color: cellResult?.isOos ? '#dc2626' : calcVal === '—' ? '#9ca3af' : '#0f172a' }}>
+                                      {cellResult ? cellResult.rawValue ?? calcVal : calcVal}
+                                      {p.uom && calcVal !== '—' ? ` ${p.uom}` : ''}
+                                    </div>
+                                    {cellResult ? (
+                                      <div style={{ fontSize: 10, fontWeight: 700, color: cellResult.isOos ? '#dc2626' : '#16a34a' }}>
+                                        {cellResult.isOos ? 'OOS' : 'PASS'}
+                                      </div>
+                                    ) : (
+                                      <div style={{ fontSize: 9, color: '#9ca3af' }}>preview</div>
+                                    )}
+                                  </td>
+                                )
+                              })}
+                              {g.sample.map((p, idx) => {
+                                const key = cellKey(ex.executionId, p.parameterId)
+                                const val = entries[key] ?? ''
+                                const cellResult = rowResult?.results.find(r => r.parameterId === p.parameterId)
+                                const cellBorder = cellResult?.isOos ? '#fca5a5' : cellResult?.isOot ? '#fde68a' : cellResult?.passFail === 'Pass' ? '#bbf7d0' : '#d1d5db'
+                                return (
+                                  <td key={p.parameterId} style={{ padding: '6px 8px', borderRight: idx === g.sample.length - 1 ? '2px solid #7c3aed' : '1px solid #e5e7eb', verticalAlign: 'middle' }}>
+                                    <input type="number" step="any" value={val}
+                                      onChange={e => setCell(ex.executionId, p.parameterId, e.target.value)}
+                                      required={p.isMandatory && !results.length}
+                                      placeholder="—"
+                                      style={{ ...inp, borderColor: cellBorder, width: '100%' }} />
+                                    {cellResult && (
+                                      <div style={{ fontSize: 10, textAlign: 'center', marginTop: 2, fontWeight: 700,
+                                        color: cellResult.isOos ? '#dc2626' : cellResult.isOot ? '#d97706' : '#16a34a' }}>
+                                        {cellResult.isOos ? 'OOS' : cellResult.isOot ? 'OOT' : 'PASS'}
+                                      </div>
+                                    )}
+                                  </td>
+                                )
+                              })}
+                            </React.Fragment>
+                          ))}
+                          {/* Ungrouped unit entry */}
+                          {ungroupedUnitEntry.map((p, idx) => {
+                            const key = cellKey(ex.executionId, p.parameterId)
+                            const val = entries[key] ?? ''
+                            const cellResult = rowResult?.results.find(r => r.parameterId === p.parameterId)
+                            const cellBorder = cellResult?.isOos ? '#fca5a5' : cellResult?.passFail === 'Pass' ? '#bbf7d0' : '#fcd34d'
+                            return (
+                              <td key={p.parameterId} style={{ padding: '6px 8px', borderRight: idx === ungroupedUnitEntry.length - 1 && ungroupedUnitCalc.length === 0 && ungroupedSample.length > 0 ? '2px solid #f59e0b' : '1px solid #e5e7eb', verticalAlign: 'middle', background: rowBg === '#ffffff' ? '#fffbeb' : rowBg === '#f8fafc' ? '#fefce8' : rowBg }}>
+                                <input type="number" step="1" min="0" value={val}
+                                  onChange={e => setCell(ex.executionId, p.parameterId, e.target.value)}
+                                  required={p.isMandatory && !results.length}
+                                  placeholder="0"
+                                  style={{ ...inp, borderColor: cellBorder, width: '100%' }} />
+                                {cellResult && (
+                                  <div style={{ fontSize: 10, textAlign: 'center', marginTop: 2, fontWeight: 700,
+                                    color: cellResult.isOos ? '#dc2626' : '#16a34a' }}>
+                                    {cellResult.isOos ? 'OOS' : 'PASS'}
+                                  </div>
+                                )}
+                              </td>
+                            )
+                          })}
+                          {/* Ungrouped unit calc */}
+                          {ungroupedUnitCalc.map((p, idx) => {
+                            const calcVal = computeUnitCalc(p, ex.executionId)
+                            const cellResult = rowResult?.results.find(r => r.parameterId === p.parameterId)
+                            return (
+                              <td key={p.parameterId} style={{ padding: '6px 8px', borderRight: idx === ungroupedUnitCalc.length - 1 && ungroupedSample.length > 0 ? '2px solid #f59e0b' : '1px solid #e5e7eb', verticalAlign: 'middle', textAlign: 'center', background: rowBg === '#ffffff' ? '#fffbeb' : rowBg === '#f8fafc' ? '#fefce8' : rowBg }}>
+                                <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13,
+                                  color: cellResult?.isOos ? '#dc2626' : calcVal === '—' ? '#9ca3af' : '#0f172a' }}>
+                                  {cellResult ? cellResult.rawValue ?? calcVal : calcVal}
+                                  {p.uom && calcVal !== '—' ? ` ${p.uom}` : ''}
+                                </div>
+                                {cellResult ? (
+                                  <div style={{ fontSize: 10, fontWeight: 700, color: cellResult.isOos ? '#dc2626' : '#16a34a' }}>
+                                    {cellResult.isOos ? 'OOS' : 'PASS'}
+                                  </div>
+                                ) : (
+                                  <div style={{ fontSize: 9, color: '#9ca3af' }}>preview</div>
+                                )}
+                              </td>
+                            )
+                          })}
+                          {/* Ungrouped sample */}
+                          {ungroupedSample.map(p => {
+                            const key = cellKey(ex.executionId, p.parameterId)
+                            const val = entries[key] ?? ''
+                            const cellResult = rowResult?.results.find(r => r.parameterId === p.parameterId)
+                            const cellBorder = cellResult?.isOos ? '#fca5a5' : cellResult?.isOot ? '#fde68a' : cellResult?.passFail === 'Pass' ? '#bbf7d0' : '#d1d5db'
+                            return (
+                              <td key={p.parameterId} style={{ padding: '6px 8px', borderRight: '1px solid #e5e7eb', verticalAlign: 'middle' }}>
+                                <input type="number" step="any" value={val}
+                                  onChange={e => setCell(ex.executionId, p.parameterId, e.target.value)}
+                                  required={p.isMandatory && !results.length}
+                                  placeholder="—"
+                                  style={{ ...inp, borderColor: cellBorder, width: '100%' }} />
+                                {cellResult && (
+                                  <div style={{ fontSize: 10, textAlign: 'center', marginTop: 2, fontWeight: 700,
+                                    color: cellResult.isOos ? '#dc2626' : cellResult.isOot ? '#d97706' : '#16a34a' }}>
+                                    {cellResult.isOos ? 'OOS' : cellResult.isOot ? 'OOT' : 'PASS'}
+                                  </div>
+                                )}
+                              </td>
+                            )
+                          })}
+                        </>
+                      ) : (
+                        <>
+                          {/* Legacy: unit entry cells */}
+                          {unitEntryParams.map((p, idx) => {
+                            const key = cellKey(ex.executionId, p.parameterId)
+                            const val = entries[key] ?? ''
+                            const cellResult = rowResult?.results.find(r => r.parameterId === p.parameterId)
+                            const cellBorder = cellResult?.isOos ? '#fca5a5' : cellResult?.passFail === 'Pass' ? '#bbf7d0' : '#fcd34d'
+                            return (
+                              <td key={p.parameterId} style={{ padding: '6px 8px', borderRight: idx === unitEntryParams.length - 1 && unitCalcParams.length === 0 && sampleParams.length > 0 ? '2px solid #f59e0b' : '1px solid #e5e7eb', verticalAlign: 'middle', background: rowBg === '#ffffff' ? '#fffbeb' : rowBg === '#f8fafc' ? '#fefce8' : rowBg }}>
+                                <input type="number" step="1" min="0" value={val}
+                                  onChange={e => setCell(ex.executionId, p.parameterId, e.target.value)}
+                                  required={p.isMandatory && !results.length}
+                                  placeholder="0"
+                                  style={{ ...inp, borderColor: cellBorder, width: '100%' }} />
+                                {cellResult && (
+                                  <div style={{ fontSize: 10, textAlign: 'center', marginTop: 2, fontWeight: 700,
+                                    color: cellResult.isOos ? '#dc2626' : '#16a34a' }}>
+                                    {cellResult.isOos ? 'OOS' : 'PASS'}
+                                  </div>
+                                )}
+                              </td>
+                            )
+                          })}
+                          {/* Legacy: unit calc cells */}
+                          {unitCalcParams.map((p, idx) => {
+                            const calcVal = computeUnitCalc(p, ex.executionId)
+                            const cellResult = rowResult?.results.find(r => r.parameterId === p.parameterId)
+                            return (
+                              <td key={p.parameterId} style={{ padding: '6px 8px', borderRight: idx === unitCalcParams.length - 1 && sampleParams.length > 0 ? '2px solid #f59e0b' : '1px solid #e5e7eb', verticalAlign: 'middle', textAlign: 'center', background: rowBg === '#ffffff' ? '#fffbeb' : rowBg === '#f8fafc' ? '#fefce8' : rowBg }}>
+                                <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 13,
+                                  color: cellResult?.isOos ? '#dc2626' : calcVal === '—' ? '#9ca3af' : '#0f172a' }}>
+                                  {cellResult ? cellResult.rawValue ?? calcVal : calcVal}
+                                  {p.uom && calcVal !== '—' ? ` ${p.uom}` : ''}
+                                </div>
+                                {cellResult ? (
+                                  <div style={{ fontSize: 10, fontWeight: 700, color: cellResult.isOos ? '#dc2626' : '#16a34a' }}>
+                                    {cellResult.isOos ? 'OOS' : 'PASS'}
+                                  </div>
+                                ) : (
+                                  <div style={{ fontSize: 9, color: '#9ca3af' }}>preview</div>
+                                )}
+                              </td>
+                            )
+                          })}
+                          {/* Legacy: sample-based cells */}
+                          {sampleParams.map(p => {
+                            const key = cellKey(ex.executionId, p.parameterId)
+                            const val = entries[key] ?? ''
+                            const cellResult = rowResult?.results.find(r => r.parameterId === p.parameterId)
+                            const cellBorder = cellResult?.isOos ? '#fca5a5' : cellResult?.isOot ? '#fde68a' : cellResult?.passFail === 'Pass' ? '#bbf7d0' : '#d1d5db'
+                            return (
+                              <td key={p.parameterId} style={{ padding: '6px 8px', borderRight: '1px solid #e5e7eb', verticalAlign: 'middle' }}>
+                                <input type="number" step="any" value={val}
+                                  onChange={e => setCell(ex.executionId, p.parameterId, e.target.value)}
+                                  required={p.isMandatory && !results.length}
+                                  placeholder="—"
+                                  style={{ ...inp, borderColor: cellBorder, width: '100%' }} />
+                                {cellResult && (
+                                  <div style={{ fontSize: 10, textAlign: 'center', marginTop: 2, fontWeight: 700,
+                                    color: cellResult.isOos ? '#dc2626' : cellResult.isOot ? '#d97706' : '#16a34a' }}>
+                                    {cellResult.isOos ? 'OOS' : cellResult.isOot ? 'OOT' : 'PASS'}
+                                  </div>
+                                )}
+                              </td>
+                            )
+                          })}
+                        </>
+                      )}
                     </tr>
                   )
                 })}
