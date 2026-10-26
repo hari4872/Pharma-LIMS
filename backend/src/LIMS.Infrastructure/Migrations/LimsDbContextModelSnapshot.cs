@@ -3778,6 +3778,9 @@ namespace LIMS.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("ParameterGroup")
+                        .HasColumnType("text");
+
                     b.Property<string>("ParameterName")
                         .IsRequired()
                         .HasMaxLength(200)

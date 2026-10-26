@@ -6,7 +6,7 @@ import { toast } from '@/components/Toast'
 import { getErrorMessage } from '@/utils/errors'
 
 interface TestMethod { methodId: number; methodName: string; methodCode: string }
-interface Parameter  { parameterId: number; parameterName: string; parameterCode: string; uom: string; isMandatory: boolean; inspectionScope?: string; calcFormula?: string }
+interface Parameter  { parameterId: number; parameterName: string; parameterCode: string; uom: string; isMandatory: boolean; inspectionScope?: string; calcFormula?: string; parameterGroup?: string | null }
 interface Execution  {
   executionId: number; sampleId: number; sampleNumber: string
   materialName: string; lotNumber: string; analystName: string; status: string

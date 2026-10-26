@@ -13,7 +13,7 @@ public record ExecutionParameterDto(
     string Uom, string DataType, bool IsCritical, bool IsMandatory,
     string? InstrumentType, string? ColumnFrequency, string? CalcFormula,
     int? LookupTableId, string? InputFields, int? DecimalPlaces,
-    string InspectionScope = "SampleBased");
+    string InspectionScope = "SampleBased", string? ParameterGroup = null);
 
 public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParametersQuery, List<ExecutionParameterDto>>
 {
@@ -43,7 +43,7 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
                     p.InstrumentType,
                     p.ColumnFrequency.HasValue ? p.ColumnFrequency.Value.ToString() : null,
                     p.CalcFormula, p.LookupTableId, p.InputFields, p.DecimalPlaces,
-                    p.InspectionScope.ToString()))
+                    p.InspectionScope.ToString(), p.ParameterGroup))
                 .ToListAsync(ct);
         }
 
@@ -71,7 +71,7 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
                         p.InstrumentType,
                         p.ColumnFrequency.HasValue ? p.ColumnFrequency.Value.ToString() : null,
                         p.CalcFormula, p.LookupTableId, p.InputFields, p.DecimalPlaces,
-                    p.InspectionScope.ToString()))
+                        p.InspectionScope.ToString(), p.ParameterGroup))
                     .ToListAsync(ct);
             }
         }
@@ -126,7 +126,7 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
                     p.InstrumentType,
                     p.ColumnFrequency.HasValue ? p.ColumnFrequency.Value.ToString() : null,
                     p.CalcFormula, p.LookupTableId, p.InputFields, p.DecimalPlaces,
-                    p.InspectionScope.ToString()))
+                    p.InspectionScope.ToString(), p.ParameterGroup))
                 .ToListAsync(ct);
         }
 
@@ -151,7 +151,7 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
                         p.InstrumentType,
                         p.ColumnFrequency.HasValue ? p.ColumnFrequency.Value.ToString() : null,
                         p.CalcFormula, p.LookupTableId, p.InputFields, p.DecimalPlaces,
-                        p.InspectionScope.ToString()))
+                        p.InspectionScope.ToString(), p.ParameterGroup))
                     .ToListAsync(ct);
             }
         }
