@@ -13,7 +13,7 @@ public record CoALineDto(
     string ParameterName, string MethodCode,
     decimal? SpecMin, decimal? SpecMax, string? RegulatoryTier,
     decimal? CalculatedResult, string PassFail, string AnalystName,
-    int DisplayOrder, string Uom = "");
+    int DisplayOrder, string Uom = "", string? ParameterGroup = null);
 
 public record CoADto(
     int CoaId, int SampleId, string SampleNumber,
@@ -79,7 +79,8 @@ public class GetCoAHandler : IRequestHandler<GetCoAQuery, List<CoADto>>
                 l.Entry.CalculatedResult, l.Entry.PassFail,
                 l.Entry.Analyst != null ? l.Entry.Analyst.FullName : "Unknown",
                 l.DisplayOrder,
-                l.Parameter != null ? l.Parameter.Uom : "")).ToList(),
+                l.Parameter != null ? l.Parameter.Uom : "",
+                l.Parameter?.ParameterGroup)).ToList(),
             c.Approvals.OrderByDescending(a => a.DecidedAt).Select(a => new CoAApprovalDto(
                 a.ApprovalId, a.Decision, a.Justification,
                 a.Signature.FullName, a.DecidedAt)).ToList(),

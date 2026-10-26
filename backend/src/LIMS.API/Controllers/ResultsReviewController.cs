@@ -183,7 +183,8 @@ public class ResultsReviewController : LimsControllerBase
                     postReworkEntry?.PassFail,
                     inv?.PostReworkRetestExecution?.Analyst?.FullName,
                     inv?.PostReworkRetestExecution?.CompletedAt,
-                    retestCycles?.Count > 0 ? retestCycles : null
+                    retestCycles?.Count > 0 ? retestCycles : null,
+                    le.Parameter?.ParameterGroup
                 );
             }).ToList(),
             Reviews: exec.ResultsReviews.Select(r => new BatchAnalysisPdfDocument.ReviewRow(

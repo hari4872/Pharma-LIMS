@@ -163,8 +163,25 @@ public class CoAPdfDocument : IDocument
                 });
 
                 bool odd = true;
-                foreach (var line in _coa.Lines.OrderBy(l => l.DisplayOrder))
+                string? lastGroup = null;
+                foreach (var line in _coa.Lines.OrderBy(l => l.ParameterGroup == null ? 1 : 0).ThenBy(l => l.ParameterGroup).ThenBy(l => l.DisplayOrder))
                 {
+                    // Insert purple group header row when group changes
+                    if (line.ParameterGroup != lastGroup && line.ParameterGroup != null)
+                    {
+                        lastGroup = line.ParameterGroup;
+                        t.Cell().ColumnSpan(7)
+                            .Background("#2d1b69")
+                            .PaddingVertical(4).PaddingHorizontal(6)
+                            .Text(line.ParameterGroup.ToUpperInvariant())
+                            .Bold().FontColor("#e9d5ff").FontSize(8).LetterSpacing(0.05f);
+                        odd = true;
+                    }
+                    else if (line.ParameterGroup == null)
+                    {
+                        lastGroup = null;
+                    }
+
                     var bg = odd ? "#ffffff" : "#f8fafc";
                     odd = !odd;
 
@@ -188,7 +205,7 @@ public class CoAPdfDocument : IDocument
                     t.Cell().Element(Cell).Text(line.ParameterName).FontSize(9);
                     t.Cell().Element(Cell).Text(specText).FontSize(9).FontColor("#374151");
                     t.Cell().Element(Cell).Text(line.CalculatedResult?.ToString("G6") ?? "—").FontSize(9).Bold();
-                    t.Cell().Element(Cell).Text("").FontSize(9); // unit placeholder
+                    t.Cell().Element(Cell).Text(line.Uom).FontSize(9);
                     t.Cell().Element(c => c.Background(pfBg).BorderBottom(0.5f).BorderColor("#e2e8f0")
                                            .PaddingVertical(5).PaddingHorizontal(4).AlignCenter())
                       .Text(line.PassFail.ToUpperInvariant()).FontSize(8.5f).Bold().FontColor(pfColor);

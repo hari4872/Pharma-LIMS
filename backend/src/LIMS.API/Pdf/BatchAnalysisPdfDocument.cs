@@ -36,7 +36,8 @@ public class BatchAnalysisPdfDocument : IDocument
         string? PostReworkRetestAnalystName = null,
         DateTimeOffset? PostReworkRetestCompletedAt = null,
         // Multi-cycle retests in chronological order (replaces single RetestResult when present)
-        List<OosPdfDocument.OosRetestCycleEntry>? RetestCycles = null
+        List<OosPdfDocument.OosRetestCycleEntry>? RetestCycles = null,
+        string? ParameterGroup = null
     );
 
     public record ReviewRow(
@@ -209,8 +210,21 @@ public class BatchAnalysisPdfDocument : IDocument
                                 h.Cell().Element(c2 => TH(c2, "Date / Time (UTC)"));
                             });
 
-                            foreach (var r in _d.Results)
+                            string? lastGrp = null;
+                            foreach (var r in _d.Results.OrderBy(r => r.ParameterGroup == null ? 1 : 0).ThenBy(r => r.ParameterGroup))
                             {
+                                // Purple group header row when group changes
+                                if (r.ParameterGroup != lastGrp && r.ParameterGroup != null)
+                                {
+                                    lastGrp = r.ParameterGroup;
+                                    t.Cell().ColumnSpan(8)
+                                        .Background("#2d1b69")
+                                        .PaddingVertical(4).PaddingHorizontal(6)
+                                        .Text(r.ParameterGroup.ToUpperInvariant())
+                                        .Bold().FontColor("#e9d5ff").FontSize(8).LetterSpacing(0.05f);
+                                }
+                                else if (r.ParameterGroup == null) lastGrp = null;
+
                                 var origPf    = r.IsOos ? "OOS" : r.IsOot ? "OOT" : r.PassFail;
                                 var origPfClr = r.IsOos ? "#dc2626" : r.IsOot ? "#d97706" : "#065f46";
                                 var origBg    = r.IsOos ? "#fff1f2" : r.IsOot ? "#fffbeb" : "#ffffff";
