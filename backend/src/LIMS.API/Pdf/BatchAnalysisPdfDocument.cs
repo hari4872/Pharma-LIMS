@@ -221,7 +221,7 @@ public class BatchAnalysisPdfDocument : IDocument
                                         .Background("#2d1b69")
                                         .PaddingVertical(4).PaddingHorizontal(6)
                                         .Text(r.ParameterGroup.ToUpperInvariant())
-                                        .Bold().FontColor("#e9d5ff").FontSize(8).LetterSpacing(0.05f);
+                                        .Bold().FontColor("#e9d5ff").FontSize(8);
                                 }
                                 else if (r.ParameterGroup == null) lastGrp = null;
 

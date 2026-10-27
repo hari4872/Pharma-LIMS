@@ -1220,8 +1220,6 @@ export default function WorkQueuePage() {
                                           {spcCfg[spcStatus].label}
                                           {spc.cpk != null && <span style={{ marginLeft: 3, opacity: 0.85 }}>Cpk {spc.cpk.toFixed(2)}</span>}
                                         </button>
-                                      ) : spc && spc.n < 5 ? (
-                                        <span style={{ fontSize: 10, color: '#9ca3af' }}>n={spc.n} (need 5+)</span>
                                       ) : (
                                         <span style={{ fontSize: 10, color: '#d1d5db' }}>—</span>
                                       )}

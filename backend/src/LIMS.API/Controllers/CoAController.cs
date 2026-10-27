@@ -101,8 +101,6 @@ public class CoAController : LimsControllerBase
             .FirstOrDefaultAsync();
         if (logoCfg is not null) logoBase64 = logoCfg.ConfigValue;
 
-        // Generate PDF on-the-fly using QuestPDF (Community license)
-        QuestPDF.Settings.License = LicenseType.Community;
         var doc   = new CoAPdfDocument(coa, logoBase64);
         var bytes = doc.GeneratePdf();
 

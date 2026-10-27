@@ -40,6 +40,9 @@ export default function SpecLimitsPage() {
     minValue: '', maxValue: '', ootMinValue: '', ootMaxValue: '',
     regulatoryTier: '', regulatoryMin: '', regulatoryMax: ''
   })
+  const [filterParam, setFilterParam] = useState('')
+  const [filterMaterial, setFilterMaterial] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
 
   function openEdit(r: SpecLimit) {
     setEditRow(r)
@@ -119,10 +122,42 @@ export default function SpecLimitsPage() {
     finally { setSaving(false) }
   }
 
+  const filteredData = data.filter(r =>
+    (!filterParam || r.parameterName === filterParam) &&
+    (!filterMaterial || r.materialName === filterMaterial) &&
+    (!filterStatus || r.status === filterStatus)
+  )
+
+  const uniqueParams = Array.from(new Set(data.map(r => r.parameterName))).sort()
+  const uniqueMaterials = Array.from(new Set(data.map(r => r.materialName).filter(Boolean))).sort()
+
+  const filterInp = { ...inp, minWidth: 160 } as React.CSSProperties
+
   return (
     <div>
       <PageHeader title="Spec Limits" onAdd={() => { setForm({ parameterId: '', materialId: '', stage: 'InProcess', minValue: '', maxValue: '', ootMinValue: '', ootMaxValue: '', regulatoryTier: '', regulatoryMin: '', regulatoryMax: '' }); setError(''); setShowForm(true) }} />
-      <DataTable loading={loading} data={data} exportFilename="SpecLimits" columns={[
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+        <select style={filterInp} value={filterParam} onChange={e => setFilterParam(e.target.value)}>
+          <option value="">All Parameters</option>
+          {uniqueParams.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select style={filterInp} value={filterMaterial} onChange={e => setFilterMaterial(e.target.value)}>
+          <option value="">All Materials</option>
+          {uniqueMaterials.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
+        <select style={filterInp} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+          <option value="">All Statuses</option>
+          <option value="Draft">Draft</option>
+          <option value="Approved">Approved</option>
+        </select>
+        {(filterParam || filterMaterial || filterStatus) && (
+          <button onClick={() => { setFilterParam(''); setFilterMaterial(''); setFilterStatus('') }}
+            style={{ padding: '6px 12px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', cursor: 'pointer', fontSize: 13, color: '#6b7280' }}>
+            Clear filters
+          </button>
+        )}
+      </div>
+      <DataTable loading={loading} data={filteredData} exportFilename="SpecLimits" columns={[
         { header: 'Parameter', accessor: 'parameterName' },
         { header: 'Material', accessor: 'materialName' },
         { header: 'Stage', accessor: r => stageLabel(r.stage) },

@@ -98,6 +98,8 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader().AllowAnyMethod().AllowCredentials();
     }));
 
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var app = builder.Build();
 
 // Auto-apply EF Core migrations on startup

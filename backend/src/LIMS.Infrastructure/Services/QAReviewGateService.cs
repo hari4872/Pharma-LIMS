@@ -51,13 +51,17 @@ public class QAReviewGateService : IQAReviewGateService
             .AnyAsync(r => r.SampleId == sampleId &&
                       r.ReviewType == ReviewType.QCLeadVerification, ct);
 
-        // Item 7: Correct approved spec version — only Numeric params require min/max snapshots
-        // PassFail params have no spec range, so null snapshots are valid for them
+        // Item 7: Correct approved spec version — fails only when a Numeric param has an approved
+        // spec limit defined but neither snapshot was captured (stale/missing spec at time of entry).
+        // Numeric params with no spec limit defined at all are valid (no snapshot expected).
         var correctSpecVersion = !await _db.DigitalLogbookEntries
             .AnyAsync(e => e.SampleId == sampleId &&
                       e.Status == LogbookEntryStatus.Signed &&
                       e.Parameter.DataType == DataType.Numeric &&
-                      e.SpecMinSnapshot == null && e.SpecMaxSnapshot == null, ct);
+                      e.SpecMinSnapshot == null && e.SpecMaxSnapshot == null &&
+                      _db.SpecLimits.Any(sl => sl.ParameterId == e.ParameterId &&
+                                               sl.Status == ApprovalStatus.Approved &&
+                                               sl.MaterialId == e.Sample.MaterialId), ct);
 
         // Item 8: Evidence present for all is_critical parameters (GAMP 5)
         // Only evaluated when evidence_gate_enabled = true in lab_config; otherwise defaults to passing

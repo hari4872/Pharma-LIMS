@@ -199,7 +199,6 @@ public class ResultsReviewController : LimsControllerBase
 
         try
         {
-            QuestPDF.Settings.License = LicenseType.Community;
             var doc   = new BatchAnalysisPdfDocument(data);
             var bytes = doc.GeneratePdf();
             var fname = $"BatchAnalysis_{exec.ExecutionId:D5}_{exec.Sample?.SampleNumber ?? "unknown"}.pdf";

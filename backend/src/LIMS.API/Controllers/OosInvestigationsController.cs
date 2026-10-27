@@ -342,7 +342,6 @@ public class OosInvestigationsController : LimsControllerBase
             RetestCycles:                retestCyclesForPdf.Count > 0 ? retestCyclesForPdf : null
         );
 
-        QuestPDF.Settings.License = LicenseType.Community;
         var doc   = new OosPdfDocument(data);
         var bytes = doc.GeneratePdf();
         var fname = $"OOS_{inv.InvestigationId:D5}_{inv.Execution.Sample.SampleNumber}.pdf";

@@ -189,7 +189,6 @@ public class InstrumentsController : LimsControllerBase
                 )).ToList()
         );
 
-        QuestPDF.Settings.License = LicenseType.Community;
         var doc   = new CalibrationCertPdfDocument(data);
         var bytes = doc.GeneratePdf();
         var fname = $"CalibCert_{inst.InstrumentCode}_{DateTime.UtcNow:yyyy-MM-dd}.pdf";
