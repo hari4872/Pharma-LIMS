@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LIMS.Application.Features.MasterData.Parameters;
 
 public record UpdateParameterCommand(
-    int ParameterId, string ParameterName, string ParameterCode,
+    int ParameterId, int MethodId, string ParameterName, string ParameterCode,
     string Uom, string DataType, string FormulaType, string? CalcFormula,
     string? InstrumentType, bool IsCritical, bool IsMandatory,
     string? ColumnFrequency, string UpdatedBy, int? DecimalPlaces = null,
@@ -40,7 +40,10 @@ public class UpdateParameterCommandHandler : IRequestHandler<UpdateParameterComm
     {
         var param = await _db.TestMethodParameters.FirstOrDefaultAsync(p => p.ParameterId == request.ParameterId, ct);
         if (param is null) return Result<int>.Failure("NOT_FOUND", "Parameter not found.");
+        var methodExists = await _db.TestMethods.AnyAsync(m => m.MethodId == request.MethodId, ct);
+        if (!methodExists) return Result<int>.Failure("METHOD_NOT_FOUND", "Test method not found.");
         var old = new { param.ParameterName, param.ParameterCode, param.Uom, param.DataType, param.FormulaType, param.IsCritical, param.IsMandatory };
+        param.MethodId = request.MethodId;
         param.ParameterName = request.ParameterName;
         param.ParameterCode = request.ParameterCode;
         param.Uom = request.Uom;

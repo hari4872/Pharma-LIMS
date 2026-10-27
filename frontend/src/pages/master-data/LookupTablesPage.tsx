@@ -90,8 +90,8 @@ export default function LookupTablesPage() {
     <div style={{ padding: '24px 32px', maxWidth: 1100 }}>
       <PageHeader
         title="Lookup Tables"
-        subtitle="Define numeric lookup tables for TableLookup formula type parameters"
-        action={<button onClick={() => setShowCreate(true)} style={{ padding: '7px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>+ New Lookup Table</button>}
+        onAdd={() => setShowCreate(true)}
+        addLabel="+ New Lookup Table"
       />
       {loading && <p style={{ color: '#6b7280', fontSize: 14 }}>Loading…</p>}
       <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20, marginTop: 8 }}>

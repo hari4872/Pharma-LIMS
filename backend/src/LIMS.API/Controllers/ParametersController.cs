@@ -38,7 +38,7 @@ public class ParametersController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] UpdateParameterRequest request)
     {
         var username = User.Identity?.Name ?? "Unknown";
-        var result = await _mediator.Send(new UpdateParameterCommand(id, request.ParameterName, request.ParameterCode, request.Uom, request.DataType, request.FormulaType, request.CalcFormula, request.InstrumentType, request.IsCritical, request.IsMandatory, request.ColumnFrequency, username, request.DecimalPlaces, request.InputFields, request.InspectionScope ?? "SampleBased", request.ParameterGroup, request.LookupTableId));
+        var result = await _mediator.Send(new UpdateParameterCommand(id, request.MethodId, request.ParameterName, request.ParameterCode, request.Uom, request.DataType, request.FormulaType, request.CalcFormula, request.InstrumentType, request.IsCritical, request.IsMandatory, request.ColumnFrequency, username, request.DecimalPlaces, request.InputFields, request.InspectionScope ?? "SampleBased", request.ParameterGroup, request.LookupTableId));
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { parameterId = result.Value });
     }
@@ -50,7 +50,7 @@ public record CreateParameterRequest(int MethodId, string ParameterName, string 
     int? DecimalPlaces = null, string? InputFields = null, string? InspectionScope = null,
     string? ParameterGroup = null);
 
-public record UpdateParameterRequest(string ParameterName, string ParameterCode,
+public record UpdateParameterRequest(int MethodId, string ParameterName, string ParameterCode,
     string Uom, string DataType, string FormulaType, string? CalcFormula,
     string? InstrumentType, bool IsCritical, bool IsMandatory, string? ColumnFrequency,
     int? DecimalPlaces = null, string? InputFields = null, string? InspectionScope = null,

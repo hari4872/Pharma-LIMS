@@ -7,7 +7,7 @@ import { toast } from '@/components/Toast'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface InputField { key: string; label: string }
-interface Param { parameterId: number; methodName: string; parameterName: string; parameterCode: string; uom: string; dataType: string; formulaType: string; instrumentType: string; columnFrequency: string; isCritical: boolean; isMandatory: boolean; inputFields?: string | null; inspectionScope?: string; parameterGroup?: string | null; lookupTableId?: number | null }
+interface Param { parameterId: number; methodId: number; methodName: string; parameterName: string; parameterCode: string; uom: string; dataType: string; formulaType: string; instrumentType: string; columnFrequency: string; isCritical: boolean; isMandatory: boolean; inputFields?: string | null; inspectionScope?: string; parameterGroup?: string | null; lookupTableId?: number | null }
 interface LookupTableOption { lookupTableId: number; lookupCode: string; inputCol1: string; inputCol2: string | null; resultCol: string }
 
 const MATH_KEYWORDS = new Set(['Math','abs','sqrt','pow','log','exp','round','floor','ceil','min','max','PI','E'])
@@ -33,11 +33,12 @@ export default function ParametersPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [editRow, setEditRow] = useState<Param | null>(null)
-  const [editForm, setEditForm] = useState({ parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', lookupTableId: '' as string, instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased', parameterGroup: '' })
+  const [editForm, setEditForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', lookupTableId: '' as string, instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased', parameterGroup: '' })
 
   function openEdit(r: Param) {
     setEditRow(r)
     setEditForm({
+      methodId: String(r.methodId ?? ''),
       parameterName: r.parameterName, parameterCode: r.parameterCode, uom: r.uom,
       dataType: r.dataType, formulaType: r.formulaType, calcFormula: '',
       lookupTableId: r.lookupTableId ? String(r.lookupTableId) : '',
@@ -54,6 +55,7 @@ export default function ParametersPage() {
     try {
       await api.put(`/parameters/${editRow!.parameterId}`, {
         ...editForm,
+        methodId: Number(editForm.methodId),
         instrumentType: editForm.instrumentType || null,
         columnFrequency: editForm.columnFrequency || null,
         inputFields: editForm.inputFields.length > 0 ? JSON.stringify(editForm.inputFields) : null,
@@ -131,6 +133,12 @@ export default function ParametersPage() {
       {editRow && (
         <Drawer title={`Edit Parameter — ${editRow.parameterCode}`} subtitle="Update parameter definition and measurement settings" onClose={() => setEditRow(null)}>
           <form onSubmit={submitEdit}>
+            <Field label="Test Method">
+              <select style={inp} value={editForm.methodId} onChange={e => setEditForm(f => ({ ...f, methodId: e.target.value }))} required>
+                <option value="">Select…</option>
+                {methods.map(m => <option key={m.methodId} value={m.methodId}>{m.methodName}</option>)}
+              </select>
+            </Field>
             <Field label="Parameter Name"><input style={inp} value={editForm.parameterName} onChange={e => setEditForm(f => ({ ...f, parameterName: e.target.value }))} required /></Field>
             <Field label="Parameter Code"><input style={inp} value={editForm.parameterCode} onChange={e => setEditForm(f => ({ ...f, parameterCode: e.target.value }))} required /></Field>
             <Field label="UOM"><input style={inp} value={editForm.uom} onChange={e => setEditForm(f => ({ ...f, uom: e.target.value }))} required /></Field>
