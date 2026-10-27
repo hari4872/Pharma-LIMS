@@ -208,7 +208,9 @@ export default function CoaReviewPage() {
 
   async function openDetail(coa: CoaItem) {
     setSelected(coa); setChecklistLoading(true); setError(''); setChecklistExpanded(false)
-    setConditionalOosNotes([])
+    setConditionalOosNotes([]); setUnitInspLines([])
+    setForm(f => ({ ...f, lotReleasedQty: '', lotScrappedQty: '' }))
+    loadUnitInspection(coa.sampleId, coa.lines)
     // Fetch conditional release OOS notes for this sample
     api.get(`/oos-investigations?sampleId=${coa.sampleId}&status=Closed`).then(r => {
       const notes = (r.data ?? [])
@@ -236,14 +238,31 @@ export default function CoaReviewPage() {
     setChecklistLoading(false)
   }
 
-  async function loadUnitInspection(sampleId: number) {
+  async function loadUnitInspection(sampleId: number, coaLines?: CoaLine[]) {
     try {
       const r = await api.get(`/samples/${sampleId}/unit-inspection-summary`)
-      setUnitInspLines(r.data ?? [])
-      // Pre-fill from max failed (conservative)
-      const maxFailed = Math.max(0, ...(r.data ?? []).map((l: any) => l.failed ?? 0))
-      const maxPassed = Math.max(0, ...(r.data ?? []).map((l: any) => l.passed ?? 0))
-      if (maxFailed > 0) setForm(f => ({ ...f, lotScrappedQty: String(maxFailed), lotReleasedQty: String(maxPassed) }))
+      const apiData: {parameterName: string; inspected: number; passed: number; failed: number}[] = r.data ?? []
+      if (apiData.length > 0) {
+        setUnitInspLines(apiData)
+        const maxFailed = Math.max(0, ...apiData.map(l => l.failed ?? 0))
+        const maxPassed = Math.max(0, ...apiData.map(l => l.passed ?? 0))
+        if (maxFailed > 0 || maxPassed > 0) setForm(f => ({ ...f, lotScrappedQty: String(maxFailed), lotReleasedQty: String(maxPassed) }))
+      } else if (coaLines) {
+        // Fallback: derive from CoA lines when parameters are stored as separate "Units Inspected"/"Units Failed" entries
+        const inspLine = coaLines.find(l => /units.?inspected/i.test(l.parameterName))
+        const failLine = coaLines.find(l => /units.?failed/i.test(l.parameterName))
+        if (inspLine?.calculatedResult != null) {
+          const inspected = Math.round(inspLine.calculatedResult)
+          const failed = failLine?.calculatedResult != null ? Math.round(failLine.calculatedResult) : 0
+          const passed = Math.max(0, inspected - failed)
+          setUnitInspLines([{ parameterName: 'Unit Inspection', inspected, passed, failed }])
+          setForm(f => ({ ...f, lotReleasedQty: String(passed), lotScrappedQty: String(failed) }))
+        } else {
+          setUnitInspLines([])
+        }
+      } else {
+        setUnitInspLines([])
+      }
     } catch { setUnitInspLines([]) }
   }
 
@@ -637,6 +656,56 @@ export default function CoaReviewPage() {
               </table>
             </div>
 
+            {/* Unit Inspection Summary — shown in detail pane for unit-based samples */}
+            {unitInspLines.length > 0 && (
+              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '12px 14px', marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#065f46', marginBottom: 8 }}>Unit Inspection Summary</div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, marginBottom: 12 }}>
+                  <thead>
+                    <tr style={{ background: '#dcfce7' }}>
+                      {['Parameter', 'Inspected', 'Passed ✓', 'Failed ✗'].map(h => (
+                        <th key={h} style={{ padding: '5px 8px', textAlign: h === 'Parameter' ? 'left' : 'right', fontWeight: 600, color: '#374151', borderBottom: '1px solid #86efac' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {unitInspLines.map((l, i) => (
+                      <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f0fdf4' }}>
+                        <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', fontWeight: 500 }}>{l.parameterName}</td>
+                        <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontFamily: 'monospace' }}>{l.inspected}</td>
+                        <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontFamily: 'monospace', color: '#16a34a', fontWeight: 700 }}>{l.passed}</td>
+                        <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontFamily: 'monospace', color: l.failed > 0 ? '#dc2626' : '#374151', fontWeight: l.failed > 0 ? 700 : 400 }}>{l.failed}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {selected?.status === 'Draft' && (
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Lot Disposition (Final)</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', display: 'block', marginBottom: 3 }}>Accepted Units (Released)</label>
+                        <input style={{ width: '100%', padding: '6px 8px', border: '1px solid #86efac', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}
+                          type="number" min="0" step="1" value={form.lotReleasedQty}
+                          onChange={e => setForm(f => ({ ...f, lotReleasedQty: e.target.value }))}
+                          placeholder="e.g. 1590" />
+                        <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>Units that pass — move to next stage</div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', display: 'block', marginBottom: 3 }}>Rejected Units (Scrapped)</label>
+                        <input style={{ width: '100%', padding: '6px 8px', border: '1px solid #fca5a5', borderRadius: 6, fontSize: 13, fontFamily: 'inherit' }}
+                          type="number" min="0" step="1" value={form.lotScrappedQty}
+                          onChange={e => setForm(f => ({ ...f, lotScrappedQty: e.target.value }))}
+                          placeholder="e.g. 10" />
+                        <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>Units that fail — sorted out and destroyed</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 6 }}>💡 Pre-filled from inspection data. Adjust if the same defective units were flagged by multiple parameters.</div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* OOS Conditional Release notes — QA must read before approving */}
             {conditionalOosNotes.length > 0 && (
               <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '12px 14px', marginBottom: 12 }}>
@@ -667,7 +736,7 @@ export default function CoaReviewPage() {
                 </button>
                 {!allChecklistPassed && (
                   <button
-                    onClick={() => { setShowConditional(true); setForm(f => ({ ...f, meaning: 'I conditionally release this batch pending resolution of open items.', reason: '', password: '', conditionalJustification: '', lotReleasedQty: '', lotScrappedQty: '' })); setUnitInspLines([]); loadUnitInspection(selected!.sampleId) }}
+                    onClick={() => { setShowConditional(true); setForm(f => ({ ...f, meaning: 'I conditionally release this batch pending resolution of open items.', reason: '', password: '', conditionalJustification: '' })) }}
                     style={{ padding: '7px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
                     Conditional Release
                   </button>
@@ -676,9 +745,7 @@ export default function CoaReviewPage() {
                   disabled={!allChecklistPassed}
                   onClick={() => {
                     setShowApprove(true)
-                    setForm(f => ({ ...f, meaning: 'I approve the release of this batch. This CoA is accurate.', reason: '', password: '', lotReleasedQty: '', lotScrappedQty: '' }))
-                    setUnitInspLines([])
-                    loadUnitInspection(selected!.sampleId)
+                    setForm(f => ({ ...f, meaning: 'I approve the release of this batch. This CoA is accurate.', reason: '', password: '' }))
                   }}
                   style={{ padding: '7px 16px', background: allChecklistPassed ? '#16a34a' : '#9ca3af',
                     color: '#fff', border: 'none', borderRadius: 4,
