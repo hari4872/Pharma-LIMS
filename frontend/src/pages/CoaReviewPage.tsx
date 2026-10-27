@@ -15,7 +15,7 @@ interface CoaLine {
   coaLineId: number; parameterId: number; parameterName: string; methodCode: string
   specMin: number | null; specMax: number | null; regulatoryTier: string | null
   calculatedResult: number | null; passFail: string; analystName: string; displayOrder: number
-  uom?: string
+  uom?: string; parameterGroup?: string | null
 }
 
 interface CoaApproval {
@@ -249,14 +249,26 @@ export default function CoaReviewPage() {
         if (maxFailed > 0 || maxPassed > 0) setForm(f => ({ ...f, lotScrappedQty: String(maxFailed), lotReleasedQty: String(maxPassed) }))
       } else if (coaLines) {
         // Fallback: derive from CoA lines when parameters are stored as separate "Units Inspected"/"Units Failed" entries
-        const inspLine = coaLines.find(l => /units.?inspected/i.test(l.parameterName))
-        const failLine = coaLines.find(l => /units.?failed/i.test(l.parameterName))
-        if (inspLine?.calculatedResult != null) {
-          const inspected = Math.round(inspLine.calculatedResult)
-          const failed = failLine?.calculatedResult != null ? Math.round(failLine.calculatedResult) : 0
-          const passed = Math.max(0, inspected - failed)
-          setUnitInspLines([{ parameterName: 'Unit Inspection', inspected, passed, failed }])
-          setForm(f => ({ ...f, lotReleasedQty: String(passed), lotScrappedQty: String(failed) }))
+        // Group by parameterGroup so Pinhole, AQL, etc. each get their own row
+        const inspLines = coaLines.filter(l => /units.?inspected/i.test(l.parameterName))
+        const failLines = coaLines.filter(l => /units.?failed/i.test(l.parameterName))
+        if (inspLines.length > 0) {
+          const rows: {parameterName: string; inspected: number; passed: number; failed: number}[] = []
+          for (const inspLine of inspLines) {
+            const group = inspLine.parameterGroup?.trim() || null
+            // Match the failed line by same parameterGroup (or fallback to first if no grouping)
+            const failLine = group
+              ? failLines.find(l => (l.parameterGroup?.trim() || null) === group)
+              : failLines[0]
+            const inspected = Math.round(inspLine.calculatedResult ?? 0)
+            const failed = failLine?.calculatedResult != null ? Math.round(failLine.calculatedResult) : 0
+            const passed = Math.max(0, inspected - failed)
+            rows.push({ parameterName: group ?? 'Unit Inspection', inspected, passed, failed })
+          }
+          setUnitInspLines(rows)
+          const totalFailed = rows.reduce((s, r) => s + r.failed, 0)
+          const totalPassed = rows.reduce((s, r) => s + r.passed, 0)
+          setForm(f => ({ ...f, lotReleasedQty: String(totalPassed), lotScrappedQty: String(totalFailed) }))
         } else {
           setUnitInspLines([])
         }
