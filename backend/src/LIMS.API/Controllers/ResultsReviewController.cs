@@ -80,6 +80,52 @@ public class ResultsReviewController : LimsControllerBase
         return Ok(new { reviewId = result.Value, reviewType = "QCLeadVerification" });
     }
 
+    // POST api/v1/results-review/{executionId}/peer-review-reject
+    [HttpPost("{executionId}/peer-review-reject")]
+    [Authorize(Roles = "Admin,Analyst,LabManager,QA,QCLead")]
+    public async Task<IActionResult> PeerReviewReject(int executionId, [FromBody] ReviewRequest request)
+    {
+        int reviewerId;
+        if (!string.IsNullOrWhiteSpace(request.ReviewerUsername))
+        {
+            var reviewer = await _db.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == request.ReviewerUsername.ToLower() && u.IsActive);
+            if (reviewer is null) return BadRequest(new { error = "USER_NOT_FOUND", message = $"User '{request.ReviewerUsername}' not found." });
+            reviewerId = reviewer.UserId;
+        }
+        else { if (!TryGetUserId(out reviewerId)) return Unauthorized(new { error = "Invalid token claims." }); }
+
+        var result = await _mediator.Send(new RejectPeerReviewCommand(executionId, reviewerId, request.Password, request.Meaning, request.Reason, request.Notes));
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
+            return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        }
+        return Ok(new { reviewId = result.Value, reviewType = "PeerReviewRejected" });
+    }
+
+    // POST api/v1/results-review/{executionId}/qc-lead-reject
+    [HttpPost("{executionId}/qc-lead-reject")]
+    [Authorize(Roles = "Admin,QA,LabManager,QCLead")]
+    public async Task<IActionResult> QCLeadReject(int executionId, [FromBody] ReviewRequest request)
+    {
+        int reviewerId;
+        if (!string.IsNullOrWhiteSpace(request.ReviewerUsername))
+        {
+            var reviewer = await _db.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == request.ReviewerUsername.ToLower() && u.IsActive);
+            if (reviewer is null) return BadRequest(new { error = "USER_NOT_FOUND", message = $"User '{request.ReviewerUsername}' not found." });
+            reviewerId = reviewer.UserId;
+        }
+        else { if (!TryGetUserId(out reviewerId)) return Unauthorized(new { error = "Invalid token claims." }); }
+
+        var result = await _mediator.Send(new RejectQCLeadCommand(executionId, reviewerId, request.Password, request.Meaning, request.Reason, request.Notes));
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "ESIGN_AUTH_FAILED") return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
+            return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        }
+        return Ok(new { reviewId = result.Value, reviewType = "QCLeadRejected" });
+    }
+
     // GET api/v1/results-review/{executionId}/pdf � Batch Analysis Summary PDF
     [HttpGet("{executionId}/pdf")]
     public async Task<IActionResult> GetPdf(int executionId)

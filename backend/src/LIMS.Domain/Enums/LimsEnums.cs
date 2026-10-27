@@ -51,7 +51,7 @@ public enum DispatchStatus { Pending, InDispatchQC, Cleared, Blocked, Dispatched
 
 public enum DispatchTaskStatus { Open, InProgress, Passed, Failed, QAApproved }
 
-public enum ReviewType { PeerReview, QCLeadVerification }
+public enum ReviewType { PeerReview, QCLeadVerification, PeerReviewRejected, QCLeadRejected }
 
 public enum EntryMethod { Manual, FileImport }
 

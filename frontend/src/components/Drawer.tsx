@@ -181,13 +181,16 @@ export function DrawerFooter({
   onCancel,
   label,
   disabled,
+  destructive,
 }: {
   saving: boolean
   onCancel: () => void
   label?: string
   disabled?: boolean
+  destructive?: boolean
 }) {
   const isDisabled = saving || disabled
+  const submitBg = isDisabled ? '#9ca3af' : destructive ? '#dc2626' : '#1e3a5f'
   return (
     <div style={{
       display: 'flex',
@@ -216,7 +219,7 @@ export function DrawerFooter({
         disabled={isDisabled}
         style={{
           padding: '9px 22px',
-          background: isDisabled ? '#9ca3af' : '#1e3a5f',
+          background: submitBg,
           color: '#fff',
           border: 'none',
           borderRadius: 7,

@@ -136,6 +136,8 @@ export default function ResultsReviewPage() {
 
   const [showReview, setShowReview] = useState<{ executionIds: number[]; type: 'peer' | 'qclead' } | null>(null)
   const [reviewForm, setReviewForm] = useState({ reviewerUsername: '', password: '', meaning: '', reason: '', notes: '' })
+  const [showReject, setShowReject] = useState<{ executionIds: number[]; type: 'peer' | 'qclead' } | null>(null)
+  const [rejectForm, setRejectForm] = useState({ reviewerUsername: '', password: '', reason: '' })
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
   const [detailSampleId, setDetailSampleId] = useState<number | null>(null)
@@ -262,6 +264,12 @@ export default function ResultsReviewPage() {
     setError('')
   }
 
+  function openReject(executionIds: number[], type: 'peer' | 'qclead') {
+    setShowReject({ executionIds, type })
+    setRejectForm({ reviewerUsername: '', password: '', reason: '' })
+    setError('')
+  }
+
   async function downloadExecutionPdf(executionId: number, sampleNumber: string) {
     try {
       const res = await api.get(`/results-review/${executionId}/pdf`, { responseType: 'blob' })
@@ -301,6 +309,28 @@ export default function ResultsReviewPage() {
       setStatusFilter(type === 'peer' ? 'PendingQC' : 'All')
       toast('Review recorded successfully', 'success')
     } catch (err) { setError(getErrorMessage(err, 'Review failed')) }
+    finally { setSaving(false) }
+  }
+
+  async function submitReject(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      const type     = showReject!.type
+      const endpoint = type === 'peer' ? 'peer-review-reject' : 'qc-lead-reject'
+      const meaning = type === 'peer'
+        ? 'I reject these test results and send them back to the analyst for rework'
+        : 'I reject these results at QC Lead level and send them back to the analyst for rework'
+      const payload = rejectForm.reviewerUsername.trim()
+        ? { password: rejectForm.password, meaning, reason: rejectForm.reason, reviewerUsername: rejectForm.reviewerUsername.trim() }
+        : { password: rejectForm.password, meaning, reason: rejectForm.reason }
+      for (const executionId of showReject!.executionIds) {
+        await api.post(`/results-review/${executionId}/${endpoint}`, payload)
+      }
+      setShowReject(null)
+      await load()
+      setStatusFilter('InProgress')
+      toast('Execution sent back to analyst for rework', 'success')
+    } catch (err) { setError(getErrorMessage(err, 'Rejection failed')) }
     finally { setSaving(false) }
   }
 
@@ -425,20 +455,34 @@ export default function ResultsReviewPage() {
                       {g.completedAt ? fmtDate(g.completedAt) : '—'}
                     </td>
                     <td style={{ padding: '10px 16px' }}>
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                         {canPeer && canPeerReview && (
-                          <button onClick={() => openReview(g.pendingPeerIds, 'peer')}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer',
-                              fontSize: 13, fontWeight: 600, color: '#2563eb', padding: 0 }}>
-                            Peer Review
-                          </button>
+                          <>
+                            <button onClick={() => openReview(g.pendingPeerIds, 'peer')}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer',
+                                fontSize: 13, fontWeight: 600, color: '#2563eb', padding: 0 }}>
+                              Peer Review
+                            </button>
+                            <button onClick={() => openReject(g.pendingPeerIds, 'peer')}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer',
+                                fontSize: 13, fontWeight: 600, color: '#dc2626', padding: 0 }}>
+                              Reject
+                            </button>
+                          </>
                         )}
                         {canQC && canQCVerify && (
-                          <button onClick={() => openReview(g.pendingQCIds, 'qclead')}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer',
-                              fontSize: 13, fontWeight: 600, color: '#7c3aed', padding: 0 }}>
-                            QC Verify
-                          </button>
+                          <>
+                            <button onClick={() => openReview(g.pendingQCIds, 'qclead')}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer',
+                                fontSize: 13, fontWeight: 600, color: '#7c3aed', padding: 0 }}>
+                              QC Verify
+                            </button>
+                            <button onClick={() => openReject(g.pendingQCIds, 'qclead')}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer',
+                                fontSize: 13, fontWeight: 600, color: '#dc2626', padding: 0 }}>
+                              Reject
+                            </button>
+                          </>
                         )}
                         {/* PDF download — one per execution */}
                         <div style={{ position: 'relative' }}>
@@ -690,6 +734,46 @@ export default function ResultsReviewPage() {
             )}
             <DrawerFooter saving={saving} onCancel={() => { setShowReview(null); setError('') }}
               label={showReview.type === 'peer' ? 'Sign Peer Review' : 'Sign QC Lead Verification'} />
+          </form>
+        </Drawer>
+      )}
+
+      {/* Reject Drawer */}
+      {showReject && (
+        <Drawer
+          title={showReject.type === 'peer' ? 'Peer Review — Reject' : 'QC Lead — Reject'}
+          subtitle="Execution will be sent back to the analyst for rework"
+          onClose={() => { setShowReject(null); setError('') }}
+          blocking width={460}
+        >
+          <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8,
+            padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#991b1b' }}>
+            <strong>Warning:</strong> This will reject {showReject.executionIds.length > 1
+              ? `all ${showReject.executionIds.length} test executions` : 'this execution'} and send {showReject.executionIds.length > 1 ? 'them' : 'it'} back to the analyst for rework.
+            A rejection reason is mandatory and will be recorded as an e-signature event.
+          </div>
+          <form onSubmit={submitReject}>
+            <Field label={showReject.type === 'peer' ? 'Reviewer Username (if different from you)' : 'QC Lead Username (if different from you)'}>
+              <input style={inp} value={rejectForm.reviewerUsername} autoComplete="off"
+                onChange={e => setRejectForm(f => ({ ...f, reviewerUsername: e.target.value }))}
+                placeholder="Leave blank to use your own account" />
+            </Field>
+            <Field label="Password (re-enter to confirm identity)">
+              <input style={inp} type="password" autoFocus autoComplete="current-password" value={rejectForm.password}
+                onChange={e => setRejectForm(f => ({ ...f, password: e.target.value }))} required />
+            </Field>
+            <Field label="Rejection Reason (mandatory)">
+              <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={rejectForm.reason}
+                onChange={e => setRejectForm(f => ({ ...f, reason: e.target.value }))} required
+                placeholder="e.g. Result for Assay is inconsistent with duplicate. Please re-run the test." />
+            </Field>
+            {error && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6,
+                padding: '8px 12px', fontSize: 13, color: '#dc2626', marginBottom: 8 }}>⚠ {error}</div>
+            )}
+            <DrawerFooter saving={saving} onCancel={() => { setShowReject(null); setError('') }}
+              label={showReject.type === 'peer' ? 'Sign & Reject (Peer)' : 'Sign & Reject (QC Lead)'}
+              destructive />
           </form>
         </Drawer>
       )}
