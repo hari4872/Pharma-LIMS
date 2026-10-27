@@ -313,8 +313,8 @@ export default function CoaReviewPage() {
       a.href = url; a.download = `CoA_${coa.coaNumber}.pdf`; a.click()
       URL.revokeObjectURL(url)
       toast(`CoA ${coa.coaNumber} PDF downloaded`, 'success')
-    } catch {
-      toast('Failed to download PDF — CoA may not be approved yet', 'error')
+    } catch (err) {
+      toast(getErrorMessage(err, 'PDF generation failed — please contact IT'), 'error')
     }
   }
 

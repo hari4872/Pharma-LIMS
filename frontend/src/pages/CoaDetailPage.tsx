@@ -4,6 +4,7 @@ import api from '@/api/client'
 import { fmtDate, fmtDateTime } from '@/utils/dateFormat'
 import { fmtCalc } from '@/utils/formatLabel'
 import { toast } from '@/components/Toast'
+import { getErrorMessage } from '@/utils/errors'
 
 interface CoaLine {
   coaLineId: number; parameterId: number; parameterName: string; methodCode: string
@@ -69,8 +70,8 @@ export default function CoaDetailPage() {
       a.href = url; a.download = `CoA_${coa.coaNumber}.pdf`; a.click()
       URL.revokeObjectURL(url)
       toast(`CoA ${coa.coaNumber} PDF downloaded`, 'success')
-    } catch {
-      toast('Failed to download PDF — CoA may not be approved yet', 'error')
+    } catch (err) {
+      toast(getErrorMessage(err, 'PDF generation failed — please contact IT'), 'error')
     }
   }
 
