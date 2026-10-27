@@ -18,6 +18,7 @@ import FormTemplatesPage      from './master-data/FormTemplatesPage'
 import SpecificationTemplatesPage from './master-data/SpecificationTemplatesPage'
 import SamplingPlansPage      from './master-data/SamplingPlansPage'
 import StabilityProtocolsPage from './master-data/StabilityProtocolsPage'
+import LookupTablesPage       from './master-data/LookupTablesPage'
 import UsersPage              from './master-data/UsersPage'
 import UserTrainingRecordsPage from './UserTrainingRecordsPage'
 import WorkflowConfigPage     from './WorkflowConfigPage'
@@ -75,6 +76,7 @@ const TAB_GROUPS: TabGroup[] = [
       { id: 'spec-templates',         label: 'Product Test Plans',      icon: '📝', component: SpecificationTemplatesPage },
       { id: 'sampling-plans',         label: 'Sampling Plans',    icon: '📅', component: SamplingPlansPage },
       { id: 'stability-protocols',    label: 'Stability Protocols', icon: '🧬', component: StabilityProtocolsPage },
+      { id: 'lookup-tables',          label: 'Lookup Tables',       icon: '📊', component: LookupTablesPage },
     ],
   },
   {

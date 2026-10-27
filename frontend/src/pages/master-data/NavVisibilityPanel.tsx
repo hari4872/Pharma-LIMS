@@ -94,6 +94,7 @@ const REGISTRY = [
           { key: 'md.spec-templates',       label: 'Product Test Plans' },
           { key: 'md.sampling-plans',       label: 'Sampling Plans' },
           { key: 'md.stability-protocols',  label: 'Stability Protocols' },
+          { key: 'md.lookup-tables',        label: 'Lookup Tables' },
         ],
       },
       {
