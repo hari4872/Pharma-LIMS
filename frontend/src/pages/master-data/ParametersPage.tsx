@@ -33,6 +33,7 @@ export default function ParametersPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [editRow, setEditRow] = useState<Param | null>(null)
+  const [deleteRow, setDeleteRow] = useState<Param | null>(null)
   const [editForm, setEditForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', lookupTableId: '' as string, instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased', parameterGroup: '' })
 
   function openEdit(r: Param) {
@@ -48,6 +49,17 @@ export default function ParametersPage() {
       inspectionScope: r.inspectionScope || 'SampleBased',
       parameterGroup: r.parameterGroup || '',
     })
+  }
+
+  async function submitDelete() {
+    if (!deleteRow) return
+    setSaving(true); setError('')
+    try {
+      await api.delete(`/parameters/${deleteRow.parameterId}`)
+      setDeleteRow(null); load()
+      toast(`Parameter "${deleteRow.parameterName}" deleted`, 'success')
+    } catch (err) { const msg = getErrorMessage(err, 'Failed to delete'); setError(msg); toast(msg, 'error') }
+    finally { setSaving(false) }
   }
 
   async function submitEdit(e: React.FormEvent) {
@@ -122,12 +134,18 @@ export default function ParametersPage() {
             : <span style={{ background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7', borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>Sample-based</span> },
         { header: 'Critical', accessor: r => r.isCritical ? <span style={{ color: '#dc2626', fontWeight: 700 }}>✓ Critical</span> : '' },
         { header: 'Mandatory', accessor: r => r.isMandatory ? '✓' : '' },
-        { header: 'Edit', accessor: r => (
-          <button onClick={() => openEdit(r)}
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e5e7eb', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#374151', fontFamily:'inherit' }}>
-            <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            Edit
-          </button>
+        { header: '', accessor: r => (
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button onClick={() => openEdit(r)}
+              style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #e5e7eb', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#374151', fontFamily:'inherit' }}>
+              <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Edit
+            </button>
+            <button onClick={() => { setDeleteRow(r); setError('') }}
+              style={{ padding:'3px 10px', border:'1px solid #fca5a5', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#dc2626', fontFamily:'inherit' }}>
+              Delete
+            </button>
+          </div>
         ) },
       ]} />
       {editRow && (
@@ -224,6 +242,17 @@ export default function ParametersPage() {
             </div>
             {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
             <DrawerFooter saving={saving} onCancel={() => setEditRow(null)} label="Save Changes" />
+          </form>
+        </Drawer>
+      )}
+      {deleteRow && (
+        <Drawer title={`Delete Parameter — ${deleteRow.parameterCode}`} subtitle="This cannot be undone. Parameters with recorded results cannot be deleted." onClose={() => { setDeleteRow(null); setError('') }}>
+          <form onSubmit={async e => { e.preventDefault(); await submitDelete() }}>
+            <p style={{ fontSize: 14, color: '#374151', marginBottom: 16 }}>
+              Are you sure you want to delete <strong>{deleteRow.parameterName}</strong>?
+            </p>
+            {error && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 12 }}>{error}</p>}
+            <DrawerFooter saving={saving} onCancel={() => { setDeleteRow(null); setError('') }} label="Delete Parameter" destructive />
           </form>
         </Drawer>
       )}

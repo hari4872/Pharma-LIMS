@@ -20,6 +20,8 @@ export default function TestMethodsPage() {
   const [error, setError] = useState('')
   const [editRow, setEditRow] = useState<Method | null>(null)
   const [editForm, setEditForm] = useState({ methodName: '', sopReference: '', methodType: 'Chemical' })
+  const [retireRow, setRetireRow] = useState<Method | null>(null)
+  const [retireReason, setRetireReason] = useState('')
 
   function openEdit(r: Method) {
     setEditRow(r)
@@ -48,6 +50,16 @@ export default function TestMethodsPage() {
       load()
     }
     catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
+    finally { setSaving(false) }
+  }
+
+  async function submitRetire(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setError('')
+    try {
+      await api.delete(`/test-methods/${retireRow!.methodId}`, { data: { reason: retireReason } })
+      setRetireRow(null); setRetireReason(''); load()
+      toast(`Test Method "${retireRow!.methodName}" retired`, 'success')
+    } catch (err) { const msg = getErrorMessage(err, 'Failed'); setError(msg); toast(msg, 'error') }
     finally { setSaving(false) }
   }
 
@@ -82,6 +94,12 @@ export default function TestMethodsPage() {
               <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               Edit
             </button>
+            {r.status !== 'Retired' && (
+              <button onClick={() => { setRetireRow(r); setRetireReason(''); setError('') }}
+                style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', border:'1px solid #fca5a5', borderRadius:6, background:'#fff', cursor:'pointer', fontSize:12, color:'#dc2626', fontFamily:'inherit' }}>
+                Retire
+              </button>
+            )}
           </div>
         ) },
       ]} />
@@ -129,6 +147,21 @@ export default function TestMethodsPage() {
           saving={saving} error={error} label="Approve"
           reasonLabel="Reason for Approval"
         />
+      )}
+      {retireRow && (
+        <Drawer title={`Retire Test Method — ${retireRow.methodCode}`} subtitle="Retired methods cannot be used for new analyses" onClose={() => { setRetireRow(null); setError('') }}>
+          <form onSubmit={submitRetire}>
+            <Field label="Reason for retiring">
+              <textarea style={{ ...inp, height: 80, resize: 'vertical' } as React.CSSProperties}
+                value={retireReason}
+                onChange={e => setRetireReason(e.target.value)}
+                placeholder="e.g. Superseded by revised method, equipment no longer available…"
+                required />
+            </Field>
+            {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{error}</p>}
+            <DrawerFooter saving={saving} onCancel={() => { setRetireRow(null); setError('') }} label="Retire Method" destructive />
+          </form>
+        </Drawer>
       )}
     </div>
   )

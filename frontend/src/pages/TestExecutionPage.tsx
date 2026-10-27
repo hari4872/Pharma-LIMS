@@ -21,12 +21,29 @@ interface Parameter {
   instrumentType: string | null
   calcFormula: string | null; inputFields: string | null; decimalPlaces: number | null
   inspectionScope?: string; parameterGroup?: string | null
+  lookupTableId?: number | null
+}
+interface LookupTableData {
+  lookupTableId: number; inputCol1: string; inputCol2: string | null; resultCol: string
+  rows: { rowId: number; inputValue1: number; inputValue2: number | null; resultValue: number }[]
 }
 interface InputField { key: string; label: string }
 
 function parseInputFields(raw: string | null | undefined): InputField[] {
   if (!raw) return []
   try { return JSON.parse(raw) } catch { return [] }
+}
+
+function lookupNearest(lt: LookupTableData, v1: number, v2?: number): number | null {
+  if (lt.rows.length === 0) return null
+  let best: number | null = null; let bestDist = Infinity
+  for (const row of lt.rows) {
+    const d1 = row.inputValue1 - v1
+    const d2 = lt.inputCol2 ? ((row.inputValue2 ?? 0) - (v2 ?? 0)) : 0
+    const dist = Math.sqrt(d1 * d1 + d2 * d2)
+    if (dist < bestDist) { bestDist = dist; best = row.resultValue }
+  }
+  return best
 }
 
 function evalFormula(formula: string, vars: Record<string, string>): string | null {
@@ -122,6 +139,8 @@ export default function TestExecutionPage() {
   const [hasOot,      setHasOot]      = useState(false)
   const [showSignOff, setShowSignOff] = useState(false)
   const [signForm,    setSignForm]    = useState({ password: '', meaning: 'I confirm these test results are accurate and complete', reason: '' })
+  const [lookupTables,  setLookupTables]  = useState<Record<number, LookupTableData>>({})
+  const [lookupInputs,  setLookupInputs]  = useState<Record<number, { v1: string; v2: string }>>({})
   const [saving,      setSaving]      = useState(false)
   const [submitting,  setSubmitting]  = useState(false)
   const [draftSaved,  setDraftSaved]  = useState(false)
@@ -229,6 +248,53 @@ export default function TestExecutionPage() {
       .then(r => setSpecLimits(r.data))
       .catch(() => {/* spec limits optional */})
   }, [execution?.materialId])
+
+  // Fetch lookup table rows for any parameter that uses TableLookup formula
+  useEffect(() => {
+    const ids = [...new Set(parameters.filter(p => p.lookupTableId).map(p => p.lookupTableId!))]
+    if (ids.length === 0) return
+    Promise.all(ids.map(ltId => api.get(`/lookup-tables/${ltId}`).then(r => [ltId, r.data] as const)))
+      .then(results => setLookupTables(prev => {
+        const next = { ...prev }
+        results.forEach(([ltId, data]) => { next[ltId] = data })
+        return next
+      }))
+      .catch(() => {})
+  }, [parameters])
+
+  // Auto-wire formula inputs from other parameters by parameterCode matching
+  useEffect(() => {
+    if (parameters.length === 0) return
+    const codeToId: Record<string, number> = {}
+    parameters.forEach(p => { codeToId[p.parameterCode] = p.parameterId })
+
+    parameters.forEach(p => {
+      const fields = parseInputFields(p.inputFields)
+      if (fields.length === 0 || !p.calcFormula) return
+      const autoInputs: Record<string, string> = {}
+      let anyMatched = false
+      fields.forEach(f => {
+        const srcId = codeToId[f.key]
+        if (srcId !== undefined && entries[srcId] !== undefined && entries[srcId] !== '') {
+          autoInputs[f.key] = entries[srcId]
+          anyMatched = true
+        }
+      })
+      if (!anyMatched) return
+      setRawInputs(prev => {
+        const merged = { ...prev[p.parameterId], ...autoInputs }
+        if (JSON.stringify(prev[p.parameterId]) === JSON.stringify(merged)) return prev
+        return { ...prev, [p.parameterId]: merged }
+      })
+      setEntries(prev => {
+        const merged = { ...(rawInputs[p.parameterId] ?? {}), ...autoInputs }
+        const result = evalFormula(p.calcFormula!, merged)
+        if (result === null) return prev
+        if (prev[p.parameterId] === result) return prev
+        return { ...prev, [p.parameterId]: result }
+      })
+    })
+  }, [entries, parameters]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Restore draft
   useEffect(() => {
@@ -544,24 +610,54 @@ export default function TestExecutionPage() {
                                 </div>
                                 <div style={{ fontSize: 12, color: '#475569' }}>{spec ? formatSpec(spec) : <span style={{ color: '#9ca3af' }}>No spec</span>}</div>
                                 <div>
-                                  {isNum ? (
-                                    <input type="number" value={raw}
-                                      onChange={e => setEntries(prev => ({ ...prev, [p.parameterId]: e.target.value }))}
-                                      required={p.isMandatory} placeholder="Value"
-                                      style={{ ...inp, margin: 0, borderColor: status === 'fail' ? '#fca5a5' : status === 'pass' ? '#86efac' : '#e5e7eb' }} />
-                                  ) : p.dataType === 'PassFail' ? (
-                                    <select value={raw} onChange={e => setEntries(prev => ({ ...prev, [p.parameterId]: e.target.value }))}
-                                      required={p.isMandatory} style={{ ...inp, margin: 0, fontFamily: 'inherit' }}>
-                                      <option value="">Select…</option>
-                                      <option value="Pass">Pass</option>
-                                      <option value="Fail">Fail</option>
-                                    </select>
-                                  ) : (
-                                    <input type="text" value={raw}
-                                      onChange={e => setEntries(prev => ({ ...prev, [p.parameterId]: e.target.value }))}
-                                      required={p.isMandatory} placeholder="Value"
-                                      style={{ ...inp, margin: 0, borderColor: status === 'fail' ? '#fca5a5' : status === 'pass' ? '#86efac' : '#e5e7eb' }} />
-                                  )}
+                                  {(() => {
+                                    const glt = p.lookupTableId ? lookupTables[p.lookupTableId] : null
+                                    if (glt) {
+                                      const ltIn = lookupInputs[p.parameterId] ?? { v1: '', v2: '' }
+                                      const updateLt = (updated: { v1: string; v2: string }) => {
+                                        setLookupInputs(prev => ({ ...prev, [p.parameterId]: updated }))
+                                        const u1 = parseFloat(updated.v1); const u2 = glt.inputCol2 ? parseFloat(updated.v2) : undefined
+                                        if (!isNaN(u1) && (!glt.inputCol2 || !isNaN(u2!))) {
+                                          const res = lookupNearest(glt, u1, u2)
+                                          if (res !== null) setEntries(prev => ({ ...prev, [p.parameterId]: String(res) }))
+                                        }
+                                      }
+                                      const matched = !isNaN(parseFloat(ltIn.v1)) ? lookupNearest(glt, parseFloat(ltIn.v1), glt.inputCol2 ? parseFloat(ltIn.v2) : undefined) : null
+                                      return (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                          <input type="number" step="any" value={ltIn.v1}
+                                            onChange={e => updateLt({ ...ltIn, v1: e.target.value })}
+                                            placeholder={glt.inputCol1} required={p.isMandatory}
+                                            style={{ ...inp, margin: 0, borderColor: status === 'fail' ? '#fca5a5' : status === 'pass' ? '#86efac' : '#e5e7eb' }} />
+                                          {glt.inputCol2 && (
+                                            <input type="number" step="any" value={ltIn.v2}
+                                              onChange={e => updateLt({ ...ltIn, v2: e.target.value })}
+                                              placeholder={glt.inputCol2}
+                                              style={{ ...inp, margin: 0 }} />
+                                          )}
+                                          {matched !== null && <div style={{ fontSize: 11, color: '#059669', fontFamily: 'monospace', fontWeight: 700 }}>→ {matched}</div>}
+                                        </div>
+                                      )
+                                    }
+                                    return isNum ? (
+                                      <input type="number" value={raw}
+                                        onChange={e => setEntries(prev => ({ ...prev, [p.parameterId]: e.target.value }))}
+                                        required={p.isMandatory} placeholder="Value"
+                                        style={{ ...inp, margin: 0, borderColor: status === 'fail' ? '#fca5a5' : status === 'pass' ? '#86efac' : '#e5e7eb' }} />
+                                    ) : p.dataType === 'PassFail' ? (
+                                      <select value={raw} onChange={e => setEntries(prev => ({ ...prev, [p.parameterId]: e.target.value }))}
+                                        required={p.isMandatory} style={{ ...inp, margin: 0, fontFamily: 'inherit' }}>
+                                        <option value="">Select…</option>
+                                        <option value="Pass">Pass</option>
+                                        <option value="Fail">Fail</option>
+                                      </select>
+                                    ) : (
+                                      <input type="text" value={raw}
+                                        onChange={e => setEntries(prev => ({ ...prev, [p.parameterId]: e.target.value }))}
+                                        required={p.isMandatory} placeholder="Value"
+                                        style={{ ...inp, margin: 0, borderColor: status === 'fail' ? '#fca5a5' : status === 'pass' ? '#86efac' : '#e5e7eb' }} />
+                                    )
+                                  })()}
                                 </div>
                                 <div style={{ fontSize: 12, color: '#6b7280' }}>{p.instrumentType || '—'}</div>
                                 <div style={{ textAlign: 'center' }}>
@@ -713,6 +809,11 @@ export default function TestExecutionPage() {
                             ⚡ Calculated
                           </span>
                         )}
+                        {p.lookupTableId && lookupTables[p.lookupTableId] && (
+                          <span style={{ fontSize: 10, fontWeight: 700, background: '#f0fdf4', color: '#059669', border: '1px solid #6ee7b7', padding: '1px 6px', borderRadius: 4 }}>
+                            📋 Table Lookup
+                          </span>
+                        )}
                         {p.decimalPlaces !== null && p.decimalPlaces !== undefined && (
                           <span style={{ fontSize: 10, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '1px 6px', borderRadius: 4 }}>
                             {p.decimalPlaces} dp
@@ -729,35 +830,116 @@ export default function TestExecutionPage() {
                       <div style={{ fontSize: 11, color: '#9ca3af' }}>{p.uom || '—'}</div>
                     </div>
 
-                    {/* Value input — single or multi-field formula mode */}
+                    {/* Value input — lookup table, multi-field formula, or plain */}
                     {(() => {
+                      const lt = p.lookupTableId ? lookupTables[p.lookupTableId] : null
+                      if (lt) {
+                        const ltIn = lookupInputs[p.parameterId] ?? { v1: '', v2: '' }
+                        const nv1 = parseFloat(ltIn.v1)
+                        const nv2 = lt.inputCol2 ? parseFloat(ltIn.v2) : undefined
+                        const matched = !isNaN(nv1) && (!lt.inputCol2 || !isNaN(nv2!))
+                          ? lookupNearest(lt, nv1, nv2) : null
+                        const fmt = (v: number) => p.decimalPlaces != null ? v.toFixed(p.decimalPlaces) : String(v)
+                        const updateLookup = (updated: { v1: string; v2: string }) => {
+                          setLookupInputs(prev => ({ ...prev, [p.parameterId]: updated }))
+                          const u1 = parseFloat(updated.v1); const u2 = lt.inputCol2 ? parseFloat(updated.v2) : undefined
+                          if (!isNaN(u1) && (!lt.inputCol2 || !isNaN(u2!))) {
+                            const res = lookupNearest(lt, u1, u2)
+                            if (res !== null) setEntries(prev => ({ ...prev, [p.parameterId]: String(res) }))
+                          }
+                        }
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 12, color: '#6b7280', minWidth: 72, textAlign: 'right', flexShrink: 0 }}>{lt.inputCol1}</span>
+                              <input type="number" step="any" value={ltIn.v1}
+                                onChange={e => updateLookup({ ...ltIn, v1: e.target.value })}
+                                required={p.isMandatory} placeholder="0.000"
+                                style={{ ...inp, margin: 0, width: 110, minWidth: 110, fontFamily: 'monospace', fontSize: 14, padding: '6px 8px' }} />
+                            </div>
+                            {lt.inputCol2 && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontSize: 12, color: '#6b7280', minWidth: 72, textAlign: 'right', flexShrink: 0 }}>{lt.inputCol2}</span>
+                                <input type="number" step="any" value={ltIn.v2}
+                                  onChange={e => updateLookup({ ...ltIn, v2: e.target.value })}
+                                  placeholder="0.000"
+                                  style={{ ...inp, margin: 0, width: 110, minWidth: 110, fontFamily: 'monospace', fontSize: 14, padding: '6px 8px' }} />
+                              </div>
+                            )}
+                            <div style={{ fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: matched !== null ? '#059669' : '#9ca3af', paddingLeft: 80 }}>
+                              {matched !== null ? `→ ${fmt(matched)} ${p.uom || ''}`.trim() : 'enter input to look up'}
+                            </div>
+                          </div>
+                        )
+                      }
                       const fields = parseInputFields(p.inputFields)
                       if (fields.length > 0 && p.calcFormula) {
                         const inputs = rawInputs[p.parameterId] ?? {}
+                        // Determine which fields are auto-wired from another parameter's code
+                        const codeToParamId: Record<string, number> = {}
+                        parameters.forEach(q => { codeToParamId[q.parameterCode] = q.parameterId })
+                        const autoKeys = new Set(fields.map(f => f.key).filter(k => codeToParamId[k] !== undefined))
+                        const manualFields = fields.filter(f => !autoKeys.has(f.key))
+                        const allAuto = manualFields.length === 0
+
                         const computed = evalFormula(p.calcFormula, inputs)
+                        const displayResult = computed !== null
+                          ? (p.decimalPlaces !== null && p.decimalPlaces !== undefined ? Number(computed).toFixed(p.decimalPlaces) : computed)
+                          : null
+                        const resultStatus = displayResult !== null ? evalValue(displayResult, specFor(p.parameterId), p.dataType) : 'pending'
+                        const resultColor = resultStatus === 'fail' ? '#dc2626' : resultStatus === 'pass' ? '#059669' : '#6b7280'
                         return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            {fields.map(f => (
-                              <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span style={{ fontSize: 12, color: '#6b7280', minWidth: 52, textAlign: 'right', flexShrink: 0 }}>{f.label}</span>
-                                <input
-                                  type="number" step="any"
-                                  value={inputs[f.key] ?? ''}
-                                  onChange={e => {
-                                    const updated = { ...inputs, [f.key]: e.target.value }
-                                    setRawInputs(prev => ({ ...prev, [p.parameterId]: updated }))
-                                    const result = evalFormula(p.calcFormula!, updated)
-                                    if (result !== null) setEntries(prev => ({ ...prev, [p.parameterId]: result }))
-                                  }}
-                                  placeholder="0.000"
-                                  style={{ ...inp, margin: 0, width: 110, minWidth: 110, fontFamily: 'monospace', fontSize: 14, padding: '6px 8px' }}
-                                />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {/* Show auto-wired sources as read-only pills */}
+                            {autoKeys.size > 0 && (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                {fields.filter(f => autoKeys.has(f.key)).map(f => (
+                                  <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 4, fontSize: 11 }}>
+                                    <span style={{ color: '#3b82f6' }}>⟵</span>
+                                    <span style={{ color: '#1d4ed8', fontWeight: 600 }}>{f.label}</span>
+                                    <span style={{ fontFamily: 'monospace', color: '#1e40af', fontWeight: 700 }}>{inputs[f.key] ?? '—'}</span>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                            <div style={{ fontSize: 13, color: computed !== null ? '#0d6e6e' : '#9ca3af', fontFamily: 'monospace', fontWeight: 700, paddingLeft: 84 }}>
-                              {computed !== null
-                                ? `= ${p.decimalPlaces !== null ? Number(computed).toFixed(p.decimalPlaces!) : computed}`
-                                : 'fill inputs above'}
+                            )}
+                            {/* Manual entry fields (not matched to any parameter code) */}
+                            {!allAuto && manualFields.length > 0 && (
+                              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(manualFields.length, 3)}, 1fr)`, gap: 8 }}>
+                                {manualFields.map(f => (
+                                  <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    <label style={{ fontSize: 11, fontWeight: 600, color: '#4b5563', lineHeight: 1.2, letterSpacing: '0.01em' }}>
+                                      {f.label}
+                                    </label>
+                                    <input
+                                      type="number" step="any"
+                                      value={inputs[f.key] ?? ''}
+                                      onChange={e => {
+                                        const updated = { ...inputs, [f.key]: e.target.value }
+                                        setRawInputs(prev => ({ ...prev, [p.parameterId]: updated }))
+                                        const result = evalFormula(p.calcFormula!, updated)
+                                        if (result !== null) setEntries(prev => ({ ...prev, [p.parameterId]: result }))
+                                      }}
+                                      placeholder="0.000"
+                                      style={{ ...inp, margin: 0, fontFamily: 'monospace', fontSize: 13, padding: '5px 8px',
+                                        borderColor: inputs[f.key] ? '#6366f1' : '#d1d5db',
+                                        background: inputs[f.key] ? '#fafafe' : '#fafafa' }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 6,
+                              background: displayResult !== null ? (resultStatus === 'fail' ? '#fef2f2' : resultStatus === 'pass' ? '#f0fdf4' : '#f8fafc') : '#f8fafc',
+                              border: `1px solid ${displayResult !== null ? (resultStatus === 'fail' ? '#fecaca' : resultStatus === 'pass' ? '#bbf7d0' : '#e2e8f0') : '#e2e8f0'}` }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0 }}>Result</span>
+                              <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 16, color: resultColor, flex: 1, textAlign: 'right' }}>
+                                {displayResult !== null ? `${displayResult}${p.uom ? ` ${p.uom}` : ''}` : '—'}
+                              </span>
+                              {resultStatus !== 'pending' && (
+                                <span style={{ fontSize: 11, fontWeight: 700, color: resultColor, flexShrink: 0 }}>
+                                  {resultStatus === 'pass' ? '✓ Pass' : resultStatus === 'fail' ? '✗ OOS' : ''}
+                                </span>
+                              )}
                             </div>
                           </div>
                         )

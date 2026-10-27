@@ -42,6 +42,16 @@ public class ParametersController : ControllerBase
         if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(new { parameterId = result.Value });
     }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var username = User.Identity?.Name ?? "Unknown";
+        var result = await _mediator.Send(new DeleteParameterCommand(id, username));
+        if (!result.IsSuccess) return result.ErrorCode == "NOT_FOUND" ? NotFound() : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        return Ok(new { parameterId = result.Value });
+    }
 }
 
 public record CreateParameterRequest(int MethodId, string ParameterName, string ParameterCode,
