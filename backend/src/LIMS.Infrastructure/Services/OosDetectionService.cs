@@ -18,6 +18,10 @@ public class OosDetectionService : IOosDetectionService
 
         var val = calculatedResult.Value;
 
+        // No spec defined — result is informational only, not judged
+        if (!specMin.HasValue && !specMax.HasValue)
+            return new OosDetectionResult(false, false, "N/A");
+
         // OOS: outside in-house spec limits (FDA OOS Guidance 2006)
         bool isOos = false;
         if (specMin.HasValue && val < specMin.Value) isOos = true;

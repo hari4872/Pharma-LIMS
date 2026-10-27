@@ -269,10 +269,15 @@ export default function CoaReviewPage() {
   async function submitConditional(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
     try {
-      await api.post(`/coas/${selected!.coaId}/approve`, {
+      const body: Record<string, unknown> = {
         password: form.password, meaning: form.meaning, reason: form.reason,
         isConditionalRelease: true, conditionalJustification: form.conditionalJustification
-      })
+      }
+      if (unitInspLines.length > 0 && form.lotReleasedQty) {
+        body.lotReleasedQty = parseFloat(form.lotReleasedQty)
+        body.lotScrappedQty = form.lotScrappedQty ? parseFloat(form.lotScrappedQty) : 0
+      }
+      await api.post(`/coas/${selected!.coaId}/approve`, body)
       toast(`CoA ${selected!.coaNumber} conditionally released`, 'success')
       setShowConditional(false); setSelected(null); await load()
       setStatusFilter('Released')
@@ -662,7 +667,7 @@ export default function CoaReviewPage() {
                 </button>
                 {!allChecklistPassed && (
                   <button
-                    onClick={() => { setShowConditional(true); setForm(f => ({ ...f, meaning: 'I conditionally release this batch pending resolution of open items.', reason: '', password: '', conditionalJustification: '' })) }}
+                    onClick={() => { setShowConditional(true); setForm(f => ({ ...f, meaning: 'I conditionally release this batch pending resolution of open items.', reason: '', password: '', conditionalJustification: '', lotReleasedQty: '', lotScrappedQty: '' })); setUnitInspLines([]); loadUnitInspection(selected!.sampleId) }}
                     style={{ padding: '7px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}>
                     Conditional Release
                   </button>
@@ -822,6 +827,24 @@ export default function CoaReviewPage() {
             <Field label="Justification (mandatory)">
               <textarea style={{ ...inp, height: 80, resize: 'vertical' }} value={form.conditionalJustification} onChange={e => setForm(f => ({ ...f, conditionalJustification: e.target.value }))} required placeholder="e.g. Evidence to be submitted within 5 working days per SOP-QC-014…" />
             </Field>
+            {unitInspLines.length > 0 && (
+              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6, padding: '10px 12px', marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Enter Final Lot Count</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', display: 'block', marginBottom: 3 }}>Accepted Units (Released)</label>
+                    <input style={{ ...inp, borderColor: '#86efac' }} type="number" min="0" step="1" value={form.lotReleasedQty}
+                      onChange={e => setForm(f => ({ ...f, lotReleasedQty: e.target.value }))} placeholder="e.g. 800" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', display: 'block', marginBottom: 3 }}>Rejected Units (Scrapped)</label>
+                    <input style={{ ...inp, borderColor: '#fca5a5' }} type="number" min="0" step="1" value={form.lotScrappedQty}
+                      onChange={e => setForm(f => ({ ...f, lotScrappedQty: e.target.value }))} placeholder="e.g. 200" />
+                  </div>
+                </div>
+                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 6 }}>💡 Pre-filled from inspection data. Adjust if needed.</div>
+              </div>
+            )}
             <Field label="Password (re-enter)"><input style={inp} type="password" autoFocus value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required /></Field>
             <Field label="Meaning"><input style={inp} value={form.meaning} onChange={e => setForm(f => ({ ...f, meaning: e.target.value }))} required /></Field>
             <Field label="Reason"><input style={inp} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} required placeholder="e.g. Batch required for urgent supply — evidence pending" /></Field>
