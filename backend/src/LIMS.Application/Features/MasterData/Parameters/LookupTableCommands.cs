@@ -44,9 +44,13 @@ public class CreateLookupTableCommandHandler : IRequestHandler<CreateLookupTable
 }
 
 public record GetLookupTablesQuery : IRequest<List<LookupTableDto>>;
+public record GetLookupTableDetailQuery(int LookupTableId) : IRequest<LookupTableDetailDto?>;
 
 public record LookupTableDto(int LookupTableId, string LookupCode, string InputCol1,
     string? InputCol2, string ResultCol, bool IsActive, int RowCount);
+public record LookupRowDto(int RowId, decimal InputValue1, decimal? InputValue2, decimal ResultValue);
+public record LookupTableDetailDto(int LookupTableId, string LookupCode, string InputCol1,
+    string? InputCol2, string ResultCol, bool IsActive, List<LookupRowDto> Rows);
 
 public class GetLookupTablesQueryHandler : IRequestHandler<GetLookupTablesQuery, List<LookupTableDto>>
 {
@@ -58,6 +62,25 @@ public class GetLookupTablesQueryHandler : IRequestHandler<GetLookupTablesQuery,
             .Select(l => new LookupTableDto(l.LookupTableId, l.LookupCode, l.InputCol1, l.InputCol2,
                 l.ResultCol, l.IsActive, l.Rows.Count))
             .ToListAsync(ct);
+}
+
+public class GetLookupTableDetailQueryHandler : IRequestHandler<GetLookupTableDetailQuery, LookupTableDetailDto?>
+{
+    private readonly ILimsDbContext _db;
+    public GetLookupTableDetailQueryHandler(ILimsDbContext db) => _db = db;
+
+    public async Task<LookupTableDetailDto?> Handle(GetLookupTableDetailQuery request, CancellationToken ct)
+    {
+        var table = await _db.ParameterLookupTables
+            .Include(l => l.Rows)
+            .FirstOrDefaultAsync(l => l.LookupTableId == request.LookupTableId, ct);
+        if (table is null) return null;
+        var rows = table.Rows.OrderBy(r => r.InputValue1).ThenBy(r => r.InputValue2)
+            .Select(r => new LookupRowDto(r.RowId, r.InputValue1, r.InputValue2, r.ResultValue))
+            .ToList();
+        return new LookupTableDetailDto(table.LookupTableId, table.LookupCode, table.InputCol1,
+            table.InputCol2, table.ResultCol, table.IsActive, rows);
+    }
 }
 
 public record AddLookupRowCommand(int LookupTableId, decimal InputValue1,

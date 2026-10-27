@@ -13,7 +13,7 @@ public record UpdateParameterCommand(
     string? InstrumentType, bool IsCritical, bool IsMandatory,
     string? ColumnFrequency, string UpdatedBy, int? DecimalPlaces = null,
     string? InputFields = null, string InspectionScope = "SampleBased",
-    string? ParameterGroup = null) : IRequest<Result<int>>;
+    string? ParameterGroup = null, int? LookupTableId = null) : IRequest<Result<int>>;
 
 public class UpdateParameterCommandValidator : AbstractValidator<UpdateParameterCommand>
 {
@@ -55,6 +55,7 @@ public class UpdateParameterCommandHandler : IRequestHandler<UpdateParameterComm
         param.InspectionScope = Enum.TryParse<InspectionScope>(request.InspectionScope, out var scope) ? scope : InspectionScope.SampleBased;
         param.ParameterGroup = request.ParameterGroup;
         param.DecimalPlaces = request.DecimalPlaces;
+        param.LookupTableId = request.LookupTableId;
         await _db.SaveChangesAsync(ct);
         try { await _audit.LogAsync("Parameter", param.ParameterId, "Updated", old, new { param.ParameterName, param.ParameterCode, param.Uom, param.DataType, param.FormulaType, param.IsCritical, param.IsMandatory }, request.UpdatedBy); } catch { /* non-critical */ }
         return Result<int>.Success(param.ParameterId);

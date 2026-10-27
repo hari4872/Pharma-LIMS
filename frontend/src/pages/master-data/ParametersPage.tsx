@@ -7,7 +7,8 @@ import { toast } from '@/components/Toast'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface InputField { key: string; label: string }
-interface Param { parameterId: number; methodName: string; parameterName: string; parameterCode: string; uom: string; dataType: string; formulaType: string; instrumentType: string; columnFrequency: string; isCritical: boolean; isMandatory: boolean; inputFields?: string | null; inspectionScope?: string; parameterGroup?: string | null }
+interface Param { parameterId: number; methodName: string; parameterName: string; parameterCode: string; uom: string; dataType: string; formulaType: string; instrumentType: string; columnFrequency: string; isCritical: boolean; isMandatory: boolean; inputFields?: string | null; inspectionScope?: string; parameterGroup?: string | null; lookupTableId?: number | null }
+interface LookupTableOption { lookupTableId: number; lookupCode: string; inputCol1: string; inputCol2: string | null; resultCol: string }
 
 const MATH_KEYWORDS = new Set(['Math','abs','sqrt','pow','log','exp','round','floor','ceil','min','max','PI','E'])
 
@@ -25,19 +26,21 @@ interface Method { methodId: number; methodName: string }
 export default function ParametersPage() {
   const [data, setData] = useState<Param[]>([])
   const [methods, setMethods] = useState<Method[]>([])
+  const [lookupTables, setLookupTables] = useState<LookupTableOption[]>([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased', parameterGroup: '' })
+  const [form, setForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', lookupTableId: '' as string, instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased', parameterGroup: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [editRow, setEditRow] = useState<Param | null>(null)
-  const [editForm, setEditForm] = useState({ parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased', parameterGroup: '' })
+  const [editForm, setEditForm] = useState({ parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', lookupTableId: '' as string, instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased', parameterGroup: '' })
 
   function openEdit(r: Param) {
     setEditRow(r)
     setEditForm({
       parameterName: r.parameterName, parameterCode: r.parameterCode, uom: r.uom,
       dataType: r.dataType, formulaType: r.formulaType, calcFormula: '',
+      lookupTableId: r.lookupTableId ? String(r.lookupTableId) : '',
       instrumentType: r.instrumentType || '', columnFrequency: r.columnFrequency || '',
       isCritical: r.isCritical, isMandatory: r.isMandatory,
       inputFields: parseInputFields(r.inputFields),
@@ -56,6 +59,7 @@ export default function ParametersPage() {
         inputFields: editForm.inputFields.length > 0 ? JSON.stringify(editForm.inputFields) : null,
         inspectionScope: editForm.inspectionScope,
         parameterGroup: editForm.parameterGroup || null,
+        lookupTableId: editForm.lookupTableId ? parseInt(editForm.lookupTableId) : null,
       })
       setEditRow(null); load()
       toast(`Parameter "${editForm.parameterName}" updated successfully`, 'success')
@@ -66,11 +70,12 @@ export default function ParametersPage() {
   async function load() {
     setLoading(true)
     try {
-      const [r, mr] = await Promise.all([
+      const [r, mr, lr] = await Promise.all([
         api.get('/parameters').catch(() => ({ data: [] })),
         api.get('/test-methods?statusFilter=Approved').catch(() => ({ data: [] })),
+        api.get('/lookup-tables').catch(() => ({ data: [] })),
       ])
-      setData(r.data); setMethods(mr.data)
+      setData(r.data); setMethods(mr.data); setLookupTables(lr.data)
     } finally { setLoading(false) }
   }
   useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t) }, [])
@@ -86,6 +91,7 @@ export default function ParametersPage() {
         inputFields: form.inputFields.length > 0 ? JSON.stringify(form.inputFields) : null,
         inspectionScope: form.inspectionScope,
         parameterGroup: form.parameterGroup || null,
+        lookupTableId: form.lookupTableId ? parseInt(form.lookupTableId) : null,
       })
       setShowForm(false)
       toast(`Parameter "${form.parameterName}" added successfully`, 'success')
@@ -96,7 +102,7 @@ export default function ParametersPage() {
 
   return (
     <div>
-      <PageHeader title="Parameters" onAdd={() => { setForm({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [], inspectionScope: 'SampleBased', parameterGroup: '' }); setError(''); setShowForm(true) }} />
+      <PageHeader title="Parameters" onAdd={() => { setForm({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', lookupTableId: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [], inspectionScope: 'SampleBased', parameterGroup: '' }); setError(''); setShowForm(true) }} />
       <DataTable loading={loading} data={data} exportFilename="Parameters" columns={[
         { header: 'Code', accessor: 'parameterCode' },
         { header: 'Name', accessor: 'parameterName' },
@@ -165,6 +171,19 @@ export default function ParametersPage() {
                 </Field>
               )}
             </>}
+            {editForm.formulaType === 'TableLookup' && (
+              <Field label="Lookup Table">
+                <select style={inp} value={editForm.lookupTableId} onChange={e => setEditForm(f => ({ ...f, lookupTableId: e.target.value }))}>
+                  <option value="">— Select a lookup table —</option>
+                  {lookupTables.map(lt => (
+                    <option key={lt.lookupTableId} value={lt.lookupTableId}>
+                      {lt.lookupCode} ({lt.inputCol1}{lt.inputCol2 ? ` × ${lt.inputCol2}` : ''} → {lt.resultCol})
+                    </option>
+                  ))}
+                </select>
+                {lookupTables.length === 0 && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>No lookup tables defined — create one in Master Data › Lookup Tables first.</div>}
+              </Field>
+            )}
             <Field label="Required Instrument Type">
               <input style={inp} value={editForm.instrumentType} onChange={e => setEditForm(f => ({ ...f, instrumentType: e.target.value }))} placeholder="e.g. HPLC, pH Meter" />
             </Field>
@@ -250,6 +269,19 @@ export default function ParametersPage() {
                 </Field>
               )}
             </>}
+            {form.formulaType === 'TableLookup' && (
+              <Field label="Lookup Table">
+                <select style={inp} value={form.lookupTableId} onChange={e => setForm(f => ({ ...f, lookupTableId: e.target.value }))}>
+                  <option value="">— Select a lookup table —</option>
+                  {lookupTables.map(lt => (
+                    <option key={lt.lookupTableId} value={lt.lookupTableId}>
+                      {lt.lookupCode} ({lt.inputCol1}{lt.inputCol2 ? ` × ${lt.inputCol2}` : ''} → {lt.resultCol})
+                    </option>
+                  ))}
+                </select>
+                {lookupTables.length === 0 && <div style={{ fontSize: 11, color: '#dc2626', marginTop: 3 }}>No lookup tables defined — create one in Master Data › Lookup Tables first.</div>}
+              </Field>
+            )}
             <Field label="Required Instrument Type">
               <input style={inp} value={form.instrumentType} onChange={e => setForm(f => ({ ...f, instrumentType: e.target.value }))}
                 placeholder="e.g. HPLC, pH Meter, Titrator" />

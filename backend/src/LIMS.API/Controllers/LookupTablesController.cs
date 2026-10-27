@@ -17,6 +17,13 @@ public class LookupTablesController : ControllerBase
     public async Task<IActionResult> GetAll()
         => Ok(await _mediator.Send(new GetLookupTablesQuery()));
 
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var result = await _mediator.Send(new GetLookupTableDetailQuery(id));
+        return result is null ? NotFound() : Ok(result);
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin,QA")]
     public async Task<IActionResult> Create([FromBody] CreateLookupTableRequest request)
