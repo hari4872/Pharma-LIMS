@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import { GATE_HELP } from '@/pages/WorkflowConfigPage'
