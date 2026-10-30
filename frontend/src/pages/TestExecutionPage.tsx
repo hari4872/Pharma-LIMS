@@ -266,7 +266,7 @@ export default function TestExecutionPage() {
   useEffect(() => {
     if (parameters.length === 0) return
     const codeToId: Record<string, number> = {}
-    parameters.forEach(p => { codeToId[p.parameterCode] = p.parameterId })
+    parameters.forEach(p => { codeToId[p.parameterCode.toLowerCase()] = p.parameterId })
 
     parameters.forEach(p => {
       const fields = parseInputFields(p.inputFields)
@@ -274,7 +274,7 @@ export default function TestExecutionPage() {
       const autoInputs: Record<string, string> = {}
       let anyMatched = false
       fields.forEach(f => {
-        const srcId = codeToId[f.key]
+        const srcId = codeToId[f.key.toLowerCase()]
         if (srcId !== undefined && entries[srcId] !== undefined && entries[srcId] !== '') {
           autoInputs[f.key] = entries[srcId]
           anyMatched = true
@@ -877,8 +877,8 @@ export default function TestExecutionPage() {
                         const inputs = rawInputs[p.parameterId] ?? {}
                         // Determine which fields are auto-wired from another parameter's code
                         const codeToParamId: Record<string, number> = {}
-                        parameters.forEach(q => { codeToParamId[q.parameterCode] = q.parameterId })
-                        const autoKeys = new Set(fields.map(f => f.key).filter(k => codeToParamId[k] !== undefined))
+                        parameters.forEach(q => { codeToParamId[q.parameterCode.toLowerCase()] = q.parameterId })
+                        const autoKeys = new Set(fields.map(f => f.key).filter(k => codeToParamId[k.toLowerCase()] !== undefined))
                         const manualFields = fields.filter(f => !autoKeys.has(f.key))
                         const allAuto = manualFields.length === 0
 

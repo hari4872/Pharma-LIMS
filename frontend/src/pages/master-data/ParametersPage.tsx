@@ -7,7 +7,7 @@ import { toast } from '@/components/Toast'
 import { Drawer, DrawerFooter } from '@/components/Drawer'
 
 interface InputField { key: string; label: string }
-interface Param { parameterId: number; methodId: number; methodName: string; parameterName: string; parameterCode: string; uom: string; dataType: string; formulaType: string; instrumentType: string; columnFrequency: string; isCritical: boolean; isMandatory: boolean; inputFields?: string | null; inspectionScope?: string; parameterGroup?: string | null; lookupTableId?: number | null }
+interface Param { parameterId: number; methodId: number; methodName: string; parameterName: string; parameterCode: string; uom: string; dataType: string; formulaType: string; calcFormula?: string | null; instrumentType: string; columnFrequency: string; isCritical: boolean; isMandatory: boolean; inputFields?: string | null; inspectionScope?: string; parameterGroup?: string | null; lookupTableId?: number | null; sortOrder?: number }
 interface LookupTableOption { lookupTableId: number; lookupCode: string; inputCol1: string; inputCol2: string | null; resultCol: string }
 
 const MATH_KEYWORDS = new Set(['Math','abs','sqrt','pow','log','exp','round','floor','ceil','min','max','PI','E'])
@@ -29,25 +29,26 @@ export default function ParametersPage() {
   const [lookupTables, setLookupTables] = useState<LookupTableOption[]>([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', lookupTableId: '' as string, instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased', parameterGroup: '' })
+  const [form, setForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', lookupTableId: '' as string, instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased', parameterGroup: '', sortOrder: '0' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [editRow, setEditRow] = useState<Param | null>(null)
   const [deleteRow, setDeleteRow] = useState<Param | null>(null)
-  const [editForm, setEditForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', lookupTableId: '' as string, instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased', parameterGroup: '' })
+  const [editForm, setEditForm] = useState({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', lookupTableId: '' as string, instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [] as InputField[], inspectionScope: 'SampleBased', parameterGroup: '', sortOrder: '0' })
 
   function openEdit(r: Param) {
     setEditRow(r)
     setEditForm({
       methodId: String(r.methodId ?? ''),
       parameterName: r.parameterName, parameterCode: r.parameterCode, uom: r.uom,
-      dataType: r.dataType, formulaType: r.formulaType, calcFormula: '',
+      dataType: r.dataType, formulaType: r.formulaType, calcFormula: r.calcFormula || '',
       lookupTableId: r.lookupTableId ? String(r.lookupTableId) : '',
       instrumentType: r.instrumentType || '', columnFrequency: r.columnFrequency || '',
       isCritical: r.isCritical, isMandatory: r.isMandatory,
       inputFields: parseInputFields(r.inputFields),
       inspectionScope: r.inspectionScope || 'SampleBased',
       parameterGroup: r.parameterGroup || '',
+      sortOrder: String(r.sortOrder ?? 0),
     })
   }
 
@@ -74,6 +75,7 @@ export default function ParametersPage() {
         inspectionScope: editForm.inspectionScope,
         parameterGroup: editForm.parameterGroup || null,
         lookupTableId: editForm.lookupTableId ? parseInt(editForm.lookupTableId) : null,
+        sortOrder: parseInt(editForm.sortOrder) || 0,
       })
       setEditRow(null); load()
       toast(`Parameter "${editForm.parameterName}" updated successfully`, 'success')
@@ -106,6 +108,7 @@ export default function ParametersPage() {
         inspectionScope: form.inspectionScope,
         parameterGroup: form.parameterGroup || null,
         lookupTableId: form.lookupTableId ? parseInt(form.lookupTableId) : null,
+        sortOrder: parseInt(form.sortOrder) || 0,
       })
       setShowForm(false)
       toast(`Parameter "${form.parameterName}" added successfully`, 'success')
@@ -116,7 +119,7 @@ export default function ParametersPage() {
 
   return (
     <div>
-      <PageHeader title="Parameters" onAdd={() => { setForm({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', lookupTableId: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [], inspectionScope: 'SampleBased', parameterGroup: '' }); setError(''); setShowForm(true) }} />
+      <PageHeader title="Parameters" onAdd={() => { setForm({ methodId: '', parameterName: '', parameterCode: '', uom: '', dataType: 'Numeric', formulaType: 'Expression', calcFormula: '', lookupTableId: '', instrumentType: '', columnFrequency: '', isCritical: false, isMandatory: true, inputFields: [], inspectionScope: 'SampleBased', parameterGroup: '', sortOrder: '0' }); setError(''); setShowForm(true) }} />
       <DataTable loading={loading} data={data} exportFilename="Parameters" columns={[
         { header: 'Code', accessor: 'parameterCode' },
         { header: 'Name', accessor: 'parameterName' },
@@ -227,11 +230,17 @@ export default function ParametersPage() {
                 <option value="UnitBased">Unit-based — counts units inspected / passed / failed</option>
               </select>
             </Field>
-            <Field label="Parameter Group (optional)">
-              <input style={inp} value={editForm.parameterGroup}
-                onChange={e => setEditForm(f => ({ ...f, parameterGroup: e.target.value }))}
-                placeholder="e.g. Appearance, Color, Pinhole — groups params in Enter Results" />
-            </Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end' }}>
+              <Field label="Parameter Group (optional)">
+                <input style={inp} value={editForm.parameterGroup}
+                  onChange={e => setEditForm(f => ({ ...f, parameterGroup: e.target.value }))}
+                  placeholder="e.g. Appearance, Color, Pinhole — groups params in Enter Results" />
+              </Field>
+              <Field label="Sort Order">
+                <input style={{ ...inp, width: 70 }} type="number" min="0" value={editForm.sortOrder}
+                  onChange={e => setEditForm(f => ({ ...f, sortOrder: e.target.value }))} />
+              </Field>
+            </div>
             <div style={{ display: 'flex', gap: 24 }}>
               <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 14 }}>
                 <input type="checkbox" checked={editForm.isCritical} onChange={e => setEditForm(f => ({ ...f, isCritical: e.target.checked }))} /> Critical
@@ -337,11 +346,17 @@ export default function ParametersPage() {
                 <option value="UnitBased">Unit-based — counts units inspected / passed / failed</option>
               </select>
             </Field>
-            <Field label="Parameter Group (optional)">
-              <input style={inp} value={form.parameterGroup}
-                onChange={e => setForm(f => ({ ...f, parameterGroup: e.target.value }))}
-                placeholder="e.g. Appearance, Color, Pinhole — groups params in Enter Results" />
-            </Field>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end' }}>
+              <Field label="Parameter Group (optional)">
+                <input style={inp} value={form.parameterGroup}
+                  onChange={e => setForm(f => ({ ...f, parameterGroup: e.target.value }))}
+                  placeholder="e.g. Appearance, Color, Pinhole — groups params in Enter Results" />
+              </Field>
+              <Field label="Sort Order">
+                <input style={{ ...inp, width: 70 }} type="number" min="0" value={form.sortOrder}
+                  onChange={e => setForm(f => ({ ...f, sortOrder: e.target.value }))} />
+              </Field>
+            </div>
             <div style={{ display: 'flex', gap: 24 }}>
               <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 14 }}>
                 <input type="checkbox" checked={form.isCritical} onChange={e => setForm(f => ({ ...f, isCritical: e.target.checked }))} /> Critical

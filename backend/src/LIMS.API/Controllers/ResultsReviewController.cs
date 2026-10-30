@@ -184,7 +184,10 @@ public class ResultsReviewController : LimsControllerBase
             Status:        exec.Status.ToString(),
             StartedAt:     exec.StartedAt,
             CompletedAt:   exec.CompletedAt,
-            Results: exec.LogbookEntries.Select(le =>
+            Results: exec.LogbookEntries
+                .OrderBy(le => le.Parameter?.SortOrder ?? 0)
+                .ThenBy(le => le.EntryId)
+                .Select(le =>
             {
                 // Find the OOS investigation for this logbook entry (if any)
                 var inv = exec.OosInvestigations.FirstOrDefault(oi => oi.EntryId == le.EntryId);
@@ -203,7 +206,7 @@ public class ResultsReviewController : LimsControllerBase
                             c.CycleNumber, c.ExecutionId,
                             ce?.RawValue, ce?.CalculatedResult, ce?.PassFail,
                             c.Execution.Analyst?.FullName,
-                            c.Execution.Status == LIMS.Domain.Enums.TestExecutionStatus.Completed ? c.Execution.CompletedAt : null
+                            c.Execution.CompletedAt
                         );
                     }).ToList();
                 return new BatchAnalysisPdfDocument.TestResultRow(

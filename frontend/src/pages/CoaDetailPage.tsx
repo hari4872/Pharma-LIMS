@@ -80,7 +80,8 @@ export default function CoaDetailPage() {
     const win = window.open('', '_blank', 'width=900,height=700')
     if (!win) return
 
-    const allPass    = coa.lines.every(l => l.passFail === 'PASS')
+    const testableLines = coa.lines.filter(l => l.passFail !== 'N/A')
+    const allPass    = testableLines.length > 0 && testableLines.every(l => l.passFail === 'PASS')
     const conclusion = allPass ? 'CONFORMS TO SPECIFICATION' : 'DOES NOT CONFORM TO SPECIFICATION'
     const conclusionColor = allPass ? '#065f46' : '#991b1b'
     const conclusionBg    = allPass ? '#d1fae5' : '#fee2e2'
@@ -92,15 +93,16 @@ export default function CoaDetailPage() {
         : l.specMin !== null ? `NLT ${l.specMin}`
         : l.specMax !== null ? `NMT ${l.specMax}`
         : '—'
-      const passColor = l.passFail === 'PASS' ? '#065f46' : '#991b1b'
-      const passBg    = l.passFail === 'PASS' ? '#d1fae5' : '#fee2e2'
+      const isNA      = l.passFail === 'N/A'
+      const passColor = l.passFail === 'PASS' ? '#065f46' : isNA ? '#6b7280' : '#991b1b'
+      const passBg    = l.passFail === 'PASS' ? '#d1fae5' : isNA ? '#f1f5f9' : '#fee2e2'
       return `<tr>
         <td style="text-align:center;color:#6b7280">${i + 1}</td>
         <td>${l.parameterName}</td>
         <td style="font-family:monospace;font-size:11px">${l.methodCode}</td>
         <td>${specText}</td>
         <td style="font-family:monospace;font-weight:600">${l.calculatedResult != null ? fmtCalc(l.calculatedResult) : '—'}</td>
-        <td><span style="background:${passBg};color:${passColor};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${l.passFail}</span></td>
+        <td><span style="background:${passBg};color:${passColor};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700">${isNA ? '—' : l.passFail}</span></td>
         <td style="font-size:11px;color:#6b7280">${l.analystName}</td>
       </tr>`
     }).join('')
@@ -187,7 +189,8 @@ export default function CoaDetailPage() {
         <div style="font-size:11px;color:${conclusionColor};margin-top:2px">
           ${coa.lines.length} parameter${coa.lines.length !== 1 ? 's' : ''} tested ·
           ${coa.lines.filter(l => l.passFail === 'PASS').length} pass ·
-          ${coa.lines.filter(l => l.passFail !== 'PASS').length} fail
+          ${coa.lines.filter(l => l.passFail === 'FAIL').length} fail ·
+          ${coa.lines.filter(l => l.passFail === 'N/A').length} informational
         </div>
       </div>
     </div>
@@ -379,8 +382,8 @@ export default function CoaDetailPage() {
                     <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6', fontFamily: 'monospace' }}>{line.calculatedResult != null ? fmtCalc(line.calculatedResult) : '—'}</td>
                     <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>
                       <span style={{ padding: '1px 6px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                        background: line.passFail === 'PASS' ? '#d1fae5' : '#fee2e2',
-                        color: line.passFail === 'PASS' ? '#065f46' : '#991b1b' }}>{line.passFail}</span>
+                        background: line.passFail === 'PASS' ? '#d1fae5' : line.passFail === 'N/A' ? '#f1f5f9' : '#fee2e2',
+                        color: line.passFail === 'PASS' ? '#065f46' : line.passFail === 'N/A' ? '#6b7280' : '#991b1b' }}>{line.passFail === 'N/A' ? '—' : line.passFail}</span>
                     </td>
                     <td style={{ padding: '5px 8px', borderBottom: '1px solid #f3f4f6' }}>{line.analystName}</td>
                   </tr>
@@ -393,7 +396,8 @@ export default function CoaDetailPage() {
 
       {/* Conclusion */}
       {(() => {
-        const allPass = coa.lines.every(l => l.passFail === 'PASS')
+        const testable = coa.lines.filter(l => l.passFail !== 'N/A')
+        const allPass = testable.length > 0 && testable.every(l => l.passFail === 'PASS')
         return (
           <div style={{ margin: '14px 0', padding: '12px 18px', borderRadius: 8,
             border: `2px solid ${allPass ? '#065f46' : '#991b1b'}`,
@@ -407,7 +411,8 @@ export default function CoaDetailPage() {
               <div style={{ fontSize: 11, color: allPass ? '#065f46' : '#991b1b', marginTop: 2 }}>
                 {coa.lines.length} parameter{coa.lines.length !== 1 ? 's' : ''} tested ·{' '}
                 {coa.lines.filter(l => l.passFail === 'PASS').length} pass ·{' '}
-                {coa.lines.filter(l => l.passFail !== 'PASS').length} fail
+                {coa.lines.filter(l => l.passFail === 'FAIL').length} fail ·{' '}
+                {coa.lines.filter(l => l.passFail === 'N/A').length} informational
               </div>
             </div>
           </div>

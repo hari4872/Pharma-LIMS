@@ -51,7 +51,8 @@ public class CoAGenerationService : ICoAGenerationService
         var entries = allEntries
             .GroupBy(e => e.ParameterId)
             .Select(g => g.OrderByDescending(e => e.EntryId).First())
-            .OrderBy(e => e.ParameterId)
+            .OrderBy(e => e.Parameter?.SortOrder ?? 0)
+            .ThenBy(e => e.ParameterId)
             .ToList();
 
         int order = 1;

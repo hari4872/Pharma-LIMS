@@ -64,7 +64,7 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
                 return await _db.TestMethodParameters
                     .Where(p => p.MethodId == methodId.Value)
                     .AsNoTracking()
-                    .OrderBy(p => p.ParameterId)
+                    .OrderBy(p => p.SortOrder).ThenBy(p => p.ParameterId)
                     .Select(p => new ExecutionParameterDto(
                         p.ParameterId, p.ParameterCode, p.ParameterName,
                         p.Uom, p.DataType.ToString(), p.IsCritical, p.IsMandatory,
@@ -119,7 +119,7 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
             return await _db.TestMethodParameters
                 .Where(p => unionParamIds.Contains(p.ParameterId))
                 .AsNoTracking()
-                .OrderBy(p => p.ParameterId)
+                .OrderBy(p => p.SortOrder).ThenBy(p => p.ParameterId)
                 .Select(p => new ExecutionParameterDto(
                     p.ParameterId, p.ParameterCode, p.ParameterName,
                     p.Uom, p.DataType.ToString(), p.IsCritical, p.IsMandatory,
@@ -144,7 +144,7 @@ public class GetExecutionParametersHandler : IRequestHandler<GetExecutionParamet
                 return await _db.TestMethodParameters
                     .Where(p => formParamIds.Contains(p.ParameterId))
                     .AsNoTracking()
-                    .OrderBy(p => p.ParameterId)
+                    .OrderBy(p => p.SortOrder).ThenBy(p => p.ParameterId)
                     .Select(p => new ExecutionParameterDto(
                         p.ParameterId, p.ParameterCode, p.ParameterName,
                         p.Uom, p.DataType.ToString(), p.IsCritical, p.IsMandatory,

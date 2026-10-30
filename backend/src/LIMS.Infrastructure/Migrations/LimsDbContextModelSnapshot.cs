@@ -3781,6 +3781,9 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<string>("ParameterGroup")
                         .HasColumnType("text");
 
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
                     b.Property<string>("ParameterName")
                         .IsRequired()
                         .HasMaxLength(200)

@@ -199,8 +199,9 @@ public class CoAPdfDocument : IDocument
                     };
 
                     var isPass   = string.Equals(line.PassFail, "Pass", StringComparison.OrdinalIgnoreCase);
-                    var pfColor  = isPass ? "#065f46" : "#dc2626";
-                    var pfBg     = isPass ? "#dcfce7" : "#fee2e2";
+                    var isNA     = string.Equals(line.PassFail, "N/A", StringComparison.OrdinalIgnoreCase);
+                    var pfColor  = isPass ? "#065f46" : isNA ? "#6b7280" : "#dc2626";
+                    var pfBg     = isPass ? "#dcfce7" : isNA ? "#f1f5f9" : "#fee2e2";
 
                     t.Cell().Element(Cell).Text(line.ParameterName).FontSize(9);
                     t.Cell().Element(Cell).Text(specText).FontSize(9).FontColor("#374151");
@@ -208,7 +209,7 @@ public class CoAPdfDocument : IDocument
                     t.Cell().Element(Cell).Text(line.Uom).FontSize(9);
                     t.Cell().Element(c => c.Background(pfBg).BorderBottom(0.5f).BorderColor("#e2e8f0")
                                            .PaddingVertical(5).PaddingHorizontal(4).AlignCenter())
-                      .Text(line.PassFail.ToUpperInvariant()).FontSize(8.5f).Bold().FontColor(pfColor);
+                      .Text(isNA ? "—" : line.PassFail.ToUpperInvariant()).FontSize(8.5f).Bold().FontColor(pfColor);
                     t.Cell().Element(Cell).Text(line.MethodCode ?? "—").FontSize(8);
                     t.Cell().Element(Cell).Text(line.AnalystName).FontSize(8);
                 }
@@ -223,7 +224,8 @@ public class CoAPdfDocument : IDocument
             });
 
             // ── Conclusion ───────────────────────────────────────────────────
-            var allPass = _coa.Lines.Any() && _coa.Lines.All(l =>
+            var testableLines = _coa.Lines.Where(l => !string.Equals(l.PassFail, "N/A", StringComparison.OrdinalIgnoreCase)).ToList();
+            var allPass = testableLines.Any() && testableLines.All(l =>
                 string.Equals(l.PassFail, "Pass", StringComparison.OrdinalIgnoreCase));
 
             col.Item().PaddingTop(12)

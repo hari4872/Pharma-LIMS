@@ -225,8 +225,9 @@ public class BatchAnalysisPdfDocument : IDocument
                                 }
                                 else if (r.ParameterGroup == null) lastGrp = null;
 
-                                var origPf    = r.IsOos ? "OOS" : r.IsOot ? "OOT" : r.PassFail;
-                                var origPfClr = r.IsOos ? "#dc2626" : r.IsOot ? "#d97706" : "#065f46";
+                                var origPf    = r.IsOos ? "OOS" : r.IsOot ? "OOT" : r.PassFail == "N/A" ? "—" : r.PassFail;
+                                var origPfClr = r.IsOos ? "#dc2626" : r.IsOot ? "#d97706"
+                                    : r.PassFail == "N/A" ? "#6b7280" : "#065f46";
                                 var origBg    = r.IsOos ? "#fff1f2" : r.IsOot ? "#fffbeb" : "#ffffff";
 
                                 IContainer OCell(IContainer c2) =>
@@ -273,7 +274,7 @@ public class BatchAnalysisPdfDocument : IDocument
                                         c2.Background("#f0fdf4").BorderBottom(hasRework ? 0 : 0.5f).BorderColor("#bfdbfe")
                                           .PaddingVertical(4).PaddingHorizontal(4).PaddingLeft(10);
 
-                                    t.Cell().Element(RCell).Text("↳").FontSize(8f).FontColor("#9ca3af");
+                                    t.Cell().Element(RCell).Text(">").FontSize(8f).FontColor("#9ca3af");
                                     t.Cell().Element(RCell)
                                         .Text(hasCycles ? rt.Label.Replace("↳ ", "") : "Retest")
                                         .FontSize(8f).Bold().FontColor("#6d28d9");
@@ -300,7 +301,7 @@ public class BatchAnalysisPdfDocument : IDocument
                                         c2.Background("#fff7ed").BorderBottom(hasPostRework ? 0 : 0.5f).BorderColor("#bfdbfe")
                                           .PaddingVertical(4).PaddingHorizontal(4).PaddingLeft(10);
 
-                                    t.Cell().Element(WCell).Text("↳").FontSize(8f).FontColor("#9ca3af");
+                                    t.Cell().Element(WCell).Text(">").FontSize(8f).FontColor("#9ca3af");
                                     t.Cell().Element(WCell)
                                         .Text("Rework").FontSize(8f).Bold().FontColor("#b45309");
                                     t.Cell().Element(WCell)
@@ -324,7 +325,7 @@ public class BatchAnalysisPdfDocument : IDocument
                                             c2.Background("#f0fdf4").BorderBottom(0.5f).BorderColor("#bfdbfe")
                                               .PaddingVertical(4).PaddingHorizontal(4).PaddingLeft(10);
 
-                                        t.Cell().Element(PRCell).Text("↳").FontSize(8f).FontColor("#9ca3af");
+                                        t.Cell().Element(PRCell).Text(">").FontSize(8f).FontColor("#9ca3af");
                                         t.Cell().Element(PRCell)
                                             .Text("Post-Rework").FontSize(8f).Bold().FontColor("#065f46");
                                         t.Cell().Element(PRCell)

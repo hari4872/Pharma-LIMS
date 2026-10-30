@@ -206,9 +206,12 @@ export default function SpecLimitsPage() {
                 {SPEC_STAGES.map(s => <option key={s} value={s}>{stageLabel(s)}</option>)}
               </select>
             </Field>
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontSize: 12, color: '#166534' }}>
+              <strong>OOS rule:</strong> result fails if value &lt; Min Value, or &gt; Max Value. Leave a field blank to skip that direction.
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Min Value (≥)"><input style={inp} type="number" step="any" placeholder="e.g. 14.0" value={form.minValue} onChange={e => setForm(f => ({ ...f, minValue: e.target.value }))} /></Field>
-              <Field label="Max Value (≤)"><input style={inp} type="number" step="any" placeholder="e.g. 2.0" value={form.maxValue} onChange={e => setForm(f => ({ ...f, maxValue: e.target.value }))} /></Field>
+              <Field label="Min Value (≥) — fail if below"><input style={inp} type="number" step="any" placeholder="e.g. 14.0" value={form.minValue} onChange={e => setForm(f => ({ ...f, minValue: e.target.value }))} /></Field>
+              <Field label="Max Value (≤) — fail if above"><input style={inp} type="number" step="any" placeholder="e.g. 200" value={form.maxValue} onChange={e => setForm(f => ({ ...f, maxValue: e.target.value }))} /></Field>
               <Field label="OOT Min (≥)"><input style={inp} type="number" step="any" value={form.ootMinValue} onChange={e => setForm(f => ({ ...f, ootMinValue: e.target.value }))} /></Field>
               <Field label="OOT Max (≤)"><input style={inp} type="number" step="any" value={form.ootMaxValue} onChange={e => setForm(f => ({ ...f, ootMaxValue: e.target.value }))} /></Field>
             </div>
@@ -232,9 +235,12 @@ export default function SpecLimitsPage() {
       {editRow && (
         <Drawer title={`Edit Spec Limit — ${editRow.parameterName}`} subtitle="Update OOS/OOT thresholds and regulatory limits" onClose={() => setEditRow(null)}>
           <form onSubmit={submitEdit}>
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '8px 12px', marginBottom: 8, fontSize: 12, color: '#166534' }}>
+              <strong>OOS rule:</strong> result fails if value &lt; Min Value, or &gt; Max Value. Leave a field blank to skip that direction.
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Min Value (≥)"><input style={inp} type="number" step="any" value={editForm.minValue} onChange={e => setEditForm(f => ({ ...f, minValue: e.target.value }))} /></Field>
-              <Field label="Max Value (≤)"><input style={inp} type="number" step="any" value={editForm.maxValue} onChange={e => setEditForm(f => ({ ...f, maxValue: e.target.value }))} /></Field>
+              <Field label="Min Value (≥) — fail if below"><input style={inp} type="number" step="any" value={editForm.minValue} onChange={e => setEditForm(f => ({ ...f, minValue: e.target.value }))} /></Field>
+              <Field label="Max Value (≤) — fail if above"><input style={inp} type="number" step="any" value={editForm.maxValue} onChange={e => setEditForm(f => ({ ...f, maxValue: e.target.value }))} /></Field>
               <Field label="OOT Min (≥)"><input style={inp} type="number" step="any" value={editForm.ootMinValue} onChange={e => setEditForm(f => ({ ...f, ootMinValue: e.target.value }))} /></Field>
               <Field label="OOT Max (≤)"><input style={inp} type="number" step="any" value={editForm.ootMaxValue} onChange={e => setEditForm(f => ({ ...f, ootMaxValue: e.target.value }))} /></Field>
             </div>

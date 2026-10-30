@@ -24,6 +24,7 @@ public class TestMethodParameter
     public ColumnFrequency? ColumnFrequency { get; set; }
     public InspectionScope InspectionScope { get; set; } = InspectionScope.SampleBased;
     public string? ParameterGroup { get; set; }
+    public int SortOrder { get; set; } = 0;
     public string CreatedBy { get; set; } = default!;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

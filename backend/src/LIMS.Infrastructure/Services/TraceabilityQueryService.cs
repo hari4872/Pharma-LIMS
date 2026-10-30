@@ -53,13 +53,16 @@ public class TraceabilityQueryService : ITraceabilityQueryService
             .Include(e => e.Execution).ThenInclude(ex => ex.SpecTemplateItem!).ThenInclude(i => i.TestMethod)
             .Include(e => e.Execution).ThenInclude(ex => ex.SpecTemplateItem!).ThenInclude(i => i.Parameter)
             .Where(e => e.SampleId == sampleId && e.Status != LogbookEntryStatus.Superseded)
+            .OrderBy(e => e.ExecutionId)
+            .ThenBy(e => e.Parameter.SortOrder)
+            .ThenBy(e => e.EntryId)
             .ToListAsync(ct);
 
         foreach (var entry in logbookEntries)
         {
             logbookNodes.Add(new TraceabilityNode("LogbookEntry", entry.EntryId,
                 $"{entry.Parameter.ParameterName}: {entry.RawValue} ({entry.PassFail})",
-                $"Analyst: {entry.Analyst.FullName} | Instrument: {entry.Instrument?.SerialNumber} | OOS: {entry.IsOos} | OOT: {entry.IsOot}"));
+                $"Analyst: {entry.Analyst.FullName} | Date: {entry.CreatedAt:dd-MMM-yyyy HH:mm} | Instrument: {entry.Instrument?.SerialNumber} | OOS: {entry.IsOos} | OOT: {entry.IsOot}"));
 
             // Upstream: Instrument context nodes
             if (entry.InstrumentId.HasValue && entry.Instrument != null)

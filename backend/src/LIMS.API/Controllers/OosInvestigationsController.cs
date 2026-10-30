@@ -289,7 +289,7 @@ public class OosInvestigationsController : LimsControllerBase
                     c.CycleNumber, c.ExecutionId,
                     entry?.RawValue, entry?.CalculatedResult, entry?.PassFail,
                     c.Execution.Analyst?.FullName,
-                    c.Execution.Status == LIMS.Domain.Enums.TestExecutionStatus.Completed ? c.Execution.CompletedAt : null
+                    c.Execution.CompletedAt
                 );
             }).ToList();
 

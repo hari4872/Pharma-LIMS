@@ -630,7 +630,7 @@ export default function ResultsReviewPage() {
                                         fontSize: 12, position: 'relative',
                                       }}>
                                       {isRetest && (
-                                        <span style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700, flexShrink: 0 }}>↳</span>
+                                        <span style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700, flexShrink: 0 }}>{'>'}</span>
                                       )}
                                       <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#9ca3af', minWidth: 80 }}>
                                         EXE-{String(ex.executionId).padStart(5, '0')}

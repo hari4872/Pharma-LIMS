@@ -10,7 +10,8 @@ public record ParameterDto(int ParameterId, int MethodId, string MethodName, str
     string ParameterCode, string Uom, string DataType, string FormulaType, string? CalcFormula,
     int? LookupTableId, string? InstrumentType, bool IsCritical, bool IsMandatory,
     string? ColumnFrequency, string CreatedBy, DateTimeOffset CreatedAt, int? DecimalPlaces,
-    string? InputFields, string InspectionScope = "SampleBased", string? ParameterGroup = null);
+    string? InputFields, string InspectionScope = "SampleBased", string? ParameterGroup = null,
+    int SortOrder = 0);
 
 public class GetParametersQueryHandler : IRequestHandler<GetParametersQuery, List<ParameterDto>>
 {
@@ -22,12 +23,12 @@ public class GetParametersQueryHandler : IRequestHandler<GetParametersQuery, Lis
         var query = _db.TestMethodParameters.Include(p => p.Method).AsQueryable();
         if (request.MethodId.HasValue) query = query.Where(p => p.MethodId == request.MethodId);
 
-        return await query.Select(p => new ParameterDto(
+        return await query.OrderBy(p => p.SortOrder).ThenBy(p => p.ParameterId).Select(p => new ParameterDto(
             p.ParameterId, p.MethodId, p.Method != null ? p.Method.MethodName : "(Deleted)", p.ParameterName, p.ParameterCode,
             p.Uom, p.DataType.ToString(), p.FormulaType.ToString(), p.CalcFormula,
             p.LookupTableId, p.InstrumentType, p.IsCritical, p.IsMandatory,
             p.ColumnFrequency.HasValue ? p.ColumnFrequency.ToString() : null,
             p.CreatedBy, p.CreatedAt, p.DecimalPlaces, p.InputFields,
-            p.InspectionScope.ToString(), p.ParameterGroup)).ToListAsync(ct);
+            p.InspectionScope.ToString(), p.ParameterGroup, p.SortOrder)).ToListAsync(ct);
     }
 }

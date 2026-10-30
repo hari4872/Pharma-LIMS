@@ -770,19 +770,24 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                                 const latestRework = reworkExecs[reworkExecs.length - 1]
                                 if (!baseParams) return <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>Loading…</div>
                                 if (baseParams.length === 0) return <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>No results recorded.</div>
-                                const thSt = { textAlign: 'left' as const, padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }
-                                const fmtDt = (dt: string | null) => dt ? new Date(dt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
+                                const thSt = { textAlign: 'left' as const, padding: '5px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }
+                                const thCycle = { ...thSt, background: '#f0fdf4', color: '#166534' }
+                                const thRework = { ...thSt, background: '#fff7ed', color: '#c2410c' }
+                                const pfStyle = (pf: string | undefined, isOos: boolean, isOot: boolean) => {
+                                  if (isOos) return { label: 'OOS', bg: '#fee2e2', color: '#991b1b' }
+                                  if (isOot) return { label: 'OOT', bg: '#fef3c7', color: '#b45309' }
+                                  if (!pf || pf === 'N/A') return { label: '—', bg: '#f1f5f9', color: '#64748b' }
+                                  return pf === 'PASS' ? { label: 'PASS', bg: '#d1fae5', color: '#065f46' } : { label: 'FAIL', bg: '#fee2e2', color: '#991b1b' }
+                                }
                                 return (
                                   <div style={{ borderTop: '1px solid #e5e7eb', padding: '10px 14px', background: '#f8fafc' }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                                       <thead>
                                         <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                          <th style={thSt}>Parameter</th>
-                                          <th style={thSt}>Type</th>
-                                          <th style={thSt}>Value</th>
-                                          <th style={thSt}>Analyst</th>
-                                          <th style={thSt}>Date / Time</th>
-                                          <th style={thSt}>P/F</th>
+                                          <th style={{ ...thSt, width: '30%' }}>Parameter</th>
+                                          <th style={thSt}>Original</th>
+                                          {hasRetestCol && <th style={thCycle}>Cycle 1</th>}
+                                          {hasReworkCol && <th style={thRework}>Rework</th>}
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -791,71 +796,43 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                                             ? execResults[latestRetest.executionId].find(r => r.parameterId === p.parameterId) : undefined
                                           const reworkParam = hasReworkCol && execResults[latestRework?.executionId]
                                             ? execResults[latestRework.executionId].find(r => r.parameterId === p.parameterId) : undefined
-                                          const origPf = p.passFail
-                                          const origPfBg = origPf === 'PASS' ? '#d1fae5' : origPf === 'FAIL' ? '#fee2e2' : p.isOos ? '#fee2e2' : '#f1f5f9'
-                                          const origPfColor = origPf === 'PASS' ? '#065f46' : (origPf === 'FAIL' || p.isOos) ? '#991b1b' : '#374151'
-                                          const origPfLabel = p.isOos ? 'OOS' : p.isOot ? 'OOT' : origPf
-                                          const finalParam = reworkParam ?? retestParam
-                                          const finalPf = finalParam?.passFail ?? origPf
-                                          const finalPfBg = finalPf === 'PASS' ? '#d1fae5' : finalPf === 'FAIL' ? '#fee2e2' : '#f1f5f9'
-                                          const finalPfColor = finalPf === 'PASS' ? '#065f46' : finalPf === 'FAIL' ? '#991b1b' : '#374151'
-                                          const hasFollowUp = hasRetestCol || hasReworkCol
+                                          const origPf = pfStyle(p.passFail, p.isOos, p.isOot)
+                                          const retestPf = retestParam ? pfStyle(retestParam.passFail, retestParam.isOos ?? false, retestParam.isOot ?? false) : null
+                                          const reworkPf = reworkParam ? pfStyle(reworkParam.passFail, reworkParam.isOos ?? false, reworkParam.isOot ?? false) : null
                                           return (
-                                            <React.Fragment key={p.parameterId}>
-                                              {/* Original row */}
-                                              <tr style={{ borderBottom: hasFollowUp ? 'none' : '1px solid #f1f5f9', background: p.isOos ? '#fff5f5' : '#fff' }}>
-                                                <td style={{ padding: '5px 8px', fontWeight: 600, color: '#111827' }}>{p.parameterName}</td>
-                                                <td style={{ padding: '5px 8px' }}>
-                                                  <span style={{ fontSize: 10, color: '#6b7280' }}>Original</span>
+                                            <tr key={p.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                              <td style={{ padding: '6px 8px', fontWeight: 600, color: '#111827' }}>{p.parameterName}</td>
+                                              <td style={{ padding: '6px 8px', background: p.isOos ? '#fff5f5' : '#fff' }}>
+                                                <span style={{ fontFamily: 'monospace', fontSize: 11, color: p.isOos ? '#dc2626' : '#374151', marginRight: 6 }}>
+                                                  {fmtCalcVal(p.rawValue, p.calculatedResult)}{p.uom ? ` ${p.uom}` : ''}
+                                                </span>
+                                                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: origPf.bg, color: origPf.color }}>{origPf.label}</span>
+                                              </td>
+                                              {hasRetestCol && (
+                                                <td style={{ padding: '6px 8px', background: '#f0fdf4' }}>
+                                                  {retestParam ? (
+                                                    <>
+                                                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: retestPf!.color, marginRight: 6 }}>
+                                                        {fmtCalcVal(retestParam.rawValue, retestParam.calculatedResult)}{retestParam.uom ? ` ${retestParam.uom}` : ''}
+                                                      </span>
+                                                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: retestPf!.bg, color: retestPf!.color }}>{retestPf!.label}</span>
+                                                    </>
+                                                  ) : <span style={{ color: '#9ca3af' }}>{execResults[latestRetest!.executionId] !== undefined ? '—' : 'Loading…'}</span>}
                                                 </td>
-                                                <td style={{ padding: '5px 8px', fontFamily: 'monospace' }}>
-                                                  <span style={{ color: p.isOos ? '#dc2626' : '#374151' }}>{fmtCalcVal(p.rawValue, p.calculatedResult)} {p.uom}</span>
-                                                </td>
-                                                <td style={{ padding: '5px 8px', fontSize: 11, color: '#6b7280' }}>{baseExec?.analystName ?? '—'}</td>
-                                                <td style={{ padding: '5px 8px', fontSize: 11, color: '#6b7280' }}>{fmtDt(baseExec?.completedAt ?? null)}</td>
-                                                <td style={{ padding: '5px 8px' }}>
-                                                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: origPfBg, color: origPfColor }}>{origPfLabel || '—'}</span>
-                                                </td>
-                                              </tr>
-                                              {/* Retest row */}
-                                              {hasRetestCol && latestRetest && (
-                                                <tr style={{ borderBottom: hasReworkCol ? 'none' : '1px solid #f1f5f9', background: '#f0fdf4' }}>
-                                                  <td style={{ padding: '4px 8px 4px 18px', color: '#9ca3af', fontSize: 11 }}>↳</td>
-                                                  <td style={{ padding: '4px 8px' }}>
-                                                    <span style={{ fontSize: 10, fontWeight: 700, background: '#ede9fe', color: '#6d28d9', padding: '1px 5px', borderRadius: 4 }}>Retest</span>
-                                                  </td>
-                                                  <td style={{ padding: '4px 8px', fontFamily: 'monospace', color: retestParam ? (retestParam.passFail === 'PASS' ? '#065f46' : '#dc2626') : '#9ca3af' }}>
-                                                    {retestParam ? `${fmtCalcVal(retestParam.rawValue, retestParam.calculatedResult)} ${retestParam.uom}` : (execResults[latestRetest.executionId] !== undefined ? '—' : 'Loading…')}
-                                                  </td>
-                                                  <td style={{ padding: '4px 8px', fontSize: 11, color: '#6b7280' }}>{latestRetest.analystName}</td>
-                                                  <td style={{ padding: '4px 8px', fontSize: 11, color: '#6b7280' }}>{fmtDt(latestRetest.completedAt ?? null)}</td>
-                                                  <td style={{ padding: '4px 8px' }}>
-                                                    {retestParam?.passFail
-                                                      ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: finalPfBg, color: finalPfColor }}>{retestParam.passFail}</span>
-                                                      : '—'}
-                                                  </td>
-                                                </tr>
                                               )}
-                                              {/* Rework row */}
-                                              {hasReworkCol && latestRework && (
-                                                <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#fff7ed' }}>
-                                                  <td style={{ padding: '4px 8px 4px 18px', color: '#9ca3af', fontSize: 11 }}>↳</td>
-                                                  <td style={{ padding: '4px 8px' }}>
-                                                    <span style={{ fontSize: 10, fontWeight: 700, background: '#fff7ed', color: '#c2410c', padding: '1px 5px', borderRadius: 4 }}>Rework</span>
-                                                  </td>
-                                                  <td style={{ padding: '4px 8px', fontFamily: 'monospace', color: reworkParam ? (reworkParam.passFail === 'PASS' ? '#065f46' : '#dc2626') : '#9ca3af' }}>
-                                                    {reworkParam ? `${fmtCalcVal(reworkParam.rawValue, reworkParam.calculatedResult)} ${reworkParam.uom}` : (execResults[latestRework.executionId] !== undefined ? '—' : 'Loading…')}
-                                                  </td>
-                                                  <td style={{ padding: '4px 8px', fontSize: 11, color: '#6b7280' }}>{latestRework.analystName}</td>
-                                                  <td style={{ padding: '4px 8px', fontSize: 11, color: '#6b7280' }}>{fmtDt(latestRework.completedAt ?? null)}</td>
-                                                  <td style={{ padding: '4px 8px' }}>
-                                                    {reworkParam?.passFail
-                                                      ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: finalPfBg, color: finalPfColor }}>{reworkParam.passFail}</span>
-                                                      : '—'}
-                                                  </td>
-                                                </tr>
+                                              {hasReworkCol && (
+                                                <td style={{ padding: '6px 8px', background: '#fff7ed' }}>
+                                                  {reworkParam ? (
+                                                    <>
+                                                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: reworkPf!.color, marginRight: 6 }}>
+                                                        {fmtCalcVal(reworkParam.rawValue, reworkParam.calculatedResult)}{reworkParam.uom ? ` ${reworkParam.uom}` : ''}
+                                                      </span>
+                                                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: reworkPf!.bg, color: reworkPf!.color }}>{reworkPf!.label}</span>
+                                                    </>
+                                                  ) : <span style={{ color: '#9ca3af' }}>{execResults[latestRework!.executionId] !== undefined ? '—' : 'Loading…'}</span>}
+                                                </td>
                                               )}
-                                            </React.Fragment>
+                                            </tr>
                                           )
                                         })}
                                       </tbody>
@@ -971,19 +948,24 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                                 const latestRework = reworkExecs[reworkExecs.length - 1]
                                 if (!baseParams) return <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>Loading…</div>
                                 if (baseParams.length === 0) return <div style={{ padding: '10px 14px', fontSize: 12, color: '#9ca3af' }}>No results recorded.</div>
-                                const thSt = { textAlign: 'left' as const, padding: '4px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }
-                                const fmtDt = (dt: string | null) => dt ? new Date(dt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
+                                const thSt = { textAlign: 'left' as const, padding: '5px 8px', fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }
+                                const thCycle = { ...thSt, background: '#f0fdf4', color: '#166534' }
+                                const thRework = { ...thSt, background: '#fff7ed', color: '#c2410c' }
+                                const pfStyle = (pf: string | undefined, isOos: boolean, isOot: boolean) => {
+                                  if (isOos) return { label: 'OOS', bg: '#fee2e2', color: '#991b1b' }
+                                  if (isOot) return { label: 'OOT', bg: '#fef3c7', color: '#b45309' }
+                                  if (!pf || pf === 'N/A') return { label: '—', bg: '#f1f5f9', color: '#64748b' }
+                                  return pf === 'PASS' ? { label: 'PASS', bg: '#d1fae5', color: '#065f46' } : { label: 'FAIL', bg: '#fee2e2', color: '#991b1b' }
+                                }
                                 return (
                                   <div style={{ borderTop: '1px solid #e5e7eb', padding: '10px 14px', background: '#f8fafc' }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                                       <thead>
                                         <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                          <th style={thSt}>Parameter</th>
-                                          <th style={thSt}>Type</th>
-                                          <th style={thSt}>Value</th>
-                                          <th style={thSt}>Analyst</th>
-                                          <th style={thSt}>Date / Time</th>
-                                          <th style={thSt}>P/F</th>
+                                          <th style={{ ...thSt, width: '30%' }}>Parameter</th>
+                                          <th style={thSt}>Original</th>
+                                          {hasRetestCol && <th style={thCycle}>Cycle 1</th>}
+                                          {hasReworkCol && <th style={thRework}>Rework</th>}
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -992,71 +974,43 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                                             ? execResults[latestRetest.executionId].find(r => r.parameterId === p.parameterId) : undefined
                                           const reworkParam = hasReworkCol && execResults[latestRework?.executionId]
                                             ? execResults[latestRework.executionId].find(r => r.parameterId === p.parameterId) : undefined
-                                          const origPf = p.passFail
-                                          const origPfBg = origPf === 'PASS' ? '#d1fae5' : origPf === 'FAIL' ? '#fee2e2' : p.isOos ? '#fee2e2' : '#f1f5f9'
-                                          const origPfColor = origPf === 'PASS' ? '#065f46' : (origPf === 'FAIL' || p.isOos) ? '#991b1b' : '#374151'
-                                          const origPfLabel = p.isOos ? 'OOS' : p.isOot ? 'OOT' : origPf
-                                          const finalParam = reworkParam ?? retestParam
-                                          const finalPf = finalParam?.passFail ?? origPf
-                                          const finalPfBg = finalPf === 'PASS' ? '#d1fae5' : finalPf === 'FAIL' ? '#fee2e2' : '#f1f5f9'
-                                          const finalPfColor = finalPf === 'PASS' ? '#065f46' : finalPf === 'FAIL' ? '#991b1b' : '#374151'
-                                          const hasFollowUp = hasRetestCol || hasReworkCol
+                                          const origPf = pfStyle(p.passFail, p.isOos, p.isOot)
+                                          const retestPf = retestParam ? pfStyle(retestParam.passFail, retestParam.isOos ?? false, retestParam.isOot ?? false) : null
+                                          const reworkPf = reworkParam ? pfStyle(reworkParam.passFail, reworkParam.isOos ?? false, reworkParam.isOot ?? false) : null
                                           return (
-                                            <React.Fragment key={p.parameterId}>
-                                              {/* Original row */}
-                                              <tr style={{ borderBottom: hasFollowUp ? 'none' : '1px solid #f1f5f9', background: p.isOos ? '#fff5f5' : '#fff' }}>
-                                                <td style={{ padding: '5px 8px', fontWeight: 600, color: '#111827' }}>{p.parameterName}</td>
-                                                <td style={{ padding: '5px 8px' }}>
-                                                  <span style={{ fontSize: 10, color: '#6b7280' }}>Original</span>
+                                            <tr key={p.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                              <td style={{ padding: '6px 8px', fontWeight: 600, color: '#111827' }}>{p.parameterName}</td>
+                                              <td style={{ padding: '6px 8px', background: p.isOos ? '#fff5f5' : '#fff' }}>
+                                                <span style={{ fontFamily: 'monospace', fontSize: 11, color: p.isOos ? '#dc2626' : '#374151', marginRight: 6 }}>
+                                                  {fmtCalcVal(p.rawValue, p.calculatedResult)}{p.uom ? ` ${p.uom}` : ''}
+                                                </span>
+                                                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: origPf.bg, color: origPf.color }}>{origPf.label}</span>
+                                              </td>
+                                              {hasRetestCol && (
+                                                <td style={{ padding: '6px 8px', background: '#f0fdf4' }}>
+                                                  {retestParam ? (
+                                                    <>
+                                                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: retestPf!.color, marginRight: 6 }}>
+                                                        {fmtCalcVal(retestParam.rawValue, retestParam.calculatedResult)}{retestParam.uom ? ` ${retestParam.uom}` : ''}
+                                                      </span>
+                                                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: retestPf!.bg, color: retestPf!.color }}>{retestPf!.label}</span>
+                                                    </>
+                                                  ) : <span style={{ color: '#9ca3af' }}>{execResults[latestRetest!.executionId] !== undefined ? '—' : 'Loading…'}</span>}
                                                 </td>
-                                                <td style={{ padding: '5px 8px', fontFamily: 'monospace' }}>
-                                                  <span style={{ color: p.isOos ? '#dc2626' : '#374151' }}>{fmtCalcVal(p.rawValue, p.calculatedResult)} {p.uom}</span>
-                                                </td>
-                                                <td style={{ padding: '5px 8px', fontSize: 11, color: '#6b7280' }}>{baseExec?.analystName ?? '—'}</td>
-                                                <td style={{ padding: '5px 8px', fontSize: 11, color: '#6b7280' }}>{fmtDt(baseExec?.completedAt ?? null)}</td>
-                                                <td style={{ padding: '5px 8px' }}>
-                                                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: origPfBg, color: origPfColor }}>{origPfLabel || '—'}</span>
-                                                </td>
-                                              </tr>
-                                              {/* Retest row */}
-                                              {hasRetestCol && latestRetest && (
-                                                <tr style={{ borderBottom: hasReworkCol ? 'none' : '1px solid #f1f5f9', background: '#f0fdf4' }}>
-                                                  <td style={{ padding: '4px 8px 4px 18px', color: '#9ca3af', fontSize: 11 }}>↳</td>
-                                                  <td style={{ padding: '4px 8px' }}>
-                                                    <span style={{ fontSize: 10, fontWeight: 700, background: '#ede9fe', color: '#6d28d9', padding: '1px 5px', borderRadius: 4 }}>Retest</span>
-                                                  </td>
-                                                  <td style={{ padding: '4px 8px', fontFamily: 'monospace', color: retestParam ? (retestParam.passFail === 'PASS' ? '#065f46' : '#dc2626') : '#9ca3af' }}>
-                                                    {retestParam ? `${fmtCalcVal(retestParam.rawValue, retestParam.calculatedResult)} ${retestParam.uom}` : (execResults[latestRetest.executionId] !== undefined ? '—' : 'Loading…')}
-                                                  </td>
-                                                  <td style={{ padding: '4px 8px', fontSize: 11, color: '#6b7280' }}>{latestRetest.analystName}</td>
-                                                  <td style={{ padding: '4px 8px', fontSize: 11, color: '#6b7280' }}>{fmtDt(latestRetest.completedAt ?? null)}</td>
-                                                  <td style={{ padding: '4px 8px' }}>
-                                                    {retestParam?.passFail
-                                                      ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: finalPfBg, color: finalPfColor }}>{retestParam.passFail}</span>
-                                                      : '—'}
-                                                  </td>
-                                                </tr>
                                               )}
-                                              {/* Rework row */}
-                                              {hasReworkCol && latestRework && (
-                                                <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#fff7ed' }}>
-                                                  <td style={{ padding: '4px 8px 4px 18px', color: '#9ca3af', fontSize: 11 }}>↳</td>
-                                                  <td style={{ padding: '4px 8px' }}>
-                                                    <span style={{ fontSize: 10, fontWeight: 700, background: '#fff7ed', color: '#c2410c', padding: '1px 5px', borderRadius: 4 }}>Rework</span>
-                                                  </td>
-                                                  <td style={{ padding: '4px 8px', fontFamily: 'monospace', color: reworkParam ? (reworkParam.passFail === 'PASS' ? '#065f46' : '#dc2626') : '#9ca3af' }}>
-                                                    {reworkParam ? `${fmtCalcVal(reworkParam.rawValue, reworkParam.calculatedResult)} ${reworkParam.uom}` : (execResults[latestRework.executionId] !== undefined ? '—' : 'Loading…')}
-                                                  </td>
-                                                  <td style={{ padding: '4px 8px', fontSize: 11, color: '#6b7280' }}>{latestRework.analystName}</td>
-                                                  <td style={{ padding: '4px 8px', fontSize: 11, color: '#6b7280' }}>{fmtDt(latestRework.completedAt ?? null)}</td>
-                                                  <td style={{ padding: '4px 8px' }}>
-                                                    {reworkParam?.passFail
-                                                      ? <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: finalPfBg, color: finalPfColor }}>{reworkParam.passFail}</span>
-                                                      : '—'}
-                                                  </td>
-                                                </tr>
+                                              {hasReworkCol && (
+                                                <td style={{ padding: '6px 8px', background: '#fff7ed' }}>
+                                                  {reworkParam ? (
+                                                    <>
+                                                      <span style={{ fontFamily: 'monospace', fontSize: 11, color: reworkPf!.color, marginRight: 6 }}>
+                                                        {fmtCalcVal(reworkParam.rawValue, reworkParam.calculatedResult)}{reworkParam.uom ? ` ${reworkParam.uom}` : ''}
+                                                      </span>
+                                                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 8, background: reworkPf!.bg, color: reworkPf!.color }}>{reworkPf!.label}</span>
+                                                    </>
+                                                  ) : <span style={{ color: '#9ca3af' }}>{execResults[latestRework!.executionId] !== undefined ? '—' : 'Loading…'}</span>}
+                                                </td>
                                               )}
-                                            </React.Fragment>
+                                            </tr>
                                           )
                                         })}
                                       </tbody>

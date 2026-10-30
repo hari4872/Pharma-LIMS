@@ -11,7 +11,8 @@ public record CreateParameterCommand(int MethodId, string ParameterName, string 
     string Uom, string DataType, string FormulaType, string? CalcFormula, int? LookupTableId,
     string? InstrumentType, bool IsCritical, bool IsMandatory, string? ColumnFrequency,
     string CreatedBy, int? DecimalPlaces = null, string? InputFields = null,
-    string InspectionScope = "SampleBased", string? ParameterGroup = null) : IRequest<Result<int>>;
+    string InspectionScope = "SampleBased", string? ParameterGroup = null,
+    int SortOrder = 0) : IRequest<Result<int>>;
 
 public class CreateParameterCommandValidator : AbstractValidator<CreateParameterCommand>
 {
@@ -49,6 +50,7 @@ public class CreateParameterCommandHandler : IRequestHandler<CreateParameterComm
             ColumnFrequency = request.ColumnFrequency is not null ? Enum.Parse<ColumnFrequency>(request.ColumnFrequency) : null,
             InspectionScope = Enum.TryParse<InspectionScope>(request.InspectionScope, out var scope) ? scope : Domain.Enums.InspectionScope.SampleBased,
             ParameterGroup = request.ParameterGroup,
+            SortOrder = request.SortOrder,
             DecimalPlaces = request.DecimalPlaces,
             CreatedBy = request.CreatedBy, CreatedAt = DateTimeOffset.UtcNow
         };
