@@ -318,6 +318,7 @@ export default function WorkQueuePage() {
   const [execResults, setExecResults] = useState<Record<number, {
     parameterId: number; parameterName: string; uom: string
     rawValue: string; calculatedResult: number | null; passFail: string; isOos: boolean; isOot: boolean
+    analystRemarks?: string | null
   }[]>>({})
   const [spcByParam, setSpcByParam] = useState<Record<number, SpcStat>>({})
   const [spcExpandedParam, setSpcExpandedParam] = useState<number | null>(null)
