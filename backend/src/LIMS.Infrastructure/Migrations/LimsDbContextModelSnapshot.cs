@@ -3556,9 +3556,8 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<int?>("AnalystId")
                         .HasColumnType("integer");
 
-                    b.Property<string?>("AnalystRemarks")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                    b.Property<string>("AnalystRemarks")
+                        .HasColumnType("text");
 
                     b.Property<int?>("AssignedById")
                         .HasColumnType("integer");
@@ -3785,13 +3784,13 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<string>("ParameterGroup")
                         .HasColumnType("text");
 
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
-
                     b.Property<string>("ParameterName")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Uom")
                         .IsRequired()

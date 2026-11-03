@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -10,17 +10,22 @@ namespace LIMS.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql(@"ALTER TABLE test_method_parameters ADD COLUMN IF NOT EXISTS ""SortOrder"" integer NOT NULL DEFAULT 0;");
+
             migrationBuilder.AddColumn<string>(
                 name: "AnalystRemarks",
                 table: "test_executions",
-                type: "character varying(2000)",
-                maxLength: 2000,
+                type: "text",
                 nullable: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropColumn(
+                name: "SortOrder",
+                table: "test_method_parameters");
+
             migrationBuilder.DropColumn(
                 name: "AnalystRemarks",
                 table: "test_executions");
