@@ -62,7 +62,8 @@ public class BatchAnalysisPdfDocument : IDocument
         List<TestResultRow> Results,
         List<ReviewRow> Reviews,
         int OosCount,
-        int OotCount
+        int OotCount,
+        string? AnalystRemarks = null
     );
 
     private readonly BatchAnalysisData _d;
@@ -162,6 +163,8 @@ public class BatchAnalysisPdfDocument : IDocument
                     KV("Completed At",   _d.CompletedAt.HasValue ? _d.CompletedAt.Value.ToString("yyyy-MM-dd HH:mm UTC") : "—");
                     KV("Total Results",  _d.Results.Count.ToString());
                     KV("OOS / OOT",      $"{_d.OosCount} OOS   /   {_d.OotCount} OOT");
+                    if (!string.IsNullOrWhiteSpace(_d.AnalystRemarks))
+                        KV("Analyst Remarks", _d.AnalystRemarks!);
                 });
             });
 

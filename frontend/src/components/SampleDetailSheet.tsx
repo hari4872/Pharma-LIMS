@@ -148,6 +148,7 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
     parameterId: number; parameterName: string; parameterCode: string
     rawValue: string; calculatedResult: number | null; uom: string
     passFail: string; isOos: boolean; isOot: boolean
+    analystRemarks?: string | null
   }[]>>({})
 
   // workflow status (workqueue + default)
@@ -837,6 +838,12 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                                         })}
                                       </tbody>
                                     </table>
+                                    {baseParams[0]?.analystRemarks && (
+                                      <div style={{ marginTop: 8, padding: '6px 10px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, fontSize: 12, color: '#374151' }}>
+                                        <span style={{ fontWeight: 700, color: '#92400e', marginRight: 6 }}>Analyst Remarks:</span>
+                                        {baseParams[0].analystRemarks}
+                                      </div>
+                                    )}
                                   </div>
                                 )
                               })()}
@@ -1015,6 +1022,12 @@ export default function SampleDetailSheet({ sampleId, onClose, onStartTask, cont
                                         })}
                                       </tbody>
                                     </table>
+                                    {baseParams[0]?.analystRemarks && (
+                                      <div style={{ marginTop: 8, padding: '6px 10px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, fontSize: 12, color: '#374151' }}>
+                                        <span style={{ fontWeight: 700, color: '#92400e', marginRight: 6 }}>Analyst Remarks:</span>
+                                        {baseParams[0].analystRemarks}
+                                      </div>
+                                    )}
                                   </div>
                                 )
                               })()}

@@ -58,7 +58,8 @@ public class OosPdfDocument : IDocument
         decimal? LotReleasedQty = null,
         decimal? LotScrappedQty = null,
         // Multi-cycle retests (chronological order — replaces legacy single RetestExecutionId when present)
-        List<OosRetestCycleEntry>? RetestCycles = null
+        List<OosRetestCycleEntry>? RetestCycles = null,
+        string? AnalystRemarks = null
     );
 
     public record OosRetestCycleEntry(
@@ -203,6 +204,8 @@ public class OosPdfDocument : IDocument
                     });
 
                 col2.Item().PaddingTop(8).Text($"Analyst: {_d.AnalystName}").FontSize(9).FontColor("#6b7280").Italic();
+                if (!string.IsNullOrWhiteSpace(_d.AnalystRemarks))
+                    col2.Item().PaddingTop(4).Text($"Analyst Remarks: {_d.AnalystRemarks}").FontSize(9).FontColor("#374151").Italic();
             });
 
             col.Item().PaddingTop(14);

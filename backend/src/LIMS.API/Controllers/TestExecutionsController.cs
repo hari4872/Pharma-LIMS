@@ -96,7 +96,7 @@ public class TestExecutionsController : LimsControllerBase
         if (!TryGetUserId(out var analystId)) return Unauthorized(new { error = "Invalid token claims." });
         var isAdmin = User.IsInRole("Admin") || User.IsInRole("QA");
         var result = await _mediator.Send(new SubmitTestResultsCommand(
-            id, analystId, request.Entries, request.EntryMethod, isAdmin));
+            id, analystId, request.Entries, request.EntryMethod, isAdmin, request.AnalystRemarks));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return Ok(result.Value);
     }
@@ -293,7 +293,7 @@ public class TestExecutionsController : LimsControllerBase
 
 public record AssignWorkQueueRequest(int SampleId, int AnalystId, int? InstrumentId = null, int? PriorityScore = null, int? ContainerId = null, int[]? SpecTemplateItemIds = null);
 public record AssignTestMethodRequest(int AnalystId, int? InstrumentId = null, int? PriorityScore = null);
-public record SubmitResultsRequest(List<ResultEntryDto> Entries, EntryMethod EntryMethod = EntryMethod.Manual);
+public record SubmitResultsRequest(List<ResultEntryDto> Entries, EntryMethod EntryMethod = EntryMethod.Manual, string? AnalystRemarks = null);
 public record BatchRowRequest(int ExecutionId, List<ResultEntryDto> Entries);
 public record BatchSubmitRequest(List<BatchRowRequest> Rows);
 public record AdHocTestRequest(int SampleId, int ParameterId, string Reason);

@@ -3556,6 +3556,10 @@ namespace LIMS.Infrastructure.Migrations
                     b.Property<int?>("AnalystId")
                         .HasColumnType("integer");
 
+                    b.Property<string?>("AnalystRemarks")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
                     b.Property<int?>("AssignedById")
                         .HasColumnType("integer");
 

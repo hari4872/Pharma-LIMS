@@ -14,7 +14,8 @@ public record SubmitTestResultsCommand(
     int ExecutionId, int AnalystId,
     List<ResultEntryDto> Entries,
     EntryMethod EntryMethod = EntryMethod.Manual,
-    bool IsAdmin = false) : IRequest<Result<SubmitTestResultsResponse>>;
+    bool IsAdmin = false,
+    string? AnalystRemarks = null) : IRequest<Result<SubmitTestResultsResponse>>;
 
 public record SubmitTestResultsResponse(
     int ExecutionId,
@@ -174,6 +175,8 @@ public class SubmitTestResultsHandler : IRequestHandler<SubmitTestResultsCommand
 
         // Single atomic commit — all entries succeed or none do
         execution.EntryMethod = cmd.EntryMethod;
+        if (cmd.AnalystRemarks is not null)
+            execution.AnalystRemarks = cmd.AnalystRemarks.Trim().Length > 0 ? cmd.AnalystRemarks.Trim() : null;
         await _db.SaveChangesAsync(ct);
 
         // Build response AFTER save so EF-generated EntryIds are populated

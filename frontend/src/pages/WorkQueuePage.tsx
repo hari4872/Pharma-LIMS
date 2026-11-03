@@ -755,7 +755,7 @@ export default function WorkQueuePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {selectedContainerGroup.executions.map((exec, idx) => {
                   const sc = STATUS_COLORS[exec.status] ?? { bg: '#f3f4f6', color: '#374151' }
-                  const isDone = exec.status === 'Completed' || exec.status === 'QCVerified' || exec.status === 'OosOpen'
+                  const isDone = exec.status !== 'Assigned' && exec.status !== 'InProgress'
                   return (
                     <div key={exec.executionId} style={{
                       border: '1px solid #e5e7eb', borderRadius: 8, padding: '10px 12px',
@@ -1076,7 +1076,7 @@ export default function WorkQueuePage() {
                 const sc = STATUS_COLORS[exec.status] ?? { bg: '#f3f4f6', color: '#374151' }
                 const isOverdue = exec.dueDate && new Date(exec.dueDate) < new Date() &&
                   (exec.status === 'Assigned' || exec.status === 'InProgress')
-                const isDone = exec.status === 'Completed' || exec.status === 'QCVerified'
+                const isDone = exec.status !== 'Assigned' && exec.status !== 'InProgress'
                 const isExpanded = expandedExecId === exec.executionId
                 const params = execResults[exec.executionId]
                 const hasOos = params?.some(p => p.isOos)
@@ -1229,6 +1229,13 @@ export default function WorkQueuePage() {
                               })}
                             </tbody>
                           </table>
+                          {/* Analyst Remarks */}
+                          {params[0]?.analystRemarks && (
+                            <div style={{ marginTop: 8, padding: '6px 10px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, fontSize: 12, color: '#374151' }}>
+                              <span style={{ fontWeight: 700, color: '#92400e', marginRight: 6 }}>Analyst Remarks:</span>
+                              {params[0].analystRemarks}
+                            </div>
+                          )}
                           {/* Layer 2 — Levey-Jennings chart for clicked parameter */}
                           {spcExpandedParam !== null && spcByParam[spcExpandedParam] && (() => {
                             const spc = spcByParam[spcExpandedParam]

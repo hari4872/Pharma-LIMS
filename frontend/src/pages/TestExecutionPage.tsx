@@ -141,6 +141,7 @@ export default function TestExecutionPage() {
   const [signForm,    setSignForm]    = useState({ password: '', meaning: 'I confirm these test results are accurate and complete', reason: '' })
   const [lookupTables,  setLookupTables]  = useState<Record<number, LookupTableData>>({})
   const [lookupInputs,  setLookupInputs]  = useState<Record<number, { v1: string; v2: string }>>({})
+  const [analystRemarks, setAnalystRemarks] = useState('')
   const [saving,      setSaving]      = useState(false)
   const [submitting,  setSubmitting]  = useState(false)
   const [draftSaved,  setDraftSaved]  = useState(false)
@@ -362,7 +363,11 @@ export default function TestExecutionPage() {
           instrumentId: paramInstruments[numPid] || undefined,
         }
       })
-      const r = await api.post(`/test-executions/${id}/results`, { entries: entryList, entryMethod: 'Manual' })
+      const r = await api.post(`/test-executions/${id}/results`, {
+        entries: entryList,
+        entryMethod: 'Manual',
+        analystRemarks: analystRemarks.trim() || undefined,
+      })
       setResults(r.data.results)
       setHasOos(r.data.hasOos)
       setHasOot(r.data.hasOot)
@@ -1073,7 +1078,22 @@ export default function TestExecutionPage() {
 
           {error && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 12 }}>{error}</p>}
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 20, alignItems: 'center' }}>
+          {/* Optional analyst remarks */}
+          <div style={{ marginTop: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4 }}>
+              Analyst Remarks <span style={{ fontWeight: 400, color: '#9ca3af' }}>(optional)</span>
+            </label>
+            <textarea
+              value={analystRemarks}
+              onChange={e => setAnalystRemarks(e.target.value)}
+              maxLength={2000}
+              rows={2}
+              placeholder="Any notes about this test run (e.g. instrument calibration, environmental conditions)…"
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: 7, fontSize: 13, color: '#374151', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 12, alignItems: 'center' }}>
             <button type="button" onClick={saveDraft}
               style={{ padding: '9px 18px', background: '#f8fafc', border: '1px solid #d1d5db', borderRadius: 7, fontSize: 13, color: '#374151', cursor: 'pointer', fontWeight: 500 }}>
               {draftSaved ? '✓ Draft Saved' : '💾 Save Draft'}

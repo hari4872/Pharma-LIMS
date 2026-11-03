@@ -22,7 +22,8 @@ public record LogbookEntryDto(
     string? InstrumentName, string AnalystName,
     string? EvidenceFileRef, string Status,
     string? SignedByFullName, DateTimeOffset? SignedAt,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? AnalystRemarks = null);
 
 public class GetLogbookEntriesHandler : IRequestHandler<GetLogbookEntriesQuery, List<LogbookEntryDto>>
 {
@@ -37,6 +38,7 @@ public class GetLogbookEntriesHandler : IRequestHandler<GetLogbookEntriesQuery, 
             .Include(e => e.Analyst)
             .Include(e => e.Instrument)
             .Include(e => e.Signature)
+            .Include(e => e.Execution)
             .AsQueryable();
 
         if (q.SampleId.HasValue) query = query.Where(e => e.SampleId == q.SampleId.Value);
@@ -63,7 +65,8 @@ public class GetLogbookEntriesHandler : IRequestHandler<GetLogbookEntriesQuery, 
                 e.EvidenceFileRef, e.Status.ToString(),
                 e.Signature != null ? e.Signature.FullName : null,
                 e.Signature != null ? e.Signature.SignedAt : null,
-                e.CreatedAt))
+                e.CreatedAt,
+                e.Execution != null ? e.Execution.AnalystRemarks : null))
             .ToListAsync(ct);
     }
 }

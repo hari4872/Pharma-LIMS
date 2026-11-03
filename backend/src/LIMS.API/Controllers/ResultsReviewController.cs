@@ -184,6 +184,7 @@ public class ResultsReviewController : LimsControllerBase
             Status:        exec.Status.ToString(),
             StartedAt:     exec.StartedAt,
             CompletedAt:   exec.CompletedAt,
+            AnalystRemarks: exec.AnalystRemarks,
             Results: exec.LogbookEntries
                 .OrderBy(le => le.Parameter?.SortOrder ?? 0)
                 .ThenBy(le => le.EntryId)

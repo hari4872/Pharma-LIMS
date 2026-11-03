@@ -339,7 +339,8 @@ public class OosInvestigationsController : LimsControllerBase
             CapaRef:                     inv.CapaRef,
             LotReleasedQty:              inv.Execution.Sample.LotReleasedQty,
             LotScrappedQty:              inv.Execution.Sample.LotScrappedQty,
-            RetestCycles:                retestCyclesForPdf.Count > 0 ? retestCyclesForPdf : null
+            RetestCycles:                retestCyclesForPdf.Count > 0 ? retestCyclesForPdf : null,
+            AnalystRemarks:              inv.Execution.AnalystRemarks
         );
 
         var doc   = new OosPdfDocument(data);
