@@ -252,31 +252,125 @@ public class CoAPdfDocument : IDocument
                 });
 
             // ── Lot Disposition (UnitBased — 100% inspection) ───────────────
-            if (_coa.LotReleasedQty.HasValue || _coa.LotScrappedQty.HasValue)
             {
-                col.Item().PaddingTop(12)
-                    .Border(0.5f).BorderColor("#a7f3d0")
-                    .Background("#ecfdf5").Padding(10).Column(disp =>
-                    {
-                        disp.Item().Text("LOT DISPOSITION — 100% INSPECTION RESULTS")
-                            .FontSize(8.5f).Bold().FontColor("#065f46");
-                        disp.Item().PaddingTop(6).Table(t =>
+                var rxInsp = new System.Text.RegularExpressions.Regex(@"units?.?inspected", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                var rxFail = new System.Text.RegularExpressions.Regex(@"(total.?)?units?.?fail", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                // Original = highest "Units Inspected" value; retest = second-highest
+                var inspLines = _coa.Lines.Where(l => rxInsp.IsMatch(l.ParameterName))
+                    .OrderByDescending(l => l.CalculatedResult ?? 0).ToList();
+                var origInspected = inspLines.Count > 0 ? (inspLines[0].CalculatedResult ?? 0m) : 0m;
+                var retestInspected = inspLines.Count > 1 ? (inspLines[1].CalculatedResult ?? 0m) : 0m;
+
+                // Original failed = "Units Failed" where OOS; retest failed = where PASS
+                var failLines = _coa.Lines.Where(l => rxFail.IsMatch(l.ParameterName)).ToList();
+                var origFailedLine = failLines.FirstOrDefault(l => l.PassFail.Contains("OOS", StringComparison.OrdinalIgnoreCase));
+                var retestFailedLine = failLines.FirstOrDefault(l => l.PassFail.Equals("PASS", StringComparison.OrdinalIgnoreCase));
+                var origFailed = origFailedLine?.CalculatedResult ?? 0m;
+                var retestFailed = retestFailedLine?.CalculatedResult ?? 0m;
+
+                var finalScrapped = _coa.LotScrappedQty ?? 0m;
+                var released = origInspected > 0 ? origInspected - finalScrapped : (_coa.LotReleasedQty ?? 0m);
+                var yieldPct = origInspected > 0 ? released / origInspected * 100m : 0m;
+
+                bool hasRetest = retestInspected > 0 || retestFailedLine != null;
+                bool showDisp = origInspected > 0 || _coa.LotScrappedQty.HasValue || _coa.LotReleasedQty.HasValue;
+
+                if (showDisp)
+                {
+                    col.Item().PaddingTop(12)
+                        .Border(0.5f).BorderColor("#a7f3d0")
+                        .Background("#ecfdf5").Padding(10).Column(disp =>
                         {
-                            t.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(); c.RelativeColumn(); c.RelativeColumn(); });
-                            void KV3(string label, string val, string col2) =>
-                                t.Cell().Padding(5).Column(inner =>
+                            disp.Item().Text("LOT DISPOSITION — 100% INSPECTION RESULTS")
+                                .FontSize(8.5f).Bold().FontColor("#065f46");
+
+                            disp.Item().PaddingTop(8).Row(row =>
+                            {
+                                // ── Section A: Original Inspection ───────────
+                                row.RelativeItem().Border(0.5f).BorderColor("#bbf7d0").Column(sec =>
                                 {
-                                    inner.Item().Text(label).FontSize(8).FontColor("#6b7280");
-                                    inner.Item().PaddingTop(2).Text(val).FontSize(12).Bold().FontColor(col2);
+                                    sec.Item().Background("#047857").Padding(5)
+                                        .Text("ORIGINAL INSPECTION").FontSize(8).Bold().FontColor("#ffffff");
+                                    sec.Item().Padding(8).Column(kv =>
+                                    {
+                                        kv.Item().PaddingBottom(5).Row(r =>
+                                        {
+                                            r.RelativeItem().Text("Units Inspected").FontSize(8).FontColor("#6b7280");
+                                            r.AutoItem().Text(origInspected > 0 ? origInspected.ToString("N0") : "—")
+                                                .FontSize(10).Bold().FontColor("#0f172a");
+                                        });
+                                        kv.Item().PaddingBottom(3).Row(r =>
+                                        {
+                                            r.RelativeItem().Text("Units Failed").FontSize(8).FontColor("#6b7280");
+                                            r.AutoItem().Text(origFailed > 0 ? origFailed.ToString("N0") : "0")
+                                                .FontSize(10).Bold().FontColor(origFailed > 0 ? "#b91c1c" : "#374151");
+                                        });
+                                        if (origFailed > 0 && hasRetest)
+                                            kv.Item().Text("OOS > Retest triggered").FontSize(7.5f).Italic().FontColor("#b91c1c");
+                                    });
                                 });
-                            KV3("Units Released", _coa.LotReleasedQty?.ToString("N0") ?? "—", "#065f46");
-                            KV3("Units Scrapped", _coa.LotScrappedQty?.ToString("N0") ?? "—", "#dc2626");
-                            var total = (_coa.LotReleasedQty ?? 0) + (_coa.LotScrappedQty ?? 0);
-                            KV3("Total Inspected", total > 0 ? total.ToString("N0") : "—", "#374151");
-                            var pct = total > 0 ? ((_coa.LotReleasedQty ?? 0) / total * 100m).ToString("N1") + "%" : "—";
-                            KV3("Yield", pct, "#374151");
+
+                                // ── Section B: Retest Inspection (conditional) ─
+                                if (hasRetest)
+                                {
+                                    row.ConstantItem(8); // gap
+                                    row.RelativeItem().Border(0.5f).BorderColor("#bae6fd").Column(sec =>
+                                    {
+                                        sec.Item().Background("#0369a1").Padding(5)
+                                            .Text("RETEST INSPECTION").FontSize(8).Bold().FontColor("#ffffff");
+                                        sec.Item().Padding(8).Column(kv =>
+                                        {
+                                            kv.Item().PaddingBottom(5).Row(r =>
+                                            {
+                                                r.RelativeItem().Text("Re-Inspected").FontSize(8).FontColor("#6b7280");
+                                                r.AutoItem().Text(retestInspected > 0 ? retestInspected.ToString("N0") : "—")
+                                                    .FontSize(10).Bold().FontColor("#0f172a");
+                                            });
+                                            kv.Item().PaddingBottom(3).Row(r =>
+                                            {
+                                                r.RelativeItem().Text("Units Failed").FontSize(8).FontColor("#6b7280");
+                                                r.AutoItem().Text(retestFailed.ToString("N0"))
+                                                    .FontSize(10).Bold().FontColor(retestFailed > 0 ? "#b91c1c" : "#065f46");
+                                            });
+                                            kv.Item().Text(retestFailed == 0 ? "PASS" : "FAIL")
+                                                .FontSize(8).Bold()
+                                                .FontColor(retestFailed == 0 ? "#065f46" : "#b91c1c");
+                                        });
+                                    });
+                                }
+
+                                // ── Section C: Final Disposition ──────────────
+                                row.ConstantItem(8); // gap
+                                row.RelativeItem().Border(0.5f).BorderColor("#e2e8f0").Column(sec =>
+                                {
+                                    sec.Item().Background("#374151").Padding(5)
+                                        .Text("FINAL DISPOSITION").FontSize(8).Bold().FontColor("#ffffff");
+                                    sec.Item().Padding(8).Column(kv =>
+                                    {
+                                        kv.Item().PaddingBottom(5).Row(r =>
+                                        {
+                                            r.RelativeItem().Text("Scrapped").FontSize(8).FontColor("#6b7280");
+                                            r.AutoItem().Text(finalScrapped > 0 ? finalScrapped.ToString("N0") : "0")
+                                                .FontSize(10).Bold().FontColor(finalScrapped > 0 ? "#b91c1c" : "#374151");
+                                        });
+                                        kv.Item().PaddingBottom(5).Row(r =>
+                                        {
+                                            r.RelativeItem().Text("Released").FontSize(8).FontColor("#6b7280");
+                                            r.AutoItem().Text(released >= 0 ? released.ToString("N0") : "—")
+                                                .FontSize(10).Bold().FontColor("#065f46");
+                                        });
+                                        kv.Item().Row(r =>
+                                        {
+                                            r.RelativeItem().Text("Yield").FontSize(8).FontColor("#6b7280");
+                                            r.AutoItem().Text(origInspected > 0 ? yieldPct.ToString("N1") + "%" : "—")
+                                                .FontSize(10).Bold().FontColor("#374151");
+                                        });
+                                    });
+                                });
+                            });
                         });
-                    });
+                }
             }
 
             // ── E-Signatures & Authorization ─────────────────────────────────
