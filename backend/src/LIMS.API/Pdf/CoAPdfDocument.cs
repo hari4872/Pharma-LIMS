@@ -256,24 +256,43 @@ public class CoAPdfDocument : IDocument
                 var rxInsp = new System.Text.RegularExpressions.Regex(@"units?.?inspected", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                 var rxFail = new System.Text.RegularExpressions.Regex(@"(total.?)?units?.?fail", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-                // Original = highest "Units Inspected" value; retest = second-highest
-                var inspLines = _coa.Lines.Where(l => rxInsp.IsMatch(l.ParameterName))
-                    .OrderByDescending(l => l.CalculatedResult ?? 0).ToList();
-                var origInspected = inspLines.Count > 0 ? (inspLines[0].CalculatedResult ?? 0m) : 0m;
-                var retestInspected = inspLines.Count > 1 ? (inspLines[1].CalculatedResult ?? 0m) : 0m;
-
-                // Original failed = "Units Failed" where OOS; retest failed = where PASS
+                // Use list insertion order (chronological test execution):
+                //   inspLines[0] = original batch inspection, inspLines[1] = retest batch
+                //   failLines[0] = original failed count,     failLines[1] = retest failed count
+                // PassFail for "Units Inspected" is N/A — do NOT sort by value or filter by PassFail.
+                var inspLines = _coa.Lines.Where(l => rxInsp.IsMatch(l.ParameterName)).ToList();
                 var failLines = _coa.Lines.Where(l => rxFail.IsMatch(l.ParameterName)).ToList();
-                var origFailedLine = failLines.FirstOrDefault(l => l.PassFail.Contains("OOS", StringComparison.OrdinalIgnoreCase));
-                var retestFailedLine = failLines.FirstOrDefault(l => l.PassFail.Equals("PASS", StringComparison.OrdinalIgnoreCase));
-                var origFailed = origFailedLine?.CalculatedResult ?? 0m;
-                var retestFailed = retestFailedLine?.CalculatedResult ?? 0m;
 
+                var origInspLine  = inspLines.Count > 0 ? inspLines[0] : null;
+                var retestInspLine = inspLines.Count > 1 ? inspLines[1] : null;
+                var origFailLine   = failLines.Count > 0 ? failLines[0] : null;
+                var retestFailLine = failLines.Count > 1 ? failLines[1] : null;
+
+                var origInspected   = origInspLine?.CalculatedResult  ?? 0m;
+                var retestInspected = retestInspLine?.CalculatedResult ?? 0m;
+                var origFailedQty   = origFailLine?.CalculatedResult   ?? 0m;
+                var retestFailedQty = retestFailLine?.CalculatedResult ?? 0m;
+
+                // Retest was triggered when original inspection had failures (OOS) or value > 0
+                bool retestTriggered = origFailedQty > 0
+                    || (origFailLine?.PassFail.Contains("OOS", StringComparison.OrdinalIgnoreCase) ?? false);
+
+                // hasRetest: retest data must actually exist (not just triggered flag)
+                bool hasRetest = retestTriggered && (retestInspected > 0 || retestFailLine != null);
+
+                // Retest outcome: explicitly PASS = all clear; anything else (OOS/FAIL/null) = still failing
+                bool retestOutcomePass = retestFailLine != null
+                    && retestFailLine.PassFail.Equals("PASS", StringComparison.OrdinalIgnoreCase);
+                bool retestOutcomeFail = hasRetest && !retestOutcomePass;
+
+                // Final disposition numbers
                 var finalScrapped = _coa.LotScrappedQty ?? 0m;
-                var released = origInspected > 0 ? origInspected - finalScrapped : (_coa.LotReleasedQty ?? 0m);
+                // Released = original inspected minus scrapped; fallback to stored LotReleasedQty if no Units Inspected param
+                var released = origInspected > 0
+                    ? origInspected - finalScrapped
+                    : (_coa.LotReleasedQty ?? 0m);
                 var yieldPct = origInspected > 0 ? released / origInspected * 100m : 0m;
 
-                bool hasRetest = retestInspected > 0 || retestFailedLine != null;
                 bool showDisp = origInspected > 0 || _coa.LotScrappedQty.HasValue || _coa.LotReleasedQty.HasValue;
 
                 if (showDisp)
@@ -303,11 +322,13 @@ public class CoAPdfDocument : IDocument
                                         kv.Item().PaddingBottom(3).Row(r =>
                                         {
                                             r.RelativeItem().Text("Units Failed").FontSize(8).FontColor("#6b7280");
-                                            r.AutoItem().Text(origFailed > 0 ? origFailed.ToString("N0") : "0")
-                                                .FontSize(10).Bold().FontColor(origFailed > 0 ? "#b91c1c" : "#374151");
+                                            r.AutoItem().Text(origFailedQty > 0 ? origFailedQty.ToString("N0") : "0")
+                                                .FontSize(10).Bold().FontColor(origFailedQty > 0 ? "#b91c1c" : "#374151");
                                         });
-                                        if (origFailed > 0 && hasRetest)
-                                            kv.Item().Text("OOS > Retest triggered").FontSize(7.5f).Italic().FontColor("#b91c1c");
+                                        if (retestTriggered && hasRetest)
+                                            kv.Item().Text("OOS → Retest triggered").FontSize(7.5f).Italic().FontColor("#b91c1c");
+                                        else if (!retestTriggered && origFailedQty == 0)
+                                            kv.Item().Text("All within specification").FontSize(7.5f).Italic().FontColor("#065f46");
                                     });
                                 });
 
@@ -330,12 +351,12 @@ public class CoAPdfDocument : IDocument
                                             kv.Item().PaddingBottom(3).Row(r =>
                                             {
                                                 r.RelativeItem().Text("Units Failed").FontSize(8).FontColor("#6b7280");
-                                                r.AutoItem().Text(retestFailed.ToString("N0"))
-                                                    .FontSize(10).Bold().FontColor(retestFailed > 0 ? "#b91c1c" : "#065f46");
+                                                r.AutoItem().Text(retestFailedQty.ToString("N0"))
+                                                    .FontSize(10).Bold().FontColor(retestFailedQty > 0 ? "#b91c1c" : "#065f46");
                                             });
-                                            kv.Item().Text(retestFailed == 0 ? "PASS" : "FAIL")
+                                            kv.Item().Text(retestOutcomePass ? "PASS" : "FAIL — Lot Rejected")
                                                 .FontSize(8).Bold()
-                                                .FontColor(retestFailed == 0 ? "#065f46" : "#b91c1c");
+                                                .FontColor(retestOutcomePass ? "#065f46" : "#b91c1c");
                                         });
                                     });
                                 }
@@ -348,23 +369,30 @@ public class CoAPdfDocument : IDocument
                                         .Text("FINAL DISPOSITION").FontSize(8).Bold().FontColor("#ffffff");
                                     sec.Item().Padding(8).Column(kv =>
                                     {
+                                        // If retest also failed, entire lot is rejected (released = 0)
+                                        var dispScrapped = retestOutcomeFail ? origInspected : finalScrapped;
+                                        var dispReleased = retestOutcomeFail ? 0m : released;
+                                        var dispYield    = retestOutcomeFail ? 0m : yieldPct;
+
                                         kv.Item().PaddingBottom(5).Row(r =>
                                         {
                                             r.RelativeItem().Text("Scrapped").FontSize(8).FontColor("#6b7280");
-                                            r.AutoItem().Text(finalScrapped > 0 ? finalScrapped.ToString("N0") : "0")
-                                                .FontSize(10).Bold().FontColor(finalScrapped > 0 ? "#b91c1c" : "#374151");
+                                            r.AutoItem().Text(dispScrapped > 0 ? dispScrapped.ToString("N0") : "0")
+                                                .FontSize(10).Bold().FontColor(dispScrapped > 0 ? "#b91c1c" : "#374151");
                                         });
                                         kv.Item().PaddingBottom(5).Row(r =>
                                         {
                                             r.RelativeItem().Text("Released").FontSize(8).FontColor("#6b7280");
-                                            r.AutoItem().Text(released >= 0 ? released.ToString("N0") : "—")
-                                                .FontSize(10).Bold().FontColor("#065f46");
+                                            r.AutoItem().Text(retestOutcomeFail ? "0 (REJECTED)" : dispReleased.ToString("N0"))
+                                                .FontSize(10).Bold()
+                                                .FontColor(retestOutcomeFail ? "#b91c1c" : "#065f46");
                                         });
                                         kv.Item().Row(r =>
                                         {
                                             r.RelativeItem().Text("Yield").FontSize(8).FontColor("#6b7280");
-                                            r.AutoItem().Text(origInspected > 0 ? yieldPct.ToString("N1") + "%" : "—")
-                                                .FontSize(10).Bold().FontColor("#374151");
+                                            r.AutoItem().Text(origInspected > 0 ? dispYield.ToString("N1") + "%" : "—")
+                                                .FontSize(10).Bold()
+                                                .FontColor(retestOutcomeFail ? "#b91c1c" : "#374151");
                                         });
                                     });
                                 });
