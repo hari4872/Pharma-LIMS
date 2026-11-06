@@ -78,27 +78,35 @@ public class GetCoAHandler : IRequestHandler<GetCoAQuery, List<CoADto>>
             .Where(e => sampleIds.Contains(e.SampleId) && e.Status == LogbookEntryStatus.Signed)
             .Include(e => e.Parameter)
             .Select(e => new {
-                e.SampleId, e.EntryId, e.CalculatedResult, e.PassFail,
+                e.SampleId, e.EntryId, e.CreatedAt, e.CalculatedResult, e.PassFail,
                 ParameterName = e.Parameter != null ? e.Parameter.ParameterName : ""
             })
             .ToListAsync(ct);
 
-        // Original "Units Inspected" = FIRST (lowest EntryId) signed entry for that parameter.
-        // The first entry is always the original batch inspection (before any retest cycle).
+        // Sort helper: chronological order by date/time, EntryId (auto-increment PK) as tiebreaker.
+        // EntryId is monotonically increasing so it matches wall-clock insertion order.
+        static IOrderedEnumerable<T> Chrono<T>(IEnumerable<T> src,
+            System.Func<T, DateTimeOffset> dt, System.Func<T, int> id)
+            => src.OrderBy(dt).ThenBy(id);
+
+        // Original "Units Inspected" = chronologically FIRST signed entry.
+        // Always the original batch inspection count (60K), before any retest cycle (8K).
         var origInspectedMap = rawEntries
             .Where(e => rxInsp.IsMatch(e.ParameterName))
             .GroupBy(e => e.SampleId)
             .ToDictionary(g => g.Key,
-                g => g.OrderBy(e => e.EntryId).First().CalculatedResult);
+                g => Chrono(g, e => e.CreatedAt, e => e.EntryId).First().CalculatedResult);
 
-        // Original "Total Units Failed" = the OOS entry (there can only be one OOS per parameter
-        // in a valid OOS→Retest chain; retest entries are PASS or fail again).
+        // Original "Total Units Failed" = chronologically FIRST OOS entry.
+        // Using date/time + EntryId — NOT by value magnitude — to handle multi-cycle OOS correctly
+        // (e.g. Cycle 1 retest fails with a higher count than the original; we still want the
+        // original 8K OOS, not Cycle 1's higher value).
         var origFailedMap = rawEntries
             .Where(e => rxFail.IsMatch(e.ParameterName)
                      && e.PassFail.Contains("OOS", StringComparison.OrdinalIgnoreCase))
             .GroupBy(e => e.SampleId)
             .ToDictionary(g => g.Key,
-                g => g.OrderByDescending(e => e.CalculatedResult ?? 0).First().CalculatedResult);
+                g => Chrono(g, e => e.CreatedAt, e => e.EntryId).First().CalculatedResult);
 
         return coas.Where(c => c.Sample != null).Select(c => new CoADto(
             c.CoaId, c.SampleId, c.Sample.SampleNumber,
