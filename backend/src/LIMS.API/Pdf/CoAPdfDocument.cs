@@ -256,31 +256,37 @@ public class CoAPdfDocument : IDocument
                 var rxInsp = new System.Text.RegularExpressions.Regex(@"units?.?inspected", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                 var rxFail = new System.Text.RegularExpressions.Regex(@"(total.?)?units?.?fail", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-                // Use list insertion order (chronological test execution):
-                //   inspLines[0] = original batch inspection, inspLines[1] = retest batch
-                //   failLines[0] = original failed count,     failLines[1] = retest failed count
-                // PassFail for "Units Inspected" is N/A — do NOT sort by value or filter by PassFail.
+                // Lines are ordered by SortOrder ThenBy ParameterId (GetCoAQuery.cs:71).
+                // "Units Inspected" PassFail = N/A — use list position: original = [0], retest = [1].
+                // Original always has lower ParameterId (created when original method was set up).
                 var inspLines = _coa.Lines.Where(l => rxInsp.IsMatch(l.ParameterName)).ToList();
-                var failLines = _coa.Lines.Where(l => rxFail.IsMatch(l.ParameterName)).ToList();
 
-                var origInspLine  = inspLines.Count > 0 ? inspLines[0] : null;
+                // "Total Units Failed": use PassFail to identify original OOS vs retest PASS.
+                // If original passes (all within spec), PassFail = "PASS" on a single line — fall
+                // back to list[0] as original. Retest = any other failLine.
+                var allFailLines = _coa.Lines.Where(l => rxFail.IsMatch(l.ParameterName)).ToList();
+                var origFailLine = allFailLines.FirstOrDefault(l =>
+                    l.PassFail.Contains("OOS", StringComparison.OrdinalIgnoreCase))
+                    ?? allFailLines.FirstOrDefault();                             // all-pass fallback
+                var retestFailLine = allFailLines.FirstOrDefault(l => l != origFailLine);
+
+                var origInspLine   = inspLines.Count > 0 ? inspLines[0] : null;
                 var retestInspLine = inspLines.Count > 1 ? inspLines[1] : null;
-                var origFailLine   = failLines.Count > 0 ? failLines[0] : null;
-                var retestFailLine = failLines.Count > 1 ? failLines[1] : null;
 
                 var origInspected   = origInspLine?.CalculatedResult  ?? 0m;
                 var retestInspected = retestInspLine?.CalculatedResult ?? 0m;
                 var origFailedQty   = origFailLine?.CalculatedResult   ?? 0m;
                 var retestFailedQty = retestFailLine?.CalculatedResult ?? 0m;
 
-                // Retest was triggered when original inspection had failures (OOS) or value > 0
-                bool retestTriggered = origFailedQty > 0
-                    || (origFailLine?.PassFail.Contains("OOS", StringComparison.OrdinalIgnoreCase) ?? false);
+                // Retest triggered ONLY when PassFail = "OOS" on the original failed line.
+                // A within-spec failure (PassFail = "PASS", qty > 0) does NOT trigger retest.
+                bool retestTriggered = origFailLine?.PassFail
+                    .Contains("OOS", StringComparison.OrdinalIgnoreCase) ?? false;
 
-                // hasRetest: retest data must actually exist (not just triggered flag)
+                // hasRetest: OOS was flagged AND retest data actually exists
                 bool hasRetest = retestTriggered && (retestInspected > 0 || retestFailLine != null);
 
-                // Retest outcome: explicitly PASS = all clear; anything else (OOS/FAIL/null) = still failing
+                // Retest outcome: explicitly PASS = clear; anything else (OOS / FAIL / missing) = failing
                 bool retestOutcomePass = retestFailLine != null
                     && retestFailLine.PassFail.Equals("PASS", StringComparison.OrdinalIgnoreCase);
                 bool retestOutcomeFail = hasRetest && !retestOutcomePass;
