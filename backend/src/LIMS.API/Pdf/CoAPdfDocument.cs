@@ -256,44 +256,54 @@ public class CoAPdfDocument : IDocument
                 var rxInsp = new System.Text.RegularExpressions.Regex(@"units?.?inspected", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                 var rxFail = new System.Text.RegularExpressions.Regex(@"(total.?)?units?.?fail", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
-                // Lines are ordered by SortOrder ThenBy ParameterId (GetCoAQuery.cs:71).
-                // "Units Inspected" PassFail = N/A — use list position: original = [0], retest = [1].
-                // Original always has lower ParameterId (created when original method was set up).
-                var inspLines = _coa.Lines.Where(l => rxInsp.IsMatch(l.ParameterName)).ToList();
+                // ── Source of truth for original inspection values ───────────────
+                // CoA Lines keep only the LATEST signed entry per parameter.  When an OOS→Retest
+                // cycle occurs, the retest values overwrite the original in the CoA snapshot.
+                // GetCoAQuery supplements CoADto with OriginalUnitsInspected / OriginalUnitsFailed
+                // by scanning the raw DigitalLogbookEntries directly.
+                //
+                // Example (your scenario):
+                //   OriginalUnitsInspected = 60,000  (first "Units Inspected" entry)
+                //   OriginalUnitsFailed    =  8,000  (OOS "Total Units Failed" entry)
+                //   CoA line "Units Inspected" latest  = 8,000  (retest re-inspection)
+                //   CoA line "Total Units Failed" latest= 0, PASS (retest result)
 
-                // "Total Units Failed": use PassFail to identify original OOS vs retest PASS.
-                // If original passes (all within spec), PassFail = "PASS" on a single line — fall
-                // back to list[0] as original. Retest = any other failLine.
+                var origInspected = _coa.OriginalUnitsInspected ?? 0m;
+                var origFailedQty = _coa.OriginalUnitsFailed    ?? 0m;
+
+                // Retest triggered ONLY when an OOS entry exists (OriginalUnitsFailed is populated).
+                // Within-spec failures (PassFail=PASS, qty>0) are NOT OOS → no retest section.
+                bool retestTriggered = _coa.OriginalUnitsFailed.HasValue;
+
+                // Retest counts come from the CoA lines (the latest signed entry per parameter).
+                var inspLines    = _coa.Lines.Where(l => rxInsp.IsMatch(l.ParameterName)).ToList();
                 var allFailLines = _coa.Lines.Where(l => rxFail.IsMatch(l.ParameterName)).ToList();
-                var origFailLine = allFailLines.FirstOrDefault(l =>
-                    l.PassFail.Contains("OOS", StringComparison.OrdinalIgnoreCase))
-                    ?? allFailLines.FirstOrDefault();                             // all-pass fallback
-                var retestFailLine = allFailLines.FirstOrDefault(l => l != origFailLine);
 
-                var origInspLine   = inspLines.Count > 0 ? inspLines[0] : null;
-                var retestInspLine = inspLines.Count > 1 ? inspLines[1] : null;
+                // CoA line for "Units Inspected" is the latest entry.
+                // If latest == original (only one entry ever), no separate retest Units Inspected exists.
+                var latestInspLine   = inspLines.FirstOrDefault();
+                var latestInspected  = latestInspLine?.CalculatedResult ?? 0m;
+                // Show retest re-inspected only when it differs from original (cycle was recorded)
+                var retestInspected  = (latestInspected > 0 && latestInspected != origInspected)
+                    ? latestInspected : (decimal?)null;
 
-                var origInspected   = origInspLine?.CalculatedResult  ?? 0m;
-                var retestInspected = retestInspLine?.CalculatedResult ?? 0m;
-                var origFailedQty   = origFailLine?.CalculatedResult   ?? 0m;
-                var retestFailedQty = retestFailLine?.CalculatedResult ?? 0m;
+                // CoA line for "Total Units Failed" is the latest (retest) entry
+                var retestFailLine   = allFailLines.FirstOrDefault(l =>
+                    l.PassFail.Equals("PASS", StringComparison.OrdinalIgnoreCase))
+                    ?? allFailLines.FirstOrDefault();
+                var retestFailedQty  = retestFailLine?.CalculatedResult ?? 0m;
 
-                // Retest triggered ONLY when PassFail = "OOS" on the original failed line.
-                // A within-spec failure (PassFail = "PASS", qty > 0) does NOT trigger retest.
-                bool retestTriggered = origFailLine?.PassFail
-                    .Contains("OOS", StringComparison.OrdinalIgnoreCase) ?? false;
+                bool hasRetest = retestTriggered
+                    && (retestInspected.HasValue || retestFailLine != null);
 
-                // hasRetest: OOS was flagged AND retest data actually exists
-                bool hasRetest = retestTriggered && (retestInspected > 0 || retestFailLine != null);
-
-                // Retest outcome: explicitly PASS = clear; anything else (OOS / FAIL / missing) = failing
+                // Retest outcome: PASS line = cleared; anything else (OOS / FAIL / missing) = still failing
                 bool retestOutcomePass = retestFailLine != null
                     && retestFailLine.PassFail.Equals("PASS", StringComparison.OrdinalIgnoreCase);
                 bool retestOutcomeFail = hasRetest && !retestOutcomePass;
 
                 // Final disposition numbers
                 var finalScrapped = _coa.LotScrappedQty ?? 0m;
-                // Released = original inspected minus scrapped; fallback to stored LotReleasedQty if no Units Inspected param
+                // Released = original batch − scrapped; fallback to stored LotReleasedQty
                 var released = origInspected > 0
                     ? origInspected - finalScrapped
                     : (_coa.LotReleasedQty ?? 0m);
@@ -331,9 +341,9 @@ public class CoAPdfDocument : IDocument
                                             r.AutoItem().Text(origFailedQty > 0 ? origFailedQty.ToString("N0") : "0")
                                                 .FontSize(10).Bold().FontColor(origFailedQty > 0 ? "#b91c1c" : "#374151");
                                         });
-                                        if (retestTriggered && hasRetest)
+                                        if (hasRetest)
                                             kv.Item().Text("OOS → Retest triggered").FontSize(7.5f).Italic().FontColor("#b91c1c");
-                                        else if (!retestTriggered && origFailedQty == 0)
+                                        else if (origFailedQty == 0)
                                             kv.Item().Text("All within specification").FontSize(7.5f).Italic().FontColor("#065f46");
                                     });
                                 });
@@ -351,7 +361,7 @@ public class CoAPdfDocument : IDocument
                                             kv.Item().PaddingBottom(5).Row(r =>
                                             {
                                                 r.RelativeItem().Text("Re-Inspected").FontSize(8).FontColor("#6b7280");
-                                                r.AutoItem().Text(retestInspected > 0 ? retestInspected.ToString("N0") : "—")
+                                                r.AutoItem().Text(retestInspected.HasValue ? retestInspected.Value.ToString("N0") : "—")
                                                     .FontSize(10).Bold().FontColor("#0f172a");
                                             });
                                             kv.Item().PaddingBottom(3).Row(r =>
