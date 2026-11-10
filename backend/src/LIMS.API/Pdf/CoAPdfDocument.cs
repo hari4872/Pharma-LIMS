@@ -296,8 +296,11 @@ public class CoAPdfDocument : IDocument
                     ?? allFailLines.FirstOrDefault();
                 var retestFailedQty  = retestFailLine?.CalculatedResult ?? 0m;
 
-                bool hasRetest = retestTriggered
-                    && (retestInspected.HasValue || retestFailLine != null);
+                // RETEST section only shows when a new "Units Inspected" entry exists —
+                // that proves a physical retest cycle was actually performed.
+                // Without a new inspected count, retestFailLine would just be the original
+                // OOS entry, which must not be shown as a "retest" result.
+                bool hasRetest = retestTriggered && retestInspected.HasValue;
 
                 // Retest outcome: PASS line = cleared; anything else (OOS / FAIL / missing) = still failing
                 bool retestOutcomePass = retestFailLine != null
