@@ -268,7 +268,10 @@ public class CoAPdfDocument : IDocument
                 //   CoA line "Units Inspected" latest  = 8,000  (retest re-inspection)
                 //   CoA line "Total Units Failed" latest= 0, PASS (retest result)
 
-                var origFailedQty = _coa.OriginalUnitsFailed ?? 0m;
+                // OriginalUnitsInspected = first chronological raw entry (original batch before any retest).
+                // This is always the correct "Units Inspected" to show in ORIGINAL INSPECTION.
+                var origInspected = _coa.OriginalUnitsInspected ?? 0m;
+                var origFailedQty = _coa.OriginalUnitsFailed    ?? 0m;
 
                 // Retest triggered ONLY when an OOS entry exists (OriginalUnitsFailed is populated).
                 // Within-spec failures (PassFail=PASS, qty>0) are NOT OOS → no retest section.
@@ -278,17 +281,10 @@ public class CoAPdfDocument : IDocument
                 var inspLines    = _coa.Lines.Where(l => rxInsp.IsMatch(l.ParameterName)).ToList();
                 var allFailLines = _coa.Lines.Where(l => rxFail.IsMatch(l.ParameterName)).ToList();
 
+                // CoA line for "Units Inspected" is the latest entry.
+                // If latest == original (only one entry ever), no separate retest Units Inspected exists.
                 var latestInspLine  = inspLines.FirstOrDefault();
                 var latestInspected = latestInspLine?.CalculatedResult ?? 0m;
-
-                // origInspected for the ORIGINAL INSPECTION box:
-                //   • No OOS (retestTriggered=false): use the CoA line value (QA-approved, latest).
-                //     A prior entry with a different value is a correction, not a "before-retest" snapshot.
-                //   • OOS→Retest (retestTriggered=true): use the first raw entry (the original batch
-                //     size before the retest cycle, e.g. 60K → retest on 8K).
-                var origInspected = retestTriggered
-                    ? (_coa.OriginalUnitsInspected ?? latestInspected)
-                    : (latestInspected > 0 ? latestInspected : _coa.OriginalUnitsInspected ?? 0m);
 
                 // Show retest re-inspected only when it differs from original (cycle was recorded)
                 var retestInspected = (latestInspected > 0 && latestInspected != origInspected)
