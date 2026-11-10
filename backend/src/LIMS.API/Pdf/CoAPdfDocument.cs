@@ -306,13 +306,12 @@ public class CoAPdfDocument : IDocument
 
                 // Final disposition numbers
                 var finalScrapped = _coa.LotScrappedQty ?? 0m;
-                // LotReleasedQty is authoritative (entered by QA at CoA release).
-                // Fall back to origInspected − scrapped only when it is not set.
-                // Yield base = released + scrapped (actual lot disposition), not origInspected.
-                var released = _coa.LotReleasedQty
-                    ?? (origInspected > 0 ? origInspected - finalScrapped : 0m);
-                var yieldBase = released + finalScrapped;
-                var yieldPct = yieldBase > 0 ? released / yieldBase * 100m : 0m;
+                // Released = original batch − scrapped (units approved for release).
+                // Yield = released / original batch (% of inspected units that passed).
+                var released = origInspected > 0
+                    ? origInspected - finalScrapped
+                    : (_coa.LotReleasedQty ?? 0m);
+                var yieldPct = origInspected > 0 ? released / origInspected * 100m : 0m;
 
                 bool showDisp = origInspected > 0 || _coa.LotScrappedQty.HasValue || _coa.LotReleasedQty.HasValue;
 
