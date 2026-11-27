@@ -1,11 +1,12 @@
 using LIMS.Application.Interfaces;
+using LIMS.Domain.Entities;
 using LIMS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 namespace LIMS.Application.Features.Checkpoints;
 
-public record GetCheckpointsQuery(int? LabId, string? TriggerMode, DateOnly? ViewDate = null) : IRequest<List<CheckpointDto>>;
+public record GetCheckpointsQuery(int? LabId, string? TriggerMode, DateOnly? ViewDate = null, string? CurrentUsername = null, string? CurrentRole = null) : IRequest<List<CheckpointDto>>;
 
 public record CheckpointParameterDto(
     int ParameterId, string ParameterName, string ParameterCode, string? Uom, string DataType,
@@ -17,7 +18,9 @@ public record CheckpointDto(
     int LocationCount, string? TimeSlots, List<CheckpointParameterDto> Parameters,
     List<string> ExecutedTodaySlots,
     Dictionary<string, string> ExecutedSlotBreaches,   // slotLabel → "alert"|"action"
-    string Category, string? SystemName, string? SystemCode, string? Location, string? SamplingPointCode, string LifecycleStatus, DateOnly? ScheduledDate);
+    string Category, string? SystemName, string? SystemCode, string? Location, string? SamplingPointCode, string LifecycleStatus, DateOnly? ScheduledDate,
+    string FrequencyType, string? FrequencyConfig,
+    List<string> AssignedUsernames);
 
 public record GetProcessLogQuery(int CheckpointId, DateOnly? Date) : IRequest<List<ProcessLogRowDto>>;
 
@@ -38,11 +41,21 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
         var query = _db.Checkpoints
             .Include(c => c.Locations)
             .Include(c => c.CheckpointParameters).ThenInclude(cp => cp.Parameter)
+            .Include(c => c.Assignments)
             .AsQueryable();
         if (request.LabId.HasValue) query = query.Where(c => c.LabId == request.LabId);
         if (!string.IsNullOrEmpty(request.TriggerMode) && Enum.TryParse<TriggerType>(request.TriggerMode, true, out var triggerEnum))
             query = query.Where(c => c.TriggerMode == triggerEnum);
+
+        // Analyst role: only show checkpoints assigned to this user (or unassigned checkpoints)
+        if (request.CurrentRole == "Analyst" && !string.IsNullOrEmpty(request.CurrentUsername))
+            query = query.Where(c => !c.Assignments.Any() || c.Assignments.Any(a => a.Username == request.CurrentUsername));
+
         var list = await query.ToListAsync(ct);
+
+        // Filter by frequency — only return checkpoints applicable to the viewed date
+        var viewDate = request.ViewDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        list = list.Where(c => IsActiveOnDate(c, viewDate)).ToList();
 
         // Fetch executed rows + their readings for the requested date
         var targetDate = (request.ViewDate ?? DateOnly.FromDateTime(DateTime.UtcNow)).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
@@ -97,8 +110,54 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
                 cp.AlertMin, cp.AlertMax, cp.ActionMin, cp.ActionMax)).ToList(),
             executedDict.TryGetValue(c.CheckpointId, out var todaySlots) ? todaySlots : [],
             breachDict.TryGetValue(c.CheckpointId, out var breaches) ? breaches : [],
-            c.Category, c.SystemName, c.SystemCode, c.Location, c.SamplingPointCode, c.LifecycleStatus, c.ScheduledDate))
+            c.Category, c.SystemName, c.SystemCode, c.Location, c.SamplingPointCode, c.LifecycleStatus, c.ScheduledDate,
+            c.FrequencyType, c.FrequencyConfig,
+            c.Assignments.Select(a => a.Username).ToList()))
             .ToList();
+    }
+
+    private static bool IsActiveOnDate(Checkpoint c, DateOnly date)
+    {
+        if (c.FrequencyType == "Daily" || string.IsNullOrEmpty(c.FrequencyConfig))
+            return true;
+
+        try
+        {
+            var cfg = System.Text.Json.JsonDocument.Parse(c.FrequencyConfig).RootElement;
+            switch (c.FrequencyType)
+            {
+                case "Weekly":
+                    var dayName = date.DayOfWeek.ToString()[..3];
+                    if (cfg.TryGetProperty("days", out var daysEl))
+                        return daysEl.EnumerateArray().Any(d => d.GetString() == dayName);
+                    break;
+                case "Monthly":
+                    if (cfg.TryGetProperty("dayOfMonth", out var domEl))
+                    {
+                        int dom = domEl.GetInt32();
+                        if (!IsAfterStart(cfg, date)) return false;
+                        if (dom == 32) return date.Day == DateTime.DaysInMonth(date.Year, date.Month);
+                        return date.Day == dom;
+                    }
+                    break;
+                case "Quarterly":
+                    if (cfg.TryGetProperty("months", out var monthsEl) && cfg.TryGetProperty("dayOfMonth", out var qDomEl))
+                    {
+                        var months = monthsEl.EnumerateArray().Select(m => m.GetInt32()).ToList();
+                        return months.Contains(date.Month) && date.Day == qDomEl.GetInt32();
+                    }
+                    break;
+            }
+        }
+        catch { /* malformed config — show anyway */ }
+        return true;
+    }
+
+    private static bool IsAfterStart(System.Text.Json.JsonElement cfg, DateOnly date)
+    {
+        if (cfg.TryGetProperty("startDate", out var sdEl) && DateOnly.TryParse(sdEl.GetString(), out var start))
+            return date >= start;
+        return true;
     }
 }
 

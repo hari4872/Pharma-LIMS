@@ -406,6 +406,22 @@ export default function CheckpointsPage() {
   const [selectedMethodId, setSelectedMethodId] = useState('')
   const [methodParamsLoading, setMethodParamsLoading] = useState(false)
 
+  // Frequency state
+  type FreqType = 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly'
+  const [frequencyType, setFrequencyType]       = useState<FreqType>('Daily')
+  const [weeklyDays, setWeeklyDays]             = useState<string[]>([])
+  const [weeklyTime, setWeeklyTime]             = useState('08:00')
+  const [monthlyStartDate, setMonthlyStartDate] = useState('')
+  const [monthlyEndDate, setMonthlyEndDate]     = useState('')
+  const [monthlyTime, setMonthlyTime]           = useState('08:00')
+  const [quarterlyMonths, setQuarterlyMonths]   = useState<number[]>([1, 4, 7, 10])
+  const [quarterlyDay, setQuarterlyDay]         = useState(1)
+  const [quarterlyTime, setQuarterlyTime]       = useState('08:00')
+
+  // Assigned analysts
+  const [allAnalysts, setAllAnalysts]           = useState<{ username: string; fullName: string }[]>([])
+  const [assignedAnalysts, setAssignedAnalysts] = useState<string[]>([])
+
   // EM fields
   const [category, setCategory]                   = useState('Batch')
   const [emSystems, setEmSystems]                 = useState<EmSystemMaster[]>([])
@@ -420,14 +436,18 @@ export default function CheckpointsPage() {
   async function load() {
     setLoading(true)
     try {
-      const [r, lr, pr, tmr, emr] = await Promise.all([
+      const [r, lr, pr, tmr, emr, ur] = await Promise.all([
         api.get('/checkpoints?triggerMode=TimeBased').catch(() => ({ data: [] })),
         api.get('/laboratories').catch(() => ({ data: [] })),
         api.get('/parameters').catch(() => ({ data: [] })),
         api.get('/test-methods').catch(() => ({ data: [] })),
         api.get('/em-systems').catch(() => ({ data: [] })),
+        api.get('/users').catch(() => ({ data: [] })),
       ])
       setData(r.data); setLabs(lr.data); setParams(pr.data); setTestMethods(tmr.data); setEmSystems(emr.data)
+      setAllAnalysts((ur.data as { username: string; fullName: string; role: string }[])
+        .filter(u => ['Analyst', 'QCLead', 'QA'].includes(u.role))
+        .map(u => ({ username: u.username, fullName: u.fullName })))
     } finally { setLoading(false) }
   }
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -461,7 +481,14 @@ export default function CheckpointsPage() {
     setSelectedSlots(['08:00']); setManualSlot(''); setManualSlotError('')
     setSelectedParams([]); setParamLimits({}); setShowParamLimits(null); setError('')
     setCategory('Batch'); setEmSystemId(null); setSystemName(''); setSystemCode(''); setLocation(''); setSamplingPointCode(''); setLifecycleStatus('Draft')
-    setSelectedMethodId(''); setEditTarget(null); setShowForm(true)
+    setSelectedMethodId(''); setEditTarget(null)
+    // Reset frequency
+    setFrequencyType('Daily')
+    setWeeklyDays([]); setWeeklyTime('08:00')
+    setMonthlyStartDate(''); setMonthlyEndDate(''); setMonthlyTime('08:00')
+    setQuarterlyMonths([1, 4, 7, 10]); setQuarterlyDay(1); setQuarterlyTime('08:00')
+    setAssignedAnalysts([])
+    setShowForm(true)
   }
 
   async function handleMethodChange(methodId: string) {
@@ -505,12 +532,32 @@ export default function CheckpointsPage() {
   async function submitForm(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError('')
     try {
+      // Build frequency config JSON
+      let freqConfig: object | null = null
+      let timeSlots: string | null = null
+      if (frequencyType === 'Daily') {
+        timeSlots = selectedSlots.length > 0 ? JSON.stringify(selectedSlots.sort()) : null
+      } else if (frequencyType === 'Weekly') {
+        const dom = monthlyStartDate ? new Date(monthlyStartDate).getDate() : null
+        freqConfig = { days: weeklyDays, time: weeklyTime }
+        timeSlots = JSON.stringify([weeklyTime])
+      } else if (frequencyType === 'Monthly') {
+        const dom = monthlyStartDate ? new Date(monthlyStartDate + 'T12:00:00').getDate() : 1
+        freqConfig = { dayOfMonth: dom, time: monthlyTime, startDate: monthlyStartDate || null, endDate: monthlyEndDate || null }
+        timeSlots = JSON.stringify([monthlyTime])
+      } else if (frequencyType === 'Quarterly') {
+        freqConfig = { months: quarterlyMonths, dayOfMonth: quarterlyDay, time: quarterlyTime }
+        timeSlots = JSON.stringify([quarterlyTime])
+      }
+
       await api.post('/checkpoints', {
         checkpointCode: cpName,
         labId: Number(labId),
         triggerMode: 'TimeBased',
         checkpointType: cpType,
-        timeSlots: selectedSlots.length > 0 ? JSON.stringify(selectedSlots.sort()) : null,
+        timeSlots,
+        frequencyType,
+        frequencyConfig: freqConfig ? JSON.stringify(freqConfig) : null,
         category,
         emSystemId:        category === 'Environmental' ? emSystemId : null,
         systemName:        category === 'Environmental' ? (systemName || null) : null,
@@ -528,6 +575,10 @@ export default function CheckpointsPage() {
             actionMin: lim.actionMin ? parseFloat(lim.actionMin) : null,
             actionMax: lim.actionMax ? parseFloat(lim.actionMax) : null,
           }
+        }),
+        assignedAnalysts: assignedAnalysts.map(username => {
+          const a = allAnalysts.find(x => x.username === username)
+          return { username, fullName: a?.fullName ?? null }
         }),
       })
       setShowForm(false)
@@ -828,49 +879,188 @@ export default function CheckpointsPage() {
               </div>
             )}
 
-            {/* ── Time Slots ───────────────────────────────────────── */}
+            {/* ── Frequency ──────────────────────────────────────── */}
             <div style={{ marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
-                  Time Slots
-                  <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 400, color: '#6b7280' }}>
-                    — scheduler triggers at these times daily
-                  </span>
-                </label>
-                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  {PRESETS.map(p => (
-                    <button key={p.label} type="button" onClick={() => setSelectedSlots(p.slots)}
-                      style={{ padding: '3px 9px', fontSize: 11, fontWeight: 600, borderRadius: 5, border: '1px solid #d1d5db', background: '#f9fafb', color: '#374151', cursor: 'pointer' }}>
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: 8, background: '#fafafa' }}>
-                {ALL_SLOTS.map(t => (
-                  <SlotChip key={t} time={t} selected={selectedSlots.includes(t)} onToggle={() => toggleSlot(t)} />
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 10 }}>Frequency</label>
+              {/* Tabs */}
+              <div style={{ display: 'flex', gap: 2, background: '#f1f5f9', borderRadius: 10, padding: 3, marginBottom: 14, width: 'fit-content' }}>
+                {(['Daily', 'Weekly', 'Monthly', 'Quarterly'] as FreqType[]).map(f => (
+                  <button key={f} type="button" onClick={() => setFrequencyType(f)}
+                    style={{
+                      padding: '6px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13,
+                      background: frequencyType === f ? '#1e3a5f' : 'transparent',
+                      color: frequencyType === f ? '#fff' : '#6b7280',
+                      fontWeight: frequencyType === f ? 700 : 500,
+                      transition: 'all 0.1s',
+                    }}>{f}</button>
                 ))}
               </div>
-              {/* Custom slot */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-start' }}>
-                <div style={{ flex: 1 }}>
-                  <input style={{ ...inp, fontFamily: 'monospace', margin: 0 }}
-                    value={manualSlot}
-                    onChange={e => { setManualSlot(e.target.value); setManualSlotError('') }}
-                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addManualSlot())}
-                    placeholder="Custom time e.g. 07:30" maxLength={5} />
-                  {manualSlotError && <p style={{ margin: '3px 0 0', fontSize: 11, color: '#dc2626' }}>{manualSlotError}</p>}
+
+              {/* Daily */}
+              {frequencyType === 'Daily' && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: '#6b7280' }}>Triggers every day at selected times</span>
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      {PRESETS.map(p => (
+                        <button key={p.label} type="button" onClick={() => setSelectedSlots(p.slots)}
+                          style={{ padding: '3px 9px', fontSize: 11, fontWeight: 600, borderRadius: 5, border: '1px solid #d1d5db', background: '#f9fafb', color: '#374151', cursor: 'pointer' }}>
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '12px 14px', border: '1.5px solid #e5e7eb', borderRadius: 8, background: '#fafafa' }}>
+                    {ALL_SLOTS.map(t => (
+                      <SlotChip key={t} time={t} selected={selectedSlots.includes(t)} onToggle={() => toggleSlot(t)} />
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <input style={{ ...inp, fontFamily: 'monospace', margin: 0 }} value={manualSlot}
+                        onChange={e => { setManualSlot(e.target.value); setManualSlotError('') }}
+                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addManualSlot())}
+                        placeholder="Custom time e.g. 07:30" maxLength={5} />
+                      {manualSlotError && <p style={{ margin: '3px 0 0', fontSize: 11, color: '#dc2626' }}>{manualSlotError}</p>}
+                    </div>
+                    <button type="button" onClick={addManualSlot}
+                      style={{ padding: '9px 14px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, fontWeight: 600, color: '#374151', cursor: 'pointer', flexShrink: 0 }}>
+                      + Add
+                    </button>
+                  </div>
+                  <p style={{ margin: '6px 0 0', fontSize: 11, color: '#9ca3af' }}>
+                    {selectedSlots.length === 0 ? 'No slots selected' : `${selectedSlots.length} slot${selectedSlots.length > 1 ? 's' : ''}: ${[...selectedSlots].sort().join(', ')}`}
+                  </p>
                 </div>
-                <button type="button" onClick={addManualSlot}
-                  style={{ padding: '9px 14px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 13, fontWeight: 600, color: '#374151', cursor: 'pointer', flexShrink: 0 }}>
-                  + Add
-                </button>
+              )}
+
+              {/* Weekly */}
+              {frequencyType === 'Weekly' && (
+                <div style={{ padding: '14px 16px', border: '1.5px solid #e5e7eb', borderRadius: 8, background: '#fafafa' }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Days of week</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
+                        <button key={d} type="button"
+                          onClick={() => setWeeklyDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])}
+                          style={{
+                            padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1.5px solid',
+                            background: weeklyDays.includes(d) ? '#1e3a5f' : '#fff',
+                            color: weeklyDays.includes(d) ? '#fff' : '#6b7280',
+                            borderColor: weeklyDays.includes(d) ? '#1e3a5f' : '#d1d5db',
+                          }}>{d}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Time</label>
+                    <input type="time" style={{ ...inp, margin: 0, width: 140 }} value={weeklyTime} onChange={e => setWeeklyTime(e.target.value)} />
+                  </div>
+                  {weeklyDays.length > 0 && (
+                    <p style={{ margin: '8px 0 0', fontSize: 11, color: '#6b7280' }}>Triggers every {weeklyDays.join(', ')} at {weeklyTime}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Monthly */}
+              {frequencyType === 'Monthly' && (
+                <div style={{ padding: '14px 16px', border: '1.5px solid #e5e7eb', borderRadius: 8, background: '#fafafa' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                        Start date <span style={{ fontWeight: 400, color: '#9ca3af' }}>— sets day of month</span>
+                      </label>
+                      <input type="date" style={{ ...inp, margin: 0 }} value={monthlyStartDate} onChange={e => setMonthlyStartDate(e.target.value)} />
+                      {monthlyStartDate && (
+                        <p style={{ margin: '4px 0 0', fontSize: 11, color: '#1e3a5f' }}>
+                          Runs on the {new Date(monthlyStartDate + 'T12:00:00').getDate()}th of every month
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Time</label>
+                      <input type="time" style={{ ...inp, margin: 0 }} value={monthlyTime} onChange={e => setMonthlyTime(e.target.value)} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                      End date <span style={{ fontWeight: 400, color: '#9ca3af' }}>— optional</span>
+                    </label>
+                    <input type="date" style={{ ...inp, margin: 0, width: 180 }} value={monthlyEndDate} onChange={e => setMonthlyEndDate(e.target.value)} />
+                  </div>
+                </div>
+              )}
+
+              {/* Quarterly */}
+              {frequencyType === 'Quarterly' && (
+                <div style={{ padding: '14px 16px', border: '1.5px solid #e5e7eb', borderRadius: 8, background: '#fafafa' }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Quarter start months</label>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {[{n:1,l:'Jan'},{n:2,l:'Feb'},{n:3,l:'Mar'},{n:4,l:'Apr'},{n:5,l:'May'},{n:6,l:'Jun'},{n:7,l:'Jul'},{n:8,l:'Aug'},{n:9,l:'Sep'},{n:10,l:'Oct'},{n:11,l:'Nov'},{n:12,l:'Dec'}].map(m => (
+                        <button key={m.n} type="button"
+                          onClick={() => setQuarterlyMonths(prev => prev.includes(m.n) ? prev.filter(x => x !== m.n) : [...prev, m.n].sort((a,b) => a-b))}
+                          style={{
+                            padding: '5px 10px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1.5px solid',
+                            background: quarterlyMonths.includes(m.n) ? '#1e3a5f' : '#fff',
+                            color: quarterlyMonths.includes(m.n) ? '#fff' : '#6b7280',
+                            borderColor: quarterlyMonths.includes(m.n) ? '#1e3a5f' : '#d1d5db',
+                          }}>{m.l}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Day of month</label>
+                      <select style={{ ...inp, margin: 0 }} value={quarterlyDay} onChange={e => setQuarterlyDay(Number(e.target.value))}>
+                        {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Time</label>
+                      <input type="time" style={{ ...inp, margin: 0 }} value={quarterlyTime} onChange={e => setQuarterlyTime(e.target.value)} />
+                    </div>
+                  </div>
+                  {quarterlyMonths.length > 0 && (
+                    <p style={{ margin: '8px 0 0', fontSize: 11, color: '#6b7280' }}>
+                      Triggers on day {quarterlyDay} of: {quarterlyMonths.map(m => ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m]).join(', ')} at {quarterlyTime}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── Assigned Analysts ─────────────────────────────── */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
+                Assigned Analysts
+                <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 400, color: '#6b7280' }}>— only these users see this checkpoint (leave empty for all)</span>
+              </label>
+              <div style={{ border: '1.5px solid #e5e7eb', borderRadius: 8, maxHeight: 180, overflowY: 'auto', background: '#fff' }}>
+                {allAnalysts.length === 0
+                  ? <p style={{ padding: '12px 14px', fontSize: 12, color: '#9ca3af', margin: 0 }}>No analysts found</p>
+                  : allAnalysts.map((a, i) => {
+                    const checked = assignedAnalysts.includes(a.username)
+                    return (
+                      <div key={a.username} onClick={() => setAssignedAnalysts(prev => checked ? prev.filter(x => x !== a.username) : [...prev, a.username])}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', cursor: 'pointer', background: checked ? '#eff6ff' : '#fff', borderBottom: i < allAnalysts.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                        <input type="checkbox" checked={checked} readOnly style={{ width: 15, height: 15, accentColor: '#1e3a5f' }} />
+                        <div>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{a.fullName}</span>
+                          <span style={{ marginLeft: 8, fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{a.username}</span>
+                        </div>
+                      </div>
+                    )
+                  })
+                }
               </div>
-              <p style={{ margin: '6px 0 0', fontSize: 11, color: '#9ca3af' }}>
-                {selectedSlots.length === 0
-                  ? 'No slots — checkpoint will not trigger automatically'
-                  : `${selectedSlots.length} slot${selectedSlots.length > 1 ? 's' : ''}: ${[...selectedSlots].sort().join(', ')}`}
-              </p>
+              {assignedAnalysts.length > 0 && (
+                <p style={{ margin: '5px 0 0', fontSize: 11, color: '#1e3a5f' }}>
+                  {assignedAnalysts.length} analyst{assignedAnalysts.length > 1 ? 's' : ''} assigned
+                </p>
+              )}
             </div>
 
             {/* ── Parameters ───────────────────────────────────────── */}

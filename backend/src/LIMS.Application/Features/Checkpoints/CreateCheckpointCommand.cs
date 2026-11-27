@@ -27,7 +27,12 @@ public record CreateCheckpointCommand(
     string? SamplingPointCode = null,
     string LifecycleStatus = "Draft",
     DateOnly? ScheduledDate = null,
-    int? EmSystemId = null) : IRequest<Result<int>>;        // preferred — IDs + two-tier limits
+    int? EmSystemId = null,
+    string FrequencyType = "Daily",                         // "Daily" | "Weekly" | "Monthly" | "Quarterly"
+    string? FrequencyConfig = null,                         // JSONB — type-specific config
+    List<AssignedAnalystInput>? AssignedAnalysts = null) : IRequest<Result<int>>;
+
+public record AssignedAnalystInput(string Username, string? FullName);
 
 public class CreateCheckpointValidator : AbstractValidator<CreateCheckpointCommand>
 {
@@ -99,7 +104,9 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
             Location = request.Location,
             SamplingPointCode = request.SamplingPointCode,
             LifecycleStatus = request.LifecycleStatus,
-            ScheduledDate = request.ScheduledDate
+            ScheduledDate = request.ScheduledDate,
+            FrequencyType = request.FrequencyType,
+            FrequencyConfig = request.FrequencyConfig,
         };
         _db.Checkpoints.Add(checkpoint);
 
@@ -131,6 +138,18 @@ public class CreateCheckpointCommandHandler : IRequestHandler<CreateCheckpointCo
                         ParameterId = parameterId
                     });
             }
+        }
+
+        // Save analyst assignments
+        if (request.AssignedAnalysts is { Count: > 0 })
+        {
+            foreach (var a in request.AssignedAnalysts.DistinctBy(x => x.Username))
+                _db.CheckpointAssignments.Add(new CheckpointAssignment
+                {
+                    Checkpoint = checkpoint,
+                    Username   = a.Username,
+                    FullName   = a.FullName,
+                });
         }
 
         await _db.SaveChangesAsync(ct);

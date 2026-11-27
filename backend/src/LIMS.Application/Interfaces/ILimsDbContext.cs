@@ -37,6 +37,7 @@ public interface ILimsDbContext
     DbSet<ProcessLogRow> ProcessLogRows { get; }
     DbSet<ProcessLogReading> ProcessLogReadings { get; }
     DbSet<CheckpointParameter> CheckpointParameters { get; }
+    DbSet<CheckpointAssignment> CheckpointAssignments { get; }
     // Phase 2: Sample Registration — join tables
     DbSet<SampleCheckpoint> SampleCheckpoints { get; }
     DbSet<SampleFormEntry> SampleFormEntries { get; }

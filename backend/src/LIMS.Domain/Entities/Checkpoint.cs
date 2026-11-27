@@ -28,10 +28,15 @@ public class Checkpoint
     public string LifecycleStatus { get; set; } = "Draft";  // "Draft" | "Active" | "Retired"
     public DateOnly? ScheduledDate { get; set; }            // legacy — next scheduled sampling date
 
+    // Frequency scheduling
+    public string FrequencyType { get; set; } = "Daily";     // "Daily" | "Weekly" | "Monthly" | "Quarterly"
+    public string? FrequencyConfig { get; set; }              // JSONB — type-specific schedule config
+
     public ICollection<CheckpointLocation> Locations { get; set; } = [];
     public ICollection<CheckpointTriggerLog> TriggerLogs { get; set; } = [];
     public ICollection<ProcessLogRow> ProcessLogRows { get; set; } = [];
     public ICollection<CheckpointParameter> CheckpointParameters { get; set; } = [];
+    public ICollection<CheckpointAssignment> Assignments { get; set; } = [];
 }
 
 // Links parameters to checkpoints with optional two-tier alert/action limits (LabVantage parity)
@@ -93,6 +98,16 @@ public class ProcessLogRow
     public Sample? Sample { get; set; }
 
     public ICollection<ProcessLogReading> Readings { get; set; } = [];
+}
+
+// Analyst assignment — which users are responsible for this checkpoint
+public class CheckpointAssignment
+{
+    public int CheckpointAssignmentId { get; set; }
+    public int CheckpointId { get; set; }
+    public Checkpoint Checkpoint { get; set; } = default!;
+    public string Username { get; set; } = default!;
+    public string? FullName { get; set; }
 }
 
 // Parameter readings recorded when a process log row is signed

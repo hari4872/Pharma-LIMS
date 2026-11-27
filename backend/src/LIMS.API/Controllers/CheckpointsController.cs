@@ -23,7 +23,9 @@ public class CheckpointsController : LimsControllerBase
     {
         DateOnly? viewDate = null;
         if (!string.IsNullOrEmpty(date) && DateOnly.TryParse(date, out var parsed)) viewDate = parsed;
-        return Ok(await _mediator.Send(new GetCheckpointsQuery(labId, triggerMode, viewDate)));
+        var username = User.Identity?.Name;
+        var role     = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+        return Ok(await _mediator.Send(new GetCheckpointsQuery(labId, triggerMode, viewDate, username, role)));
     }
 
     // GET api/v1/checkpoints/{id} -- single checkpoint with its parameters
@@ -89,12 +91,17 @@ public class CheckpointsController : LimsControllerBase
         var paramLimits = request.Parameters?
             .Select(p => new ParameterLimitsInput(p.ParameterId, p.AlertMin, p.AlertMax, p.ActionMin, p.ActionMax))
             .ToList();
+        var assignedAnalysts = request.AssignedAnalysts?
+            .Select(a => new AssignedAnalystInput(a.Username, a.FullName))
+            .ToList();
         var result = await _mediator.Send(new CreateCheckpointCommand(
             request.CheckpointCode, request.LabId, request.TriggerMode,
             request.CheckpointType, request.TimeSlots, request.ShiftIntervalHrs,
             request.FormTemplateId, request.ParameterIds, username, paramLimits,
             request.Category, request.SystemName, request.SystemCode, request.Location, request.SamplingPointCode, request.LifecycleStatus, request.ScheduledDate,
-            request.EmSystemId));
+            request.EmSystemId,
+            request.FrequencyType ?? "Daily", request.FrequencyConfig,
+            assignedAnalysts));
         if (!result.IsSuccess) return BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         return CreatedAtAction(nameof(GetAll), new { id = result.Value }, new { checkpointId = result.Value });
     }
@@ -215,7 +222,11 @@ public record CreateCheckpointRequest(string CheckpointCode, int LabId, string T
     string? SamplingPointCode = null,
     string LifecycleStatus = "Draft",
     DateOnly? ScheduledDate = null,
-    int? EmSystemId = null);
+    int? EmSystemId = null,
+    string? FrequencyType = "Daily",
+    string? FrequencyConfig = null,
+    List<AssignedAnalystRequest>? AssignedAnalysts = null);
+public record AssignedAnalystRequest(string Username, string? FullName);
 public record TriggerCheckpointRequest(string? DeliveryOrder = null, bool IsOfflineSync = false, int? SampleId = null);
 public record ReadingRequest(int ParameterId, string Value);
 public record SignProcessLogRequest(string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null);

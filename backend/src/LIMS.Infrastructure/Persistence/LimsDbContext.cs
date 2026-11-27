@@ -42,6 +42,7 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<ProcessLogRow> ProcessLogRows => Set<ProcessLogRow>();
     public DbSet<ProcessLogReading> ProcessLogReadings => Set<ProcessLogReading>();
     public DbSet<CheckpointParameter> CheckpointParameters => Set<CheckpointParameter>();
+    public DbSet<CheckpointAssignment> CheckpointAssignments => Set<CheckpointAssignment>();
     // Phase 2 join tables
     public DbSet<SampleCheckpoint> SampleCheckpoints => Set<SampleCheckpoint>();
     public DbSet<SampleFormEntry> SampleFormEntries => Set<SampleFormEntry>();
@@ -118,6 +119,18 @@ public class LimsDbContext : DbContext, ILimsDbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(LimsDbContext).Assembly);
+
+        // CheckpointAssignment
+        modelBuilder.Entity<CheckpointAssignment>(e =>
+        {
+            e.ToTable("checkpoint_assignments");
+            e.HasKey(x => x.CheckpointAssignmentId);
+            e.Property(x => x.Username).IsRequired().HasMaxLength(100);
+            e.Property(x => x.FullName).HasMaxLength(200);
+            e.HasOne(x => x.Checkpoint).WithMany(c => c.Assignments)
+                .HasForeignKey(x => x.CheckpointId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => new { x.CheckpointId, x.Username }).IsUnique();
+        });
 
         // NavVisibilitySetting — string PK, no FK
         modelBuilder.Entity<NavVisibilitySetting>(e =>
