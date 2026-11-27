@@ -98,6 +98,13 @@ public class ProcessLogRow
     public int? SampleId { get; set; }
     public Sample? Sample { get; set; }
 
+    // QA slot-level review (FR-QA-02)
+    public string QaStatus { get; set; } = "Pending";        // Pending | Approved | Rejected
+    public string? QaReviewedBy { get; set; }
+    public DateTimeOffset? QaReviewedAt { get; set; }
+    public int? QaSignatureId { get; set; }
+    public ElectronicSignature? QaSignature { get; set; }
+
     public ICollection<ProcessLogReading> Readings { get; set; } = [];
 }
 

@@ -57,12 +57,12 @@ interface Checkpoint {
   parameters:           CheckpointParam[]
   executedTodaySlots:   string[]
   executedSlotBreaches: Record<string, string>  // slotLabel → "alert"|"action"
-  category:             string
-  systemName:           string | null
-  location?:            string | null
-  scheduledDate:        string | null
-  reviewStatus?:        string | null
-  reviewedBy?:          string | null
+  category:                string
+  systemName:              string | null
+  location?:               string | null
+  scheduledDate:           string | null
+  executedSlotRowIds:      Record<string, number>   // slotLabel → rowId (latest execution)
+  executedSlotQaStatus:    Record<string, string>   // slotLabel → "Pending"|"Approved"|"Rejected"
 }
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -146,11 +146,12 @@ export default function CheckpointExecutionPage() {
   const [execSamples, setExecSamples]   = useState<{ sampleId: number; sampleNumber: string; materialName: string; lotNumber: string }[]>([])
   const [execSampleId, setExecSampleId] = useState<number | null>(null)
 
-  // Review drawer state (QA/Admin only)
-  const [reviewFor, setReviewFor]       = useState<Checkpoint | null>(null)
-  const [reviewForm, setReviewForm]     = useState({ password: '', meaning: 'QA review completed — 21 CFR Part 11', comments: '' })
-  const [reviewSaving, setReviewSaving] = useState(false)
-  const [reviewError, setReviewError]   = useState('')
+  // QA slot-level review drawer state
+  const [reviewFor, setReviewFor]           = useState<{ cp: Checkpoint; slot: string; rowId: number } | null>(null)
+  const [reviewReadings, setReviewReadings] = useState<{ parameterId: number; parameterName: string; parameterCode: string; uom: string | null; value: string }[]>([])
+  const [reviewForm, setReviewForm]         = useState({ password: '', meaning: 'QA review — 21 CFR Part 11', comments: '' })
+  const [reviewSaving, setReviewSaving]     = useState(false)
+  const [reviewError, setReviewError]       = useState('')
   const isReviewer = role === 'Admin' || role === 'QA'
 
   const weekDays = useMemo(() => getWeekDays(viewDate), [viewDate])
@@ -224,10 +225,18 @@ export default function CheckpointExecutionPage() {
     finally { setExecSaving(false) }
   }
 
-  function openReview(cp: Checkpoint) {
-    setReviewFor(cp)
-    setReviewForm({ password: '', meaning: 'QA review completed — 21 CFR Part 11', comments: '' })
+  async function openQaReview(cp: Checkpoint, slot: string) {
+    const rowId = cp.executedSlotRowIds[slot]
+    if (!rowId) return
+    setReviewFor({ cp, slot, rowId })
+    setReviewReadings([])
+    setReviewForm({ password: '', meaning: 'QA review — 21 CFR Part 11', comments: '' })
     setReviewError('')
+    try {
+      const r = await api.get(`/checkpoints/${cp.checkpointId}/process-log?date=${viewDate}`)
+      const row = r.data.find((x: { slotLabel: string; readings: typeof reviewReadings }) => x.slotLabel === slot)
+      setReviewReadings(row?.readings ?? [])
+    } catch { /* non-critical — readings are display-only */ }
   }
 
   async function handleReview(e: React.MouseEvent<HTMLButtonElement>, status: 'Approved' | 'Rejected') {
@@ -235,14 +244,14 @@ export default function CheckpointExecutionPage() {
     if (!reviewFor) return
     setReviewSaving(true); setReviewError('')
     try {
-      await api.post(`/checkpoints/${reviewFor.checkpointId}/review`, {
+      await api.post(`/checkpoints/${reviewFor.cp.checkpointId}/execute/${reviewFor.rowId}/qa-review`, {
         status,
-        password:   reviewForm.password,
-        meaning:    reviewForm.meaning,
-        comments:   reviewForm.comments || null,
-        reviewDate: viewDate,
+        password: reviewForm.password,
+        meaning:  reviewForm.meaning,
+        comments: reviewForm.comments || null,
       })
-      toast(`${reviewFor.checkpointCode} ${status === 'Approved' ? 'approved ✓' : 'rejected'}`, status === 'Approved' ? 'success' : 'error')
+      toast(`${reviewFor.cp.checkpointCode} @ ${reviewFor.slot} ${status === 'Approved' ? 'approved ✓' : 'rejected'}`,
+        status === 'Approved' ? 'success' : 'error')
       setReviewFor(null)
       load()
     } catch (err) {
@@ -397,15 +406,6 @@ export default function CheckpointExecutionPage() {
                     {slot}
                   </th>
                 ))}
-                {isReviewer && (
-                  <th style={{
-                    padding: '12px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700,
-                    color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em',
-                    borderBottom: '2px solid #e5e7eb', minWidth: 120,
-                  }}>
-                    QA Review
-                  </th>
-                )}
                 <th style={{
                   padding: '12px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700,
                   color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -464,52 +464,41 @@ export default function CheckpointExecutionPage() {
                       }
                       const state = getCellState(slot, viewDate, cp.executedTodaySlots, todayStr, cp.executedSlotBreaches)
                       const cfg   = CELL_CFG[state]
+                      const isDone = state === 'done' || state === 'done-alert' || state === 'done-action'
+                      const qaStatus = cp.executedSlotQaStatus[slot]
+                      const qaClickable = isReviewer && isDone
+                      const execClickable = cfg.clickable && !isDone
+                      const isClickable = qaClickable || execClickable
                       return (
                         <td key={slot} style={{ padding: '6px 4px', textAlign: 'center' }}>
                           <button
-                            onClick={cfg.clickable ? () => openExecute(cp, slot) : undefined}
-                            disabled={!cfg.clickable}
-                            title={cfg.clickable ? `Record ${cp.checkpointCode} @ ${slot}` : undefined}
+                            onClick={qaClickable ? () => openQaReview(cp, slot) : (execClickable ? () => openExecute(cp, slot) : undefined)}
+                            disabled={!isClickable}
+                            title={qaClickable ? `QA Review ${cp.checkpointCode} @ ${slot}` : (execClickable ? `Record ${cp.checkpointCode} @ ${slot}` : undefined)}
                             style={{
                               padding: '6px 8px', borderRadius: 8, minWidth: 78,
                               border: `1.5px solid ${cfg.border}`,
                               background: cfg.bg, color: cfg.color,
                               fontSize: 11, fontWeight: 700,
-                              cursor: cfg.clickable ? 'pointer' : 'default',
+                              cursor: isClickable ? 'pointer' : 'default',
                               opacity: state === 'upcoming' ? 0.55 : 1,
                               transition: 'opacity 0.1s',
                               fontFamily: 'inherit',
                             }}>
-                            {cfg.label}
+                            <div>{cfg.label}</div>
+                            {isDone && qaStatus && (
+                              <div style={{
+                                fontSize: 9, fontWeight: 700, marginTop: 2,
+                                color: qaStatus === 'Approved' ? '#065f46' : qaStatus === 'Rejected' ? '#991b1b' : '#6b7280',
+                              }}>
+                                {qaStatus === 'Approved' ? '✓ QA OK' : qaStatus === 'Rejected' ? '✗ Rejected' : '● QA Pending'}
+                              </div>
+                            )}
                           </button>
                         </td>
                       )
                     })}
 
-                    {/* QA Review */}
-                    {isReviewer && (
-                      <td style={{ padding: '10px 10px', textAlign: 'center', verticalAlign: 'middle' }}>
-                        {cp.reviewStatus === 'Approved' ? (
-                          <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7', whiteSpace: 'nowrap' }}>
-                            ✓ Approved
-                          </span>
-                        ) : cp.reviewStatus === 'Rejected' ? (
-                          <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5', whiteSpace: 'nowrap' }}>
-                            ✗ Rejected
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => openReview(cp)}
-                            style={{
-                              padding: '4px 12px', borderRadius: 8, border: '1px solid #534AB7',
-                              background: '#EEEDFE', color: '#3C3489', fontSize: 11, fontWeight: 600,
-                              cursor: 'pointer', whiteSpace: 'nowrap',
-                            }}>
-                            Review
-                          </button>
-                        )}
-                      </td>
-                    )}
 
                     {/* Progress */}
                     <td style={{ padding: '10px 10px', textAlign: 'center' }}>
@@ -564,43 +553,46 @@ export default function CheckpointExecutionPage() {
         })}
       </div>
 
-      {/* ── Review drawer (QA/Admin) ──────────────────────────────────────── */}
+      {/* ── QA slot-level review drawer ───────────────────────────────────── */}
       {reviewFor && (
         <Drawer
-          title={`QA Review — ${reviewFor.checkpointCode}`}
-          subtitle={`${viewDate} · 21 CFR Part 11 e-signature required`}
+          title={`QA Review — ${reviewFor.cp.checkpointCode} @ ${reviewFor.slot}`}
+          subtitle={`${viewDate} · Row #${reviewFor.rowId} · 21 CFR Part 11 e-signature required`}
           onClose={() => setReviewFor(null)}
-          blocking width={460}
+          blocking width={480}
         >
-          {/* Executed slots summary */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 8 }}>Executed slots</div>
-            {reviewFor.executedTodaySlots.length === 0 ? (
-              <p style={{ fontSize: 12, color: '#dc2626', margin: 0 }}>No slots executed on this date.</p>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {parseSlots(reviewFor.timeSlots).map(slot => {
-                  const done   = reviewFor.executedTodaySlots.includes(slot)
-                  const breach = reviewFor.executedSlotBreaches?.[slot]
-                  return (
-                    <span key={slot} style={{
-                      padding: '3px 10px', borderRadius: 12, fontSize: 11, fontFamily: 'monospace', fontWeight: 700,
-                      background: !done ? '#fef2f2' : breach === 'action' ? '#fef2f2' : breach === 'alert' ? '#fffbeb' : '#d1fae5',
-                      color:      !done ? '#991b1b' : breach === 'action' ? '#991b1b' : breach === 'alert' ? '#92400e' : '#065f46',
-                      border: `1px solid ${!done ? '#fca5a5' : breach === 'action' ? '#fca5a5' : breach === 'alert' ? '#fcd34d' : '#6ee7b7'}`,
-                    }}>
-                      {slot} {!done ? '— missed' : breach === 'action' ? '— action!' : breach === 'alert' ? '— alert' : '✓'}
-                    </span>
-                  )
-                })}
-              </div>
-            )}
-          </div>
+          {/* Readings (read-only) */}
+          {reviewReadings.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 8 }}>Recorded Readings</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc' }}>
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>Parameter</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>Value</th>
+                    <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 600, color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>UoM</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reviewReadings.map(r => (
+                    <tr key={r.parameterId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '6px 10px', color: '#374151' }}>
+                        {r.parameterName}
+                        <span style={{ marginLeft: 6, color: '#9ca3af', fontFamily: 'monospace', fontSize: 10 }}>{r.parameterCode}</span>
+                      </td>
+                      <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>{r.value}</td>
+                      <td style={{ padding: '6px 10px', color: '#6b7280' }}>{r.uom ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Breach warning */}
-          {Object.values(reviewFor.executedSlotBreaches ?? {}).some(b => b === 'action') && (
+          {reviewFor.cp.executedSlotBreaches?.[reviewFor.slot] === 'action' && (
             <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#991b1b' }}>
-              ⚠ Action limit breached — a deviation / CAPA must be opened.
+              ⚠ Action limit breached — a deviation / CAPA must be opened before approving.
             </div>
           )}
 

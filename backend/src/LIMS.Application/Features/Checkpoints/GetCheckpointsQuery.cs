@@ -21,8 +21,8 @@ public record CheckpointDto(
     string Category, string? SystemName, string? SystemCode, string? Location, string? SamplingPointCode, string LifecycleStatus, DateOnly? ScheduledDate,
     string FrequencyType, string? FrequencyConfig,
     List<string> AssignedUsernames,
-    string? ReviewStatus,
-    string? ReviewedBy);
+    Dictionary<string, int> ExecutedSlotRowIds,
+    Dictionary<string, string> ExecutedSlotQaStatus);
 
 public record GetProcessLogQuery(int CheckpointId, DateOnly? Date) : IRequest<List<ProcessLogRowDto>>;
 
@@ -44,7 +44,6 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
             .Include(c => c.Locations)
             .Include(c => c.CheckpointParameters).ThenInclude(cp => cp.Parameter)
             .Include(c => c.Assignments)
-            .Include(c => c.DailyReviews)
             .AsQueryable();
         if (request.LabId.HasValue) query = query.Where(c => c.LabId == request.LabId);
         if (!string.IsNullOrEmpty(request.TriggerMode) && Enum.TryParse<TriggerType>(request.TriggerMode, true, out var triggerEnum))
@@ -69,7 +68,22 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
 
         var executedDict = executedRows
             .GroupBy(r => r.CheckpointId)
-            .ToDictionary(g => g.Key, g => g.Select(r => r.SlotLabel).ToList());
+            .ToDictionary(g => g.Key, g => g.Select(r => r.SlotLabel).Distinct().ToList());
+
+        // Latest row per (checkpointId, slotLabel) — for rowId + QA status
+        var latestPerSlot = executedRows
+            .GroupBy(r => new { r.CheckpointId, r.SlotLabel })
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.SlotTime).First());
+
+        var rowIdDict = latestPerSlot
+            .GroupBy(kvp => kvp.Key.CheckpointId)
+            .ToDictionary(g => g.Key,
+                g => g.ToDictionary(kvp => kvp.Key.SlotLabel, kvp => kvp.Value.RowId));
+
+        var qaStatusDict = latestPerSlot
+            .GroupBy(kvp => kvp.Key.CheckpointId)
+            .ToDictionary(g => g.Key,
+                g => g.ToDictionary(kvp => kvp.Key.SlotLabel, kvp => kvp.Value.QaStatus));
 
         // Compute worst breach per slot label per checkpoint (alert < action)
         var paramLimitsIndex = list.ToDictionary(
@@ -100,27 +114,25 @@ public class GetCheckpointsQueryHandler : IRequestHandler<GetCheckpointsQuery, L
             }
         }
 
-        return list.Select(c => {
-            var rev = c.DailyReviews.FirstOrDefault(r => r.ReviewDate == viewDate);
-            return new CheckpointDto(
-                c.CheckpointId, c.CheckpointCode, c.TriggerMode.ToString(),
-                c.CheckpointType, c.ShiftIntervalHrs, c.IsActive, c.Locations.Count,
-                c.TimeSlots,
-                c.CheckpointParameters
-                    .Where(cp => cp.Parameter != null)
-                    .Select(cp => new CheckpointParameterDto(
-                    cp.Parameter.ParameterId, cp.Parameter.ParameterName,
-                    cp.Parameter.ParameterCode, cp.Parameter.Uom,
-                    cp.Parameter.DataType.ToString(),
-                    cp.AlertMin, cp.AlertMax, cp.ActionMin, cp.ActionMax)).ToList(),
-                executedDict.TryGetValue(c.CheckpointId, out var todaySlots) ? todaySlots : [],
-                breachDict.TryGetValue(c.CheckpointId, out var breaches) ? breaches : [],
-                c.Category, c.SystemName, c.SystemCode, c.Location, c.SamplingPointCode, c.LifecycleStatus, c.ScheduledDate,
-                c.FrequencyType, c.FrequencyConfig,
-                c.Assignments.Select(a => a.Username).ToList(),
-                rev?.Status,
-                rev?.ReviewedBy);
-        }).ToList();
+        return list.Select(c => new CheckpointDto(
+            c.CheckpointId, c.CheckpointCode, c.TriggerMode.ToString(),
+            c.CheckpointType, c.ShiftIntervalHrs, c.IsActive, c.Locations.Count,
+            c.TimeSlots,
+            c.CheckpointParameters
+                .Where(cp => cp.Parameter != null)
+                .Select(cp => new CheckpointParameterDto(
+                cp.Parameter.ParameterId, cp.Parameter.ParameterName,
+                cp.Parameter.ParameterCode, cp.Parameter.Uom,
+                cp.Parameter.DataType.ToString(),
+                cp.AlertMin, cp.AlertMax, cp.ActionMin, cp.ActionMax)).ToList(),
+            executedDict.TryGetValue(c.CheckpointId, out var todaySlots) ? todaySlots : [],
+            breachDict.TryGetValue(c.CheckpointId, out var breaches) ? breaches : [],
+            c.Category, c.SystemName, c.SystemCode, c.Location, c.SamplingPointCode, c.LifecycleStatus, c.ScheduledDate,
+            c.FrequencyType, c.FrequencyConfig,
+            c.Assignments.Select(a => a.Username).ToList(),
+            rowIdDict.TryGetValue(c.CheckpointId, out var rowIds) ? rowIds : [],
+            qaStatusDict.TryGetValue(c.CheckpointId, out var qaStatuses) ? qaStatuses : []))
+            .ToList();
     }
 
     private static bool IsActiveOnDate(Checkpoint c, DateOnly date)

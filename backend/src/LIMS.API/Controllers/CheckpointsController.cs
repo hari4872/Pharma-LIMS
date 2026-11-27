@@ -175,16 +175,15 @@ public class CheckpointsController : LimsControllerBase
         return Ok(new { rowId = result.Value, status = "Executed" });
     }
 
-    // POST api/v1/checkpoints/{id}/review -- QA daily review with e-signature (FR-QA-01)
-    [HttpPost("{id:int}/review")]
+    // POST api/v1/checkpoints/{id}/execute/{rowId}/qa-review -- QA slot-level review (FR-QA-02)
+    [HttpPost("{id:int}/execute/{rowId:int}/qa-review")]
     [Authorize(Roles = "Admin,QA")]
-    public async Task<IActionResult> ReviewDay(int id, [FromBody] ReviewCheckpointDayRequest request)
+    public async Task<IActionResult> QaReviewSlot(int id, int rowId, [FromBody] QaReviewSlotRequest request)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
         var username = User.Identity?.Name ?? "Unknown";
-        DateOnly reviewDate = request.ReviewDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
-        var result = await _mediator.Send(new ReviewCheckpointDayCommand(
-            id, reviewDate, request.Status, request.Comments,
+        var result = await _mediator.Send(new QaReviewSlotCommand(
+            id, rowId, request.Status, request.Comments,
             userId, username, request.Password, request.Meaning, request.Reason));
         if (!result.IsSuccess)
         {
@@ -193,7 +192,7 @@ public class CheckpointsController : LimsControllerBase
             return result.ErrorCode == "NOT_FOUND" ? NotFound()
                 : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
         }
-        return Ok(new { reviewId = result.Value, status = request.Status });
+        return Ok(new { rowId = result.Value, status = request.Status });
     }
 
     // GET api/v1/checkpoints/process-log?date=2026-05-28 -- ALL checkpoints, for Digital Logbook tab
@@ -252,4 +251,4 @@ public record TriggerCheckpointRequest(string? DeliveryOrder = null, bool IsOffl
 public record ReadingRequest(int ParameterId, string Value);
 public record SignProcessLogRequest(string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null);
 public record ExecuteTimeBasedRequest(string SlotLabel, string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null, int? SampleId = null);
-public record ReviewCheckpointDayRequest(string Status, string Password, string Meaning, string? Comments = null, string? Reason = null, DateOnly? ReviewDate = null);
+public record QaReviewSlotRequest(string Status, string Password, string Meaning, string? Comments = null, string? Reason = null);

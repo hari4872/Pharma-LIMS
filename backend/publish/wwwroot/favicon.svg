@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Background -->
+  <rect width="32" height="32" rx="6" fill="#0f172a"/>
+  <!-- W mark — two columns of stacked rectangles -->
+  <rect x="3"  y="3"  width="5" height="9" rx="1" fill="white" opacity="0.95"/>
+  <rect x="3"  y="14" width="5" height="9" rx="1" fill="white" opacity="0.95"/>
+  <rect x="10" y="3"  width="5" height="9" rx="1" fill="white" opacity="0.95"/>
+  <rect x="10" y="14" width="5" height="9" rx="1" fill="white" opacity="0.95"/>
+  <!-- Orange diagonal band — WebSynergies signature stripe -->
+  <path d="M0 19 L32 9 L32 21 L0 31 Z" fill="#e36b1e"/>
+  <!-- Circular target on right -->
+  <circle cx="25" cy="14" r="6"   stroke="rgba(255,255,255,0.18)" stroke-width="1" fill="none"/>
+  <circle cx="25" cy="14" r="3.5" stroke="rgba(255,255,255,0.18)" stroke-width="1" fill="none"/>
+  <circle cx="25" cy="14" r="1.5" fill="rgba(255,255,255,0.30)"/>
+</svg>

@@ -187,6 +187,15 @@ public class LimsDbContext : DbContext, ILimsDbContext
             e.Property(x => x.UpdatedBy).IsRequired().HasMaxLength(100);
         });
 
+        // ProcessLogRow — QA slot-level review fields
+        modelBuilder.Entity<ProcessLogRow>(e =>
+        {
+            e.Property(r => r.QaStatus).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
+            e.Property(r => r.QaReviewedBy).HasMaxLength(100);
+            e.HasOne(r => r.QaSignature).WithMany()
+                .HasForeignKey(r => r.QaSignatureId).OnDelete(DeleteBehavior.SetNull);
+        });
+
         // ProcessLogReading — parameter values recorded when a process log row is signed
         modelBuilder.Entity<Domain.Entities.ProcessLogReading>(e =>
         {
