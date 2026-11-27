@@ -43,6 +43,7 @@ public class LimsDbContext : DbContext, ILimsDbContext
     public DbSet<ProcessLogReading> ProcessLogReadings => Set<ProcessLogReading>();
     public DbSet<CheckpointParameter> CheckpointParameters => Set<CheckpointParameter>();
     public DbSet<CheckpointAssignment> CheckpointAssignments => Set<CheckpointAssignment>();
+    public DbSet<CheckpointDailyReview> CheckpointDailyReviews => Set<CheckpointDailyReview>();
     // Phase 2 join tables
     public DbSet<SampleCheckpoint> SampleCheckpoints => Set<SampleCheckpoint>();
     public DbSet<SampleFormEntry> SampleFormEntries => Set<SampleFormEntry>();
@@ -119,6 +120,21 @@ public class LimsDbContext : DbContext, ILimsDbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(LimsDbContext).Assembly);
+
+        // CheckpointDailyReview
+        modelBuilder.Entity<CheckpointDailyReview>(e =>
+        {
+            e.ToTable("checkpoint_daily_reviews");
+            e.HasKey(x => x.CheckpointDailyReviewId);
+            e.Property(x => x.Status).IsRequired().HasMaxLength(20);
+            e.Property(x => x.ReviewedBy).IsRequired().HasMaxLength(100);
+            e.Property(x => x.Comments).HasMaxLength(1000);
+            e.HasOne(x => x.Checkpoint).WithMany(c => c.DailyReviews)
+                .HasForeignKey(x => x.CheckpointId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Signature).WithMany()
+                .HasForeignKey(x => x.SignatureId).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(x => new { x.CheckpointId, x.ReviewDate });
+        });
 
         // CheckpointAssignment
         modelBuilder.Entity<CheckpointAssignment>(e =>

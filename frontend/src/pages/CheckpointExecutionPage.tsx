@@ -1,4 +1,6 @@
 ﻿import { useEffect, useState, useMemo } from 'react'
+import { useSelector } from 'react-redux'
+import type { RootState } from '@/store'
 import api from '@/api/client'
 import { getErrorMessage } from '@/utils/errors'
 import { inp, Field } from './master-data/LaboratoriesPage'
@@ -59,6 +61,8 @@ interface Checkpoint {
   systemName:           string | null
   location?:            string | null
   scheduledDate:        string | null
+  reviewStatus?:        string | null
+  reviewedBy?:          string | null
 }
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -131,6 +135,7 @@ export default function CheckpointExecutionPage() {
   const [checkpoints, setCheckpoints]   = useState<Checkpoint[]>([])
   const [loading, setLoading]           = useState(false)
   const [category, setCategory]         = useState<'all' | 'em' | 'batch'>('all')
+  const role = useSelector((state: RootState) => state.auth.role ?? '')
 
   // Execute drawer state
   const [execFor, setExecFor]           = useState<{ checkpoint: Checkpoint; slotLabel: string } | null>(null)
@@ -140,6 +145,13 @@ export default function CheckpointExecutionPage() {
   const [execError, setExecError]       = useState('')
   const [execSamples, setExecSamples]   = useState<{ sampleId: number; sampleNumber: string; materialName: string; lotNumber: string }[]>([])
   const [execSampleId, setExecSampleId] = useState<number | null>(null)
+
+  // Review drawer state (QA/Admin only)
+  const [reviewFor, setReviewFor]       = useState<Checkpoint | null>(null)
+  const [reviewForm, setReviewForm]     = useState({ password: '', meaning: 'QA review completed — 21 CFR Part 11', comments: '' })
+  const [reviewSaving, setReviewSaving] = useState(false)
+  const [reviewError, setReviewError]   = useState('')
+  const isReviewer = role === 'Admin' || role === 'QA'
 
   const weekDays = useMemo(() => getWeekDays(viewDate), [viewDate])
 
@@ -210,6 +222,33 @@ export default function CheckpointExecutionPage() {
       setExecError(msg); toast(msg, 'error')
     }
     finally { setExecSaving(false) }
+  }
+
+  function openReview(cp: Checkpoint) {
+    setReviewFor(cp)
+    setReviewForm({ password: '', meaning: 'QA review completed — 21 CFR Part 11', comments: '' })
+    setReviewError('')
+  }
+
+  async function handleReview(e: React.MouseEvent<HTMLButtonElement>, status: 'Approved' | 'Rejected') {
+    e.preventDefault()
+    if (!reviewFor) return
+    setReviewSaving(true); setReviewError('')
+    try {
+      await api.post(`/checkpoints/${reviewFor.checkpointId}/review`, {
+        status,
+        password:   reviewForm.password,
+        meaning:    reviewForm.meaning,
+        comments:   reviewForm.comments || null,
+        reviewDate: viewDate,
+      })
+      toast(`${reviewFor.checkpointCode} ${status === 'Approved' ? 'approved ✓' : 'rejected'}`, status === 'Approved' ? 'success' : 'error')
+      setReviewFor(null)
+      load()
+    } catch (err) {
+      const msg = getErrorMessage(err, 'Review failed')
+      setReviewError(msg); toast(msg, 'error')
+    } finally { setReviewSaving(false) }
   }
 
   // Summary stats
@@ -358,6 +397,15 @@ export default function CheckpointExecutionPage() {
                     {slot}
                   </th>
                 ))}
+                {isReviewer && (
+                  <th style={{
+                    padding: '12px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700,
+                    color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em',
+                    borderBottom: '2px solid #e5e7eb', minWidth: 120,
+                  }}>
+                    QA Review
+                  </th>
+                )}
                 <th style={{
                   padding: '12px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700,
                   color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -438,6 +486,31 @@ export default function CheckpointExecutionPage() {
                       )
                     })}
 
+                    {/* QA Review */}
+                    {isReviewer && (
+                      <td style={{ padding: '10px 10px', textAlign: 'center', verticalAlign: 'middle' }}>
+                        {cp.reviewStatus === 'Approved' ? (
+                          <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7', whiteSpace: 'nowrap' }}>
+                            ✓ Approved
+                          </span>
+                        ) : cp.reviewStatus === 'Rejected' ? (
+                          <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5', whiteSpace: 'nowrap' }}>
+                            ✗ Rejected
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => openReview(cp)}
+                            style={{
+                              padding: '4px 12px', borderRadius: 8, border: '1px solid #534AB7',
+                              background: '#EEEDFE', color: '#3C3489', fontSize: 11, fontWeight: 600,
+                              cursor: 'pointer', whiteSpace: 'nowrap',
+                            }}>
+                            Review
+                          </button>
+                        )}
+                      </td>
+                    )}
+
                     {/* Progress */}
                     <td style={{ padding: '10px 10px', textAlign: 'center' }}>
                       <span style={{
@@ -490,6 +563,106 @@ export default function CheckpointExecutionPage() {
           )
         })}
       </div>
+
+      {/* ── Review drawer (QA/Admin) ──────────────────────────────────────── */}
+      {reviewFor && (
+        <Drawer
+          title={`QA Review — ${reviewFor.checkpointCode}`}
+          subtitle={`${viewDate} · 21 CFR Part 11 e-signature required`}
+          onClose={() => setReviewFor(null)}
+          blocking width={460}
+        >
+          {/* Executed slots summary */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 8 }}>Executed slots</div>
+            {reviewFor.executedTodaySlots.length === 0 ? (
+              <p style={{ fontSize: 12, color: '#dc2626', margin: 0 }}>No slots executed on this date.</p>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {parseSlots(reviewFor.timeSlots).map(slot => {
+                  const done   = reviewFor.executedTodaySlots.includes(slot)
+                  const breach = reviewFor.executedSlotBreaches?.[slot]
+                  return (
+                    <span key={slot} style={{
+                      padding: '3px 10px', borderRadius: 12, fontSize: 11, fontFamily: 'monospace', fontWeight: 700,
+                      background: !done ? '#fef2f2' : breach === 'action' ? '#fef2f2' : breach === 'alert' ? '#fffbeb' : '#d1fae5',
+                      color:      !done ? '#991b1b' : breach === 'action' ? '#991b1b' : breach === 'alert' ? '#92400e' : '#065f46',
+                      border: `1px solid ${!done ? '#fca5a5' : breach === 'action' ? '#fca5a5' : breach === 'alert' ? '#fcd34d' : '#6ee7b7'}`,
+                    }}>
+                      {slot} {!done ? '— missed' : breach === 'action' ? '— action!' : breach === 'alert' ? '— alert' : '✓'}
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Breach warning */}
+          {Object.values(reviewFor.executedSlotBreaches ?? {}).some(b => b === 'action') && (
+            <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#991b1b' }}>
+              ⚠ Action limit breached — a deviation / CAPA must be opened.
+            </div>
+          )}
+
+          {/* Comments */}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+              Comments <span style={{ fontWeight: 400, color: '#9ca3af' }}>(optional)</span>
+            </label>
+            <textarea
+              style={{ ...inp, width: '100%', boxSizing: 'border-box', minHeight: 60, resize: 'vertical' }}
+              value={reviewForm.comments}
+              onChange={e => setReviewForm(f => ({ ...f, comments: e.target.value }))}
+              placeholder="QA review remarks…"
+            />
+          </div>
+
+          {/* E-signature */}
+          <Field label="Meaning">
+            <input style={inp} value={reviewForm.meaning} onChange={e => setReviewForm(f => ({ ...f, meaning: e.target.value }))} />
+          </Field>
+          <Field label="Password (e-signature)">
+            <input type="password" style={inp} value={reviewForm.password}
+              onChange={e => setReviewForm(f => ({ ...f, password: e.target.value }))}
+              placeholder="Your login password" autoFocus />
+          </Field>
+
+          {reviewError && <p style={{ fontSize: 12, color: '#dc2626', margin: '6px 0 0' }}>⚠ {reviewError}</p>}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 24, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
+            <button
+              type="button"
+              onClick={() => setReviewFor(null)}
+              style={{ padding: '9px 20px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={e => handleReview(e, 'Rejected')}
+              disabled={reviewSaving || !reviewForm.password}
+              style={{
+                flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #fca5a5',
+                background: '#fef2f2', color: '#991b1b', fontSize: 13, fontWeight: 700,
+                cursor: reviewSaving || !reviewForm.password ? 'not-allowed' : 'pointer',
+                opacity: reviewSaving || !reviewForm.password ? 0.6 : 1,
+              }}>
+              ✗ Reject
+            </button>
+            <button
+              type="button"
+              onClick={e => handleReview(e, 'Approved')}
+              disabled={reviewSaving || !reviewForm.password}
+              style={{
+                flex: 2, padding: '10px', borderRadius: 8, border: 'none',
+                background: reviewSaving || !reviewForm.password ? '#9ca3af' : '#16a34a',
+                color: '#fff', fontSize: 13, fontWeight: 700,
+                cursor: reviewSaving || !reviewForm.password ? 'not-allowed' : 'pointer',
+              }}>
+              {reviewSaving ? 'Saving…' : '✓ Approve'}
+            </button>
+          </div>
+        </Drawer>
+      )}
 
       {/* ── Execute drawer ────────────────────────────────────────────────── */}
       {execFor && (

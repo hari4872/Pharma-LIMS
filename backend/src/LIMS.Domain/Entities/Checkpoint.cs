@@ -37,6 +37,7 @@ public class Checkpoint
     public ICollection<ProcessLogRow> ProcessLogRows { get; set; } = [];
     public ICollection<CheckpointParameter> CheckpointParameters { get; set; } = [];
     public ICollection<CheckpointAssignment> Assignments { get; set; } = [];
+    public ICollection<CheckpointDailyReview> DailyReviews { get; set; } = [];
 }
 
 // Links parameters to checkpoints with optional two-tier alert/action limits (LabVantage parity)
@@ -108,6 +109,21 @@ public class CheckpointAssignment
     public Checkpoint Checkpoint { get; set; } = default!;
     public string Username { get; set; } = default!;
     public string? FullName { get; set; }
+}
+
+// QA daily review — per checkpoint per date, e-signed
+public class CheckpointDailyReview
+{
+    public int CheckpointDailyReviewId { get; set; }
+    public int CheckpointId { get; set; }
+    public Checkpoint Checkpoint { get; set; } = default!;
+    public DateOnly ReviewDate { get; set; }
+    public string Status { get; set; } = "Approved";   // "Approved" | "Rejected"
+    public string? Comments { get; set; }
+    public string ReviewedBy { get; set; } = default!;
+    public DateTimeOffset ReviewedAt { get; set; }
+    public int? SignatureId { get; set; }
+    public ElectronicSignature? Signature { get; set; }
 }
 
 // Parameter readings recorded when a process log row is signed

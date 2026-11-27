@@ -175,6 +175,27 @@ public class CheckpointsController : LimsControllerBase
         return Ok(new { rowId = result.Value, status = "Executed" });
     }
 
+    // POST api/v1/checkpoints/{id}/review -- QA daily review with e-signature (FR-QA-01)
+    [HttpPost("{id:int}/review")]
+    [Authorize(Roles = "Admin,QA")]
+    public async Task<IActionResult> ReviewDay(int id, [FromBody] ReviewCheckpointDayRequest request)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized(new { error = "Invalid token claims." });
+        var username = User.Identity?.Name ?? "Unknown";
+        DateOnly reviewDate = request.ReviewDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var result = await _mediator.Send(new ReviewCheckpointDayCommand(
+            id, reviewDate, request.Status, request.Comments,
+            userId, username, request.Password, request.Meaning, request.Reason));
+        if (!result.IsSuccess)
+        {
+            if (result.ErrorCode == "ESIGN_AUTH_FAILED")
+                return Unauthorized(new { error = result.ErrorCode, message = result.ErrorMessage });
+            return result.ErrorCode == "NOT_FOUND" ? NotFound()
+                : BadRequest(new { error = result.ErrorCode, message = result.ErrorMessage });
+        }
+        return Ok(new { reviewId = result.Value, status = request.Status });
+    }
+
     // GET api/v1/checkpoints/process-log?date=2026-05-28 -- ALL checkpoints, for Digital Logbook tab
     [HttpGet("process-log")]
     public async Task<IActionResult> GetAllProcessLog([FromQuery] DateOnly? date)
@@ -231,3 +252,4 @@ public record TriggerCheckpointRequest(string? DeliveryOrder = null, bool IsOffl
 public record ReadingRequest(int ParameterId, string Value);
 public record SignProcessLogRequest(string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null);
 public record ExecuteTimeBasedRequest(string SlotLabel, string Password, string Meaning, string Reason, List<ReadingRequest>? Readings = null, int? SampleId = null);
+public record ReviewCheckpointDayRequest(string Status, string Password, string Meaning, string? Comments = null, string? Reason = null, DateOnly? ReviewDate = null);
