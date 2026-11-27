@@ -538,7 +538,6 @@ export default function CheckpointsPage() {
       if (frequencyType === 'Daily') {
         timeSlots = selectedSlots.length > 0 ? JSON.stringify(selectedSlots.sort()) : null
       } else if (frequencyType === 'Weekly') {
-        const dom = monthlyStartDate ? new Date(monthlyStartDate).getDate() : null
         freqConfig = { days: weeklyDays, time: weeklyTime }
         timeSlots = JSON.stringify([weeklyTime])
       } else if (frequencyType === 'Monthly') {
